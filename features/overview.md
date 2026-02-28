@@ -20,7 +20,8 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Alerting](alerting.md) | OSS | Shipped | Userspace | Circuit breaker, dedup, routing to email/webhook/log |
 | [Audit Trail](audit.md) | OSS | Shipped | Userspace | Rule change history, retention policies |
 | [Authentication](authentication.md) | OSS | Shipped | Userspace | JWT (RS256), OIDC (JWKS), API keys, RBAC |
-| [IPv6 & VLAN](ipv6-vlan.md) | OSS | Shipped | All programs | Dual-stack, 802.1Q VLAN filtering and quarantine tagging |
+| [IPv6](ipv6.md) | OSS | Shipped | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
+| [VLAN 802.1Q](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering and quarantine tagging |
 
 ### Infrastructure
 
