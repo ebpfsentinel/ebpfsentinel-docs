@@ -23,7 +23,7 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 
 | Feature | Min Kernel | Used By | Reference |
 |---------|-----------|---------|-----------|
-| [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.1+ | xdp-firewall | Checksum difference computation |
+| [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.6+ | xdp-firewall | Checksum difference computation |
 | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 4.1+ | tc-nat-*, tc-scrub | IP header checksum update |
 | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | 4.1+ | tc-nat-* | TCP/UDP checksum update |
 | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/) | 4.1+ | tc-nat-*, tc-conntrack | Packet byte rewriting |
@@ -39,11 +39,11 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | FIB routing enrichment |
 | [`bpf_sk_lookup_tcp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_tcp/) | 4.20+ | tc-conntrack | Socket lookup for process attribution |
 | [`bpf_sk_lookup_udp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_udp/) | 4.20+ | tc-conntrack | UDP socket lookup |
-| [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.7+ | xdp-ratelimit, tc-conntrack | Suspend-aware timestamps |
+| [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | xdp-ratelimit, tc-conntrack | Suspend-aware timestamps |
 | [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | All programs | Ring buffer event emission |
 | [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | All programs | Ring buffer event submission |
 | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | tc-ids, tc-threatintel | Adaptive backpressure |
-| [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) | 5.10+ | xdp-ratelimit | SYN flood mitigation |
+| [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) | 5.3+ | xdp-ratelimit | SYN flood mitigation |
 | [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall | MTU validation before redirect |
 | [`bpf_for_each_map_elem`](https://docs.ebpf.io/linux/helper-function/bpf_for_each_map_elem/) | 5.13+ | xdp-ratelimit | Kernel-side map iteration |
 | [`bpf_timer_init`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/) | 5.15+ | xdp-ratelimit | Timer-based bucket expiration |
