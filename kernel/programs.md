@@ -129,7 +129,7 @@ Timestamps use [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-funct
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-conntrack/`
 
-Full stateful connection tracking with a 9-state TCP state machine:
+Full stateful connection tracking with a 9-state TCP state machine. Supports both IPv4 (`ConnValue`) and IPv6 (`ConnValueV6` with 128-bit NAT addresses):
 
 ```
 SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → CLOSE_WAIT → TIME_WAIT → [expired]
@@ -158,10 +158,11 @@ Packet normalization running after XDP. Configuration via `SCRUB_CONFIG` [`PERCP
 
 | Normalization | Helper | Description |
 |--------------|--------|-------------|
-| TTL normalization | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Raise TTL to configured minimum |
-| MSS clamping | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | Scan TCP SYN options, rewrite if exceeding max_mss |
-| DF bit clearing | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Clear Don't Fragment flag |
-| IP ID randomization | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Set `ip.id` to random value (prevents fingerprinting) |
+| TTL normalization | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Raise TTL to configured minimum (IPv4) |
+| Hop limit normalization | direct byte write | Raise hop limit to configured minimum (IPv6, no header checksum) |
+| MSS clamping | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | Scan TCP SYN options, rewrite if exceeding max_mss (IPv4/IPv6) |
+| DF bit clearing | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Clear Don't Fragment flag (IPv4 only) |
+| IP ID randomization | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Set `ip.id` to random value (IPv4 only, prevents fingerprinting) |
 
 ---
 
@@ -169,12 +170,14 @@ Packet normalization running after XDP. Configuration via `SCRUB_CONFIG` [`PERCP
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-nat-ingress/`
 
-Destination NAT for incoming packets:
+Destination NAT for incoming packets (IPv4 and IPv6):
 
 - **DNAT**: rewrite destination IP/port for port forwarding and 1:1 NAT
 - **Redirect**: rewrite destination to local address
 - Packet rewriting via [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/)
-- Checksum updates via [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) / [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/)
+- IPv4: checksum updates via [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) + [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/)
+- IPv6: L4 pseudo-header checksum update only (4-word loop, no IP header checksum in IPv6)
+- `NatRuleEntryV6` with `[u32; 4]` address/mask fields for IPv6 rule matching
 - Conntrack integration: writes NAT mapping for stateful return path
 
 ---
@@ -183,13 +186,13 @@ Destination NAT for incoming packets:
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (egress) | **Path:** `crates/ebpf-programs/tc-nat-egress/`
 
-Source NAT for outgoing packets:
+Source NAT for outgoing packets (IPv4 and IPv6):
 
 - **SNAT**: static source IP rewrite
 - **Masquerade**: dynamic source rewrite to outgoing interface address
-- **Port allocation**: hash-based ephemeral port selection
+- **Port allocation**: hash-based ephemeral port selection (IPv6 uses XOR-fold of `[u32; 4]` to `u32`)
 - Reverse mapping lookup from conntrack entries
-- Same checksum helpers as tc-nat-ingress
+- Same checksum strategy as tc-nat-ingress (L3+L4 for IPv4, L4-only for IPv6)
 
 ---
 

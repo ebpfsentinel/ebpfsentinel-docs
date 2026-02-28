@@ -1,5 +1,7 @@
 # Kubernetes Deployment
 
+> DaemonSet mode supports all features. Add `hostPID: true` for full DLP coverage. See the [deployment compatibility matrix](../../features/deployment-matrix.md) for details.
+
 Deploy eBPFsentinel as a DaemonSet — one agent per node.
 
 ## DaemonSet

@@ -24,7 +24,7 @@ eBPFsentinel provides 10 security domains in a single agent binary:
 ## Key Capabilities
 
 - **IPv6 + VLAN 802.1Q** dual-stack across all eBPF programs and engines
-- **6 eBPF programs** — XDP firewall, XDP rate limiter, TC IDS, TC threat intel, TC DNS, uprobe DLP
+- **10 eBPF programs** — XDP firewall, XDP rate limiter, TC conntrack, TC NAT ingress/egress, TC scrub, TC IDS, TC threat intel, TC DNS, uprobe DLP
 - **XDP tail-call chaining** — firewall → rate limiter in a single attach point
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
 - **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 23 endpoints

@@ -31,7 +31,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
 | TLS 1.3 | OSS | Shipped | rustls with aws-lc backend |
 | Hot Reload | OSS | Shipped | SIGHUP, file watcher, or REST API trigger |
-| CLI (9 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
+| CLI (10 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise (Planned)
@@ -51,6 +51,10 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Advanced Analytics](enterprise/analytics.md) | Planned | Traffic analytics, trend analysis |
 | [Advanced RBAC](enterprise/advanced-rbac.md) | Planned | Fine-grained per-resource permissions |
 
+## Deployment Compatibility
+
+Not all features work in every deployment mode. See the [deployment compatibility matrix](deployment-matrix.md) for per-feature support across bare metal, container, Kubernetes DaemonSet, and sidecar deployments.
+
 ## eBPF Program Map
 
 Ten kernel programs cover all enforcement points:
@@ -59,10 +63,10 @@ Ten kernel programs cover all enforcement points:
 |---------|------|----------|
 | `xdp-firewall` | XDP | 5-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, policy routing, DEVMAP/CPUMAP, FIB lookup, tail-call to rate limiter |
 | `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance |
-| `tc-conntrack` | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking, GC |
-| `tc-scrub` | TC classifier | TTL normalization, MSS clamping, DF clearing, IP ID randomization |
-| `tc-nat-ingress` | TC ingress | Destination NAT (DNAT), port mapping, checksum updates |
-| `tc-nat-egress` | TC egress | Source NAT (SNAT), reverse mapping, checksum updates |
+| `tc-conntrack` | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking, IPv4/IPv6 |
+| `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
+| `tc-nat-ingress` | TC ingress | Destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6 |
+| `tc-nat-egress` | TC egress | Source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6 |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure |
 | `tc-threatintel` | TC classifier | Bloom filter pre-check, VLAN quarantine, backpressure |
 | `tc-dns` | TC classifier | Passive DNS capture |

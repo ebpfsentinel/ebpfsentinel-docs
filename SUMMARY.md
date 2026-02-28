@@ -25,6 +25,7 @@
 - [Audit Trail](features/audit.md)
 - [Authentication](features/authentication.md)
 - [IPv6 & VLAN Support](features/ipv6-vlan.md)
+- [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)
   - [Dashboard UI](features/enterprise/dashboard.md)
   - [Kubernetes Operator](features/enterprise/kubernetes-operator.md)

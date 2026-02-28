@@ -10,9 +10,12 @@ eBPFsentinel provides full dual-stack IPv4/IPv6 support and 802.1Q VLAN filterin
 
 ### eBPF Programs
 
-All eBPF programs parse both IPv4 and IPv6 headers natively:
+All 10 eBPF programs parse both IPv4 and IPv6 headers natively:
 
 - **Firewall** — separate LPM trie maps for IPv4 and IPv6 (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`)
+- **Conntrack** — `ConnKeyV6` / `ConnValueV6` with 128-bit NAT addresses, shared LRU map between programs
+- **NAT Ingress/Egress** — `NatRuleEntryV6` with per-word mask matching, L4 pseudo-header checksum updates (no `bpf_l3_csum_replace` needed for IPv6)
+- **Scrub** — hop limit normalization (IPv6 equivalent of TTL), MSS clamping (reused from IPv4 path)
 - **Threat Intel** — separate V6 maps for IOC lookups
 - **Rate Limiting** — IPv6 addresses are XOR-folded to `u32` for per-CPU hash map keys
 - **IDS** — port-only keys (IP version agnostic)

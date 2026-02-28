@@ -1,5 +1,7 @@
 # Docker Deployment
 
+> Most features are fully supported with `--privileged --network host`. DLP requires `--pid=host` for full process visibility. See the [deployment compatibility matrix](../../features/deployment-matrix.md) for details.
+
 ## Build
 
 ```bash

@@ -1,5 +1,7 @@
 # Binary Deployment
 
+> All features are fully supported in binary deployment. See the [deployment compatibility matrix](../../features/deployment-matrix.md) for comparison with other modes.
+
 ## Build
 
 ```bash
