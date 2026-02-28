@@ -217,16 +217,18 @@ Anti-lockout rules are marked as `system: true` and cannot be deleted via the AP
 
 A dedicated TC program normalizes packets after XDP processing:
 
-- **TTL normalization**: Raise TTL to a minimum value
-- **MSS clamping**: Clamp TCP MSS option on SYN packets (prevents fragmentation)
-- **DF bit clearing**: Clear the Don't Fragment flag
-- **IP ID randomization**: Randomize the IP identification field
+- **TTL normalization**: Raise TTL to a minimum value (IPv4)
+- **Hop limit normalization**: Raise hop limit to a minimum value (IPv6, no checksum update needed)
+- **MSS clamping**: Clamp TCP MSS option on SYN packets (IPv4/IPv6)
+- **DF bit clearing**: Clear the Don't Fragment flag (IPv4 only)
+- **IP ID randomization**: Randomize the IP identification field (IPv4 only)
 
 ```yaml
 firewall:
   scrub:
     enabled: true
     min_ttl: 64
+    min_hop_limit: 64
     max_mss: 1440
     clear_df: true
     random_ip_id: true
@@ -294,6 +296,7 @@ firewall:
     enabled: true
     max_mss: 1440
     min_ttl: 64
+    min_hop_limit: 64
   rules:
     - id: allow-established
       priority: 1
