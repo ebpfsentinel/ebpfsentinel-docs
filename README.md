@@ -33,7 +33,7 @@ eBPFsentinel provides 10 security domains in a single agent binary:
 - **TLS 1.3** via rustls for both REST and gRPC
 - **Prometheus metrics** with per-domain counters, histograms, and gauges
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 9 domain subcommands and table/JSON output
+- **CLI** with 10 domain subcommands and table/JSON output
 
 ## Who Is This For?
 

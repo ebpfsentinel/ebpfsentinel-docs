@@ -6,35 +6,35 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
 
 ```
                     ┌─────────────────────────────┐
-                    │          NIC (driver)        │
+                    │          NIC (driver)       │
                     └──────────────┬──────────────┘
                                    │
-                    ╔══════════════╧══════════════╗
-                    ║     XDP Hook (earliest)      ║
-                    ╠═════════════════════════════╣
-                    ║                              ║
-                    ║  ┌────────────────────────┐  ║
-                    ║  │    xdp-firewall         │  ║
-                    ║  │                          │  ║
-                    ║  │  1. Conntrack fast-path  │  ║
-                    ║  │  2. LPM trie lookup      │  ║
-                    ║  │  3. Linear rule scan     │  ║
-                    ║  │  4. Connection limits     │  ║
-                    ║  │  5. Routing actions       │  ║
-                    ║  └──────┬────────┬─────────┘  ║
-                    ║         │        │             ║
-                    ║    XDP_DROP   tail_call        ║
-                    ║    [end]      (PROG_ARRAY)     ║
-                    ║              │                  ║
-                    ║  ┌───────────▼──────────────┐  ║
-                    ║  │    xdp-ratelimit          │  ║
-                    ║  │                            │  ║
-                    ║  │  • Per-IP rate check       │  ║
-                    ║  │  • SYN cookie protection   │  ║
-                    ║  │  • ICMP rate limiting      │  ║
-                    ║  │  • UDP amp detection       │  ║
-                    ║  └──────┬────────┬───────────┘  ║
-                    ║         │        │               ║
+                    ╔══════════════╧════════════════════╗
+                    ║     XDP Hook (earliest)           ║
+                    ╠═══════════════════════════════════╣
+                    ║                                   ║
+                    ║  ┌──────────────────────────┐     ║
+                    ║  │    xdp-firewall          │     ║
+                    ║  │                          │     ║
+                    ║  │  1. Conntrack fast-path  │     ║
+                    ║  │  2. LPM trie lookup      │     ║
+                    ║  │  3. Linear rule scan     │     ║
+                    ║  │  4. Connection limits    │     ║
+                    ║  │  5. Routing actions      │     ║
+                    ║  └──────┬────────┬──────────┘     ║
+                    ║         │        │                ║
+                    ║    XDP_DROP   tail_call           ║
+                    ║    [end]      (PROG_ARRAY)        ║
+                    ║              │                    ║
+                    ║  ┌───────────▼──────────────┐     ║
+                    ║  │    xdp-ratelimit          │    ║
+                    ║  │                           │    ║
+                    ║  │  • Per-IP rate check      │    ║
+                    ║  │  • SYN cookie protection  │    ║
+                    ║  │  • ICMP rate limiting     │    ║
+                    ║  │  • UDP amp detection      │    ║
+                    ║  └──────┬────────┬───────────┘    ║
+                    ║         │        │                ║
                     ║    XDP_DROP   XDP_PASS            ║
                     ║    [end]      + metadata          ║
                     ║              (bpf_xdp_adjust_meta)║
@@ -45,10 +45,10 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
                     │    (SKB allocation)          │
                     └──────────────┬──────────────┘
                                    │
-                    ╔══════════════╧══════════════╗
-                    ║    TC Hook (classifier)      ║
-                    ╠═════════════════════════════╣
-                    ║                              ║
+                    ╔══════════════╧════════════════╗
+                    ║    TC Hook (classifier)       ║
+                    ╠═══════════════════════════════╣
+                    ║                               ║
                     ║  tc-conntrack                 ║
                     ║    → TCP/UDP/ICMP state       ║
                     ║    → Bidirectional tracking   ║
@@ -70,8 +70,8 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
                     ║         │                     ║
                     ║  tc-dns                       ║
                     ║    → UDP:53 capture           ║
-                    ║                              ║
-                    ╚══════════════╤══════════════╝
+                    ║                               ║
+                    ╚══════════════╤════════════════╝
                                    │
                          RingBuf events ──→ Userspace
                                    │

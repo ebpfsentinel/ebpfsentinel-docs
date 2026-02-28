@@ -17,6 +17,7 @@ firewall:
     enabled: true
     max_mss: 1440
     min_ttl: 64
+    min_hop_limit: 64
     clear_df: true
     random_ip_id: true
   rules:
@@ -111,12 +112,13 @@ Anti-lockout rules are injected at priority 0 (highest precedence) and marked as
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable packet normalization |
-| `min_ttl` | `integer` | `0` | Raise TTL to this minimum value (0 = no change) |
-| `max_mss` | `integer` | `0` | Clamp TCP MSS on SYN packets (0 = no clamp) |
-| `clear_df` | `bool` | `false` | Clear the Don't Fragment flag |
-| `random_ip_id` | `bool` | `false` | Randomize IP identification field |
+| `min_ttl` | `integer` | `0` | Raise TTL to this minimum value (IPv4, 0 = no change) |
+| `min_hop_limit` | `integer` | `0` | Raise hop limit to this minimum value (IPv6, 0 = no change) |
+| `max_mss` | `integer` | `0` | Clamp TCP MSS on SYN packets (IPv4/IPv6, 0 = no clamp) |
+| `clear_df` | `bool` | `false` | Clear the Don't Fragment flag (IPv4 only) |
+| `random_ip_id` | `bool` | `false` | Randomize IP identification field (IPv4 only) |
 
-Scrub runs as a TC program (`tc-scrub`) after XDP processing.
+Scrub runs as a TC program (`tc-scrub`) after XDP processing. IPv4 uses `bpf_l3_csum_replace` for header checksum updates; IPv6 has no header checksum so hop limit changes require no checksum update.
 
 ## Limits
 
@@ -336,6 +338,7 @@ firewall:
     enabled: true
     max_mss: 1440
     min_ttl: 64
+    min_hop_limit: 64
     clear_df: true
     random_ip_id: true
 ```
