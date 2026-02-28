@@ -14,6 +14,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [DLP](dlp.md) | OSS | Shipped | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
 | [Rate Limiting](ratelimit.md) | OSS | Shipped | XDP | 5 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | Shipped | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
+| [L4 Load Balancer](loadbalancer.md) | OSS | Shipped | XDP | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn |
 | [Threat Intelligence](threatintel.md) | OSS | Shipped | TC classifier | OSINT feeds, Bloom filter, IOC correlation, VLAN quarantine |
 | [L7 Firewall](l7-firewall.md) | OSS | Shipped | Userspace | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB protocol-aware rules |
 | [DNS Intelligence](dns-intelligence.md) | OSS | Shipped | TC classifier | Passive DNS, domain blocklists, feed integration |
@@ -27,12 +28,12 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 
 | Feature | Edition | Status | Description |
 |---------|---------|--------|-------------|
-| REST API (27+ endpoints) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
+| REST API (32+ endpoints) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
 | gRPC Streaming | OSS | Shipped | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
 | TLS 1.3 | OSS | Shipped | rustls with aws-lc backend |
 | Hot Reload | OSS | Shipped | SIGHUP, file watcher, or REST API trigger |
-| CLI (10 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
+| CLI (11 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise (Planned)
@@ -58,12 +59,13 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 
 ## eBPF Program Map
 
-Ten kernel programs cover all enforcement points:
+Eleven kernel programs cover all enforcement points:
 
 | Program | Hook | Features |
 |---------|------|----------|
 | `xdp-firewall` | XDP | 5-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, policy routing, DEVMAP/CPUMAP, FIB lookup, tail-call to rate limiter |
 | `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance |
+| `xdp-loadbalancer` | XDP | L4 load balancing, backend selection, health-aware routing |
 | `tc-conntrack` | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
 | `tc-nat-ingress` | TC ingress | Destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6 |

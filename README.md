@@ -6,7 +6,7 @@ eBPFsentinel attaches eBPF programs at XDP, TC, and uprobe hook points to inspec
 
 ## What It Does
 
-eBPFsentinel provides 10 security domains in a single agent binary:
+eBPFsentinel provides 11 security domains in a single agent binary:
 
 | Domain | Description | Enforcement Point |
 |--------|------------|-------------------|
@@ -20,12 +20,13 @@ eBPFsentinel provides 10 security domains in a single agent binary:
 | **L7 Firewall** | Application-layer filtering for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB | Userspace |
 | **DNS Intelligence** | Passive DNS capture, domain blocklists, feed integration | TC classifier |
 | **Domain Reputation** | Behavioral scoring engine, auto-blocking, alert enrichment | Userspace |
+| **L4 Load Balancer** | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn | XDP |
 
 ## Key Capabilities
 
-- **IPv4/IPv6 dual-stack** across all 10 eBPF programs and userspace engines
+- **IPv4/IPv6 dual-stack** across all 11 eBPF programs and userspace engines
 - **VLAN 802.1Q** filtering and quarantine tagging
-- **10 eBPF programs** — XDP firewall, XDP rate limiter, TC conntrack, TC NAT ingress/egress, TC scrub, TC IDS, TC threat intel, TC DNS, uprobe DLP
+- **11 eBPF programs** — XDP firewall, XDP rate limiter, XDP load balancer, TC conntrack, TC NAT ingress/egress, TC scrub, TC IDS, TC threat intel, TC DNS, uprobe DLP
 - **XDP tail-call chaining** — firewall → rate limiter in a single attach point
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
 - **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 23 endpoints
@@ -34,7 +35,7 @@ eBPFsentinel provides 10 security domains in a single agent binary:
 - **TLS 1.3** via rustls for both REST and gRPC
 - **Prometheus metrics** with per-domain counters, histograms, and gauges
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 10 domain subcommands and table/JSON output
+- **CLI** with 11 domain subcommands and table/JSON output
 
 ## Who Is This For?
 

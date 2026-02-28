@@ -26,6 +26,7 @@ This page documents which features are fully supported, partially supported, or 
 | **Conntrack** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
 | **Rate Limiting** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
 | **DDoS Mitigation** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
+| **L4 Load Balancer** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
 | **Packet Scrubbing** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
 | **IDS/IPS** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
@@ -42,7 +43,7 @@ This page documents which features are fully supported, partially supported, or 
 
 ## Detailed Explanations
 
-### XDP/TC Programs (Firewall, NAT, Conntrack, Rate Limiting, DDoS, Scrub)
+### XDP/TC Programs (Firewall, NAT, Conntrack, Rate Limiting, DDoS, Load Balancer, Scrub)
 
 These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine.
 

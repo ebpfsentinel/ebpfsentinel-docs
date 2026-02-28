@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 10 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
+eBPFsentinel includes 11 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
 
 ## Programs
 
@@ -10,6 +10,7 @@ eBPFsentinel includes 10 eBPF kernel programs, all written in Rust using the [Ay
 |---------|------|-----------|---------|
 | `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering |
 | `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection |
+| `xdp-loadbalancer` | XDP | `crates/ebpf-programs/xdp-loadbalancer/` | L4 load balancing (TCP/UDP/TLS passthrough) |
 | `tc-conntrack` | TC classifier | `crates/ebpf-programs/tc-conntrack/` | Connection tracking (TCP/UDP/ICMP state machine) |
 | `tc-scrub` | TC classifier | `crates/ebpf-programs/tc-scrub/` | Packet normalization (TTL, MSS, DF, IP ID) |
 | `tc-nat-ingress` | TC ingress | `crates/ebpf-programs/tc-nat-ingress/` | DNAT (destination NAT, ingress direction) |

@@ -2,7 +2,7 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** — 10 eBPF programs attached at XDP, TC, and uprobe hook points
+1. **Kernel-space** — 11 eBPF programs attached at XDP, TC, and uprobe hook points
 2. **Userspace** — Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid

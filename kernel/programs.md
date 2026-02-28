@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 10 eBPF kernel programs.
+Detailed documentation for each of the 11 eBPF kernel programs.
 
 ## XDP Programs
 
@@ -120,6 +120,23 @@ Per-CPU maps eliminate lock contention: each CPU core maintains independent coun
 - No userspace intervention needed for housekeeping
 
 Timestamps use [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) — monotonic and suspend-aware (accurate after sleep/hibernate).
+
+---
+
+### xdp-loadbalancer
+
+**Hook:** [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | **Path:** `crates/ebpf-programs/xdp-loadbalancer/`
+
+L4 load balancing at XDP speed. Rewrites destination IP/port to the selected backend before the kernel allocates an SKB.
+
+| Feature | Description |
+|---------|-------------|
+| **Service lookup** | Maps incoming `(port, protocol)` to a service definition |
+| **Backend selection** | Round-robin index stored in eBPF map, updated per packet |
+| **Packet rewriting** | Destination IP/port rewrite with L3/L4 checksum fixup |
+| **Health awareness** | Backends marked unhealthy by userspace are skipped |
+
+Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). IPv4 and IPv6 packets are both handled with appropriate checksum strategies.
 
 ---
 

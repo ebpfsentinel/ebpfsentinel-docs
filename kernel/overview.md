@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel runs 10 eBPF programs in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. This section documents the kernel-side architecture in detail.
+eBPFsentinel runs 11 eBPF programs in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -10,7 +10,7 @@ eBPFsentinel hooks into three kernel subsystems:
 
 | Subsystem | Hook Point | Latency | Programs |
 |-----------|-----------|---------|----------|
-| [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | Driver receive path (before SKB allocation) | ~100 ns | `xdp-firewall`, `xdp-ratelimit` |
+| [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | Driver receive path (before SKB allocation) | ~100 ns | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer` |
 | [TC](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) | Traffic Control classifier (after SKB) | ~1 µs | `tc-conntrack`, `tc-nat-*`, `tc-scrub`, `tc-ids`, `tc-threatintel`, `tc-dns` |
 | [Uprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | Userspace function entry (SSL_write/read) | ~5 µs | `uprobe-dlp` |
 
@@ -28,6 +28,7 @@ eBPFsentinel hooks into three kernel subsystems:
 | 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP:53 identification, RingBuf emission |
 | 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
 | 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, IPv4/IPv6) | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
+| 11 | `xdp-loadbalancer` | XDP | L4 load balancing (TCP/UDP/TLS passthrough) | Destination IP/port rewrite, checksum fixup, health-aware backend selection |
 
 ## Ingress / Egress Pipeline
 

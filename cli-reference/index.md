@@ -203,6 +203,37 @@ ebpfsentinel-agent ddos add --json '{
 ebpfsentinel-agent ddos delete syn-block
 ```
 
+### lb
+
+L4 load balancer: services, backends, and health status.
+
+```bash
+# Load balancer status
+ebpfsentinel-agent lb status
+
+# List all services
+ebpfsentinel-agent lb services
+
+# View a specific service (backends, health, connections)
+ebpfsentinel-agent lb service lb-https
+
+# Add a service
+ebpfsentinel-agent lb add --json '{
+  "id": "lb-api",
+  "name": "api-pool",
+  "protocol": "tcp",
+  "listen_port": 8080,
+  "algorithm": "least_conn",
+  "backends": [
+    {"id": "api-1", "addr": "10.0.1.20", "port": 8080, "weight": 1},
+    {"id": "api-2", "addr": "10.0.1.21", "port": 8080, "weight": 1}
+  ]
+}'
+
+# Delete a service
+ebpfsentinel-agent lb delete lb-api
+```
+
 ### dns
 
 DNS intelligence data and cache management.

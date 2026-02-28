@@ -374,6 +374,75 @@ Delete a DDoS policy by ID. Requires `admin` role.
 curl -X DELETE http://localhost:8080/api/v1/ddos/policies/syn-flood-block
 ```
 
+### Load Balancer
+
+#### GET /api/v1/lb/status
+
+Load balancer status: enabled flag, service count.
+
+```bash
+curl http://localhost:8080/api/v1/lb/status
+```
+
+```json
+{"enabled": true, "service_count": 3}
+```
+
+#### GET /api/v1/lb/services
+
+List all load balancer services.
+
+```bash
+curl http://localhost:8080/api/v1/lb/services
+```
+
+#### GET /api/v1/lb/services/{id}
+
+Get service detail including backends, health status, and active connections.
+
+```bash
+curl http://localhost:8080/api/v1/lb/services/lb-https
+```
+
+#### POST /api/v1/lb/services
+
+Create a load balancer service. Requires `admin` role.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/lb/services \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "lb-api",
+    "name": "api-pool",
+    "protocol": "tcp",
+    "listen_port": 8080,
+    "algorithm": "least_conn",
+    "backends": [
+      {"id": "api-1", "addr": "10.0.1.20", "port": 8080, "weight": 1},
+      {"id": "api-2", "addr": "10.0.1.21", "port": 8080, "weight": 1}
+    ]
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique service identifier (max 64 chars) |
+| `name` | string | Yes | Human-readable name |
+| `protocol` | string | Yes | `tcp`, `udp`, `tls_passthrough` |
+| `listen_port` | integer | Yes | Frontend port (1-65535) |
+| `algorithm` | string | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn` |
+| `backends` | array | Yes | At least one backend (`id`, `addr`, `port`, `weight`) |
+
+#### DELETE /api/v1/lb/services/{id}
+
+Delete a load balancer service by ID. Requires `admin` role.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/lb/services/lb-api
+```
+
 ### DNS Intelligence
 
 #### GET /api/v1/dns/cache
@@ -485,6 +554,11 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/ddos/policies` | Yes | List DDoS policies |
 | POST | `/api/v1/ddos/policies` | Yes (admin) | Create DDoS policy |
 | DELETE | `/api/v1/ddos/policies/{id}` | Yes (admin) | Delete DDoS policy |
+| GET | `/api/v1/lb/status` | Yes | Load balancer status |
+| GET | `/api/v1/lb/services` | Yes | List LB services |
+| GET | `/api/v1/lb/services/{id}` | Yes | LB service detail |
+| POST | `/api/v1/lb/services` | Yes (admin) | Create LB service |
+| DELETE | `/api/v1/lb/services/{id}` | Yes (admin) | Delete LB service |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
 | DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |
 | GET | `/api/v1/dns/stats` | Yes | DNS statistics |

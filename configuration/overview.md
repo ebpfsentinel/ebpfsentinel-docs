@@ -35,6 +35,7 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`l7`](l7.md) | No | L7 protocol-aware firewall rules |
 | [`ratelimit`](ratelimit.md) | No | Rate limiting rules and algorithms |
 | [`ddos`](ddos.md) | No | DDoS protection and detection policies |
+| [`loadbalancer`](loadbalancer.md) | No | L4 load balancing services (TCP/UDP/TLS) |
 | [`threatintel`](threatintel.md) | No | Threat intelligence feeds |
 | [`dns`](dns.md) | No | DNS cache, blocklists, reputation |
 | [`alerting`](alerting.md) | No | Alert routing, senders |
@@ -55,6 +56,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `l7.yaml` | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB rules |
 | `ratelimit.yaml` | 5 algorithms, per-CPU buckets, SYN cookie |
 | `ddos.yaml` | SYN/ICMP/UDP amplification protection, connection tracking, policies |
+| `loadbalancer.yaml` | TCP/UDP/TLS passthrough services, backend pools, health checks |
 | `threatintel.yaml` | CSV, JSON, STIX feeds, Bloom filter, VLAN quarantine |
 | `dns.yaml` | Cache tuning, inline blocklist, external feeds |
 | `alerting.yaml` | SMTP email, webhook, log routes, dedup, throttle |
