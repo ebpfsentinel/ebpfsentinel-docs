@@ -39,6 +39,7 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`threatintel`](threatintel.md) | No | Threat intelligence feeds |
 | [`dns`](dns.md) | No | DNS cache, blocklists, reputation |
 | [`alerting`](alerting.md) | No | Alert routing, senders |
+| [`geoip`](geoip.md) | No | GeoIP enrichment (MaxMind databases) |
 | [`audit`](audit.md) | No | Audit trail retention |
 | [`auth`](auth.md) | No | Authentication (JWT, OIDC, API keys) |
 | [`tls`](tls.md) | No | TLS certificates for REST/gRPC |
@@ -60,6 +61,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `threatintel.yaml` | CSV, JSON, STIX feeds, Bloom filter, VLAN quarantine |
 | `dns.yaml` | Cache tuning, inline blocklist, external feeds |
 | `alerting.yaml` | SMTP email, webhook, log routes, dedup, throttle |
+| `geoip.yaml` | MaxMind account, URL, or local file GeoIP databases |
 | `audit.yaml` | Retention, buffer size, storage path |
 | `auth.yaml` | API keys, JWT (RS256), OIDC (JWKS), roles |
 | `tls.yaml` | Certificate and key paths |

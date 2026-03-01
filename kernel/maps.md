@@ -143,5 +143,7 @@ Several maps are written from userspace when configuration changes:
 | IPS blacklist | Userspace → Kernel | Auto-block from IPS engine |
 | DNS blocklist | Userspace → Kernel | Domain block/unblock |
 | Scrub config array | Userspace → Kernel | Config reload |
+| LB service/backend maps | Userspace → Kernel | Service add/delete |
+| LB metrics (PerCpuArray) | Kernel → Userspace | Per-CPU forwarding counters |
 
 Maps are updated atomically per-entry. Bulk updates (e.g., threat intel feed refresh) iterate and batch-update entries while the old values remain visible to the eBPF program until overwritten.

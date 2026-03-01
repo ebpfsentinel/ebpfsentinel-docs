@@ -61,6 +61,7 @@ crates/domain/src/<domain>/
 - `grpc/` — tonic services for alert streaming
 - `ebpf/` — Aya program loader and map management
 - `storage/` — redb persistence
+- `geoip/` — MaxMind `.mmdb` adapter for GeoIP lookups
 
 ### agent
 

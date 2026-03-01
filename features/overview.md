@@ -22,6 +22,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Audit Trail](audit.md) | OSS | Shipped | Userspace | Rule change history, retention policies |
 | [Authentication](authentication.md) | OSS | Shipped | Userspace | JWT (RS256), OIDC (JWKS), API keys, RBAC |
 | [IPv6](ipv6.md) | OSS | Shipped | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
+| [GeoIP Enrichment](geoip.md) | OSS | Shipped | Userspace | IP-to-location + ASN enrichment on alerts (MaxMind) |
 | [VLAN 802.1Q](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering and quarantine tagging |
 
 ### Infrastructure

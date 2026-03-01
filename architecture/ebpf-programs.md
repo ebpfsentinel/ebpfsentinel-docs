@@ -73,6 +73,17 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **TCP connection tracking** — half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
 - **14-slot PerCpuArray** metrics: SYN_RECEIVED, SYNCOOKIES_SENT, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS
 
+## XDP Load Balancer (xdp-loadbalancer)
+
+- **Service map** lookup by `(port, protocol)` to find service definitions
+- **Backend selection** via round-robin index in eBPF map
+- **DNAT packet rewriting**: destination IP/port rewrite for selected backend
+- **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update
+- **IPv6 checksum**: L4 pseudo-header incremental update (8 × u16 words for 128-bit address diff + port diff)
+- **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`
+- **LB_METRICS PerCpuArray**: per-CPU forwarding counters read by `MetricsReader`
+- Health-aware: unhealthy backends are skipped in selection
+
 ## TC IDS (tc-ids)
 
 - **bpf_get_prandom_u32** for kernel-side sampling
@@ -139,7 +150,7 @@ All features require Linux kernel 5.17+ with BTF. See the [Compatibility](../ope
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 10 programs with nightly
+cargo xtask ebpf-build    # Builds all 11 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

@@ -135,8 +135,13 @@ L4 load balancing at XDP speed. Rewrites destination IP/port to the selected bac
 | **Backend selection** | Round-robin index stored in eBPF map, updated per packet |
 | **Packet rewriting** | Destination IP/port rewrite with L3/L4 checksum fixup |
 | **Health awareness** | Backends marked unhealthy by userspace are skipped |
+| **Event emission** | RingBuf events for forward/no-backend actions |
+| **Per-CPU metrics** | `LB_METRICS` PerCpuArray for high-frequency counters |
 
-Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). IPv4 and IPv6 packets are both handled with appropriate checksum strategies.
+Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). IPv4 and IPv6 packets are both handled with appropriate checksum strategies:
+
+- **IPv4**: L3 IP header checksum + L4 TCP/UDP checksum (incremental update for address + port diff)
+- **IPv6**: L4 pseudo-header checksum only (8 × u16 words for 128-bit address diff + port diff, no IP header checksum in IPv6)
 
 ---
 

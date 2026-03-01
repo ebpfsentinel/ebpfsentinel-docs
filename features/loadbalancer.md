@@ -150,6 +150,23 @@ ebpfsentinel-agent --output json lb services
 | `adapters` | `crates/adapters/src/http/lb_handler.rs` | HTTP handler (5 endpoints) |
 | `infrastructure` | `crates/infrastructure/src/config/loadbalancer.rs` | Config parsing |
 
+## Event Pipeline Integration
+
+The load balancer eBPF program emits events via RingBuf, consumed by an `EventReader` in userspace. Events are dispatched through the packet pipeline and recorded as metrics:
+
+| Action | Description |
+|--------|-------------|
+| `forward` | Packet successfully rewritten and forwarded to a backend |
+| `no_backend` | No healthy backend available — packet dropped |
+
+Per-CPU metrics are collected via a `MetricsReader` on the `LB_METRICS` PerCpuArray map.
+
+### IPv6 Support
+
+Full dual-stack support: both IPv4 and IPv6 packets are load-balanced with correct L4 checksum updates. IPv6 DNAT updates the TCP/UDP pseudo-header checksum incrementally (8 × u16 words for the 128-bit address diff + port diff).
+
 ## Metrics
 
 - `ebpfsentinel_rules_loaded{domain="loadbalancer"}` — number of loaded services
+- `ebpfsentinel_packets_total{domain="loadbalancer", action="forward"}` — packets forwarded to backends
+- `ebpfsentinel_packets_total{domain="loadbalancer", action="no_backend"}` — packets with no available backend

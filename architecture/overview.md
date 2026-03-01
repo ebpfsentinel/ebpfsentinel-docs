@@ -11,6 +11,7 @@ graph TB
         direction LR
         XDP_FW["<b>XDP</b><br/>xdp-firewall<br/><i>LPM trie · DEVMAP · CPUMAP</i>"]
         XDP_RL["<b>XDP</b><br/>xdp-ratelimit<br/><i>PerCPU · SYN cookie · bpf_timer</i>"]
+        XDP_LB["<b>XDP</b><br/>xdp-loadbalancer<br/><i>L4 DNAT · health-aware</i>"]
         TC["<b>TC classifier</b><br/>tc-ids · tc-threatintel · tc-dns<br/><i>Bloom filter · L7 detect · VLAN rewrite</i>"]
         UPROBE["<b>uprobe</b><br/>uprobe-dlp"]
         XDP_FW -->|"tail_call<br/>(PROG_ARRAY)"| XDP_RL
@@ -19,6 +20,7 @@ graph TB
 
     XDP_FW -->|RingBuf| ED
     XDP_RL -->|RingBuf| ED
+    XDP_LB -->|RingBuf| ED
     TC -->|RingBuf| ED
     UPROBE -->|RingBuf| ED
 
@@ -35,13 +37,16 @@ graph TB
             TI[Threat Intel]
             DNS[DNS Intelligence]
             DR[Domain Reputation]
+            LB[Load Balancer]
         end
 
+        ENRICH["Alert Enrichment<br/>DNS · Reputation · GeoIP"]
         AR[AlertRouter]
         Senders["Senders<br/>Email · Webhook · Log"]
 
         ED --> Engines
-        Engines --> AR
+        Engines --> ENRICH
+        ENRICH --> AR
         AR --> Senders
     end
 
@@ -85,6 +90,7 @@ ebpfsentinel/
 │   ├── ebpf-programs/                # eBPF kernel programs (nightly, bpfel-unknown-none)
 │   │   ├── xdp-firewall/
 │   │   ├── xdp-ratelimit/
+│   │   ├── xdp-loadbalancer/
 │   │   ├── tc-ids/
 │   │   ├── tc-threatintel/
 │   │   ├── tc-dns/
@@ -92,7 +98,7 @@ ebpfsentinel/
 │   ├── domain/                       # Business logic (engines, entities, errors)
 │   ├── ports/                        # Port traits (primary + secondary)
 │   ├── application/                  # Use cases, pipelines, orchestration
-│   ├── adapters/                     # HTTP, gRPC, eBPF, redb storage
+│   ├── adapters/                     # HTTP, gRPC, eBPF, redb, GeoIP
 │   ├── infrastructure/               # Config, logging, metrics
 │   ├── agent/                        # Binary entry point
 │   └── xtask/                        # Build orchestration

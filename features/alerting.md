@@ -28,12 +28,34 @@ Each alert includes:
 
 - `id` — unique alert identifier
 - `timestamp` — event time (`bpf_ktime_get_boot_ns`-based, suspend-aware)
-- `component` — source domain (firewall, ids, ips, dlp, threatintel, dns, l7)
+- `component` — source domain (firewall, ids, ips, dlp, threatintel, dns, l7, loadbalancer)
 - `severity` — critical, high, medium, low, info
 - `rule_id` — the rule that triggered the alert
 - `src_addr`, `dst_addr` — source and destination addresses
+- `src_domain`, `dst_domain` — reverse DNS lookups (from passive DNS cache)
+- `src_domain_score`, `dst_domain_score` — domain reputation scores (0.0=clean, 1.0=malicious)
+- `src_geo`, `dst_geo` — GeoIP location and ASN (e.g. `FR/Paris (ASN: AS3215 Orange S.A.)`)
 - `description` — human-readable alert message
 - `metadata` — additional context (matched pattern, domain reputation, etc.)
+
+### Alert Enrichment
+
+Before routing, each alert passes through the enrichment pipeline:
+
+```
+Raw alert from domain engine
+    │
+    ▼
+DnsAlertEnricher
+    ├── DNS reverse lookup (src_ip → src_domain, dst_ip → dst_domain)
+    ├── Domain reputation scoring (src_domain_score, dst_domain_score)
+    └── GeoIP enrichment (src_geo, dst_geo)
+    │
+    ▼
+Enriched alert → AlertRouter → Senders
+```
+
+GeoIP enrichment is optional — enable it via the [`geoip`](../configuration/geoip.md) configuration section. When disabled, `src_geo` and `dst_geo` fields are `null`.
 
 ## Configuration
 

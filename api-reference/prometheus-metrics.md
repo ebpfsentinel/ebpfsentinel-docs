@@ -48,6 +48,19 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 |--------|------|--------|-------------|
 | `ebpfsentinel_ips_blacklist_size` | Gauge | — | Current blacklist entry count |
 
+### Load Balancer
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_packets_total` | Counter | `domain="loadbalancer"`, `action` | LB packets (forward, no_backend) |
+
+### GeoIP
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_geoip_lookups_total` | Counter | — | Total GeoIP lookups performed |
+| `ebpfsentinel_geoip_ready` | Gauge | — | Database readiness (1=loaded, 0=not) |
+
 ### DNS
 
 | Metric | Type | Labels | Description |

@@ -63,6 +63,7 @@ Domain Engines (parallel evaluation)
     ├── Threat Intel Engine → full IOC correlation
     ├── L7 Firewall Engine → protocol parsing → rule evaluation
     ├── DNS Engine         → cache update → blocklist check → reputation update
+    ├── LB Engine          → forward/no-backend metrics
     └── Domain Reputation  → scoring → auto-block decision
 ```
 
@@ -70,6 +71,12 @@ Domain Engines (parallel evaluation)
 
 ```
 Domain Engine alerts
+    │
+    ▼
+Alert Enrichment
+    ├── DNS reverse lookup (src_ip → domain, dst_ip → domain)
+    ├── Domain reputation scoring
+    └── GeoIP enrichment (country, city, ASN)
     │
     ▼
 AlertRouter
@@ -128,3 +135,5 @@ Some eBPF maps are updated from userspace:
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |
 | DNS blocklist | Userspace → Kernel | Domain blocks |
+| LB service/backend maps | Userspace → Kernel | Load balancer service definitions |
+| LB metrics (PerCpuArray) | Kernel → Userspace | Per-CPU forwarding counters |
