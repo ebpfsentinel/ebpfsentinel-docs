@@ -152,6 +152,20 @@ CTI matches contribute a `CtiMatch` reputation factor with **weight 0.8** into t
 
 IPS blacklist additions for IPs involved in threat intel matches can be automated via the IPS engine.
 
+#### GeoIP → Threat Intel (confidence boost)
+
+The `country_confidence_boost` setting adjusts IOC confidence scores based on the source IP's country. Positive values increase confidence for IOCs from high-risk regions, making them more likely to trigger block actions:
+
+```yaml
+threatintel:
+  country_confidence_boost:
+    RU: 10       # +10 confidence for IOCs from Russia
+    CN: 5        # +5 for China
+    KP: 15       # +15 for North Korea
+```
+
+Values are clamped to the 0–100 range after adjustment. This is useful to prioritize IOCs from known high-risk regions when feeds have variable confidence scores.
+
 ## Configuration
 
 ```yaml

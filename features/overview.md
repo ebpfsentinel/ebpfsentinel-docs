@@ -22,7 +22,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Audit Trail](audit.md) | OSS | Shipped | Userspace | Rule change history, retention policies |
 | [Authentication](authentication.md) | OSS | Shipped | Userspace | JWT (RS256), OIDC (JWKS), API keys, RBAC |
 | [IPv6](ipv6.md) | OSS | Shipped | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
-| [GeoIP Enrichment](geoip.md) | OSS | Shipped | Userspace | IP-to-location + ASN enrichment on alerts (MaxMind) |
+| [GeoIP Enforcement](geoip.md) | OSS | Shipped | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
 | [VLAN 802.1Q](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering and quarantine tagging |
 
 ### Infrastructure
@@ -65,7 +65,7 @@ Eleven kernel programs cover all enforcement points:
 | Program | Hook | Features |
 |---------|------|----------|
 | `xdp-firewall` | XDP | 5-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, policy routing, DEVMAP/CPUMAP, FIB lookup, tail-call to rate limiter |
-| `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance |
+| `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance, per-country LPM tier lookup |
 | `xdp-loadbalancer` | XDP | L4 load balancing, backend selection, health-aware routing |
 | `tc-conntrack` | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |

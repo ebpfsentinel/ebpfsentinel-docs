@@ -50,6 +50,7 @@ dns:
 | `enabled` | `bool` | `false` | Enable domain reputation scoring |
 | `auto_block_threshold` | `float` | `0.8` | Auto-block domains above this score |
 | `decay_rate` | `float` | `0.01` | Score decay per hour |
+| `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 country codes. Domains resolving to IPs in listed countries receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold |
 
 ## Examples
 
@@ -74,4 +75,5 @@ dns:
     enabled: true
     auto_block_threshold: 0.8
     decay_rate: 0.01
+    high_risk_countries: [RU, CN, KP, IR]
 ```

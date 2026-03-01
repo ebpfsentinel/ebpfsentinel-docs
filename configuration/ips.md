@@ -30,11 +30,12 @@ ips:
 | `mode` | `string` | `block` | Default mode for rules without per-rule override |
 | `blacklist_ttl` | `integer` | `3600` | Seconds before auto-removal (0 = permanent) |
 | `whitelist` | `[string]` | `[]` | IPs/CIDRs that are never blacklisted |
+| `country_thresholds` | `map<string, integer>` | `{}` | Per-country auto-blacklist thresholds (ISO 3166-1 alpha-2 → count). IPs from listed countries are blacklisted after fewer detections. When blacklisted, the source /24 (v4) or /48 (v6) subnet is also injected into the firewall LPM maps |
 | `rules` | `[Rule]` | `[]` | IPS rules (same schema as IDS rules + `mode` field) |
 
 ## Examples
 
-### Auto-block with whitelist
+### Auto-block with whitelist and country thresholds
 
 ```yaml
 ips:
@@ -43,6 +44,10 @@ ips:
   whitelist:
     - "10.0.0.0/8"
     - "172.16.0.0/12"
+  country_thresholds:
+    RU: 2
+    CN: 3
+    KP: 1
   rules:
     - id: block-sqli
       pattern: "(?i)(union\\s+select|drop\\s+table)"

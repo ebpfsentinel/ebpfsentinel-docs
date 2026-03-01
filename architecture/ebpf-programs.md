@@ -9,7 +9,7 @@ eBPFsentinel includes 11 eBPF kernel programs, all written in Rust using the [Ay
 | Program | Hook | Crate Path | Purpose |
 |---------|------|-----------|---------|
 | `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering |
-| `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection |
+| `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection + per-country rate limit tiers (LPM) |
 | `xdp-loadbalancer` | XDP | `crates/ebpf-programs/xdp-loadbalancer/` | L4 load balancing (TCP/UDP/TLS passthrough) |
 | `tc-conntrack` | TC classifier | `crates/ebpf-programs/tc-conntrack/` | Connection tracking (TCP/UDP/ICMP state machine) |
 | `tc-scrub` | TC classifier | `crates/ebpf-programs/tc-scrub/` | Packet normalization (TTL, MSS, DF, IP ID) |
@@ -57,6 +57,7 @@ Key eBPF features:
 
 ## XDP Rate Limiter (xdp-ratelimit)
 
+- **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching — if a source IP falls within a country tier's CIDR range, the tier config is used
 - **PerCPU Hash** maps for lock-free per-IP counters
 - **bpf_timer** for periodic bucket expiration
 - **bpf_tcp_gen_syncookie** for SYN flood mitigation

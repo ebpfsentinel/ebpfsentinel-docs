@@ -67,6 +67,25 @@ The DDoS engine uses EWMA (α=0.3) to smooth traffic rate calculations and a sta
 - **Throttle** — reduce traffic rate from the source
 - **Block** — drop all traffic from the source for `auto_block_duration_secs`
 
+### Per-Country Detection Thresholds
+
+Each policy supports `country_thresholds` — a map of ISO 3166-1 alpha-2 country codes to per-country PPS thresholds. When traffic from a specific country exceeds its threshold (instead of the global `detection_threshold_pps`), the attack state machine activates.
+
+When a policy has `mitigation_action: block` and the attack source country is identified, all CIDRs for that country are **automatically injected into the firewall LPM Trie maps** for kernel-side blocking via the `LpmCoordinator`. When the attack expires, the CIDRs are removed.
+
+```yaml
+policies:
+  - id: syn-flood-geo
+    attack_type: syn_flood
+    detection_threshold_pps: 5000
+    mitigation_action: block
+    auto_block_duration_secs: 300
+    country_thresholds:
+      RU: 2000       # Lower threshold for Russia
+      CN: 2000       # Lower threshold for China
+      KP: 500        # Very low for North Korea
+```
+
 **Engine Limits:**
 - Maximum 100 policies
 - Maximum 64 concurrent active attacks

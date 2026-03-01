@@ -38,6 +38,7 @@ threatintel:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable threat intelligence |
 | `mode` | `string` | `"alert"` | Global enforcement mode. `"alert"` = log matches, pass traffic. `"block"` = drop traffic to/from IOC-listed IPs |
+| `country_confidence_boost` | `map<string, integer>` | `{}` | Per-country confidence adjustment (ISO 3166-1 alpha-2 → signed integer). Positive values increase IOC confidence for traffic from listed countries, negative values decrease it. Values are clamped to 0–100 after adjustment |
 | `feeds` | `[Feed]` | `[]` | List of feed configurations |
 
 ### Feed
@@ -157,6 +158,18 @@ dns:
 ### Threat Intel → Domain Reputation
 
 Each IOC match contributes a `CtiMatch` factor with weight **0.8** to the domain reputation score. If the score exceeds `auto_block_threshold` (default 0.8), the domain is auto-blocked.
+
+### GeoIP → Threat Intel (confidence boost)
+
+The `country_confidence_boost` setting adjusts IOC confidence based on the source IP's country:
+
+```yaml
+threatintel:
+  country_confidence_boost:
+    RU: 10       # +10 confidence for IOCs from Russia
+    CN: 5        # +5 for China
+    KP: 15       # +15 for North Korea
+```
 
 ## Examples
 

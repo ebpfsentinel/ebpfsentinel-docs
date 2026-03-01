@@ -20,6 +20,23 @@ The IPS extends the IDS with automatic blocking. When a rule matches in block mo
 - **Whitelist** — IPs that should never be blocked (management networks, known-good services)
 - **Manual control** — add or remove IPs via CLI or REST API
 
+### Per-Country Blacklist Thresholds
+
+The IPS supports `country_thresholds` — per-country overrides of `auto_blacklist_threshold`. IPs from high-risk countries can be blacklisted after fewer detections:
+
+```yaml
+ips:
+  auto_blacklist_threshold: 5
+  country_thresholds:
+    RU: 2          # Blacklist Russian IPs after 2 detections
+    CN: 3          # 3 detections for Chinese IPs
+    KP: 1          # Immediate blacklisting for North Korean IPs
+```
+
+### Subnet Injection (LPM)
+
+When an IP from a country listed in `country_thresholds` is blacklisted, the IPS also injects the source's /24 subnet (IPv4) or /48 subnet (IPv6) into the firewall LPM Trie maps via the `LpmCoordinator`. This provides kernel-side blocking of the surrounding address space, catching related attack infrastructure. Subnet entries are removed when the blacklist TTL expires.
+
 ## Configuration
 
 ```yaml

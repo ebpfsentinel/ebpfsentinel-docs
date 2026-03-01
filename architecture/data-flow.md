@@ -16,6 +16,7 @@ XDP Hook (earliest possible)
     │   ├── XDP_DROP (denied) ──→ [end]
     │   ├── XDP_PASS + emit RingBuf event
     │   └── tail_call → xdp-ratelimit
+    │       ├── Country LPM tier lookup (RL_LPM_SRC_V4/V6)
     │       ├── DDoS protections (SYN/ICMP/UDP amp/conntrack)
     │       ├── Per-IP rate check (PerCPU hash)
     │       ├── XDP_DROP (rate exceeded or DDoS detected) ──→ [end]
@@ -54,15 +55,15 @@ EventDispatcher
     ├── Route by program source
     │
     ▼
-Domain Engines (parallel evaluation)
+Domain Engines (parallel evaluation, GeoIP-aware)
     ├── Firewall Engine    → rule audit
-    ├── IDS Engine         → regex evaluation → threshold check
-    ├── IPS Engine         → blacklist update → eBPF map sync
-    ├── DDoS Engine        → EWMA rate analysis → state machine → mitigation
+    ├── IDS Engine         → country-aware sampling → regex evaluation → per-country thresholds
+    ├── IPS Engine         → blacklist update → /24 subnet LPM injection → eBPF map sync
+    ├── DDoS Engine        → EWMA rate analysis → per-country thresholds → country CIDR auto-block
     ├── DLP Engine         → pattern matching
-    ├── Threat Intel Engine → full IOC correlation
-    ├── L7 Firewall Engine → protocol parsing → rule evaluation
-    ├── DNS Engine         → cache update → blocklist check → reputation update
+    ├── Threat Intel Engine → full IOC correlation → country confidence boost
+    ├── L7 Firewall Engine → protocol parsing → src/dst country matching → rule evaluation
+    ├── DNS Engine         → cache update → blocklist check → high-risk country reputation
     ├── LB Engine          → forward/no-backend metrics
     └── Domain Reputation  → scoring → auto-block decision
 ```
@@ -131,6 +132,8 @@ Some eBPF maps are updated from userspace:
 |-----|-----------|---------|
 | Firewall LPM tries | Userspace → Kernel | Rule updates |
 | Rate limit configs | Userspace → Kernel | Policy changes |
+| Rate limit country LPM (×2) | Userspace → Kernel | GeoIP country tier reload |
+| Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |

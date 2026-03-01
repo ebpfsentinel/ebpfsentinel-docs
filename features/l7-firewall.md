@@ -26,6 +26,28 @@ The L7 firewall operates in userspace. Packets forwarded from TC programs are pa
 | **FTP** | Commands, paths |
 | **SMB** | Share names, commands |
 
+### GeoIP Country Matching
+
+L7 rules support `src_country_codes` and `dst_country_codes` fields for geographic filtering. Source and destination IPs are resolved to country codes via GeoIP at evaluation time:
+
+```yaml
+l7:
+  rules:
+    # Block all HTTP traffic from sanctioned countries
+    - id: block-http-sanctioned
+      priority: 5
+      action: deny
+      protocol: http
+      src_country_codes: [KP, IR, SY]
+
+    # Block TLS to destinations in high-risk countries
+    - id: block-tls-high-risk-dst
+      priority: 6
+      action: deny
+      protocol: tls
+      dst_country_codes: [KP, SY, CU]
+```
+
 ## Configuration
 
 ```yaml

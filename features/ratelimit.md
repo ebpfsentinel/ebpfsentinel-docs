@@ -39,6 +39,37 @@ The firewall writes metadata (rule ID, flags) that the rate limiter can read for
 
 When a source IP doesn't match any specific rule, the **default rate** applies. This is stored in the eBPF map with key `{src_ip: 0}` and enforced at wire speed.
 
+### Per-Country Rate Limit Tiers (LPM)
+
+Country-specific rate limits are enforced via dedicated kernel-side LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). Each tier maps a set of country codes to a rate limit profile (rate, burst, algorithm, action). The LPM lookup runs **before** per-IP rule matching — if a source IP falls within a country tier's CIDR range, the tier's config is used instead.
+
+Tier configurations are stored in `RL_TIER_CONFIG` (an eBPF Array map, up to 16 tiers). Country CIDRs are resolved from the GeoIP database and loaded at startup and config reload.
+
+```yaml
+ratelimit:
+  country_tiers:
+    - tier_id: 1
+      country_codes: [RU, CN]
+      rate: 200
+      burst: 400
+      algorithm: token_bucket
+      action: drop
+
+    - tier_id: 2
+      country_codes: [KP, IR, SY]
+      rate: 50
+      burst: 100
+      algorithm: token_bucket
+      action: drop
+
+    - tier_id: 3
+      country_codes: [US, CA, GB, DE, FR]
+      rate: 5000
+      burst: 10000
+      algorithm: token_bucket
+      action: drop
+```
+
 ## Configuration
 
 ```yaml

@@ -112,6 +112,18 @@ Per-CPU maps eliminate lock contention: each CPU core maintains independent coun
 | **UDP amplification** | Per-source-per-port rate limiting on amplification ports (DNS/53, NTP/123, SSDP/1900, etc.) |
 | **TCP connection floods** | Half-open connection monitoring, RST/FIN/ACK flood detection |
 
+#### Per-Country Rate Limit Tiers (LPM)
+
+3 additional maps for country-based rate limiting:
+
+| Map | Type | Purpose |
+|-----|------|---------|
+| `RL_LPM_SRC_V4` | LPM Trie (131,072 entries) | Source IPv4 → tier_id lookup |
+| `RL_LPM_SRC_V6` | LPM Trie (131,072 entries) | Source IPv6 → tier_id lookup |
+| `RL_TIER_CONFIG` | Array (16 entries) | tier_id → `RateLimitConfig` (rate, burst, algorithm) |
+
+The LPM lookup runs **before** per-IP rule matching. If a source IP falls within a country tier's CIDR range, the tier's `RateLimitConfig` is applied instead of the per-IP or default config. Country CIDRs are loaded from the GeoIP database at startup and config reload.
+
 #### Kernel-Side Timer
 
 [`bpf_timer`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/) (kernel 5.15+) runs periodic maintenance directly in the kernel:

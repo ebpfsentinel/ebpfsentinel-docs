@@ -122,3 +122,22 @@ geoip:
 ```
 
 Alerts will include country/city information but no ASN data.
+
+## Cross-Domain Integration
+
+When GeoIP is enabled, other domains can use country information for enforcement decisions. No additional GeoIP configuration is needed — each domain configures its own country-aware features:
+
+| Domain | Config Key | Description |
+|--------|-----------|-------------|
+| DDoS | `ddos.policies[].country_thresholds` | Per-country PPS thresholds + auto CIDR blocking |
+| IDS | `ids.sampling.high_risk_countries` | Country-based sampling mode |
+| IDS | `ids.rules[].country_thresholds` | Per-country threshold overrides |
+| IPS | `ips.country_thresholds` | Per-country blacklist thresholds + /24 subnet injection |
+| L7 | `l7.rules[].src_country_codes` | Source country matching |
+| L7 | `l7.rules[].dst_country_codes` | Destination country matching |
+| Threat Intel | `threatintel.country_confidence_boost` | IOC confidence boost by country |
+| DNS | `dns.reputation.high_risk_countries` | High-risk country reputation factor |
+| Rate Limit | `ratelimit.country_tiers` | Per-country rate limit tiers (kernel LPM) |
+| Routing | `routing.gateways[].preferred_for_countries` | Geographic gateway preference |
+
+See each domain's configuration reference for details.

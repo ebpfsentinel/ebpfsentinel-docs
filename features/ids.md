@@ -42,6 +42,32 @@ Three threshold modes control alert volume:
 |------|-------------|
 | `random` | Kernel-side `bpf_get_prandom_u32` with configurable rate (1-in-N) |
 | `hash` | Hash-based consistent sampling on flow tuple |
+| `country_based` | Full inspection for high-risk countries, reduced rate for others |
+
+**Country-Based Sampling** — Sources from `high_risk_countries` (e.g. `[RU, CN, KP, IR]`) are inspected at `high_risk_rate` (default: 1.0 = 100%), while all other sources use `default_rate` (e.g. 0.1 = 10%). This focuses IDS resources on traffic from high-risk regions without dropping inspection entirely for the rest.
+
+### Per-Country Threshold Overrides
+
+Each IDS rule supports `country_thresholds` — per-country threshold configuration that overrides the rule's default threshold. This allows stricter detection for traffic from specific countries:
+
+```yaml
+rules:
+  - id: ids-ssh-bruteforce
+    severity: high
+    protocol: tcp
+    dst_port: 22
+    threshold:
+      type: threshold
+      count: 5
+      window_secs: 60
+      track_by: src_ip
+    country_thresholds:
+      RU:
+        type: threshold
+        count: 2            # Alert after only 2 attempts from Russia
+        window_secs: 60
+        track_by: src_ip
+```
 
 ## Configuration
 

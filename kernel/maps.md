@@ -17,9 +17,11 @@ General-purpose key/value hash table. Used for:
 
 #### [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/)
 
-**Kernel:** 4.11+ | **Used by:** xdp-firewall
+**Kernel:** 4.11+ | **Used by:** xdp-firewall, xdp-ratelimit
 
-Longest-prefix-match trie for **O(log n) CIDR matching**. The firewall maintains 4 tries:
+Longest-prefix-match trie for **O(log n) CIDR matching**. Two sets of LPM tries:
+
+**Firewall LPM tries** (managed by `LpmCoordinator`):
 
 | Map | Purpose |
 |-----|---------|
@@ -28,7 +30,17 @@ Longest-prefix-match trie for **O(log n) CIDR matching**. The firewall maintains
 | `FW_LPM_SRC_V6` | Source IPv6 CIDR rules |
 | `FW_LPM_DST_V6` | Destination IPv6 CIDR rules |
 
-CIDR-only rules (no port/protocol/VLAN filter) are loaded exclusively into LPM tries, bypassing the slower linear scan phase entirely.
+CIDR-only rules (no port/protocol/VLAN filter) are loaded exclusively into LPM tries, bypassing the slower linear scan phase entirely. The `LpmCoordinator` tracks entry provenance by source tag (`alias`, `ddos:<CC>`, `ips`) so that GeoIP alias rules, DDoS country auto-blocks, and IPS subnet injections can coexist without overwriting each other.
+
+**Rate limit LPM tries** (managed by `RateLimitLpmManager`):
+
+| Map | Purpose |
+|-----|---------|
+| `RL_LPM_SRC_V4` | Source IPv4 country → rate limit tier |
+| `RL_LPM_SRC_V6` | Source IPv6 country → rate limit tier |
+| `RL_TIER_CONFIG` | Array map (up to 16 entries) mapping tier_id → `RateLimitConfig` |
+
+Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The LPM lookup in xdp-ratelimit runs before per-IP rule matching — if a source IP matches a country tier, that tier's rate/burst/algorithm is used.
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
@@ -137,6 +149,8 @@ Several maps are written from userspace when configuration changes:
 | Firewall LPM tries (×4) | Userspace → Kernel | Rule add/delete, config reload |
 | Firewall IP set maps | Userspace → Kernel | Alias update, URL table refresh |
 | Rate limit configs | Userspace → Kernel | Policy CRUD |
+| Rate limit country LPM (×2) | Userspace → Kernel | GeoIP country tier reload |
+| Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp threshold changes |
 | Threat intel Bloom filter | Userspace → Kernel | Feed refresh (periodic) |
 | Threat intel hash map | Userspace → Kernel | IOC add/remove |

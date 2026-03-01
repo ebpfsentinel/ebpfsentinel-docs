@@ -19,6 +19,19 @@ The TC classifier identifies DNS traffic (UDP port 53) and emits DNS query/respo
 3. **Blocklist evaluation** — queries are checked against inline patterns and external feed-sourced blocklists
 4. **Threat intel injection** — when a blocked domain resolves to an IP, that IP is automatically injected into the threat intel kernel map (`THREATINTEL_IOCS`). The IP is removed when the DNS TTL expires (+grace period). This bridges domain-level blocklists with IP-level kernel enforcement
 5. **Domain reputation integration** — DNS data feeds into the domain reputation scoring engine. CTI matches contribute a `CtiMatch` factor (weight 0.8) to the score; domains exceeding the `auto_block_threshold` are auto-blocked
+6. **GeoIP reputation scoring** — domains resolving to IPs in `high_risk_countries` receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold
+
+### High-Risk Country Reputation
+
+When `high_risk_countries` is configured in the reputation section, DNS responses are checked against GeoIP data. Domains resolving to IPs geolocated in listed countries accumulate negative reputation faster:
+
+```yaml
+dns:
+  reputation:
+    enabled: true
+    auto_block_threshold: 0.8
+    high_risk_countries: [RU, CN, KP, IR]
+```
 
 ### Blocklist Matching
 

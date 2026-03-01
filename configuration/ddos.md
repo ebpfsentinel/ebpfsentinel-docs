@@ -103,6 +103,7 @@ ddos:
 | `mitigation_action` | `string` | Yes | `alert`, `throttle`, `block` |
 | `auto_block_duration_secs` | `integer` | Yes | Seconds to block source after detection (0 = indefinite) |
 | `enabled` | `bool` | No | Enable/disable this policy (default: `true`) |
+| `country_thresholds` | `map<string, integer>` | No | Per-country PPS thresholds (ISO 3166-1 alpha-2 → PPS). Overrides `detection_threshold_pps` for traffic from listed countries. When a `block` policy triggers for a country, all CIDRs for that country are auto-injected into the firewall LPM maps |
 
 ## Examples
 
@@ -160,6 +161,24 @@ ddos:
   syn_protection:
     enabled: true
     threshold_pps: 5000
+```
+
+### Per-country thresholds with auto-block
+
+```yaml
+ddos:
+  enabled: true
+  policies:
+    - id: "syn-flood-geo"
+      attack_type: "syn_flood"
+      detection_threshold_pps: 5000
+      mitigation_action: "block"
+      auto_block_duration_secs: 300
+      enabled: true
+      country_thresholds:
+        RU: 2000
+        CN: 2000
+        KP: 500
 ```
 
 ### Detection-only (no blocking)
