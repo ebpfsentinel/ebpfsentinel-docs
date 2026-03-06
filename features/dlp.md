@@ -118,7 +118,7 @@ ebpfsentinel-agent alerts mark-fp alert-dlp-001
 
 ### Feature Gating
 
-DLP enterprise features are gated at compile time via `#[cfg(feature = "enterprise")]`:
+Enterprise DLP capabilities are activated by the separate enterprise repository, which enables the `enterprise` Cargo feature. The OSS codebase enforces limits at every layer:
 
 - **Domain layer** (`DlpEngine`): `add_pattern()` and `reload()` reject non-builtin pattern IDs in OSS
 - **Application layer** (`DlpAppService`): `set_mode()` rejects `Block` mode in OSS

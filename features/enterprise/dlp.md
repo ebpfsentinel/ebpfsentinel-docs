@@ -75,11 +75,7 @@ In OSS, hot-reload only supports toggling the DLP module on/off. Built-in patter
 
 ## Feature Gating
 
-Enterprise DLP is enabled at compile time via the `enterprise` Cargo feature:
-
-```bash
-cargo build --features enterprise
-```
+Enterprise DLP is enabled at compile time via the `enterprise` Cargo feature, activated by the separate enterprise repository that extends the OSS codebase. The OSS repository does not expose this feature directly.
 
 The feature propagates through the crate dependency chain:
 
