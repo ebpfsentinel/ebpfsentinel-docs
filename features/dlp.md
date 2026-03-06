@@ -1,6 +1,6 @@
 # Data Loss Prevention (DLP)
 
-> **Edition: OSS** | **Status: Shipped** | **eBPF Program: uprobe-dlp**
+> **Edition: OSS (core) + Enterprise (advanced)** | **Status: Shipped** | **eBPF Program: uprobe-dlp**
 
 ## Overview
 
@@ -15,36 +15,77 @@ DLP scans decrypted network traffic for sensitive data patterns — credit card 
 
 DLP is **userspace-only** for pattern matching — there is no eBPF map synchronization needed (unlike IDS/IPS where rules are pushed to kernel maps).
 
+## OSS vs Enterprise
+
+The DLP module is available in both editions, with the following differences:
+
+| Capability | OSS | Enterprise |
+|------------|:---:|:----------:|
+| Built-in patterns (PCI, PII, credentials) | Yes | Yes |
+| Custom regex patterns | No | Yes |
+| Alert mode (detect & report) | Yes | Yes |
+| Block mode (detect & drop) | No | Yes |
+| Per-pattern mode override | No | Yes |
+| Hot-reload of custom patterns | No | Yes |
+| Enable/disable toggle | Yes | Yes |
+
+### Built-in Patterns (OSS)
+
+The OSS edition ships with **9 built-in patterns** across 3 categories, covering the most common data loss scenarios:
+
+| Category | Prefix | Patterns |
+|----------|--------|----------|
+| **PCI** (Payment Card) | `dlp-pci-*` | Visa, Mastercard, Amex card numbers |
+| **PII** (Personal Info) | `dlp-pii-*` | SSN, email addresses, phone numbers |
+| **Credentials** | `dlp-cred-*` | AWS keys, API keys, JWT tokens |
+
+These patterns are always loaded at startup and cannot be removed. They operate in **alert mode only**.
+
+### Enterprise Patterns
+
+With the `enterprise` feature, organizations can:
+
+- Define **custom regex patterns** with arbitrary IDs
+- Use **block mode** to actively drop connections leaking sensitive data
+- Override the global mode on a **per-pattern basis** (e.g., alert for emails, block for credit cards)
+- **Hot-reload** pattern changes without restarting the agent
+
+See [Enterprise DLP](enterprise/dlp.md) for details.
+
 ## Configuration
+
+### OSS Configuration
+
+In OSS mode, DLP configuration is limited to enabling/disabling the module:
 
 ```yaml
 dlp:
-  mode: alert            # alert or block
+  enabled: true    # default: true
+  mode: alert      # only alert is supported in OSS
+```
+
+Built-in patterns are loaded automatically and do not need to be listed in the configuration file. Any attempt to add custom patterns or set `mode: block` in OSS will be rejected at startup with a validation error.
+
+### Enterprise Configuration
+
+```yaml
+dlp:
+  enabled: true
+  mode: alert            # alert or block (global default)
   patterns:
-    - id: credit-card
-      pattern: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b"
+    - id: dlp-pci-custom-visa
+      name: Custom Visa
+      regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
       severity: critical
-      description: "Credit card number (Visa, Mastercard, Amex)"
-    - id: ssn
-      pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-      severity: critical
-      description: "US Social Security Number"
-    - id: api-key
-      pattern: "(?i)(api[_-]?key|apikey)\\s*[:=]\\s*['\"]?[a-zA-Z0-9]{20,}"
+      data_type: pci
+      description: "Visa card number"
+    - id: internal-project-code
+      name: Internal Project Code
+      regex: "PRJ-[A-Z]{3}-\\d{6}"
       severity: high
-      description: "API key in cleartext"
-    - id: jwt-token
-      pattern: "eyJ[a-zA-Z0-9_-]+\\.eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+"
-      severity: high
-      description: "JWT token in cleartext"
-    - id: aws-key
-      pattern: "AKIA[0-9A-Z]{16}"
-      severity: critical
-      description: "AWS access key ID"
-    - id: email-address
-      pattern: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
-      severity: medium
-      description: "Email address"
+      data_type: custom
+      mode: block          # per-pattern override
+      description: "Internal project code leak"
 ```
 
 See [Configuration: DLP](../configuration/dlp.md) for the full reference.
@@ -74,6 +115,15 @@ ebpfsentinel-agent alerts mark-fp alert-dlp-001
 | `domain` | `crates/domain/src/dlp/` | DLP engine (entity, engine, error) |
 | `ports` | `crates/ports/src/primary/dlp.rs` | Port trait |
 | `application` | `crates/application/src/dlp_service_impl.rs` | App service |
+
+### Feature Gating
+
+DLP enterprise features are gated at compile time via `#[cfg(feature = "enterprise")]`:
+
+- **Domain layer** (`DlpEngine`): `add_pattern()` and `reload()` reject non-builtin pattern IDs in OSS
+- **Application layer** (`DlpAppService`): `set_mode()` rejects `Block` mode in OSS
+- **Infrastructure layer** (config validation): rejects custom IDs, block mode, and per-pattern block overrides in OSS
+- **Agent layer** (startup + reload): OSS always loads built-in defaults in alert mode; hot-reload only toggles enabled/disabled
 
 ## Metrics
 

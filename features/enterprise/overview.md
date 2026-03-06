@@ -1,12 +1,18 @@
 # Enterprise Features
 
-> **Edition: Enterprise** | **Status: Planned**
+> **Edition: Enterprise** | **Status: Partially Shipped**
 
 ## Overview
 
-eBPFsentinel Enterprise extends the open-source agent with management, multi-tenancy, advanced analytics, and compliance automation features. Enterprise features are planned for future releases.
+eBPFsentinel Enterprise extends the open-source agent with advanced security capabilities, management, multi-tenancy, analytics, and compliance automation features.
 
-The OSS agent is fully functional for production use — all security domains, APIs, CLI, authentication, TLS, and observability are included in the open-source release.
+The OSS agent is fully functional for production use — all security domains, APIs, CLI, authentication, TLS, and observability are included in the open-source release. Enterprise adds deeper detection, enforcement, and operational capabilities.
+
+## Shipped Features
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| [Advanced DLP](dlp.md) | Custom patterns, block mode, per-pattern overrides, hot-reload | **Shipped** |
 
 ## Planned Features
 

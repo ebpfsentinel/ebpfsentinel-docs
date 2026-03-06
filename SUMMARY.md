@@ -30,6 +30,7 @@
 - [VLAN 802.1Q Support](features/vlan.md)
 - [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)
+  - [Advanced DLP](features/enterprise/dlp.md)
   - [Dashboard UI](features/enterprise/dashboard.md)
   - [Kubernetes Operator](features/enterprise/kubernetes-operator.md)
   - [High Availability](features/enterprise/high-availability.md)
