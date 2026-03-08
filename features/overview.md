@@ -24,12 +24,17 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [IPv6](ipv6.md) | OSS | Shipped | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
 | [GeoIP Enforcement](geoip.md) | OSS | Shipped | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
 | [VLAN 802.1Q](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering and quarantine tagging |
+| [Connection Tracking](conntrack.md) | OSS | Shipped | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
+| [NAT](nat.md) | OSS | Shipped | TC ingress/egress | DNAT/SNAT, port mapping, checksum offload |
+| [Policy Routing](routing.md) | OSS | Shipped | XDP | Multi-gateway, weighted selection, health-aware failover |
+| [Zone Segmentation](zones.md) | OSS | Shipped | Kernel + Userspace | Network zones with inter-zone policies |
+| [IP/Port Aliases](aliases.md) | OSS | Shipped | Userspace | Named address/port groups, external URL content |
 
 ### Infrastructure
 
 | Feature | Edition | Status | Description |
 |---------|---------|--------|-------------|
-| REST API (32+ endpoints) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
+| REST API (50+ endpoints) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
 | gRPC Streaming | OSS | Shipped | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
 | TLS 1.3 | OSS | Shipped | rustls with aws-lc backend |

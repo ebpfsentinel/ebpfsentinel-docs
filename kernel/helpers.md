@@ -49,7 +49,7 @@ eBPFsentinel uses 25+ kernel helper functions across its programs. This page doc
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
 | [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | xdp-ratelimit, tc-conntrack | Suspend-aware monotonic timestamp (accurate across sleep/hibernate) |
-| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-scrub | Kernel-side random sampling (IDS), IP ID randomization (scrub) |
+| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.17+ | tc-ids, tc-scrub | Kernel-side random sampling (IDS), IP ID randomization (scrub) |
 | [`bpf_timer_init`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/) | 5.15+ | xdp-ratelimit | Initialize a timer in a map element for periodic maintenance |
 | [`bpf_timer_set_callback`](https://docs.ebpf.io/linux/helper-function/bpf_timer_set_callback/) | 5.15+ | xdp-ratelimit | Set callback function for timer expiry (bucket cleanup) |
 | [`bpf_timer_start`](https://docs.ebpf.io/linux/helper-function/bpf_timer_start/) | 5.15+ | xdp-ratelimit | Arm the timer with a timeout value |
@@ -74,7 +74,7 @@ eBPFsentinel uses 25+ kernel helper functions across its programs. This page doc
 | [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-conntrack | Unique per-connection identifier for flow correlation |
 | [`bpf_sk_lookup_tcp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_tcp/) | 4.20+ | tc-conntrack | Socket lookup for process attribution (find which process owns a connection) |
 | [`bpf_sk_lookup_udp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_udp/) | 4.20+ | tc-conntrack | Same as above for UDP |
-| [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) | 5.3+ | xdp-ratelimit | Generate SYN cookies at XDP speed for SYN flood mitigation |
+| [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) | 5.4+ | xdp-ratelimit | Generate SYN cookies at XDP speed for SYN flood mitigation |
 
 ### System Info
 

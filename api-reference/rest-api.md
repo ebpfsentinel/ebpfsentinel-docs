@@ -126,23 +126,6 @@ Flush the connection tracking table. Requires `admin` role.
 curl -X POST http://localhost:8080/api/v1/conntrack/flush
 ```
 
-### Gateways
-
-#### GET /api/v1/gateways
-
-List all configured gateways with health status.
-
-```bash
-curl http://localhost:8080/api/v1/gateways
-```
-
-```json
-[
-  {"id": 1, "name": "wan1", "interface": "eth1", "status": "healthy", "priority": 10},
-  {"id": 2, "name": "wan2", "interface": "eth2", "status": "down", "priority": 20}
-]
-```
-
 ### L7 Firewall
 
 #### GET /api/v1/firewall/l7-rules
@@ -171,6 +154,24 @@ Delete an L7 rule.
 curl -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
 ```
 
+### IDS
+
+#### GET /api/v1/ids/status
+
+IDS status: enabled flag, mode, and rule count.
+
+```bash
+curl http://localhost:8080/api/v1/ids/status
+```
+
+#### GET /api/v1/ids/rules
+
+List all IDS detection rules.
+
+```bash
+curl http://localhost:8080/api/v1/ids/rules
+```
+
 ### IPS
 
 #### GET /api/v1/ips/rules
@@ -197,6 +198,14 @@ List blacklisted IPs.
 
 ```bash
 curl http://localhost:8080/api/v1/ips/blacklist
+```
+
+#### GET /api/v1/ips/domain-blocks
+
+List domain-based IP blocks (IPs blocked due to DNS-driven IPS).
+
+```bash
+curl http://localhost:8080/api/v1/ips/domain-blocks
 ```
 
 ### Rate Limiting
@@ -507,6 +516,129 @@ Remove domain from blocklist.
 curl -X DELETE http://localhost:8080/api/v1/domains/blocklist/malware.example.com
 ```
 
+### NAT
+
+#### GET /api/v1/nat/status
+
+NAT status: enabled flag and rule count.
+
+```bash
+curl http://localhost:8080/api/v1/nat/status
+```
+
+```json
+{"enabled": true, "snat_rules": 2, "dnat_rules": 3}
+```
+
+#### GET /api/v1/nat/rules
+
+List all NAT rules (SNAT and DNAT combined, with direction field).
+
+```bash
+curl http://localhost:8080/api/v1/nat/rules
+```
+
+### Policy Routing
+
+#### GET /api/v1/routing/status
+
+Routing status: enabled flag and gateway count.
+
+```bash
+curl http://localhost:8080/api/v1/routing/status
+```
+
+```json
+{"enabled": true, "gateway_count": 2}
+```
+
+#### GET /api/v1/routing/gateways
+
+List gateways with current health status.
+
+```bash
+curl http://localhost:8080/api/v1/routing/gateways
+```
+
+```json
+[
+  {"id": 1, "name": "wan1", "interface": "eth0", "status": "healthy", "priority": 10},
+  {"id": 2, "name": "wan2", "interface": "eth1", "status": "down", "priority": 20}
+]
+```
+
+### Zone Segmentation
+
+#### GET /api/v1/zones/status
+
+Zone status: enabled flag, zone count, and policy count.
+
+```bash
+curl http://localhost:8080/api/v1/zones/status
+```
+
+```json
+{"enabled": true, "zone_count": 3, "policy_count": 6}
+```
+
+#### GET /api/v1/zones
+
+List all zones with their interfaces and default policies.
+
+```bash
+curl http://localhost:8080/api/v1/zones
+```
+
+#### GET /api/v1/zones/policies
+
+List all inter-zone traffic policies.
+
+```bash
+curl http://localhost:8080/api/v1/zones/policies
+```
+
+### Aliases
+
+#### GET /api/v1/aliases/status
+
+Alias count.
+
+```bash
+curl http://localhost:8080/api/v1/aliases/status
+```
+
+```json
+{"alias_count": 12}
+```
+
+#### PUT /api/v1/aliases/{id}/content
+
+Set content for an external alias. Only works for aliases with `alias_type: external`.
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
+  -H "Content-Type: application/json" \
+  -d '{"ips": ["192.168.0.0/16", "10.0.0.0/8"]}'
+```
+
+### DLP
+
+#### GET /api/v1/dlp/status
+
+DLP status: enabled flag and pattern count.
+
+```bash
+curl http://localhost:8080/api/v1/dlp/status
+```
+
+#### GET /api/v1/dlp/patterns
+
+List loaded DLP detection patterns.
+
+```bash
+curl http://localhost:8080/api/v1/dlp/patterns
+```
+
 ### Metrics
 
 #### GET /metrics
@@ -528,16 +660,18 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
 | POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
+| GET | `/api/v1/ids/status` | Yes | IDS status |
+| GET | `/api/v1/ids/rules` | Yes | List IDS rules |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | POST | `/api/v1/conntrack/flush` | Yes (admin) | Flush connection table |
-| GET | `/api/v1/gateways` | Yes | List gateways with health status |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
 | POST | `/api/v1/firewall/l7-rules` | Yes | Create L7 rule |
 | DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes | Delete L7 rule |
 | GET | `/api/v1/ips/rules` | Yes | List IPS rules |
 | PATCH | `/api/v1/ips/rules/{id}` | Yes | Update IPS rule mode |
 | GET | `/api/v1/ips/blacklist` | Yes | List blacklisted IPs |
+| GET | `/api/v1/ips/domain-blocks` | Yes | List domain-based IP blocks |
 | GET | `/api/v1/ratelimit/rules` | Yes | List rate limit rules |
 | POST | `/api/v1/ratelimit/rules` | Yes | Create rate limit rule |
 | DELETE | `/api/v1/ratelimit/rules/{id}` | Yes | Delete rate limit rule |
@@ -569,3 +703,14 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/config` | Yes | Current config |
 | POST | `/api/v1/config/reload` | Yes (admin) | Trigger reload |
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
+| GET | `/api/v1/nat/status` | Yes | NAT status |
+| GET | `/api/v1/nat/rules` | Yes | List NAT rules |
+| GET | `/api/v1/routing/status` | Yes | Routing status |
+| GET | `/api/v1/routing/gateways` | Yes | List gateways with health status |
+| GET | `/api/v1/zones/status` | Yes | Zone status |
+| GET | `/api/v1/zones` | Yes | List zones |
+| GET | `/api/v1/zones/policies` | Yes | List inter-zone policies |
+| GET | `/api/v1/aliases/status` | Yes | Alias count |
+| PUT | `/api/v1/aliases/{id}/content` | Yes | Set external alias content |
+| GET | `/api/v1/dlp/status` | Yes | DLP status |
+| GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |

@@ -6,7 +6,7 @@ eBPFsentinel attaches eBPF programs at XDP, TC, and uprobe hook points to inspec
 
 ## What It Does
 
-eBPFsentinel provides 11 security domains in a single agent binary:
+eBPFsentinel provides 16 domains in a single agent binary:
 
 | Domain | Description | Enforcement Point |
 |--------|------------|-------------------|
@@ -14,13 +14,18 @@ eBPFsentinel provides 11 security domains in a single agent binary:
 | **IDS** | Intrusion detection with regex patterns, kernel-side sampling, L7 protocol detection | TC classifier |
 | **IPS** | Intrusion prevention with automatic IP blacklisting | Shared with IDS |
 | **DLP** | Data loss prevention with configurable pattern scanning | uprobe (SSL) |
-| **Rate Limiting** | DDoS protection with 5 algorithms, per-CPU lock-free buckets | XDP |
+| **Rate Limiting** | Per-IP/subnet rate limiting with 5 algorithms, per-CPU lock-free buckets | XDP |
 | **DDoS Protection** | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine | XDP + Userspace |
 | **Threat Intelligence** | OSINT feed integration with Bloom filter pre-check, IOC correlation | TC classifier |
 | **L7 Firewall** | Application-layer filtering for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB | Userspace |
 | **DNS Intelligence** | Passive DNS capture, domain blocklists, feed integration | TC classifier |
 | **Domain Reputation** | Behavioral scoring engine, auto-blocking, alert enrichment | Userspace |
 | **L4 Load Balancer** | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn | XDP |
+| **Connection Tracking** | TCP/UDP/ICMP state machine, bidirectional tracking | TC classifier |
+| **NAT** | SNAT/DNAT/masquerade/1:1/redirect/port-forward, checksum offload | TC ingress/egress |
+| **Policy Routing** | Multi-WAN failover, health checks, GeoIP gateway preference | XDP |
+| **Zone Segmentation** | Interface-based security zones with inter-zone policies | Kernel + Userspace |
+| **IP/Port Aliases** | Named address/port/MAC sets, URL tables, GeoIP, BGP ASN, external API | Userspace |
 
 ## Key Capabilities
 
@@ -29,7 +34,7 @@ eBPFsentinel provides 11 security domains in a single agent binary:
 - **11 eBPF programs** — XDP firewall, XDP rate limiter, XDP load balancer, TC conntrack, TC NAT ingress/egress, TC scrub, TC IDS, TC threat intel, TC DNS, uprobe DLP
 - **XDP tail-call chaining** — firewall → rate limiter in a single attach point
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
-- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 23 endpoints
+- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 50+ endpoints
 - **gRPC streaming** (tonic) for real-time alert subscriptions
 - **JWT / OIDC / API key authentication** with role-based access control
 - **TLS 1.3** via rustls for both REST and gRPC
