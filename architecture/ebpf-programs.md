@@ -2,22 +2,23 @@
 
 ## Overview
 
-eBPFsentinel includes 11 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
+eBPFsentinel includes 12 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
 
 ## Programs
 
 | Program | Hook | Crate Path | Purpose |
 |---------|------|-----------|---------|
-| `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering |
+| `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering + reject (XDP_TX) |
 | `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection + per-country rate limit tiers (LPM) |
 | `xdp-loadbalancer` | XDP | `crates/ebpf-programs/xdp-loadbalancer/` | L4 load balancing (TCP/UDP/TLS passthrough) |
 | `tc-conntrack` | TC classifier | `crates/ebpf-programs/tc-conntrack/` | Connection tracking (TCP/UDP/ICMP state machine) |
-| `tc-scrub` | TC classifier | `crates/ebpf-programs/tc-scrub/` | Packet normalization (TTL, MSS, DF, IP ID) |
+| `tc-scrub` | TC classifier | `crates/ebpf-programs/tc-scrub/` | Packet normalization (TTL, MSS, DF, IP ID, TCP flags, ECN, TOS, TCP timestamps) |
 | `tc-nat-ingress` | TC ingress | `crates/ebpf-programs/tc-nat-ingress/` | DNAT (destination NAT, ingress direction) |
 | `tc-nat-egress` | TC egress | `crates/ebpf-programs/tc-nat-egress/` | SNAT (source NAT, egress direction) |
 | `tc-ids` | TC classifier | `crates/ebpf-programs/tc-ids/` | Intrusion detection |
 | `tc-threatintel` | TC classifier | `crates/ebpf-programs/tc-threatintel/` | Threat intelligence |
 | `tc-dns` | TC classifier | `crates/ebpf-programs/tc-dns/` | DNS capture |
+| `tc-qos` | TC egress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
 
 ## Shared Types (ebpf-common)
@@ -54,13 +55,15 @@ Key eBPF features:
 - MAC address matching (L2), DSCP classification
 - IP set maps for aliases and overload blacklist
 - Per-source state counters for connection limit enforcement
+- **Reject action** via `XDP_TX` — forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable and transmits back to sender using `bpf_xdp_adjust_tail`
 
 ## XDP Rate Limiter (xdp-ratelimit)
 
 - **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching — if a source IP falls within a country tier's CIDR range, the tier config is used
 - **PerCPU Hash** maps for lock-free per-IP counters
 - **bpf_timer** for periodic bucket expiration
-- **bpf_tcp_gen_syncookie** for SYN flood mitigation
+- **XDP SYN cookies** — forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret from `SYNCOOKIE_SECRET` map) via `XDP_TX`, validates ACK with dual-window check; replaces `bpf_tcp_gen_syncookie`
+- **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
 - 5 algorithms: token bucket, fixed window, sliding window, leaky bucket, SYN cookie
 
@@ -68,11 +71,11 @@ Key eBPF features:
 
 The xdp-ratelimit program also hosts DDoS-specific protections:
 
-- **SYN protection** — per-source SYN rate tracking with configurable PPS threshold
+- **SYN protection (SYN cookies)** — forges SYN+ACK responses with cryptographic cookies via `XDP_TX` instead of dropping SYNs; ACK validation checks cookie against current and previous minute windows
 - **ICMP protection** — rate limiting + oversized payload detection (potential tunneling)
 - **UDP amplification protection** — per-source-per-port rate limiting on configurable amplification ports (DNS/53, NTP/123, SSDP/1900, etc.)
 - **TCP connection tracking** — half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
-- **14-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS
+- **17-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS, SYNCOOKIE_SENT, SYNCOOKIE_VALID, SYNCOOKIE_INVALID
 
 ## XDP Load Balancer (xdp-loadbalancer)
 
@@ -120,10 +123,16 @@ Packet normalization running after XDP processing:
 - **MSS clamping**: Scan TCP SYN options, rewrite if exceeding `max_mss`, update L4 checksum
 - **DF bit clearing**: Clear Don't Fragment flag, update L3 checksum
 - **IP ID randomization**: Set `ip.id = bpf_get_prandom_u32()`, update L3 checksum
-- Configuration via `SCRUB_CONFIG` array map (8-byte `ScrubFlags` struct)
+- **TCP flags scrubbing**: Clear reserved/NS/CWR/ECE bits (preserves ECN negotiation on SYN)
+- **ECN stripping**: Clear ECN bits in IPv4 TOS and IPv6 Traffic Class
+- **TOS normalization**: Force TOS/DSCP to configured value (default 0)
+- **TCP timestamp stripping**: Remove TCP timestamp option (kind=8) for anti-fingerprinting
+- Configuration via `SCRUB_CONFIG` array map (14-byte `ScrubConfig` struct, expanded from 8 bytes)
 
 ## TC NAT Ingress (tc-nat-ingress)
 
+- **NPTv6 (RFC 6296)**: stateless IPv6 prefix translation (destination rewrite), checked before DNAT rules
+- **Hairpin NAT**: detects internal-to-internal DNAT, applies additional SNAT, stores reverse mapping in `NAT_HAIRPIN_CT` LRU map (IPv4 only)
 - Destination NAT (DNAT) for incoming packets
 - Port mapping and IP rewriting
 - `bpf_loop` for NAT rule scanning without hitting verifier loop limits
@@ -132,6 +141,7 @@ Packet normalization running after XDP processing:
 
 ## TC NAT Egress (tc-nat-egress)
 
+- **NPTv6 (RFC 6296)**: stateless IPv6 prefix translation (source rewrite), checked before SNAT rules
 - Source NAT (SNAT) for outgoing packets
 - `bpf_loop` for NAT rule scanning without hitting verifier loop limits
 - Reverse mapping from conntrack entries
@@ -142,6 +152,18 @@ Packet normalization running after XDP processing:
 
 - UDP port 53 traffic identification
 - DNS wire-format packet forwarding to userspace
+
+## TC QoS (tc-qos)
+
+- TC egress classifier for traffic shaping
+- Three-level hierarchy: pipes (bandwidth/delay/loss) → queues (WF2Q+ weighted fair) → classifiers (5-tuple + DSCP matching)
+- **Token bucket** bandwidth limiting with `bpf_ktime_get_boot_ns` timestamps
+- **4-level progressive wildcard** classifier lookup in `QOS_CLASSIFIERS` HashMap
+- **Random loss** emulation via `bpf_get_prandom_u32`
+- **LRU_PERCPU_HASH** (`QOS_FLOW_STATE`, 65536 entries) for per-flow token bucket state
+- **PerCpuArray** metrics: total_seen, shaped, dropped_loss, dropped_queue, delayed, errors, events_dropped
+- Scheduler types: fifo, wf2q, fq_codel
+- RingBuf backpressure (same 75% pattern)
 
 ## Uprobe DLP (uprobe-dlp)
 
@@ -156,7 +178,7 @@ All features require Linux kernel 5.17+ with BTF. See the [Compatibility](../ope
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 11 programs with nightly
+cargo xtask ebpf-build    # Builds all 12 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

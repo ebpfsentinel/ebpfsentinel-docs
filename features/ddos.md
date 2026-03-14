@@ -17,7 +17,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 | Attack Type | Detection | eBPF Protection |
 |-------------|-----------|-----------------|
-| **SYN Flood** | SYN rate exceeds threshold | SYN rate tracking per source IP |
+| **SYN Flood** | SYN rate exceeds threshold | SYN cookie forging (SYN+ACK via XDP_TX with FNV-1a cookie) |
 | **UDP Amplification** | Per-source-per-port rate spike | Per-port rate limiting for known amplification ports (DNS, NTP, etc.) |
 | **ICMP Flood** | ICMP packet rate exceeds threshold | Rate limiting + oversized payload detection |
 | **RST Flood** | RST packet rate exceeds threshold | Connection tracking with RST rate threshold |
@@ -29,7 +29,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 Four independent protection subsystems run in XDP:
 
-**SYN Protection** — Tracks SYN packet rates per source IP. When threshold mode is enabled, sources exceeding the configured PPS threshold are rate-limited.
+**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses with cryptographic SYN cookies directly at XDP speed via `XDP_TX`. The cookie is computed using FNV-1a over the 4-tuple (source/destination IP and port), a minute-granularity time counter, and a 32-byte random secret generated at startup. MSS is preserved using a 3-bit index encoding 8 standard MSS values in the cookie. When the ACK completing the handshake arrives, the cookie is validated by checking `ack_no - 1` against both the current and previous minute windows — this allows for clock skew at the minute boundary. If cookie validation succeeds, the connection proceeds normally. If forging the SYN+ACK fails (e.g., insufficient headroom), the program falls back to `XDP_DROP`.
 
 **ICMP Protection** — Enforces a maximum ICMP packet rate and detects oversized ICMP payloads (potential tunneling or amplification).
 
@@ -193,7 +193,7 @@ ebpfsentinel-agent --output json ddos attacks
 | Slot | Metric | Description |
 |------|--------|-------------|
 | 0 | `SYN_RECEIVED` | SYN packets observed |
-| 1 | `SYN_FLOOD_DROPS` | SYN flood packets dropped |
+| 1 | `SYN_FLOOD_DROPS` | SYN flood packets dropped (fallback when cookie forging fails) |
 | 2 | `ICMP_PASSED` | ICMP packets passed |
 | 3 | `ICMP_DROPPED` | ICMP packets dropped (rate exceeded or oversized) |
 | 4 | `AMP_PASSED` | Amplification port packets passed |
@@ -206,6 +206,9 @@ ebpfsentinel-agent --output json ddos attacks
 | 11 | `RST_FLOOD_DROPS` | RST flood drops |
 | 12 | `FIN_FLOOD_DROPS` | FIN flood drops |
 | 13 | `ACK_FLOOD_DROPS` | ACK flood drops |
+| 14 | `SYNCOOKIE_SENT` | SYN cookies forged and sent via XDP_TX |
+| 15 | `SYNCOOKIE_VALID` | Valid SYN cookie ACKs received (handshake completed) |
+| 16 | `SYNCOOKIE_INVALID` | Invalid SYN cookie ACKs rejected |
 
 ### Userspace (Prometheus)
 

@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 11 eBPF kernel programs.
+Detailed documentation for each of the 12 eBPF kernel programs.
 
 ## XDP Programs
 
@@ -65,6 +65,17 @@ Policy routing via [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function
 
 MTU validated with [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) before any redirect.
 
+#### Reject Action (XDP_TX)
+
+When a rule has `action: reject`, the firewall forges a response packet and transmits it back via `XDP_TX`:
+
+- **TCP**: Constructs a TCP RST with correct seq/ack numbers per RFC 793 by swapping addresses/ports and rewriting headers in-place
+- **UDP/other IPv4**: Constructs an ICMP Destination Unreachable (type 3, code 3) using [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) to resize the packet
+- **IPv6 + TCP**: TCP RST with IPv6 headers
+- **IPv6 + UDP**: ICMPv6 Destination Unreachable (type 1, code 4)
+
+If packet construction fails, the program silently falls back to `XDP_DROP`.
+
 #### Tail-Call to Rate Limiter
 
 When the firewall passes a packet, it tail-calls into `xdp-ratelimit` via [`PROG_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PROG_ARRAY/) + [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/). This means only one XDP program needs to be attached to the interface.
@@ -99,7 +110,7 @@ Per-IP rate limiting and DDoS protection at XDP speed.
 | Fixed Window | PERCPU_HASH | Counter resets every interval |
 | Sliding Window | PERCPU_HASH | Weighted average of current + previous window |
 | Leaky Bucket | PERCPU_HASH | Constant drain rate, queued excess |
-| SYN Cookie | — | [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) for stateless SYN flood protection |
+| SYN Cookie | — | XDP SYN cookie forging via `XDP_TX` (see below) |
 
 Per-CPU maps eliminate lock contention: each CPU core maintains independent counters, aggregated at read time.
 
@@ -107,10 +118,21 @@ Per-CPU maps eliminate lock contention: each CPU core maintains independent coun
 
 | Protection | Mechanism |
 |-----------|-----------|
-| **SYN flood** | Per-source SYN rate tracking, configurable PPS threshold, SYN cookie fallback |
+| **SYN flood** | SYN cookie forging — forges SYN+ACK with FNV-1a cookie via `XDP_TX`, validates ACK with dual-window check |
 | **ICMP flood** | Rate limiting + oversized payload detection (potential tunneling indicator) |
 | **UDP amplification** | Per-source-per-port rate limiting on amplification ports (DNS/53, NTP/123, SSDP/1900, etc.) |
 | **TCP connection floods** | Half-open connection monitoring, RST/FIN/ACK flood detection |
+
+#### SYN Cookie Forging
+
+When SYN protection is active, incoming SYN packets are answered with a forged SYN+ACK transmitted back via `XDP_TX` instead of being dropped:
+
+1. **Cookie generation**: FNV-1a hash over the 4-tuple (src IP, dst IP, src port, dst port), a minute-granularity time counter, and a 32-byte secret from the `SYNCOOKIE_SECRET` Array map. MSS is encoded as a 3-bit index (8 standard MSS values) in the cookie.
+2. **SYN+ACK forging**: The original SYN packet is rewritten in-place — Ethernet MACs swapped, IP src/dst swapped, TCP ports swapped, SYN+ACK flags set, `seq_num` set to the cookie value. [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) is used to trim any payload. Checksums are recomputed.
+3. **ACK validation**: When a completing ACK arrives, `ack_no - 1` is checked against cookies computed for both the current and previous minute windows (handles clock boundary). Valid ACKs pass through; invalid ones are dropped.
+4. **Fallback**: If forging fails, the packet is silently dropped (`XDP_DROP`).
+
+The `SYNCOOKIE_SECRET` map is a 1-entry Array map holding a 32-byte random secret generated at agent startup.
 
 #### Per-Country Rate Limit Tiers (LPM)
 
@@ -193,13 +215,19 @@ Key design decisions:
 
 Packet normalization running after XDP. Configuration via `SCRUB_CONFIG` [`PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/) map.
 
-| Normalization | Helper | Description |
-|--------------|--------|-------------|
-| TTL normalization | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Raise TTL to configured minimum (IPv4) |
-| Hop limit normalization | direct byte write | Raise hop limit to configured minimum (IPv6, no header checksum) |
-| MSS clamping | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | Scan TCP SYN options, rewrite if exceeding max_mss (IPv4/IPv6) |
-| DF bit clearing | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | Clear Don't Fragment flag (IPv4 only) |
-| IP ID randomization | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Set `ip.id` to random value (IPv4 only, prevents fingerprinting) |
+| Normalization | Helper | Metric Index | Description |
+|--------------|--------|-------------|-------------|
+| TTL normalization | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 0 | Raise TTL to configured minimum (IPv4) |
+| Hop limit normalization | direct byte write | 0 | Raise hop limit to configured minimum (IPv6, no header checksum) |
+| MSS clamping | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | 1 | Scan TCP SYN options, rewrite if exceeding max_mss (IPv4/IPv6) |
+| DF bit clearing | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | — | Clear Don't Fragment flag (IPv4 only) |
+| IP ID randomization | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | — | Set `ip.id` to random value (IPv4 only, prevents fingerprinting) |
+| TCP flags scrubbing | direct byte write + [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 2 | Clear TCP reserved/NS/CWR/ECE bits (preserves ECN negotiation on SYN) |
+| ECN stripping | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 3 | Clear ECN bits in IPv4 TOS and IPv6 Traffic Class |
+| TOS normalization | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 4 | Force TOS/DSCP to configured value (default 0) |
+| TCP timestamp stripping | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | 5 | Remove TCP timestamp option (kind=8) for anti-fingerprinting |
+
+> **Note:** `reassemble_fragments` was removed — fragment reassembly is infeasible within eBPF program constraints.
 
 ---
 
@@ -209,6 +237,8 @@ Packet normalization running after XDP. Configuration via `SCRUB_CONFIG` [`PERCP
 
 Destination NAT for incoming packets (IPv4 and IPv6):
 
+- **NPTv6 (RFC 6296)**: stateless IPv6 prefix translation — rewrites destination prefix from `external_prefix` to `internal_prefix` using `NPTV6_RULES` and `NPTV6_RULE_COUNT` maps. Checked **before** stateful DNAT rules. Checksum-neutral via pre-computed adjustment word.
+- **Hairpin NAT**: detects when a DNAT target and source are in the same internal subnet. Applies additional SNAT (source → `hairpin_snat_ip`) and stores reverse mapping in `NAT_HAIRPIN_CT` LRU map. Return path reverses both translations. Configured via `NAT_HAIRPIN_CONFIG` map. IPv4 only.
 - **DNAT**: rewrite destination IP/port for port forwarding and 1:1 NAT
 - **Redirect**: rewrite destination to local address
 - **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit (same approach as the firewall linear scan)
@@ -226,6 +256,7 @@ Destination NAT for incoming packets (IPv4 and IPv6):
 
 Source NAT for outgoing packets (IPv4 and IPv6):
 
+- **NPTv6 (RFC 6296)**: stateless IPv6 prefix translation — rewrites source prefix from `internal_prefix` to `external_prefix` using `NPTV6_RULES` and `NPTV6_RULE_COUNT` maps. Checked **before** stateful SNAT rules. Checksum-neutral via pre-computed adjustment word.
 - **SNAT**: static source IP rewrite
 - **Masquerade**: dynamic source rewrite to outgoing interface address
 - **Port allocation**: hash-based ephemeral port selection (IPv6 uses XOR-fold of `[u32; 4]` to `u32`)
@@ -274,6 +305,39 @@ Passive DNS capture:
 - Identifies UDP port 53 traffic
 - Forwards raw DNS wire-format packets to userspace via RingBuf
 - Userspace DNS engine parses, caches domain↔IP mappings, and checks blocklists
+
+---
+
+### tc-qos
+
+**Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (egress) | **Path:** `crates/ebpf-programs/tc-qos/`
+
+QoS traffic shaping on the egress path. Implements a three-level pipe/queue/classifier hierarchy for bandwidth limiting, delay emulation, and packet loss simulation.
+
+#### Maps
+
+| Map | Type | Max Entries | Description |
+|-----|------|-------------|-------------|
+| `QOS_PIPE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 64 | Pipe definitions (bandwidth_bps, burst_bytes, delay_ms, loss_percent, scheduler) |
+| `QOS_QUEUE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 256 | Queue definitions (pipe_id, weight) |
+| `QOS_CLASSIFIERS` | [`HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/) | 1024 | 5-tuple + DSCP classifier rules → queue_id |
+| `QOS_FLOW_STATE` | [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) | 65536 | Per-flow token bucket state (tokens, last_refill_ns) |
+| `QOS_METRICS` | [`PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/) | 7 | Per-CPU shaping counters (total_seen, shaped, dropped_loss, dropped_queue, delayed, errors, events_dropped) |
+| `EVENTS` | [`RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/) | 1 MB | QoS events emitted to userspace |
+
+#### Processing Pipeline
+
+1. **Parse** — Extract L3/L4 headers (IPv4/IPv6, TCP/UDP), read DSCP from IP header
+2. **Classify** — 4-level progressive wildcard lookup in `QOS_CLASSIFIERS`:
+   - Level 1: full 5-tuple + DSCP (exact match)
+   - Level 2: wildcard ports (src_port=0, dst_port=0)
+   - Level 3: wildcard source IP (src_ip=0)
+   - Level 4: wildcard all fields (default classifier)
+   First match determines the target queue and its parent pipe.
+3. **Token bucket** — Look up flow state in `QOS_FLOW_STATE`. Refill tokens based on elapsed time since last packet ([`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/)). If tokens >= packet size, deduct and pass. Otherwise drop (`TC_ACT_SHOT`).
+4. **Loss** — If pipe has `loss_percent > 0`, call [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) and drop with the configured probability.
+5. **Delay** — If pipe has `delay_ms > 0`, record delay metadata for userspace scheduling.
+6. **Emit** — Send `QosEvent` to `EVENTS` RingBuf with shaping decision. Same 75% backpressure pattern as other programs.
 
 ---
 

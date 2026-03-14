@@ -44,6 +44,30 @@ TC Hook (classifier)
         └── Emit DNS packet to RingBuf
 ```
 
+### 1b. Egress (Kernel)
+
+```
+Application
+    │
+    ▼
+TC Hook (egress)
+    │
+    ├── tc-nat-egress
+    │   ├── SNAT / masquerade rule scan
+    │   └── Source IP/port rewrite + checksum update
+    │
+    └── tc-qos
+        ├── 4-level progressive wildcard classifier lookup
+        ├── Token bucket bandwidth check (per-flow state)
+        ├── Random loss emulation (bpf_get_prandom_u32)
+        ├── Delay annotation
+        ├── TC_ACT_SHOT (token bucket exhausted or loss hit) ──→ [dropped]
+        └── TC_ACT_OK + emit QosEvent to RingBuf
+    │
+    ▼
+Wire
+```
+
 ### 2. Event Dispatch (Userspace)
 
 ```
@@ -65,6 +89,7 @@ Domain Engines (parallel evaluation, GeoIP-aware)
     ├── L7 Firewall Engine → protocol parsing → src/dst country matching → rule evaluation
     ├── DNS Engine         → cache update → blocklist check → high-risk country reputation
     ├── LB Engine          → forward/no-backend metrics
+    ├── QoS Engine         → shaping metrics → pipe/queue stats
     └── Domain Reputation  → scoring → auto-block decision
 ```
 
@@ -109,6 +134,40 @@ Prometheus
     └── /metrics endpoint (counters, histograms, gauges)
 ```
 
+## Hairpin NAT Data Flow
+
+When an internal client accesses a DNAT service via the external IP, and both client and server are on the same internal subnet:
+
+```
+Internal Client (192.168.1.100)
+    │
+    │  dst = External IP (203.0.113.1:443)
+    ▼
+tc-nat-ingress (forward path)
+    │
+    ├── DNAT lookup: 203.0.113.1:443 → 192.168.1.50:443
+    ├── Hairpin detection: src (192.168.1.100) and dst (192.168.1.50)
+    │   are both in internal_subnet (192.168.1.0/24)
+    ├── Apply DNAT: dst → 192.168.1.50:443
+    ├── Apply hairpin SNAT: src → 192.168.1.1 (hairpin_snat_ip)
+    ├── Store reverse mapping in NAT_HAIRPIN_CT
+    │
+    ▼
+Internal Server (192.168.1.50)
+    │
+    │  reply: src = 192.168.1.50:443, dst = 192.168.1.1
+    ▼
+tc-nat-ingress (return path)
+    │
+    ├── NAT_HAIRPIN_CT lookup by 5-tuple
+    ├── Reverse hairpin SNAT: dst → 192.168.1.100 (original client)
+    ├── Reverse DNAT: src → 203.0.113.1:443 (external IP)
+    │
+    ▼
+Internal Client (192.168.1.100)
+    receives reply from 203.0.113.1:443 ✓
+```
+
 ## XDP→TC Metadata Flow
 
 When XDP passes a packet, it writes metadata using `bpf_xdp_adjust_meta`:
@@ -141,3 +200,5 @@ Some eBPF maps are updated from userspace:
 | DNS blocklist | Userspace → Kernel | Domain blocks |
 | LB service/backend maps | Userspace → Kernel | Load balancer service definitions |
 | LB metrics (PerCpuArray) | Kernel → Userspace | Per-CPU forwarding counters |
+| QoS pipe/queue/classifier configs | Userspace → Kernel | QoS policy changes |
+| QoS metrics (PerCpuArray) | Kernel → Userspace | Per-CPU shaping counters |

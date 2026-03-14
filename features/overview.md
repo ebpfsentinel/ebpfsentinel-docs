@@ -25,9 +25,10 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [GeoIP Enforcement](geoip.md) | OSS | Shipped | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
 | [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering, QinQ double tagging, quarantine tagging |
 | [Connection Tracking](conntrack.md) | OSS | Shipped | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
-| [NAT](nat.md) | OSS | Shipped | TC ingress/egress | DNAT/SNAT, port mapping, checksum offload |
+| [NAT](nat.md) | OSS | Shipped | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | Shipped | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Shipped | Kernel + Userspace | Network zones with inter-zone policies |
+| [QoS / Traffic Shaping](qos.md) | OSS | Shipped | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, delay/loss emulation |
 | [IP/Port Aliases](aliases.md) | OSS | Shipped | Userspace | Named address/port groups, external URL content |
 
 ### Infrastructure
@@ -65,7 +66,7 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 
 ## eBPF Program Map
 
-Eleven kernel programs cover all enforcement points:
+Twelve kernel programs cover all enforcement points:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -74,9 +75,10 @@ Eleven kernel programs cover all enforcement points:
 | `xdp-loadbalancer` | XDP | L4 load balancing, per-service round-robin, MAC swap, backend selection, health-aware routing |
 | `tc-conntrack` | TC classifier | Unified TCP/UDP/ICMP state machine, bidirectional tracking, packet+byte counters, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
-| `tc-nat-ingress` | TC ingress | Destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6 |
-| `tc-nat-egress` | TC egress | Source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6 |
+| `tc-nat-ingress` | TC ingress | NPTv6 prefix translation, hairpin NAT, destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6 |
+| `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6 |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure |
 | `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN quarantine, backpressure |
+| `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, delay/loss emulation |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |

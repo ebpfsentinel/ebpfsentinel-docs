@@ -32,6 +32,7 @@
 - [NAT](features/nat.md)
 - [Policy Routing](features/routing.md)
 - [Zone Segmentation](features/zones.md)
+- [QoS / Traffic Shaping](features/qos.md)
 - [IP/Port Aliases](features/aliases.md)
 - [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)

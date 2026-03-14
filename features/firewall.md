@@ -67,6 +67,13 @@ Each rule field is optional — omitted fields act as wildcards:
 
 - **allow** — `XDP_PASS` the packet into the kernel network stack
 - **deny** — `XDP_DROP` the packet (never reaches the kernel)
+- **reject** — forge and send an active refusal via `XDP_TX`, then drop the original packet:
+  - **TCP packets**: sends a TCP RST with correct sequence/acknowledgment numbers per RFC 793
+  - **UDP/other IPv4**: sends an ICMP Destination Unreachable (type 3, code 3 — port unreachable)
+  - **IPv6 + TCP**: sends a TCP RST with IPv6 headers
+  - **IPv6 + UDP**: sends an ICMPv6 Destination Unreachable (type 1, code 4 — port unreachable)
+  - Falls back to silent `XDP_DROP` if response packet construction fails (e.g., insufficient headroom)
+  - Config value: `action: reject` (alias: `reset`)
 - **log** — `XDP_PASS` + emit event to RingBuf for userspace logging
 
 ### Stateful Inspection (Connection Tracking)
@@ -222,6 +229,12 @@ A dedicated TC program normalizes packets after XDP processing:
 - **MSS clamping**: Clamp TCP MSS option on SYN packets (IPv4/IPv6)
 - **DF bit clearing**: Clear the Don't Fragment flag (IPv4 only)
 - **IP ID randomization**: Randomize the IP identification field (IPv4 only)
+- **TCP flags scrubbing** (`scrub_tcp_flags`): Clears TCP reserved, NS, CWR, and ECE bits for anti-fingerprinting. ECN negotiation on SYN packets is preserved — only non-SYN packets have ECE/CWR cleared.
+- **ECN stripping** (`strip_ecn`): Clears ECN bits (CE and ECT) in the IPv4 TOS field and IPv6 Traffic Class.
+- **TOS normalization** (`normalize_tos`): Forces the TOS/DSCP byte to a configured value (default 0), useful for sanitizing upstream QoS markings.
+- **TCP timestamp stripping** (`strip_tcp_timestamps`): Removes TCP timestamp option (kind=8) from packets. This is an anti-fingerprinting measure that prevents OS detection via TCP timestamp analysis.
+
+> **Note:** The `reassemble_fragments` operation that appeared in earlier designs has been removed. Fragment reassembly is infeasible within eBPF program constraints (bounded stack, no dynamic allocation).
 
 ```yaml
 firewall:
@@ -232,6 +245,11 @@ firewall:
     max_mss: 1440
     clear_df: true
     random_ip_id: true
+    scrub_tcp_flags: true
+    strip_ecn: false
+    normalize_tos: true
+    normalize_tos_value: 0
+    strip_tcp_timestamps: true
 ```
 
 ### Policy Routing
@@ -340,7 +358,7 @@ firewall:
       action: log
 ```
 
-The REST API accepts `"pass"`/`"allow"` and `"deny"`/`"drop"`/`"block"` as synonyms for the action field.
+The REST API accepts `"pass"`/`"allow"` and `"deny"`/`"drop"`/`"block"` as synonyms for the action field. The `"reject"` action also accepts `"reset"` as a synonym.
 
 See [Configuration: Firewall](../configuration/firewall.md) for the full reference.
 
@@ -410,3 +428,8 @@ ebpfsentinel-agent conntrack connections
 - `ebpfsentinel_conntrack_new_total` — new connections tracked
 - `ebpfsentinel_scrub_mss_clamped_total` — MSS options clamped
 - `ebpfsentinel_scrub_ttl_fixed_total` — TTL values normalized
+- `ebpfsentinel_scrub_tcp_flags_scrubbed_total` — TCP reserved/NS/CWR/ECE bits cleared
+- `ebpfsentinel_scrub_ecn_stripped_total` — ECN bits stripped from IP TOS/Traffic Class
+- `ebpfsentinel_scrub_tos_normalized_total` — TOS/DSCP bytes normalized
+- `ebpfsentinel_scrub_tcp_ts_stripped_total` — TCP timestamp options removed
+- `ebpfsentinel_firewall_rejected_total` — packets rejected (TCP RST or ICMP unreachable sent via XDP_TX)

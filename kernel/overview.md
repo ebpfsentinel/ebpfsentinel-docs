@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel runs 11 eBPF programs in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. This section documents the kernel-side architecture in detail.
+eBPFsentinel runs 12 eBPF programs in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -11,7 +11,7 @@ eBPFsentinel hooks into three kernel subsystems:
 | Subsystem | Hook Point | Latency | Programs |
 |-----------|-----------|---------|----------|
 | [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | Driver receive path (before SKB allocation) | ~100 ns | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer` |
-| [TC](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) | Traffic Control classifier (after SKB) | ~1 µs | `tc-conntrack`, `tc-nat-*`, `tc-scrub`, `tc-ids`, `tc-threatintel`, `tc-dns` |
+| [TC](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) | Traffic Control classifier (after SKB) | ~1 µs | `tc-conntrack`, `tc-nat-*`, `tc-scrub`, `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-qos` |
 | [Uprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | Userspace function entry (SSL_write/read) | ~5 µs | `uprobe-dlp` |
 
 ## Program Inventory
@@ -29,6 +29,7 @@ eBPFsentinel hooks into three kernel subsystems:
 | 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
 | 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, IPv4/IPv6) | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
 | 11 | `xdp-loadbalancer` | XDP | L4 load balancing (TCP/UDP/TLS passthrough) | Destination IP/port rewrite, MAC swap, checksum fixup, per-service round-robin, health-aware backend selection |
+| 12 | `tc-qos` | TC egress | QoS / traffic shaping | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, delay/loss emulation |
 
 ## Ingress / Egress Pipeline
 
@@ -55,7 +56,8 @@ INGRESS:
                     Userspace (via RingBuf events)
 
 EGRESS:
-  Application → TC egress (tc-nat-egress: SNAT/masquerade) → wire
+  Application → TC egress (tc-nat-egress: SNAT/masquerade)
+                    → TC egress (tc-qos: traffic shaping) → wire
 ```
 
 ## Compilation
@@ -63,7 +65,7 @@ EGRESS:
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:
 
 ```bash
-cargo xtask ebpf-build    # Builds all 10 programs
+cargo xtask ebpf-build    # Builds all 12 programs
 ```
 
 Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both kernel programs and the userspace agent.

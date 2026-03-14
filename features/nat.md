@@ -54,3 +54,78 @@ Both programs support IPv4 and IPv6 with full checksum recalculation. Rule scann
 | GET | `/api/v1/nat/rules` | List all NAT rules (SNAT + DNAT with direction field) |
 
 See [REST API Reference](../api-reference/rest-api.md) for details.
+
+## NPTv6 (RFC 6296)
+
+Stateless, bidirectional IPv6-to-IPv6 Network Prefix Translation per [RFC 6296](https://datatracker.ietf.org/doc/html/rfc6296). NPTv6 replaces the prefix portion of an IPv6 address while preserving the interface identifier, enabling address independence without the statefulness of traditional NAT.
+
+Key properties:
+
+- **Stateless**: no connection tracking required — each packet is translated independently
+- **Bidirectional**: egress rewrites `internal_prefix → external_prefix` (source in `tc-nat-egress`), ingress rewrites `external_prefix → internal_prefix` (destination in `tc-nat-ingress`)
+- **No port rewriting**: only the network prefix is modified, L4 headers are untouched
+- **Checksum-neutral**: a pre-computed adjustment word ensures the IPv6 pseudo-header checksum remains valid without per-packet recalculation
+- **Priority**: NPTv6 rules are checked **before** stateful NAT rules in both ingress and egress programs
+
+### Configuration
+
+```yaml
+nat:
+  nptv6_rules:
+    - id: site-a
+      internal_prefix: "fd00:1::"
+      external_prefix: "2001:db8:1::"
+      prefix_len: 48
+    - id: site-b
+      internal_prefix: "fd00:2::"
+      external_prefix: "2001:db8:2::"
+      prefix_len: 48
+```
+
+### REST API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/nat/nptv6` | List all NPTv6 rules |
+| POST | `/api/v1/nat/nptv6` | Create an NPTv6 rule |
+| DELETE | `/api/v1/nat/nptv6/{id}` | Delete an NPTv6 rule |
+
+### CLI
+
+```bash
+ebpfsentinel nat nptv6 list
+ebpfsentinel nat nptv6 create --id site-a --internal-prefix fd00:1:: --external-prefix 2001:db8:1:: --prefix-len 48
+ebpfsentinel nat nptv6 delete --id site-a
+```
+
+## Hairpin NAT (NAT Reflection)
+
+Hairpin NAT allows internal clients to access DNAT services via the external (public) IP address, even when the client and server reside on the same internal subnet. Without hairpin NAT, the server would reply directly to the client (bypassing the firewall), and the client would drop the response because it expects a reply from the external IP.
+
+### How It Works
+
+When an internal client sends traffic to the external IP and a matching DNAT rule exists:
+
+1. **Forward path** (internal client → external IP):
+   - The DNAT rule rewrites the destination to the internal server (standard DNAT)
+   - An additional SNAT rewrites the source to the firewall's LAN IP (`hairpin_snat_ip`)
+   - A reverse mapping is stored in the `NAT_HAIRPIN_CT` LRU map
+
+2. **Return path** (internal server → firewall LAN IP):
+   - The hairpin conntrack entry is looked up
+   - Both translations are reversed: destination → original client IP, source → external IP
+   - The client receives the reply from the expected external IP
+
+Both forward and return paths are handled entirely in `tc-nat-ingress`. This is IPv4 only — IPv6 uses globally routable addresses, making hairpin NAT unnecessary.
+
+### Configuration
+
+```yaml
+nat:
+  hairpin:
+    enabled: true
+    internal_subnet: "192.168.1.0/24"
+    hairpin_snat_ip: "192.168.1.1"
+```
+
+Hairpin NAT supports hot reload — changes take effect without restarting the agent.
