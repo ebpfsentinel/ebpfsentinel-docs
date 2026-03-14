@@ -8,11 +8,14 @@ eBPFsentinel Enterprise extends the open-source agent with advanced security cap
 
 The OSS agent is fully functional for production use — all security domains, APIs, CLI, authentication, TLS, and observability are included in the open-source release. Enterprise adds deeper detection, enforcement, and operational capabilities.
 
+Enterprise features are implemented in a **separate repository** (`ebpfsentinel-enterprise/`) that depends on the OSS core agent crates. Features are activated at runtime by a **license key system** with machine fingerprint binding and anti-tamper protections.
+
 ## Shipped Features
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| [Advanced DLP](dlp.md) | Custom patterns, block mode, per-pattern overrides, hot-reload | **Shipped** |
+| [License System](license.md) | Ed25519-signed license keys, machine fingerprint binding, air-gap activation | **Shipped** |
+| [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection | **Shipped** |
 
 ## Planned Features
 
@@ -31,6 +34,23 @@ The OSS agent is fully functional for production use — all security domains, A
 | [Advanced Analytics](analytics.md) | Traffic analytics and trends | Planned |
 | [Advanced RBAC](advanced-rbac.md) | Fine-grained permissions | Planned |
 
+## Enterprise Architecture
+
+The enterprise edition follows the same hexagonal/DDD architecture as the OSS agent:
+
+```
+ebpfsentinel-enterprise/
+├── enterprise-domain/          # License, DLP engine, TLS bypass rules
+├── enterprise-ports/           # Secondary port traits
+├── enterprise-application/     # License service
+├── enterprise-adapters/        # License file store, HTTP handlers
+├── enterprise-infrastructure/  # Config, integrity checks, cert authority
+├── enterprise-agent/           # CLI + HTTP server entry point
+└── enterprise-license/         # License management CLI tool
+```
+
+Each enterprise crate depends on its OSS counterpart without modifying OSS code.
+
 ## What OSS Can Do Today
 
 Many enterprise use cases can be addressed with current OSS capabilities:
@@ -43,3 +63,4 @@ Many enterprise use cases can be addressed with current OSS capabilities:
 | SIEM export | Webhook alerts + structured JSON logs → log shipper → SIEM |
 | Compliance | Audit trail + alerting routes + Prometheus metrics for evidence collection |
 | RBAC | JWT/OIDC/API keys with admin/operator/viewer roles |
+| DLP patterns | 9 built-in patterns (PCI, PII, credentials) in alert mode |

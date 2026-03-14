@@ -35,6 +35,7 @@
 - [IP/Port Aliases](features/aliases.md)
 - [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)
+  - [License System](features/enterprise/license.md)
   - [Advanced DLP](features/enterprise/dlp.md)
   - [Dashboard UI](features/enterprise/dashboard.md)
   - [Kubernetes Operator](features/enterprise/kubernetes-operator.md)
@@ -72,6 +73,7 @@
 - [GeoIP](configuration/geoip.md)
 - [Authentication](configuration/auth.md)
 - [TLS](configuration/tls.md)
+- [Enterprise](configuration/enterprise.md)
 
 # API Reference
 

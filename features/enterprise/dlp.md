@@ -4,94 +4,181 @@
 
 ## Overview
 
-Enterprise DLP extends the OSS DLP module with custom pattern definitions, block mode enforcement, per-pattern mode overrides, and hot-reload capabilities.
+Enterprise DLP extends the OSS DLP module with a high-performance Vectorscan scanning engine, custom pattern definitions, block mode enforcement, per-pattern mode overrides, and TLS deep inspection for encrypted traffic scanning.
 
-## What Enterprise Adds
+## Vectorscan Engine
 
-### Custom Patterns
+Enterprise replaces the OSS regex-based scanner with [Vectorscan](https://github.com/VectorCamp/vectorscan) (Hyperscan-compatible), providing 10+ Gbps multi-pattern matching throughput.
 
-Define organization-specific patterns with arbitrary IDs and regex:
+Key capabilities:
+- **Block mode scanning** — single contiguous buffer, all patterns in one pass
+- **Streaming mode** — patterns that span multiple SSL/TLS chunks
+- **Vectored mode** — scatter-gather scanning of non-contiguous buffers
+- **Per-pattern flags** — CASELESS, UTF8, SINGLEMATCH, SOM_LEFTMOST, etc.
+- **Early termination** — stop scanning on first block-mode match
+- **Database serialization** — cache compiled pattern databases
+- **Scratch pooling** — zero-allocation scanning in steady state
 
-```yaml
-dlp:
-  patterns:
-    - id: internal-project-code
-      name: Internal Project Code
-      regex: "PRJ-[A-Z]{3}-\\d{6}"
-      severity: high
-      data_type: custom
-      description: "Internal project identifier leak"
-    - id: internal-employee-id
-      name: Employee ID
-      regex: "EMP-\\d{8}"
-      severity: medium
-      data_type: pii
+Architecture:
+```
+HyperscanDlpEngine
+  └── VectorscanScanner (DlpScanner trait)
+        ├── Arc<ScannerState> (atomic hot-reload)
+        │     ├── BlockDatabase (compiled patterns)
+        │     └── ScratchPool (pre-allocated, acquire/release)
+        └── RegexScanner (fallback if Vectorscan unavailable)
 ```
 
-OSS is limited to built-in patterns (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`). Enterprise allows any pattern ID.
+A regex-based fallback is always available for platforms without Vectorscan.
 
-### Block Mode
+## Custom Patterns
 
-Block mode actively drops SSL/TLS connections when sensitive data is detected, preventing data exfiltration:
+Define organization-specific patterns with arbitrary IDs:
 
 ```yaml
-dlp:
-  mode: block    # global: block all matches
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: alert
+    custom_patterns:
+      - id: PROJ-CODE
+        name: Project Code
+        regex: "PROJ-[A-Z]{3}-\\d{6}"
+        severity: high
+        data_type: internal_code
+        description: "Internal project tracking codes"
+      - id: EMP-ID
+        name: Employee ID
+        regex: "EMP-\\d{5}"
+        severity: critical
+        data_type: employee
+        mode: block  # per-pattern override
+```
+
+OSS is limited to 9 built-in patterns (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`). Enterprise allows any pattern ID.
+
+**Validation at config load:**
+- Pattern IDs validated for uniqueness (vs built-in + other custom)
+- Regex syntax validated via Vectorscan `expression_info` (catch errors before compilation)
+- Severity validated (low, medium, high, critical)
+- Invalid patterns rejected with clear error messages including pattern ID
+
+## Block Mode
+
+Block mode actively drops connections when sensitive data is detected:
+
+```yaml
+enterprise:
+  advanced_dlp:
+    mode: block  # global: block all matches
 ```
 
 OSS is limited to `alert` mode (detect and report only).
 
 ### Per-Pattern Mode Override
 
-Apply different enforcement policies per pattern. For example, block credit card leaks but only alert on email addresses:
+Apply different enforcement per pattern:
 
 ```yaml
-dlp:
-  mode: alert                  # default for patterns without override
-  patterns:
-    - id: dlp-pci-visa
-      name: Visa Card
-      regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      data_type: pci
-      mode: block              # override: block this pattern
-    - id: dlp-pii-email
-      name: Email
-      regex: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
-      severity: medium
-      data_type: pii
-      # inherits global alert mode
+enterprise:
+  advanced_dlp:
+    mode: alert                    # default
+    custom_patterns:
+      - id: dlp-pci-visa
+        name: Visa Card
+        regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
+        severity: critical
+        data_type: pci
+        mode: block                # override: block this pattern
+      - id: dlp-pii-email
+        name: Email
+        regex: "[a-z]+@[a-z]+\\.[a-z]+"
+        severity: medium
+        data_type: pii
+        # inherits global alert mode
 ```
 
-### Hot-Reload
+### Scan Results
 
-Enterprise supports live pattern reload via config file change or API call. Pattern changes take effect without restarting the agent:
+`scan_with_actions()` returns enriched results with per-match action decisions:
 
+| Field | Description |
+|-------|-------------|
+| `pattern_id` | Pattern that matched |
+| `pattern_name` | Display name |
+| `severity` | Low, Medium, High, Critical |
+| `data_type` | Category (pci, pii, credentials, custom, etc.) |
+| `mode` | Alert or Block |
+| `source` | BuiltIn or Custom |
+| `byte_offset` | Match start position |
+| `byte_length` | Match length |
+
+`should_block()` returns true for block-mode matches.
+
+## TLS Deep Inspection
+
+Scan encrypted traffic by intercepting TLS connections with a configured CA certificate:
+
+```yaml
+enterprise:
+  advanced_dlp:
+    tls_inspection:
+      enabled: true
+      ca_cert: /etc/ebpfsentinel/ca.crt
+      ca_key: /etc/ebpfsentinel/ca.key
+      bypass_domains:
+        - "*.bank.com"
+        - "healthcare.example.org"
+      bypass_ips:
+        - "10.0.0.0/8"
+        - "fd00::/16"
+```
+
+### Bypass Lists
+
+Domains and IPs can be exempted from inspection:
+
+- **Exact domain match:** `example.com`
+- **Wildcard suffix:** `*.example.com` (matches `sub.example.com` but not `example.com`)
+- **IPv4/IPv6 CIDR:** `10.0.0.0/8`, `fd00::/16`
+- **Individual IP:** `192.168.1.100`
+
+### Certificate Authority
+
+Dynamic per-SNI certificate generation:
+- Leaf certificates signed by the configured CA
+- Certificate chain: leaf + CA cert
+- Thread-safe cache per domain (generate once, reuse)
+- Short-lived certificates (24h) for MITM
+
+**Privacy Note:** TLS deep inspection requires explicit opt-in. The CA certificate must be deployed to all monitored endpoints.
+
+## Hot-Reload
+
+Pattern changes take effect without restarting the agent:
 - Add, remove, or modify patterns at runtime
 - Change global or per-pattern mode
 - Toggle individual patterns enabled/disabled
-
-In OSS, hot-reload only supports toggling the DLP module on/off. Built-in patterns and alert mode cannot be changed at runtime.
+- Atomic database recompilation (old database serves scans until new one is ready)
 
 ## Feature Gating
 
-Enterprise DLP is enabled at compile time via the `enterprise` Cargo feature, activated by the separate enterprise repository that extends the OSS codebase. The OSS repository does not expose this feature directly.
+Enterprise DLP requires a valid license with the `advanced-dlp` feature. Without a license:
+- Custom pattern IDs are rejected
+- Block mode is rejected
+- TLS deep inspection is disabled
+- Falls back to OSS DLP (9 built-in patterns, alert mode only)
 
-The feature propagates through the crate dependency chain:
+## Build Requirements
 
+Vectorscan requires system dependencies:
+```bash
+sudo apt-get install cmake ragel libboost-dev g++
+git clone https://github.com/VectorCamp/vectorscan.git
+cd vectorscan && mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+make -j$(nproc) && sudo make install && sudo ldconfig
 ```
-agent/enterprise -> application/enterprise -> domain/enterprise
-                 -> infrastructure/enterprise
-```
-
-Gating is enforced at four layers:
-
-| Layer | Enforcement |
-|-------|-------------|
-| Domain (`DlpEngine`) | Rejects non-builtin pattern IDs |
-| Application (`DlpAppService`) | Rejects block mode |
-| Infrastructure (config validation) | Rejects custom IDs, block mode, per-pattern block |
-| Agent (startup + reload) | Forces built-in defaults and alert mode |
 
 ## Configuration Reference
 
