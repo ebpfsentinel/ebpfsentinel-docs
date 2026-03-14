@@ -26,6 +26,10 @@ The IDS engine:
 3. Applies **threshold detection** (per-rule limit, threshold, and combined modes)
 4. Generates alerts with severity, matched rule ID, and packet context
 
+### Interface Groups
+
+IDS rules can be scoped to specific interface groups using the `interfaces` field. For example, you can apply stricter detection rules on DMZ interfaces while using lighter sampling on internal networks. Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
 ### Threshold Detection
 
 Three threshold modes control alert volume:

@@ -26,6 +26,10 @@ Each NAT rule specifies:
 - **match_src_alias / match_dst_alias**: Reference [IP aliases](aliases.md) instead of raw CIDRs
 - **enabled**: Enable/disable without deleting
 
+### Interface Groups
+
+NAT rules can be scoped to specific interface groups using the `interfaces` field. This controls which interfaces a NAT rule applies to, enabling per-zone NAT policies (e.g., SNAT only on WAN interfaces, DNAT only from DMZ). Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
 ## Limits
 
 - Maximum 256 SNAT rules and 256 DNAT rules

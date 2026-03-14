@@ -86,6 +86,10 @@ policies:
       KP: 500        # Very low for North Korea
 ```
 
+### Interface Groups
+
+DDoS policies can be scoped to specific interface groups using the `interfaces` field. For example, SYN flood protection can be limited to WAN-facing interfaces while internal traffic is exempt. Policies without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
 **Engine Limits:**
 - Maximum 100 policies
 - Maximum 64 concurrent active attacks

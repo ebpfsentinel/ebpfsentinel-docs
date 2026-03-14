@@ -27,6 +27,7 @@ This starts the agent with all features disabled except basic packet forwarding.
 
 | Section | Required | Description |
 |---------|----------|-------------|
+| `interface_groups` | No | Named interface groups for rule scoping |
 | [`agent`](agent.md) | Yes | Interfaces, ports, log level/format |
 | [`firewall`](firewall.md) | No | L3/L4 rules, default policy, VLAN |
 | [`ids`](ids.md) | No | Intrusion detection rules, sampling |

@@ -103,6 +103,32 @@ domain ← ports ← application
 
 This means the domain logic is fully testable without any infrastructure, eBPF, or network code.
 
+## Interface Groups
+
+Rules across multiple domains (firewall, NAT, IDS, rate limiting, QoS) can be scoped to specific **interface groups**. Define named groups of interfaces at the top level, then reference group names in the `interfaces` field on individual rules:
+
+```yaml
+interface_groups:
+  lan:
+    interfaces: [eth0, eth1]
+  wan:
+    interfaces: [eth2]
+
+firewall:
+  rules:
+    - id: wan-only-rule
+      action: deny
+      interfaces: [wan]        # Only applies on WAN interfaces
+    - id: not-wan
+      action: allow
+      interfaces: ["!wan"]     # Applies everywhere EXCEPT WAN
+    - id: floating-rule
+      action: allow
+      dst_port: 53             # No interfaces = floating (all interfaces)
+```
+
+Rules without an `interfaces` field are **floating rules** and apply to all interfaces (backward compatible). Up to 31 groups are supported. In eBPF, interface membership is stored as a u32 bitmask and checked with a single AND + compare per rule.
+
 ## Configuration
 
 Single YAML file with optional per-feature sections. Only `agent.interfaces` is required:

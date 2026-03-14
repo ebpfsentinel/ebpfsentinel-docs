@@ -60,6 +60,10 @@ EGRESS:
                     → TC egress (tc-qos: traffic shaping) → wire
 ```
 
+## Cross-Cutting: Interface Groups
+
+Six of the 12 eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share an `INTERFACE_GROUPS` HashMap map that maps ifindex to a u32 bitmask. Each rule struct in these programs carries a `group_mask` field. When `group_mask == 0`, the rule is a **floating rule** and applies everywhere. Otherwise, the program performs a single AND + compare against the current interface's group bitmask to decide whether the rule applies. Bit 31 acts as an inversion flag. Up to 31 groups are supported. See [Interface Groups](../features/interface-groups.md).
+
 ## Compilation
 
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:

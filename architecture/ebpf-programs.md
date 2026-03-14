@@ -21,6 +21,16 @@ eBPFsentinel includes 12 eBPF kernel programs, all written in Rust using the [Ay
 | `tc-qos` | TC egress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
 
+## Interface Groups (Cross-Cutting)
+
+Six programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share a common **interface group** mechanism. Each program has an `INTERFACE_GROUPS` HashMap (key = `u32` ifindex, value = `u32` bitmask, max 64 entries). Rule structs in these programs include a `group_mask` field:
+
+- `group_mask == 0` — **floating rule**, applies to all interfaces (backward compatible default)
+- `group_mask != 0` — rule applies only when the interface's bitmask ANDed with `group_mask` is non-zero
+- Bit 31 — **inversion flag**: when set, the match is inverted (rule applies to interfaces *not* in the specified groups)
+
+Up to 31 named interface groups are supported. The bitmask check adds negligible overhead (one map lookup + one AND + one compare per rule).
+
 ## Shared Types (ebpf-common)
 
 All programs share types via `crates/ebpf-common/`:

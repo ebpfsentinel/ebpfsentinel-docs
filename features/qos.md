@@ -77,6 +77,10 @@ Classifiers assign packets to queues based on match criteria:
 | `wf2q` | Worst-case Fair Weighted Fair Queuing — weighted bandwidth sharing across queues |
 | `fq_codel` | Fair Queuing with Controlled Delay — reduces bufferbloat (flow-fair with CoDel AQM) |
 
+### Interface Groups
+
+QoS pipes and classifiers can be scoped to specific interface groups using the `interfaces` field. This allows different traffic shaping profiles per network zone — for example, stricter bandwidth limits on guest WiFi interfaces while allowing full throughput on server-facing interfaces. Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
 ### EDT Pacing
 
 > **TODO**: Earliest Departure Time (EDT) pacing support is planned. EDT uses `skb->tstamp` to schedule per-packet departure times, enabling smoother traffic pacing without queuing. This requires `bpf_skb_set_tstamp` (kernel 5.18+).

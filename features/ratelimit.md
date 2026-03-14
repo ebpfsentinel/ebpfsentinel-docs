@@ -35,6 +35,10 @@ Packet → xdp-firewall → (XDP_PASS) → tail_call → xdp-ratelimit → XDP_P
 
 The firewall writes metadata (rule ID, flags) that the rate limiter can read for per-rule rate decisions.
 
+### Interface Groups
+
+Rate limit rules can be scoped to specific interface groups using the `interfaces` field. For example, you can enforce stricter rate limits on WAN-facing interfaces while allowing higher rates on internal interfaces. Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
 ### Default Rate
 
 When a source IP doesn't match any specific rule, the **default rate** applies. This is stored in the eBPF map with key `{src_ip: 0}` and enforced at wire speed.

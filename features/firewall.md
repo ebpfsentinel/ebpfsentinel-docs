@@ -206,6 +206,43 @@ firewall:
 
 The scheduler evaluates every 60 seconds and reloads eBPF rules on state transitions.
 
+### Interface Groups
+
+Rules can be scoped to specific interface groups using the `interfaces` field. Interface groups are defined at the top level and assign named groups to physical interfaces. Rules reference group names to control where they apply.
+
+```yaml
+interface_groups:
+  lan:
+    interfaces: [eth0, eth1]
+  wan:
+    interfaces: [eth2]
+  dmz:
+    interfaces: [eth3]
+
+firewall:
+  rules:
+    - id: block-external-ssh
+      action: deny
+      protocol: tcp
+      dst_port: 22
+      interfaces: [wan]           # Only on WAN interfaces
+    - id: allow-internal
+      action: allow
+      interfaces: ["!wan"]        # All interfaces EXCEPT WAN (inversion)
+    - id: global-dns
+      action: allow
+      protocol: udp
+      dst_port: 53                # No interfaces field = floating (all interfaces)
+```
+
+Key properties:
+
+- **Floating rules** (default): Rules without an `interfaces` field apply to all interfaces, preserving backward compatibility.
+- **Group scoping**: Rules with `interfaces: [lan, dmz]` apply only on interfaces that belong to those groups.
+- **Inversion**: Prefix a group name with `!` to match all interfaces *except* those in the group (`interfaces: ["!wan"]`).
+- **Up to 31 groups**: Implemented as a u32 bitmask in eBPF (`group_mask` field on each rule), checked via a single AND + compare per rule. Bit 31 is reserved for the inversion flag.
+- **Cross-domain**: Interface groups are shared across firewall, NAT, IDS, rate limiting, and QoS. See [Interface Groups](interface-groups.md) for the full reference.
+
 ### Anti-Lockout Protection
 
 The firewall automatically injects anti-lockout rules at priority 0 (highest precedence) to prevent administrators from being locked out of the management interface:

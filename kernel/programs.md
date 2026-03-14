@@ -52,6 +52,8 @@ Match fields (all optional — omitted = wildcard):
 
 Maximum **4096 rules** per address family (IPv4/IPv6).
 
+Each rule carries a `group_mask` field for **interface group filtering**. Before evaluating a rule, the program looks up the current ifindex in the `INTERFACE_GROUPS` map and checks the bitmask. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
+
 #### Phase 3 — Connection Limits
 
 Per-source and per-rule state limits. If a source exceeds the configured limit, it is added to the overload IP set (blacklist).
@@ -113,6 +115,8 @@ Per-IP rate limiting and DDoS protection at XDP speed.
 | SYN Cookie | — | XDP SYN cookie forging via `XDP_TX` (see below) |
 
 Per-CPU maps eliminate lock contention: each CPU core maintains independent counters, aggregated at read time.
+
+Rate limit rules carry a `group_mask` field for **interface group filtering** via the `INTERFACE_GROUPS` map. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
 
 #### DDoS Protections
 
@@ -247,6 +251,7 @@ Destination NAT for incoming packets (IPv4 and IPv6):
 - IPv6: L4 pseudo-header checksum update only (4-word loop, no IP header checksum in IPv6)
 - `NatRuleEntryV6` with `[u32; 4]` address/mask fields for IPv6 rule matching
 - Conntrack integration: writes NAT mapping for stateful return path
+- **Interface groups**: NAT rules carry a `group_mask` for interface-scoped NAT via the `INTERFACE_GROUPS` map
 
 ---
 
@@ -263,6 +268,7 @@ Source NAT for outgoing packets (IPv4 and IPv6):
 - **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit
 - Reverse mapping lookup from conntrack entries
 - Same checksum strategy as tc-nat-ingress (L3+L4 for IPv4, L4-only for IPv6)
+- **Interface groups**: NAT rules carry a `group_mask` for interface-scoped NAT via the `INTERFACE_GROUPS` map
 
 ---
 
@@ -279,6 +285,8 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
 
 Uses a **port-only key** for IDS rule matching — IP-version-agnostic (same rules apply to IPv4 and IPv6 traffic).
+
+IDS rules carry a `group_mask` field for **interface group filtering** via the `INTERFACE_GROUPS` map. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
 
 ---
 
@@ -338,6 +346,8 @@ QoS traffic shaping on the egress path. Implements a three-level pipe/queue/clas
 4. **Loss** — If pipe has `loss_percent > 0`, call [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) and drop with the configured probability.
 5. **Delay** — If pipe has `delay_ms > 0`, record delay metadata for userspace scheduling.
 6. **Emit** — Send `QosEvent` to `EVENTS` RingBuf with shaping decision. Same 75% backpressure pattern as other programs.
+
+QoS pipes and classifiers carry a `group_mask` field for **interface group filtering** via the `INTERFACE_GROUPS` map. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
 
 ---
 

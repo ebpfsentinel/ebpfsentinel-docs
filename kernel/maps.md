@@ -8,12 +8,13 @@ eBPF maps are the primary data structures shared between kernel programs and use
 
 #### [`BPF_MAP_TYPE_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/)
 
-**Kernel:** 3.19+ | **Used by:** xdp-firewall, tc-ids, tc-qos
+**Kernel:** 3.19+ | **Used by:** xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos
 
 General-purpose key/value hash table. Used for:
 - Firewall IP set aliases (named groups of IPs)
 - IDS rule configuration
 - QoS classifier rules (`QOS_CLASSIFIERS` — 5-tuple + DSCP → queue_id, 1024 entries)
+- Interface group membership (`INTERFACE_GROUPS` — ifindex → bitmask, 64 entries, present in 6 programs)
 
 #### [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/)
 
@@ -208,6 +209,16 @@ Probabilistic data structure for **fast IOC pre-filtering**:
 
 Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup → confirmed? emit alert`
 
+### Interface Group Maps
+
+#### `INTERFACE_GROUPS` (HashMap)
+
+**Kernel:** 3.19+ | **Used by:** xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos
+
+A HashMap map (key = `u32` ifindex, value = `u32` bitmask, max 64 entries) that stores interface-to-group membership. Each program has its own copy of the map. Userspace writes the mapping when configuration is loaded or reloaded.
+
+The bitmask encodes group membership (up to 31 groups, bits 0-30). Each rule carries a `group_mask` field: if `group_mask == 0`, the rule is a **floating rule** and applies to all interfaces. Otherwise, the eBPF program looks up the current interface's ifindex in `INTERFACE_GROUPS`, ANDs the result with the rule's `group_mask`, and skips the rule if the result is zero. Bit 31 is the inversion flag — when set, the match logic is inverted (rule applies to all interfaces *except* those in the specified groups).
+
 ## Map Synchronization (Userspace → Kernel)
 
 Several maps are written from userspace when configuration changes:
@@ -226,6 +237,7 @@ Several maps are written from userspace when configuration changes:
 | DNS blocklist | Userspace → Kernel | Domain block/unblock |
 | Scrub config array | Userspace → Kernel | Config reload (14-byte `ScrubConfig` struct with 4 new fields) |
 | `SYNCOOKIE_SECRET` (Array, 1 entry) | Userspace → Kernel | Agent startup (32-byte random secret for SYN cookie generation) |
+| `INTERFACE_GROUPS` (HashMap, ×6 programs) | Userspace → Kernel | Config reload, interface group changes |
 | LB service/backend maps | Userspace → Kernel | Service add/delete |
 | LB metrics (PerCpuArray) | Kernel → Userspace | Per-CPU forwarding counters |
 
