@@ -4,10 +4,12 @@ Connection tracking (conntrack) provides stateful packet inspection by maintaini
 
 ## How It Works
 
-1. The `tc-conntrack` TC classifier program intercepts packets and maintains a per-connection state machine in eBPF maps
-2. Each connection tracks: source/destination IP and port, protocol, state, packet/byte counters, timestamps
+1. The `tc-conntrack` TC classifier program intercepts packets and maintains a unified state machine (shared across IPv4 and IPv6) in eBPF maps
+2. Each connection tracks: source/destination IP and port, protocol, state, **packet counters, byte counters**, timestamps
 3. The firewall fast-path uses conntrack state to skip full rule evaluation for established connections
 4. Userspace can query and flush the connection table via the REST API
+
+Byte counters are updated on every packet, enabling volume-based analysis and reporting per connection.
 
 ## Connection States
 

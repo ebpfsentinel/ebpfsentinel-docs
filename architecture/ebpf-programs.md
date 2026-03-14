@@ -24,7 +24,7 @@ eBPFsentinel includes 11 eBPF kernel programs, all written in Rust using the [Ay
 
 All programs share types via `crates/ebpf-common/`:
 
-- `PacketEvent` (56 bytes) — the standard event emitted to userspace via RingBuf
+- `PacketEvent` (64 bytes) — the standard event emitted to userspace via RingBuf
 - `#[repr(C)]` structs for eBPF map keys and values
 - Shared constants (`FLAG_IPV6`, `FLAG_VLAN`, etc.)
 
@@ -72,13 +72,14 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **ICMP protection** — rate limiting + oversized payload detection (potential tunneling)
 - **UDP amplification protection** — per-source-per-port rate limiting on configurable amplification ports (DNS/53, NTP/123, SSDP/1900, etc.)
 - **TCP connection tracking** — half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
-- **14-slot PerCpuArray** metrics: SYN_RECEIVED, SYNCOOKIES_SENT, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS
+- **14-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS
 
 ## XDP Load Balancer (xdp-loadbalancer)
 
 - **Service map** lookup by `(port, protocol)` to find service definitions
-- **Backend selection** via round-robin index in eBPF map
+- **Backend selection** via per-service round-robin index in eBPF map
 - **DNAT packet rewriting**: destination IP/port rewrite for selected backend
+- **MAC address swap**: swaps source/destination MACs after DNAT for correct L2 routing
 - **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update
 - **IPv6 checksum**: L4 pseudo-header incremental update (8 × u16 words for 128-bit address diff + port diff)
 - **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`
@@ -95,13 +96,15 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 ## TC Threat Intel (tc-threatintel)
 
 - **BPF_MAP_TYPE_BLOOM_FILTER** for fast IOC pre-check (no false negatives)
+- **BPF_MAP_TYPE_LRU_HASH** for IOC confirmation maps (`THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`) — LRU eviction keeps maps within capacity
 - **bpf_skb_vlan_push/pop** for VLAN quarantine tagging
 - Separate V6 maps for IPv6 IOC lookups
 - RingBuf backpressure
 
 ## TC Connection Tracking (tc-conntrack)
 
-- Full TCP state machine (SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → TIME_WAIT)
+- Unified TCP state machine for both IPv4 and IPv6 (SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → TIME_WAIT)
+- Per-connection packet and byte counters for volume-based analysis
 - UDP bidirectional detection (NEW → ESTABLISHED after reply seen)
 - ICMP request/reply state tracking
 - Conntrack key normalization (lower IP:port always "src") for bidirectional matching
@@ -123,12 +126,14 @@ Packet normalization running after XDP processing:
 
 - Destination NAT (DNAT) for incoming packets
 - Port mapping and IP rewriting
+- `bpf_loop` for NAT rule scanning without hitting verifier loop limits
 - L3/L4 checksum updates via `bpf_l3_csum_replace` / `bpf_l4_csum_replace`
 - Conntrack integration for stateful NAT
 
 ## TC NAT Egress (tc-nat-egress)
 
 - Source NAT (SNAT) for outgoing packets
+- `bpf_loop` for NAT rule scanning without hitting verifier loop limits
 - Reverse mapping from conntrack entries
 - L3/L4 checksum updates
 - Stateful return path matching

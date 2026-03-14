@@ -34,7 +34,7 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | `ebpfsentinel_ddos_attacks_total` | Counter | `attack_type` | Total attacks detected by type |
 | `ebpfsentinel_ddos_blocked_total` | Counter | — | Total packets blocked by DDoS policies |
 | `ebpfsentinel_ddos_syn_received_total` | Counter | — | SYN packets observed (eBPF) |
-| `ebpfsentinel_ddos_syncookies_sent_total` | Counter | — | SYN cookies issued (eBPF) |
+| `ebpfsentinel_ddos_syn_flood_drops_total` | Counter | — | SYN flood packets dropped (eBPF) |
 | `ebpfsentinel_ddos_icmp_dropped_total` | Counter | — | ICMP packets dropped (eBPF) |
 | `ebpfsentinel_ddos_amp_dropped_total` | Counter | — | Amplification packets dropped (eBPF) |
 | `ebpfsentinel_ddos_half_open_drops_total` | Counter | — | Half-open connection limit drops (eBPF) |

@@ -193,7 +193,7 @@ ebpfsentinel-agent --output json ddos attacks
 | Slot | Metric | Description |
 |------|--------|-------------|
 | 0 | `SYN_RECEIVED` | SYN packets observed |
-| 1 | `SYNCOOKIES_SENT` | SYN cookies issued |
+| 1 | `SYN_FLOOD_DROPS` | SYN flood packets dropped |
 | 2 | `ICMP_PASSED` | ICMP packets passed |
 | 3 | `ICMP_DROPPED` | ICMP packets dropped (rate exceeded or oversized) |
 | 4 | `AMP_PASSED` | Amplification port packets passed |

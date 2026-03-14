@@ -47,7 +47,7 @@ All features require kernel 5.17+. Here is when each eBPF feature became availab
 
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|
-| `bpf_loop` | 5.17+ | XDP firewall rule iteration |
+| `bpf_loop` | 5.17+ | XDP firewall rule iteration, NAT rule scanning |
 | `bpf_strncmp` | 5.17+ | L7 protocol detection |
 | BPF Bloom filter | 5.16+ | TC threat intel IOC pre-check |
 | `bpf_timer` | 5.15+ | Rate limit bucket expiry |

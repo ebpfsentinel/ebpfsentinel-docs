@@ -23,7 +23,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Authentication](authentication.md) | OSS | Shipped | Userspace | JWT (RS256), OIDC (JWKS), API keys, RBAC |
 | [IPv6](ipv6.md) | OSS | Shipped | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
 | [GeoIP Enforcement](geoip.md) | OSS | Shipped | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
-| [VLAN 802.1Q](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering and quarantine tagging |
+| [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | Shipped | XDP, TC | VLAN filtering, QinQ double tagging, quarantine tagging |
 | [Connection Tracking](conntrack.md) | OSS | Shipped | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
 | [NAT](nat.md) | OSS | Shipped | TC ingress/egress | DNAT/SNAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | Shipped | XDP | Multi-gateway, weighted selection, health-aware failover |
@@ -71,12 +71,12 @@ Eleven kernel programs cover all enforcement points:
 |---------|------|----------|
 | `xdp-firewall` | XDP | 5-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, policy routing, DEVMAP/CPUMAP, FIB lookup, tail-call to rate limiter |
 | `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance, per-country LPM tier lookup |
-| `xdp-loadbalancer` | XDP | L4 load balancing, backend selection, health-aware routing |
-| `tc-conntrack` | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking, IPv4/IPv6 |
+| `xdp-loadbalancer` | XDP | L4 load balancing, per-service round-robin, MAC swap, backend selection, health-aware routing |
+| `tc-conntrack` | TC classifier | Unified TCP/UDP/ICMP state machine, bidirectional tracking, packet+byte counters, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
 | `tc-nat-ingress` | TC ingress | Destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6 |
 | `tc-nat-egress` | TC egress | Source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6 |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure |
-| `tc-threatintel` | TC classifier | Bloom filter pre-check, VLAN quarantine, backpressure |
+| `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN quarantine, backpressure |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |

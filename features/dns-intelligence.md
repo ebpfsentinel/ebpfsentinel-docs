@@ -115,6 +115,18 @@ ebpfsentinel-agent domains unblock example.com
 | `ports` | `crates/ports/src/primary/dns.rs` | Port trait |
 | `application` | `crates/application/src/dns_service_impl.rs` | App service |
 
+## Known Limitations
+
+### TCP DNS is not captured
+
+The `tc-dns` eBPF program only captures DNS traffic over **UDP port 53**. DNS queries and responses over TCP are not intercepted. This has two practical consequences:
+
+1. **DNS tunneling detection gaps** — DNS tunneling tools (e.g., `iodine`, `dnscat2`) often use TCP DNS to bypass UDP-based monitoring. These sessions will not be captured or analyzed by the DNS engine.
+
+2. **Large DNS responses (>512 bytes)** — When a UDP DNS response exceeds 512 bytes (the original RFC 1035 limit) or when the `TC` (truncation) flag is set, resolvers retry over TCP. These retried responses — which may contain large record sets, DNSSEC signatures, or zone transfer data (AXFR/IXFR) — will not appear in the DNS cache or trigger blocklist evaluation.
+
+EDNS(0) responses up to the negotiated UDP buffer size (commonly 1232-4096 bytes) are captured normally, since they remain on UDP. The limitation only affects DNS traffic that uses TCP as transport.
+
 ## Metrics
 
 - `ebpfsentinel_dns_cache_size` — current DNS cache entry count

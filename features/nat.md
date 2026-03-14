@@ -38,7 +38,7 @@ Each NAT rule specifies:
 | `tc-nat-ingress` | TC ingress | Applies DNAT rules, rewrites destination IP/port, updates checksums |
 | `tc-nat-egress` | TC egress | Applies SNAT rules, rewrites source IP/port, updates checksums |
 
-Both programs support IPv4 and IPv6 with full checksum recalculation.
+Both programs support IPv4 and IPv6 with full checksum recalculation. Rule scanning uses [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) to iterate over the NAT rule table without hitting the eBPF verifier loop limit.
 
 ## Integration
 

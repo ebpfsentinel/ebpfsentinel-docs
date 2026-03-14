@@ -144,7 +144,8 @@ L4 load balancing at XDP speed. Rewrites destination IP/port to the selected bac
 | Feature | Description |
 |---------|-------------|
 | **Service lookup** | Maps incoming `(port, protocol)` to a service definition |
-| **Backend selection** | Round-robin index stored in eBPF map, updated per packet |
+| **Backend selection** | Per-service round-robin index stored in eBPF map, updated per packet |
+| **MAC address swap** | Swaps source and destination MAC addresses after DNAT rewrite so the packet is routed correctly at L2 |
 | **Packet rewriting** | Destination IP/port rewrite with L3/L4 checksum fixup |
 | **Health awareness** | Backends marked unhealthy by userspace are skipped |
 | **Event emission** | RingBuf events for forward/no-backend actions |
@@ -163,7 +164,7 @@ Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). I
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-conntrack/`
 
-Full stateful connection tracking with a 9-state TCP state machine. Supports both IPv4 (`ConnValue`) and IPv6 (`ConnValueV6` with 128-bit NAT addresses):
+Full stateful connection tracking with a 9-state TCP state machine. Uses a unified state machine for both IPv4 and IPv6, with `ConnValue` / `ConnValueV6` value types (the V6 variant carries 128-bit NAT addresses). Tracks both packet and byte counters per connection.
 
 ```
 SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → CLOSE_WAIT → TIME_WAIT → [expired]
@@ -176,6 +177,8 @@ SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → CLOSE_WAIT → TIME_WAIT 
 | ICMP | 2 states | Request → Reply tracking |
 
 Key design decisions:
+- **Unified state machine**: a single TCP state machine implementation handles both IPv4 and IPv6, reducing code duplication and maintenance burden
+- **Byte counters**: each connection tracks both packet count and byte count, enabling volume-based analysis
 - **Normalized keys**: lower IP:port is always "source" — one entry covers both directions
 - **[`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map**: automatic eviction when table is full, no GC pauses
 - **Shared map** (BPF filesystem pinning): written by tc-conntrack, read by xdp-firewall for fast-path lookup
@@ -208,6 +211,7 @@ Destination NAT for incoming packets (IPv4 and IPv6):
 
 - **DNAT**: rewrite destination IP/port for port forwarding and 1:1 NAT
 - **Redirect**: rewrite destination to local address
+- **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit (same approach as the firewall linear scan)
 - Packet rewriting via [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/)
 - IPv4: checksum updates via [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) + [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/)
 - IPv6: L4 pseudo-header checksum update only (4-word loop, no IP header checksum in IPv6)
@@ -225,6 +229,7 @@ Source NAT for outgoing packets (IPv4 and IPv6):
 - **SNAT**: static source IP rewrite
 - **Masquerade**: dynamic source rewrite to outgoing interface address
 - **Port allocation**: hash-based ephemeral port selection (IPv6 uses XOR-fold of `[u32; 4]` to `u32`)
+- **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit
 - Reverse mapping lookup from conntrack entries
 - Same checksum strategy as tc-nat-ingress (L3+L4 for IPv4, L4-only for IPv6)
 
@@ -253,7 +258,7 @@ Uses a **port-only key** for IDS rule matching — IP-version-agnostic (same rul
 Threat intelligence IOC matching with two-phase lookup:
 
 1. **[Bloom filter](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) pre-check** — O(1), no false negatives. If negative → packet is clean, skip.
-2. **Hash map confirmation** — only on Bloom filter positive. Confirms the IOC and retrieves metadata.
+2. **[LRU hash map](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) confirmation** — only on Bloom filter positive. Confirms the IOC and retrieves metadata. LRU eviction ensures the map stays within capacity.
 
 VLAN quarantine: matched IOCs can trigger [`bpf_skb_vlan_push`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_push/) to tag the packet with a quarantine VLAN ID, isolating the source without dropping traffic.
 

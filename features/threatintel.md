@@ -38,7 +38,7 @@ External Feeds (CSV/JSON/TXT)         DNS Blocklist
 ┌──────────────────────────────────────────┐
 │ eBPF Maps (kernel)                        │
 │                                           │
-│  BLOOM_V4/V6 ──→ HashMap V4/V6           │
+│  BLOOM_V4/V6 ──→ LruHashMap V4/V6        │
 │  (pre-filter)    (1M entries, 4-byte val) │
 └────────┬─────────────────────────────────┘
          │ packet match → PacketEvent
@@ -94,8 +94,8 @@ When feeds are reloaded, the `ThreatIntelMapManager` syncs to 4 kernel maps:
 
 | Map | Type | Entries | Purpose |
 |-----|------|---------|---------|
-| `THREATINTEL_IOCS` | HashMap | 1,048,576 | IPv4 IOC exact match |
-| `THREATINTEL_IOCS_V6` | HashMap | 1,048,576 | IPv6 IOC exact match |
+| `THREATINTEL_IOCS` | LruHashMap | 1,048,576 | IPv4 IOC exact match (LRU eviction when full) |
+| `THREATINTEL_IOCS_V6` | LruHashMap | 1,048,576 | IPv6 IOC exact match (LRU eviction when full) |
 | `THREATINTEL_BLOOM_V4` | Bloom filter | 1,048,576 | IPv4 pre-filter (O(1), no false negatives) |
 | `THREATINTEL_BLOOM_V6` | Bloom filter | 1,048,576 | IPv6 pre-filter |
 
@@ -118,10 +118,10 @@ Packet arrives
     │
     ├── Bloom filter check on src_ip AND dst_ip
     │   └── Both negative ? → definitely no match, TC_ACT_OK
-    │       (eliminates ~98% of traffic, zero HashMap lookups)
+    │       (eliminates ~98% of traffic, zero LRU hash map lookups)
     │
-    ├── Bloom positive → HashMap lookup for confirmation
-    │   └── Not in HashMap ? → false positive, TC_ACT_OK
+    ├── Bloom positive → LRU hash map lookup for confirmation
+    │   └── Not in LRU hash map ? → false positive, TC_ACT_OK
     │
     └── Match confirmed → apply action
         ├── ALERT → TC_ACT_OK + emit PacketEvent to RingBuf
@@ -236,7 +236,7 @@ ebpfsentinel-agent threatintel feeds
 | Crate | Path | Role |
 |-------|------|------|
 | `ebpf-common` | `crates/ebpf-common/src/threatintel.rs` | Shared `#[repr(C)]` types (keys, values, constants) |
-| `ebpf-programs` | `crates/ebpf-programs/tc-threatintel/` | TC classifier: Bloom filter + HashMap lookup |
+| `ebpf-programs` | `crates/ebpf-programs/tc-threatintel/` | TC classifier: Bloom filter + LRU hash map lookup |
 | `domain` | `crates/domain/src/threatintel/` | Engine (IOC store), parser (Plaintext/CSV/JSON), entities |
 | `ports` | `crates/ports/src/secondary/threatintel_map_port.rs` | `ThreatIntelMapPort` trait (eBPF map writes) |
 | `ports` | `crates/ports/src/secondary/feed_source.rs` | `FeedSource` trait (HTTP fetch) |

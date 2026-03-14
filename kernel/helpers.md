@@ -64,7 +64,7 @@ eBPFsentinel uses 25+ kernel helper functions across its programs. This page doc
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall | Iterate over large rule sets without hitting the verifier loop limit |
+| [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress | Iterate over large rule sets without hitting the verifier loop limit |
 | [`bpf_for_each_map_elem`](https://docs.ebpf.io/linux/helper-function/bpf_for_each_map_elem/) | 5.13+ | xdp-ratelimit | Iterate over all map entries for kernel-side maintenance/cleanup |
 
 ### Socket & Connection

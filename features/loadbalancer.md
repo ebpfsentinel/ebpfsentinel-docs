@@ -10,7 +10,7 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 
 ### Two-Layer Architecture
 
-1. **Kernel-side (eBPF)** — An XDP program performs fast-path packet rewriting: destination IP/port is replaced with the selected backend, and checksums are updated inline. This happens before the kernel allocates an SKB, achieving maximum throughput.
+1. **Kernel-side (eBPF)** — An XDP program performs fast-path packet rewriting: destination IP/port is replaced with the selected backend, source/destination MAC addresses are swapped for correct L2 routing, and checksums are updated inline. This happens before the kernel allocates an SKB, achieving maximum throughput.
 2. **Userspace (LB Engine)** — Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
 
 ### Protocols
@@ -25,7 +25,7 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 
 | Algorithm | Description |
 |-----------|-------------|
-| **Round Robin** | Cycles through healthy backends sequentially |
+| **Round Robin** | Per-service index cycles through healthy backends sequentially |
 | **Weighted** | Cumulative weight distribution — higher weight = more traffic |
 | **IP Hash** | FNV-1a hash of client address for sticky sessions |
 | **Least Connections** | Selects the healthy backend with the fewest active connections |

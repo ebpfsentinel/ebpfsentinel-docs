@@ -57,7 +57,7 @@ When an XDP program passes a packet, it writes metadata (matched rule ID, flags)
 
 ## RingBuf Events
 
-All eBPF programs emit events to userspace via BPF ring buffers. The `PacketEvent` structure is 56 bytes and includes:
+All eBPF programs emit events to userspace via BPF ring buffers. The `PacketEvent` structure is 64 bytes and includes:
 
 - Source/destination addresses (IPv4 or IPv6)
 - Source/destination ports

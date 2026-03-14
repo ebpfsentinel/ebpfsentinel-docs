@@ -136,6 +136,7 @@ Some eBPF maps are updated from userspace:
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
+| Threat intel LRU hash maps | Userspace → Kernel | IOC exact-match confirmation |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |
 | DNS blocklist | Userspace → Kernel | Domain blocks |
 | LB service/backend maps | Userspace → Kernel | Load balancer service definitions |

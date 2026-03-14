@@ -64,6 +64,8 @@ agent:
 
 Per-module: `RUST_LOG=warn,domain::ids=info`
 
+> **Note:** eBPF hot-path logging (packet processing, map lookups, event emission) is compiled as `debug!()` only. In production builds or with `log_level` above `debug`, these log statements are effectively no-ops with zero overhead. Set `log_level: "debug"` only during development or troubleshooting.
+
 ## Resource Limits
 
 For Kubernetes, set appropriate resource requests/limits:

@@ -8,12 +8,11 @@ eBPF maps are the primary data structures shared between kernel programs and use
 
 #### [`BPF_MAP_TYPE_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/)
 
-**Kernel:** 3.19+ | **Used by:** xdp-firewall, tc-ids, tc-threatintel
+**Kernel:** 3.19+ | **Used by:** xdp-firewall, tc-ids
 
 General-purpose key/value hash table. Used for:
 - Firewall IP set aliases (named groups of IPs)
 - IDS rule configuration
-- Threat intel IOC exact-match lookups (post-Bloom filter confirmation)
 
 #### [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/)
 
@@ -44,12 +43,18 @@ Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The L
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
-**Kernel:** 4.10+ | **Used by:** tc-conntrack
+**Kernel:** 4.10+ | **Used by:** tc-conntrack, tc-threatintel
 
-Hash table with built-in **LRU eviction**. Used for the connection tracking table:
+Hash table with built-in **LRU eviction**. Used for:
+
+**Connection tracking table:**
 - Normalized bidirectional 5-tuple keys (lower IP:port always = "source")
 - Automatic eviction of oldest entries when table is full
 - No explicit garbage collection needed for stale entries
+
+**Threat intel IOC maps:**
+- `THREATINTEL_IOCS` and `THREATINTEL_IOCS_V6` use LRU hash for IOC exact-match lookups (post-Bloom filter confirmation)
+- LRU eviction ensures the map stays within capacity when large feed volumes are loaded
 
 ### Per-CPU Maps
 
@@ -58,6 +63,34 @@ Hash table with built-in **LRU eviction**. Used for the connection tracking tabl
 **Kernel:** 4.6+ | **Used by:** xdp-ratelimit
 
 Per-CPU hash map providing **lock-free** per-IP rate limiting counters. Each CPU core maintains its own copy of the counter — no atomic operations or spinlocks needed. Values are aggregated when read from userspace.
+
+**Memory budget by algorithm:**
+
+The value size stored per entry depends on the rate limit algorithm selected:
+
+| Algorithm | Value struct | Size per entry |
+|-----------|-------------|----------------|
+| Token bucket | `RateLimitValue` | 16 bytes |
+| Fixed window | `FixedWindowValue` | 16 bytes |
+| Sliding window (8 slots) | `SlidingWindowValue` | 56 bytes |
+| Leaky bucket | `LeakyBucketValue` | 16 bytes |
+
+Because `PerCpuHash` replicates the value on every CPU core, the total kernel memory consumed is:
+
+```
+memory = value_size * max_entries * num_CPUs
+```
+
+For the sliding window algorithm, which has the largest value (56 bytes due to 8 `u32` slots plus metadata), the cost can be significant:
+
+| `max_entries` | CPUs | Memory |
+|---------------|------|--------|
+| 65 536 | 4 | ~14 MB |
+| 65 536 | 8 | ~28 MB |
+| 65 536 | 16 | ~56 MB |
+| 131 072 | 8 | ~56 MB |
+
+Token bucket and fixed/leaky bucket use 16-byte values, so the same 65 536 entries on 8 CPUs cost only ~8 MB. Choose the algorithm and `max_entries` accordingly to stay within your memory budget.
 
 #### [`BPF_MAP_TYPE_PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/)
 
@@ -68,7 +101,7 @@ Fixed-size per-CPU array for **metrics counters**. Each program maintains its ow
 | Index | Metric (example: xdp-ratelimit) |
 |-------|----------------------------------|
 | 0 | `SYN_RECEIVED` |
-| 1 | `SYNCOOKIES_SENT` |
+| 1 | `SYN_FLOOD_DROPS` |
 | 2 | `ICMP_PASSED` |
 | 3 | `ICMP_DROPPED` |
 | 4 | `AMP_PASSED` |
@@ -108,7 +141,7 @@ CPU map for **NUMA-aware packet distribution**. Redirects packets to specific CP
 
 #### [`BPF_MAP_TYPE_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/)
 
-**Kernel:** 5.8+ | **Used by:** All programs
+**Kernel:** 5.8+ | **Used by:** xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, uprobe-dlp, tc-dns
 
 Lock-free, MPSC (multi-producer, single-consumer) ring buffer for **kernel→userspace event streaming**. Replaces the older `perf_event_array` with better performance:
 
@@ -116,7 +149,7 @@ Lock-free, MPSC (multi-producer, single-consumer) ring buffer for **kernel→use
 - Variable-length records
 - Supports backpressure queries via [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/)
 
-All programs emit `PacketEvent` (56 bytes) through the ring buffer using the reserve/submit pattern:
+Most programs emit `PacketEvent` (64 bytes) through the ring buffer using the reserve/submit pattern:
 
 ```
 entry = bpf_ringbuf_reserve(&EVENTS, sizeof(PacketEvent), 0);
@@ -125,6 +158,23 @@ entry->src_addr = ...;
 entry->dst_addr = ...;
 bpf_ringbuf_submit(entry, 0);
 ```
+
+**Memory budget:** Each program allocates its own independent RingBuf (no map pinning or sharing between programs). The total kernel memory footprint for all RingBuf maps is:
+
+| Program | Map | Size |
+|---------|-----|------|
+| xdp-firewall | `EVENTS` | 1 MB (256 pages) |
+| xdp-ratelimit | `EVENTS` | 1 MB (256 pages) |
+| xdp-loadbalancer | `EVENTS` | 1 MB (256 pages) |
+| tc-ids | `EVENTS` | 1 MB (256 pages) |
+| tc-threatintel | `EVENTS` | 1 MB (256 pages) |
+| uprobe-dlp | `EVENTS` | 4 MB (1024 pages) |
+| tc-dns | `DNS_EVENTS` | 0.25 MB (64 pages) |
+| **Total** | | **9.25 MB** |
+
+Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egress) do not emit events to userspace and therefore have zero RingBuf overhead.
+
+All RingBuf maps implement 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead.
 
 ### Probabilistic Maps
 
@@ -135,10 +185,10 @@ bpf_ringbuf_submit(entry, 0);
 Probabilistic data structure for **fast IOC pre-filtering**:
 
 - **No false negatives** — if the Bloom filter says "not present", the IP is definitely clean
-- **Possible false positives** — a positive match triggers a full hash map lookup for confirmation
+- **Possible false positives** — a positive match triggers a full LRU hash map lookup for confirmation
 - O(1) lookup with minimal memory footprint
 
-Flow: `Bloom filter check → negative? skip → positive? full hash lookup → confirmed? emit alert`
+Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup → confirmed? emit alert`
 
 ## Map Synchronization (Userspace → Kernel)
 
@@ -153,7 +203,7 @@ Several maps are written from userspace when configuration changes:
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp threshold changes |
 | Threat intel Bloom filter | Userspace → Kernel | Feed refresh (periodic) |
-| Threat intel hash map | Userspace → Kernel | IOC add/remove |
+| Threat intel LRU hash maps | Userspace → Kernel | IOC add/remove |
 | IPS blacklist | Userspace → Kernel | Auto-block from IPS engine |
 | DNS blocklist | Userspace → Kernel | Domain block/unblock |
 | Scrub config array | Userspace → Kernel | Config reload |
