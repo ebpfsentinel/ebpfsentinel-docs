@@ -64,6 +64,10 @@ grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 describe ebpfsentinel.v1.AlertStreamService
 ```
 
+## Scope
+
+eBPFsentinel is **REST-first**: all CRUD operations (firewall rules, rate limit policies, NAT rules, LB services, etc.) are managed via the [REST API](rest-api.md) with 52 endpoints. gRPC is used exclusively for **real-time alert streaming** (`AlertStreamService`), providing server-push event delivery for SIEM integrations and monitoring dashboards.
+
 ## Proto File
 
 The proto file is at `proto/ebpfsentinel/v1/alerts.proto` in the repository.

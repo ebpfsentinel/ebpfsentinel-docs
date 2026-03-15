@@ -83,7 +83,7 @@ QoS pipes and classifiers can be scoped to specific interface groups using the `
 
 ### EDT Pacing
 
-> **TODO**: Earliest Departure Time (EDT) pacing support is planned. EDT uses `skb->tstamp` to schedule per-packet departure times, enabling smoother traffic pacing without queuing. This requires `bpf_skb_set_tstamp` (kernel 5.18+).
+> **Known Limitation**: Earliest Departure Time (EDT) pacing is not yet enforced in the eBPF datapath. Delay is tracked in metrics but packets are not actually delayed. EDT requires `bpf_skb_set_tstamp` which is not yet exposed by aya-ebpf. When available, EDT will use `skb->tstamp` to schedule per-packet departure times for smoother traffic pacing without queuing.
 
 ## Configuration
 
