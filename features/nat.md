@@ -32,7 +32,7 @@ NAT rules can be scoped to specific interface groups using the `interfaces` fiel
 
 ## Limits
 
-- Maximum 256 SNAT rules and 256 DNAT rules
+- Maximum 256 SNAT/DNAT rules per direction (IPv4), 128 per direction (IPv6)
 - Port ranges must have `start <= end`
 
 ## eBPF Programs

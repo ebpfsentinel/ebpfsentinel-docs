@@ -33,7 +33,7 @@ nat:
 | `snat_rules` | list | `[]` | Source NAT rules (applied on egress) |
 | `dnat_rules` | list | `[]` | Destination NAT rules (applied on ingress) |
 
-Maximum 256 rules per direction.
+Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 
 ### Rule Fields
 

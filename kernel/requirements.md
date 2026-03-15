@@ -4,14 +4,14 @@
 
 | Requirement | Value |
 |-------------|-------|
-| Linux kernel | **5.17+** |
+| Linux kernel | **6.1+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Capabilities | `CAP_BPF` + `CAP_NET_ADMIN` (or root) |
 
 Verify on your system:
 
 ```bash
-uname -r                       # Must be >= 5.17
+uname -r                       # Must be >= 6.1
 ls /sys/kernel/btf/vmlinux     # Must exist
 ```
 
@@ -49,6 +49,8 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_timer_init`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/) | 5.15+ | xdp-ratelimit | Timer-based bucket expiration |
 | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | 5.17+ | tc-ids | L7 protocol signature detection |
 | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress | Rule set iteration |
+| [`bpf_dynptr_from_mem`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | 5.19+ | All programs (planned) | Variable-size RingBuf event emission |
+| `BPF_MAP_TYPE_USER_RINGBUF` | 6.1+ | Planned | Userspace→kernel config push without `bpf_map_update_elem` polling |
 
 ### Map Types
 
@@ -78,13 +80,14 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | Distribution | Kernel | BTF | Status |
 |-------------|--------|-----|--------|
 | Debian 12+ | 6.1+ | Yes | Verified |
-| Ubuntu 22.04+ | 5.15+ (HWE: 6.x) | Yes | Verified |
-| RHEL 9+ | 5.14+ | Yes | Verified |
-| Rocky Linux 9+ | 5.14+ | Yes | Verified |
+| Ubuntu 24.04+ | 6.8+ | Yes | Verified |
+| Ubuntu 22.04 (HWE) | 6.5+ (HWE) | Yes | Verified (HWE kernel required) |
+| RHEL 9.4+ | 5.14+ (backports) | Yes | Verified (kernel-ml 6.1+ recommended) |
+| Rocky Linux 9.4+ | 5.14+ (backports) | Yes | Verified (kernel-ml 6.1+ recommended) |
 | Alpine 3.18+ | 6.1+ (lts) | Yes | Verified |
 | Fedora 37+ | 6.0+ | Yes | Verified |
 | Arch Linux | Rolling | Yes | Verified |
-| NixOS | Varies | Yes | Since 5.11 |
+| NixOS | Varies | Yes | Requires 6.1+ kernel |
 | Talos Linux | 6.x | Yes | Verified |
 
 **Not supported:** macOS, Windows, FreeBSD (no Linux eBPF subsystem).

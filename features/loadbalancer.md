@@ -57,7 +57,7 @@ Optional per-service health probes monitor backend availability:
 ### Engine Limits
 
 - Maximum 64 services
-- Maximum 4 backends per service (eBPF map constraint)
+- Maximum 16 backends per service (eBPF map constraint)
 - Backend IDs and service IDs: max 64 characters
 
 ## Configuration

@@ -100,7 +100,7 @@ ratelimit:
       scope: per_ip
 ```
 
-Maximum **1024 rules**.
+Maximum **10,240 rules**.
 
 See [Configuration: Rate Limiting](../configuration/ratelimit.md) for the full reference.
 

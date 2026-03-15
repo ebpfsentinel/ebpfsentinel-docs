@@ -2,7 +2,7 @@
 
 ## Platform
 
-**Linux only.** Requires kernel 5.17+ with BTF support.
+**Linux only.** Requires kernel 6.1+ with BTF support.
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
@@ -10,15 +10,16 @@ Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 12+ | Yes | BTF enabled since Debian 11 |
-| Ubuntu 22.04+ | Yes | HWE kernels also supported |
-| RHEL 9+ | Yes | BTF since RHEL 8.2 |
-| Rocky Linux 9+ | Yes | 1:1 RHEL binary-compatible |
-| Alpine 3.18+ | Yes | `linux-lts` package (verify `linux-virt`) |
-| Fedora 37+ | Yes | BTF since Fedora 31 |
-| Arch Linux | Yes | BTF since `linux 5.7.1.arch1-1` |
-| NixOS | Yes | BTF in `common-config.nix` (>= 5.11) |
-| Talos Linux | Yes | Full BPF/BTF in kernel config |
+| Debian 12+ | Yes | Ships 6.1 kernel |
+| Ubuntu 24.04+ | Yes | Ships 6.8 kernel |
+| Ubuntu 22.04 (HWE) | Yes | HWE 6.5+ kernel required (`linux-generic-hwe-22.04`) |
+| RHEL 9.4+ | Yes | Stock 5.14 insufficient; install `kernel-ml` 6.1+ or use RHEL 10 |
+| Rocky Linux 9.4+ | Yes | Same as RHEL (use ELRepo `kernel-ml`) |
+| Alpine 3.18+ | Yes | `linux-lts` package (6.1+) |
+| Fedora 37+ | Yes | Ships 6.0+ kernel |
+| Arch Linux | Yes | Rolling, always 6.1+ |
+| NixOS | Yes | Requires 6.1+ kernel in configuration |
+| Talos Linux | Yes | Ships 6.x kernel |
 
 ## Architectures
 
@@ -43,7 +44,7 @@ Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
 ## Kernel Feature Matrix
 
-All features require kernel 5.17+. Here is when each eBPF feature became available:
+All features require kernel 6.1+. Here is when each eBPF feature became available:
 
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|

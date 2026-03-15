@@ -76,7 +76,7 @@ Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both
 
 ## Kernel Requirements
 
-- **Linux 5.17+** with `CONFIG_DEBUG_INFO_BTF=y`
+- **Linux 6.1+** with `CONFIG_DEBUG_INFO_BTF=y`
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
 - **`CAP_BPF`** + **`CAP_NET_ADMIN`** capabilities (or root)
 

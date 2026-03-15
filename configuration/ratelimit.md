@@ -28,7 +28,7 @@ ratelimit:
 | `default_burst` | `integer` | `2000` | Default burst capacity for unmatched source IPs |
 | `default_algorithm` | `string` | `token_bucket` | Default algorithm for unmatched source IPs |
 | `country_tiers` | `[CountryTier]` | `[]` | Per-country rate limit tiers enforced via kernel LPM maps |
-| `rules` | `[Rule]` | `[]` | Rate limit rules (max 1024) |
+| `rules` | `[Rule]` | `[]` | Rate limit rules (max 10,240) |
 
 ### Rule
 

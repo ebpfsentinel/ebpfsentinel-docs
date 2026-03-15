@@ -183,7 +183,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel 5.17+ with BTF. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel 6.1+ with BTF. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 
