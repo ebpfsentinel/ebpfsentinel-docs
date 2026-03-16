@@ -2,7 +2,7 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** — 11 eBPF programs attached at XDP, TC, and uprobe hook points
+1. **Kernel-space** — 12 eBPF programs attached at XDP, TC, and uprobe hook points
 2. **Userspace** — Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
@@ -12,7 +12,7 @@ graph TB
         XDP_FW["<b>XDP</b><br/>xdp-firewall<br/><i>LPM trie · DEVMAP · CPUMAP</i>"]
         XDP_RL["<b>XDP</b><br/>xdp-ratelimit<br/><i>PerCPU · SYN cookie · bpf_timer</i>"]
         XDP_LB["<b>XDP</b><br/>xdp-loadbalancer<br/><i>L4 DNAT · health-aware</i>"]
-        TC["<b>TC classifier</b><br/>tc-ids · tc-threatintel · tc-dns<br/><i>Bloom filter · L7 detect · VLAN rewrite</i>"]
+        TC["<b>TC classifier</b><br/>tc-ids · tc-threatintel · tc-dns<br/>tc-conntrack · tc-nat · tc-qos · tc-scrub<br/><i>Bloom filter · L7 detect · VLAN rewrite</i>"]
         UPROBE["<b>uprobe</b><br/>uprobe-dlp"]
         XDP_FW -->|"tail_call<br/>(PROG_ARRAY)"| XDP_RL
         XDP_FW -->|"bpf_xdp_adjust_meta<br/>(metadata)"| TC
@@ -38,6 +38,11 @@ graph TB
             DNS[DNS Intelligence]
             DR[Domain Reputation]
             LB[Load Balancer]
+            NAT[NAT]
+            CT[Conntrack]
+            QOS[QoS]
+            RT[Routing]
+            ZN[Zone]
         end
 
         ENRICH["Alert Enrichment<br/>DNS · Reputation · GeoIP"]
@@ -82,7 +87,7 @@ ebpfsentinel/
 ├── deny.toml                         # Dependency policy
 ├── config/
 │   ├── ebpfsentinel.yaml             # Default config
-│   └── examples/                     # Per-feature standalone configs (12 files)
+│   └── examples/                     # Per-feature standalone configs (20 files)
 ├── proto/
 │   └── ebpfsentinel/v1/alerts.proto  # gRPC service definition
 ├── crates/
@@ -94,6 +99,11 @@ ebpfsentinel/
 │   │   ├── tc-ids/
 │   │   ├── tc-threatintel/
 │   │   ├── tc-dns/
+│   │   ├── tc-conntrack/
+│   │   ├── tc-scrub/
+│   │   ├── tc-nat-ingress/
+│   │   ├── tc-nat-egress/
+│   │   ├── tc-qos/
 │   │   └── uprobe-dlp/
 │   ├── domain/                       # Business logic (engines, entities, errors)
 │   ├── ports/                        # Port traits (primary + secondary)
@@ -102,8 +112,8 @@ ebpfsentinel/
 │   ├── infrastructure/               # Config, logging, metrics
 │   ├── agent/                        # Binary entry point
 │   └── xtask/                        # Build orchestration
-├── tests/integration/                # BATS integration tests (15 suites)
-├── fuzz/                             # libFuzzer fuzz targets (12 targets)
+├── tests/integration/                # BATS integration tests (30 suites)
+├── fuzz/                             # libFuzzer fuzz targets (24 targets)
 └── .github/workflows/                # CI/CD pipelines
 ```
 

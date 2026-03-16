@@ -20,7 +20,7 @@ cargo audit         # Vulnerability scanning
 ```
 
 `deny.toml` policy:
-- 9 approved dependency licenses (MIT, Apache-2.0, AGPL-3.0-only, BSD-2/3-Clause, ISC, Unicode-3.0, Unicode-DFS-2016, OpenSSL)
+- 13 approved dependency licenses (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, AGPL-3.0-only, BSD-2-Clause, BSD-3-Clause, 0BSD, ISC, Zlib, CC0-1.0, CDLA-Permissive-2.0, Unicode-3.0, OpenSSL)
 - Yanked crates denied
 - Unknown registries and git sources denied
 - Vulnerability advisories denied

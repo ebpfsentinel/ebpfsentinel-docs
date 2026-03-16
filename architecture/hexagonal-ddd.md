@@ -19,8 +19,8 @@ Arrows point toward dependencies. The domain depends on nothing.
 **Pure business logic.** Engines, entities, errors. No I/O, no async, no side effects.
 
 - `#![forbid(unsafe_code)]`
-- Zero external dependencies (only `thiserror`, `serde` as dev-dependency)
-- Contains 930+ unit tests
+- Minimal external dependencies: `thiserror`, `serde`, `regex`, `ebpf-common`
+- Contains 830+ unit tests
 - Each domain follows the same structure:
 
 ```

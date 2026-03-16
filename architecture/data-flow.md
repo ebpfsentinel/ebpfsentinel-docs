@@ -121,7 +121,7 @@ Senders (with circuit breaker)
 
 ```
 REST API (Axum)
-    ├── Rule CRUD (23 endpoints)
+    ├── Rule CRUD (73 routes: 47 read + 23 write + 3 system)
     ├── Status / health
     ├── Config reload
     └── OpenAPI / Swagger UI
