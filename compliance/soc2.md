@@ -51,11 +51,12 @@ ids:
 
 threatintel:
   feeds:
-    - name: abuse-ch-feodo
+    - id: abuse-ch-feodo
+      name: "Abuse.ch Feodo Tracker"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
-      refresh_interval: 3600
-      action: block
+      refresh_interval_secs: 3600
+      default_action: block
 ```
 
 ## CC6.7 — Incident Response
@@ -68,8 +69,9 @@ ips:
 alerting:
   routes:
     - name: soc2-incidents
-      severity: [critical, high]
-      senders: [webhook-pagerduty]
+      destination: webhook
+      min_severity: high
+      webhook_url: "https://hooks.pagerduty.com/your-endpoint"
 ```
 
 ## CC6.8 — Audit

@@ -14,29 +14,29 @@ agent:
 
 threatintel:
   feeds:
-    - name: abuse-ch-feodo
+    - id: abuse-ch-feodo
+      name: "Abuse.ch Feodo Tracker"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
-      refresh_interval: 3600
-      action: alert                  # Alert first, block after validation
-    - name: abuse-ch-urlhaus
+      refresh_interval_secs: 3600
+      default_action: alert          # Alert first, block after validation
+    - id: abuse-ch-urlhaus
+      name: "Abuse.ch URLhaus"
       url: "https://urlhaus.abuse.ch/downloads/csv_recent/"
       format: csv
-      field_mapping:
-        indicator: 2
-        type: 4
-        description: 5
-      refresh_interval: 1800
-      action: alert
-    - name: custom-iocs
+      ip_field: dst_ip
+      category_field: threat
+      skip_header: true
+      refresh_interval_secs: 1800
+      default_action: alert
+    - id: custom-iocs
+      name: "Internal IOC Feed"
       url: "https://threat-feeds.internal/iocs.json"
       format: json
-      field_mapping:
-        indicator: "$.ioc"
-        type: "$.type"
-        description: "$.info"
-      refresh_interval: 900
-      action: block                  # Internal feeds are pre-validated
+      ip_field: ioc
+      category_field: type
+      refresh_interval_secs: 900
+      default_action: block          # Internal feeds are pre-validated
 
 dns:
   cache_size: 200000
@@ -49,7 +49,7 @@ dns:
     - name: abuse-ch-domains
       url: "https://urlhaus.abuse.ch/downloads/hostfile/"
       format: plaintext
-      refresh_interval: 3600
+      refresh_interval_secs: 3600
   reputation:
     enabled: true
     auto_block_threshold: 0.85       # Auto-block high-score domains
@@ -68,23 +68,17 @@ ids:
       description: "Potential data exfiltration"
 
 alerting:
-  dedup_window: 60
+  dedup_window_secs: 60
   routes:
-    - name: threat-hunt-all
-      severity: [critical, high, medium]
-      component: [threatintel, dns, ids]
-      senders: [log-hunting, webhook-soc]
-    - name: auto-block
-      severity: [critical]
-      component: [threatintel]
-      senders: [webhook-soc]
-  senders:
-    - name: log-hunting
-      type: log
-      path: "/var/log/ebpfsentinel/threat-hunting.json"
-    - name: webhook-soc
-      type: webhook
-      url: "https://hooks.example.com/soc-alerts"
+    - name: threat-hunt-log
+      destination: log
+      min_severity: medium
+      event_types: [threatintel, dns, ids]
+    - name: threat-hunt-webhook
+      destination: webhook
+      min_severity: high
+      event_types: [threatintel, dns, ids]
+      webhook_url: "https://hooks.example.com/soc-alerts"
 ```
 
 ## Hunting Workflow

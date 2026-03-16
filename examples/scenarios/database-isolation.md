@@ -58,16 +58,7 @@ ids:
       description: "Database dump attempt"
 
 dlp:
-  mode: alert
-  patterns:
-    - id: db-credit-card
-      pattern: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
-      severity: critical
-      description: "Credit card in database traffic"
-    - id: db-ssn
-      pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-      severity: critical
-      description: "SSN in database traffic"
+  enabled: true    # OSS built-in patterns detect credit cards, SSN automatically
 
 audit:
   enabled: true
@@ -76,12 +67,9 @@ audit:
 alerting:
   routes:
     - name: db-critical
-      severity: [critical]
-      senders: [webhook-dba]
-  senders:
-    - name: webhook-dba
-      type: webhook
-      url: "https://hooks.example.com/db-alerts"
+      destination: webhook
+      min_severity: critical
+      webhook_url: "https://hooks.example.com/db-alerts"
 ```
 
 ## Verification

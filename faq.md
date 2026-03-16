@@ -56,11 +56,11 @@ The IDS itself only detects. Enable **IPS** (Intrusion Prevention) to automatica
 
 ### Can I customize DLP patterns?
 
-Yes. DLP patterns are standard regex defined in YAML. Add any pattern you need.
+The OSS edition ships with 9 built-in patterns (PCI, PII, credentials) that are always loaded. Custom patterns require the Enterprise edition. See [DLP](features/dlp.md) for details.
 
 ### What threat intelligence feed formats are supported?
 
-Plaintext (one IOC per line), CSV (configurable column mapping), JSON (JSONPath field mapping), and STIX 2.x bundles.
+Plaintext (one IOC per line), CSV (configurable column mapping), and JSON (field name mapping). STIX support is planned but not yet implemented.
 
 ### How does hot reload work?
 

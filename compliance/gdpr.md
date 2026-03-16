@@ -35,12 +35,7 @@ firewall:
       description: "Block non-EU data transfers"
 
 dlp:
-  mode: alert
-  patterns:
-    - id: gdpr-email
-      pattern: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
-      severity: medium
-      description: "Email address (personal data)"
+  enabled: true    # OSS built-in patterns detect PII automatically
 ```
 
 ## Art. 33 — Breach Notification
@@ -51,14 +46,10 @@ Configure alerting for potential data breach detection:
 alerting:
   routes:
     - name: gdpr-breach-detection
-      severity: [critical, high]
-      component: [dlp, ids, ips]
-      senders: [webhook-dpo]
-  senders:
-    - name: webhook-dpo
-      type: webhook
-      url: "https://hooks.example.com/gdpr-breach"
-      timeout: 10
+      destination: webhook
+      min_severity: high
+      event_types: [dlp, ids, ips]
+      webhook_url: "https://hooks.example.com/gdpr-breach"
 ```
 
 ## Data Minimization

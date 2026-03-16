@@ -91,12 +91,9 @@ ratelimit:
 alerting:
   routes:
     - name: web-critical
-      severity: [critical, high]
-      senders: [webhook-ops]
-  senders:
-    - name: webhook-ops
-      type: webhook
-      url: "https://hooks.slack.com/services/YOUR/WEBHOOK"
+      destination: webhook
+      min_severity: high
+      webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK"
 ```
 
 ## Verification

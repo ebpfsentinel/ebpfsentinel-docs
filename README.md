@@ -37,13 +37,13 @@ eBPFsentinel provides 17 domains in a single agent binary:
 - **XDP_TX packet forging** — firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation
 - **Shared `ebpf-helpers` crate** — deduplicated network helpers, header parsing, metrics macros across all eBPF programs
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
-- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 60+ endpoints
+- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, 73 routes
 - **gRPC streaming** (tonic) for real-time alert subscriptions
 - **JWT / OIDC / API key authentication** with role-based access control
 - **TLS 1.3** via rustls for both REST and gRPC
 - **Prometheus metrics** with per-domain counters, histograms, and gauges
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 13 domain subcommands and table/JSON output
+- **CLI** with 17 subcommands and table/JSON output
 
 ## Who Is This For?
 

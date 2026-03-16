@@ -39,20 +39,7 @@ Configure DLP to detect credit card numbers in transit:
 
 ```yaml
 dlp:
-  mode: alert
-  patterns:
-    - id: pci-visa
-      pattern: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      description: "Visa card number detected"
-    - id: pci-mastercard
-      pattern: "\\b5[1-5][0-9]{14}\\b"
-      severity: critical
-      description: "Mastercard number detected"
-    - id: pci-amex
-      pattern: "\\b3[47][0-9]{13}\\b"
-      severity: critical
-      description: "Amex card number detected"
+  enabled: true    # OSS built-in patterns detect Visa, Mastercard, Amex automatically
 ```
 
 ## Requirement 6: Secure Systems
@@ -89,8 +76,9 @@ audit:
 alerting:
   routes:
     - name: pci-critical
-      severity: [critical]
-      senders: [webhook-soc]
+      destination: webhook
+      min_severity: critical
+      webhook_url: "https://hooks.example.com/pci-alerts"
 ```
 
 ## Requirement 11: Security Testing
@@ -109,11 +97,12 @@ ips:
 
 threatintel:
   feeds:
-    - name: abuse-ch-feodo
+    - id: abuse-ch-feodo
+      name: "Abuse.ch Feodo Tracker"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
-      refresh_interval: 3600
-      action: block
+      refresh_interval_secs: 3600
+      default_action: block
 ```
 
 ## Evidence Collection

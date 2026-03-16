@@ -67,54 +67,44 @@ ips:
       severity: critical
       mode: block
       threshold:
-        mode: both
+        type: both
         count: 3
-        window: 60
+        window_secs: 60
+        track_by: src_ip
 
 dlp:
-  mode: alert
-  patterns:
-    - id: pci-visa
-      pattern: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      description: "Visa card number"
-    - id: pci-mastercard
-      pattern: "\\b5[1-5][0-9]{14}\\b"
-      severity: critical
-      description: "Mastercard number"
-    - id: pci-amex
-      pattern: "\\b3[47][0-9]{13}\\b"
-      severity: critical
-      description: "Amex number"
+  enabled: true    # OSS built-in patterns detect Visa, Mastercard, Amex automatically
 
 threatintel:
   feeds:
-    - name: abuse-ch-feodo
+    - id: abuse-ch-feodo
+      name: "Abuse.ch Feodo Tracker"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
-      refresh_interval: 3600
-      action: block
+      refresh_interval_secs: 3600
+      default_action: block
 
 audit:
   enabled: true
   retention_days: 90
 
 alerting:
+  smtp:
+    host: smtp.example.com
+    port: 587
+    from_address: "ebpfsentinel@example.com"
+    tls: true
   routes:
-    - name: pci-critical
-      severity: [critical]
-      component: [dlp, ids, ips, threatintel]
-      senders: [webhook-soc, email-compliance]
-  senders:
-    - name: webhook-soc
-      type: webhook
-      url: "https://hooks.example.com/pci-alerts"
-    - name: email-compliance
-      type: email
-      smtp_host: smtp.example.com
-      smtp_port: 587
-      from: "ebpfsentinel@example.com"
-      to: ["pci-compliance@example.com"]
+    - name: pci-webhook
+      destination: webhook
+      min_severity: critical
+      event_types: [dlp, ids, ips, threatintel]
+      webhook_url: "https://hooks.example.com/pci-alerts"
+    - name: pci-email
+      destination: email
+      min_severity: critical
+      event_types: [dlp, ids, ips, threatintel]
+      email_to: "pci-compliance@example.com"
 
 tls:
   enabled: true

@@ -45,15 +45,20 @@ Configure DLP to detect PHI patterns:
 
 ```yaml
 dlp:
+  enabled: true
   mode: alert
-  patterns:
+  patterns:                        # Enterprise: custom PHI patterns
     - id: hipaa-mrn
-      pattern: "\\b(MRN|mrn)[:\\s]*\\d{6,10}\\b"
+      name: "Medical Record Number"
+      regex: "\\b(MRN|mrn)[:\\s]*\\d{6,10}\\b"
       severity: critical
+      data_type: phi
       description: "Medical Record Number"
     - id: hipaa-ssn
-      pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      name: "Social Security Number"
+      regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
       severity: critical
+      data_type: phi
       description: "Social Security Number (PHI)"
 
 tls:
