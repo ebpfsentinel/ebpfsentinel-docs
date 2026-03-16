@@ -60,7 +60,7 @@ You should see:
 
 ```
 {"timestamp":"...","level":"INFO","message":"agent started","version":"0.1.0"}
-{"timestamp":"...","level":"INFO","message":"eBPF programs loaded","programs":["xdp-firewall","xdp-ratelimit","tc-ids"]}
+{"timestamp":"...","level":"INFO","message":"eBPF programs loaded","programs":["xdp-firewall","xdp-ratelimit","tc-ids","tc-conntrack"]}
 ```
 
 ## 3. Verify
@@ -125,11 +125,12 @@ curl -X POST http://localhost:8080/api/v1/config/reload
 ```yaml
 threatintel:
   feeds:
-    - name: abuse-ch-ipblocklist
+    - id: abuse-ch-ipblocklist
+      name: "Abuse.ch IP Blocklist"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
-      refresh_interval: 3600
-      action: block
+      refresh_interval_secs: 3600
+      default_action: block
 ```
 
 ### Add DLP
@@ -139,8 +140,10 @@ dlp:
   mode: alert
   patterns:
     - id: credit-card
-      pattern: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
+      name: "Credit Card Numbers"
+      regex: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
       severity: critical
+      data_type: pci
       description: "Credit card number detected"
 ```
 
@@ -150,12 +153,9 @@ dlp:
 alerting:
   routes:
     - name: critical-alerts
-      severity: [critical, high]
-      senders: [webhook-ops]
-  senders:
-    - name: webhook-ops
-      type: webhook
-      url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+      destination: webhook
+      min_severity: high
+      webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 ```
 
 ## Next Steps

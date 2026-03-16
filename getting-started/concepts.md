@@ -8,24 +8,28 @@ eBPFsentinel is a single binary that runs two layers:
 2. **Userspace Rust agent** — receives events via RingBuf, runs domain engines, serves the REST/gRPC API
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Kernel                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │ XDP Firewall │→ │ XDP RateLimit│  │ TC IDS    │ │
-│  │              │  │              │  │ TC ThreatI│ │
-│  │ LPM Trie     │  │ PerCPU Hash  │  │ TC DNS    │ │
-│  │ DEVMAP/CPUMAP│  │ SYN Cookie   │  │ Bloom Flt │ │
-│  └──────┬───────┘  └──────┬───────┘  └─────┬─────┘ │
-│         └──────────────────┴────────────────┘       │
-│                     RingBuf                         │
-└─────────────────────┬───────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│  Userspace                                          │
-│  EventDispatcher → Domain Engines → AlertRouter     │
-│                                                     │
-│  REST API (Axum)  │  gRPC (tonic)  │  Prometheus   │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  Kernel                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────┐ │
+│  │ XDP Firewall │→ │ XDP RateLimit│→ │XDP LoadBalanc│  │ uprobe  │ │
+│  │ LPM Trie     │  │ PerCPU Hash  │  │ Consistent H │  │  DLP    │ │
+│  │ DEVMAP/CPUMAP│  │ SYN Cookie   │  │ Backend Pool │  │         │ │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └────┬────┘ │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │      │
+│  │ TC IDS       │  │ TC Conntrack │  │ TC NAT In/Eg │       │      │
+│  │ TC ThreatInt │  │ TC QoS       │  │ TC DNS       │       │      │
+│  │ TC Scrub     │  │              │  │ Bloom Filter │       │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │      │
+│         └──────────────────┴────────────────┬┴───────────────┘      │
+│                           RingBuf           │                        │
+└───────────────────────────┬─────────────────┘────────────────────────┘
+                            ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  Userspace                                                           │
+│  EventDispatcher → Domain Engines → AlertRouter                      │
+│                                                                      │
+│  REST API (Axum)  │  gRPC (tonic)  │  Prometheus                    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## eBPF Hook Points
@@ -34,18 +38,18 @@ eBPFsentinel uses three types of eBPF hooks:
 
 | Hook | Speed | Use Case | Programs |
 |------|-------|----------|----------|
-| **XDP** (eXpress Data Path) | Fastest — before the kernel network stack | Firewall, rate limiting | `xdp-firewall`, `xdp-ratelimit` |
-| **TC** (Traffic Control) | Fast — after SKB allocation | IDS, threat intel, DNS capture | `tc-ids`, `tc-threatintel`, `tc-dns` |
+| **XDP** (eXpress Data Path) | Fastest — before the kernel network stack | Firewall, rate limiting, load balancing | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer` |
+| **TC** (Traffic Control) | Fast — after SKB allocation | IDS, threat intel, DNS, conntrack, NAT, QoS, DDoS scrubbing | `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-qos`, `tc-scrub` |
 | **uprobe** | Per-function call | SSL/TLS interception for DLP | `uprobe-dlp` |
 
 XDP programs can **drop, pass, redirect, or tail-call** into other XDP programs. The firewall tail-calls into the rate limiter via `PROG_ARRAY`, meaning only one XDP program needs to be attached per interface.
 
 ## Tail-Call Chaining
 
-The firewall and rate limiter are chained via XDP tail calls:
+The XDP programs are chained via tail calls through a `PROG_ARRAY`:
 
 ```
-Packet → xdp-firewall → (if passed) → xdp-ratelimit → XDP_PASS/XDP_DROP
+Packet → xdp-firewall → (if passed) → xdp-ratelimit → xdp-loadbalancer → XDP_PASS/XDP_TX
                        → (if blocked) → XDP_DROP
 ```
 
@@ -80,7 +84,13 @@ Each security domain has a pure Rust engine with no I/O, no async, and no side e
 | Threat Intel | IP/domain + IOC database | Match + action |
 | L7 Firewall | Parsed L7 fields + rules | Allow/Deny decision |
 | DNS Intelligence | DNS query/response + blocklist | Allow/Block + cache update |
-| Domain Reputation | Domain + behavioral history | Score + auto-block decision |
+| DDoS | SYN/UDP/ICMP flood metrics | SYN cookie / drop decision |
+| Load Balancer | TCP/UDP flow + backend pool | Backend selection + redirect |
+| NAT | Packet + NAT rules (SNAT/DNAT/NPTv6) | Address translation decision |
+| QoS | Packet + classifier rules | Queue assignment + shaping |
+| Conntrack | Packet + connection table | State tracking (new/established/related) |
+| Routing | Packet + policy routes | Next-hop / interface decision |
+| Zone | Packet + zone membership | Inter-zone policy enforcement |
 
 Engines are stateless functions: they take input and return a decision. State (blacklists, caches, counters) is managed by the application layer.
 
@@ -157,13 +167,13 @@ RBAC roles: `admin` (full access), `operator` (namespace-scoped writes), `viewer
 ## Alert Pipeline
 
 ```
-Domain Engine → AlertRouter → Dedup → Throttle → Route → Sender
+Domain Engine → AlertRouter → Dedup → Throttle → Route → Destination
                                                           ├── Email (SMTP)
                                                           ├── Webhook (HTTP)
                                                           └── Log (file)
 ```
 
-Alerts flow through deduplication (suppress duplicate alerts within a window), throttling (rate-limit per source), severity-based routing, and circuit breakers (back off if a sender is down).
+Each route specifies a `destination` type (`log`, `email`, or `webhook`) and a `min_severity` threshold. Alerts flow through deduplication (suppress duplicate alerts within a window), throttling (rate-limit per source), severity-based routing, and circuit breakers (back off if a sender is down).
 
 ## Next Steps
 
