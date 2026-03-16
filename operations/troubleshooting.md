@@ -8,7 +8,7 @@
 Error: failed to load eBPF program: kernel version too old
 ```
 
-Check: `uname -r` must be >= 5.17. Upgrade your kernel.
+Check: `uname -r` must be >= 6.1. Upgrade your kernel.
 
 ### BTF not available
 

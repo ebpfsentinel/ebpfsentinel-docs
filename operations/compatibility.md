@@ -54,7 +54,7 @@ All features require kernel 6.1+. Here is when each eBPF feature became availabl
 | `bpf_timer` | 5.15+ | Rate limit bucket expiry |
 | `bpf_for_each_map_elem` | 5.13+ | Kernel-side map iteration |
 | `bpf_check_mtu` | 5.12+ | MTU validation |
-| `bpf_tcp_gen_syncookie` | 5.3+ | SYN flood mitigation |
+| `bpf_tcp_gen_syncookie` | 5.3+ | Deprecated — replaced by custom FNV-1a SYN cookie forging via `XDP_TX` |
 | BPF ring buffer | 5.8+ | All programs — event emission |
 | `bpf_ringbuf_query` | 5.8+ | Adaptive backpressure |
 | `bpf_ktime_get_boot_ns` | 5.8+ | Suspend-aware timestamps |
