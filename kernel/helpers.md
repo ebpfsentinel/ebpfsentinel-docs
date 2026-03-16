@@ -68,6 +68,13 @@ eBPFsentinel uses 25+ kernel helper functions across its programs. This page doc
 | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress | Iterate over large rule sets without hitting the verifier loop limit |
 | [`bpf_for_each_map_elem`](https://docs.ebpf.io/linux/helper-function/bpf_for_each_map_elem/) | 5.13+ | xdp-ratelimit | Iterate over all map entries for kernel-side maintenance/cleanup |
 
+### Dynamic Pointers & User RingBuf
+
+| Helper | Kernel | Used By | Purpose |
+|--------|--------|---------|---------|
+| [`bpf_dynptr_from_mem`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | 5.19+ | tc-ids, uprobe-dlp (all programs) | Variable-size RingBuf event emission — reserve only the needed bytes |
+| [`bpf_user_ringbuf_drain`](https://docs.ebpf.io/linux/helper-function/bpf_user_ringbuf_drain/) | 6.1+ | xdp-firewall (extensible to all programs) | Drain config commands from `USER_RINGBUF` — atomic batch config push from userspace |
+
 ### Socket & Connection
 
 | Helper | Kernel | Used By | Purpose |

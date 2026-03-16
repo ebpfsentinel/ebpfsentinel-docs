@@ -80,4 +80,4 @@ Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
 - **`CAP_BPF`** + **`CAP_NET_ADMIN`** capabilities (or root)
 
-See [Kernel Compatibility](requirements.md) for the full feature-to-kernel-version matrix.
+The 6.1 minimum unlocks `BPF_MAP_TYPE_USER_RINGBUF` for atomic config push, `bpf_dynptr` for variable-size events, and BPF filesystem map pinning for cross-program sharing. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.

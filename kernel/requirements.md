@@ -49,8 +49,8 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_timer_init`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/) | 5.15+ | xdp-ratelimit | Timer-based bucket expiration |
 | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | 5.17+ | tc-ids | L7 protocol signature detection |
 | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress | Rule set iteration |
-| [`bpf_dynptr_from_mem`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | 5.19+ | All programs (planned) | Variable-size RingBuf event emission |
-| `BPF_MAP_TYPE_USER_RINGBUF` | 6.1+ | Planned | Userspace→kernel config push without `bpf_map_update_elem` polling |
+| [`bpf_dynptr_from_mem`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | 5.19+ | tc-ids, uprobe-dlp (all programs) | Variable-size RingBuf event emission |
+| [`bpf_user_ringbuf_drain`](https://docs.ebpf.io/linux/helper-function/bpf_user_ringbuf_drain/) | 6.1+ | xdp-firewall (extensible to all programs) | Drain config commands from User RingBuf |
 
 ### Map Types
 
@@ -67,6 +67,7 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`BPF_MAP_TYPE_CPUMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_CPUMAP/) | 4.15+ | xdp-firewall | NUMA-aware CPU steering |
 | [`BPF_MAP_TYPE_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/) | 5.8+ | All programs | Kernel→userspace events |
 | [`BPF_MAP_TYPE_BLOOM_FILTER`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) | 5.16+ | tc-threatintel | IOC pre-filtering |
+| [`BPF_MAP_TYPE_USER_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_USER_RINGBUF/) | 6.1+ | xdp-firewall (extensible to all programs) | Userspace→kernel config push |
 
 ### Other Kernel Features
 
@@ -74,6 +75,61 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 |---------|-----------|-------------|
 | CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere — portable eBPF binaries |
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
+| BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
+
+## Kernel 6.1+ Optimizations
+
+The 6.1 minimum kernel requirement unlocks several performance optimizations. Below is a per-program breakdown.
+
+### Firewall & NAT: Multi-Level HashMap Rule Lookup
+
+**Programs:** `xdp-firewall`, `tc-nat-ingress`, `tc-nat-egress`
+
+Replaces linear O(n) rule scans with multi-level HashMap lookups:
+
+| Level | Map | Complexity | Match Type |
+|-------|-----|-----------|------------|
+| 1 | `FW_HASH_5TUPLE` (HashMap) | O(1) | Exact 5-tuple |
+| 2 | `FW_LPM_*` (LPM Trie) | O(log n) | CIDR-only |
+| 3 | `FW_HASH_PORT` (HashMap) | O(1) | Protocol + port |
+| 4 | `FW_RULES_ARRAY` + `bpf_loop` | O(n) | Complex rules (fallback) |
+
+NAT follows the same pattern (`NAT_HASH_EXACT`, `NAT_HASH_CIDR`, `NAT_RULES_ARRAY`). Achieves <500ns latency at 10K rules (vs ~2µs at 4K rules with linear scan).
+
+### Rate Limiter: Consolidated Bucket Map
+
+**Program:** `xdp-ratelimit`
+
+Consolidates 4 separate per-algorithm maps into a single `RL_BUCKETS` (`LruPerCpuHashMap`, 262K entries) using a discriminated union (`RateLimitBucketUnion`, 64 bytes). Reduces kernel memory by ~75%.
+
+### Load Balancer: Two-Level HashMap
+
+**Program:** `xdp-loadbalancer`
+
+Replaces embedded `backend_ids: [u32; 16]` with two-level lookup:
+
+- `LB_SERVICES` (HashMap, 4096 entries) → `LbServiceConfigV2` (8 bytes: algorithm + count + start_id)
+- `LB_BACKENDS` (HashMap, 65536 entries) → `LbBackendEntry`
+
+Scales from 64 services × 16 backends to 4096 services × 256 backends.
+
+### Conntrack: BPF Filesystem Map Pinning
+
+**Programs:** `tc-conntrack`, `xdp-firewall`, `tc-nat-ingress`, `tc-nat-egress`
+
+Pins `CT_TABLE_V4` (262K entries) and `CT_TABLE_V6` (65K entries) to `/sys/fs/bpf/` so they are shared across programs instead of duplicated. Saves ~49 MB of kernel memory. The `INTERFACE_GROUPS` map (6 programs) is also pinned.
+
+### Variable-Size RingBuf Events (`bpf_dynptr`)
+
+**Programs:** `tc-ids`, `uprobe-dlp` (all programs benefit)
+
+Uses `bpf_dynptr` (kernel 5.19+) for variable-size `bpf_ringbuf_reserve`. Events carry only the actual payload bytes instead of a fixed 64-byte struct. Saves ~70% ring buffer space for L7 events, allowing ~4x more events before drops.
+
+### User RingBuf: Atomic Config Push (kernel 6.1+)
+
+**Programs:** `xdp-firewall` (pilot), extensible to all programs
+
+Uses `BPF_MAP_TYPE_USER_RINGBUF` (kernel 6.1+) and `bpf_user_ringbuf_drain` for atomic batch config updates from userspace. Replaces per-entry `bpf_map_update_elem` syscalls with a single ring buffer drain, eliminating race conditions and reducing latency for bulk rule reloads.
 
 ## Distribution Compatibility
 

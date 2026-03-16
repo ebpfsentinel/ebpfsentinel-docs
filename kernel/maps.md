@@ -1,6 +1,6 @@
 # eBPF Map Types
 
-eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 11 distinct map types.
+eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 12 distinct map types.
 
 ## Map Type Reference
 
@@ -60,10 +60,11 @@ Hash table with built-in **LRU eviction**. Used for:
 
 #### [`BPF_MAP_TYPE_LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/)
 
-**Kernel:** 4.10+ | **Used by:** tc-qos
+**Kernel:** 4.10+ | **Used by:** xdp-ratelimit, tc-qos
 
 Combines per-CPU value storage with LRU eviction. Each CPU core maintains its own copy of the value (no locking), while the map automatically evicts the least-recently-used entries when capacity is reached. Used for:
 
+- `RL_BUCKETS` (262,144 entries): consolidated rate limit bucket state using a discriminated union (`RateLimitBucketUnion`, 64 bytes). All 4 rate limiting algorithms share one map. LRU eviction handles bucket expiration.
 - `QOS_FLOW_STATE` (65,536 entries): per-flow token bucket state. Each entry stores `tokens_remaining` and `last_refill_ns`. Per-CPU storage avoids contention on the hot path — each core independently tracks token state for flows it processes.
 
 ### Per-CPU Maps
@@ -74,16 +75,14 @@ Combines per-CPU value storage with LRU eviction. Each CPU core maintains its ow
 
 Per-CPU hash map providing **lock-free** per-IP rate limiting counters. Each CPU core maintains its own copy of the counter — no atomic operations or spinlocks needed. Values are aggregated when read from userspace.
 
-**Memory budget by algorithm:**
+**Consolidated bucket map:** The 4 separate per-algorithm maps (`RATELIMIT_BUCKETS`, `FIXED_WINDOW_BUCKETS`, `SLIDING_WINDOW_BUCKETS`, `LEAKY_BUCKET_BUCKETS`) are consolidated into a single `RL_BUCKETS` (`LruPerCpuHashMap`, 262K entries) using a discriminated union:
 
-The value size stored per entry depends on the rate limit algorithm selected:
-
-| Algorithm | Value struct | Size per entry |
-|-----------|-------------|----------------|
-| Token bucket | `RateLimitValue` | 16 bytes |
-| Fixed window | `FixedWindowValue` | 16 bytes |
-| Sliding window (8 slots) | `SlidingWindowValue` | 56 bytes |
-| Leaky bucket | `LeakyBucketValue` | 16 bytes |
+| Field | Type | Size |
+|-------|------|------|
+| Discriminant | `u8` | 1 byte |
+| Padding | `[u8; 7]` | 7 bytes |
+| Data (union) | algorithm-specific | 56 bytes |
+| **Total** | `RateLimitBucketUnion` | **64 bytes** |
 
 Because `PerCpuHash` replicates the value on every CPU core, the total kernel memory consumed is:
 
@@ -91,16 +90,12 @@ Because `PerCpuHash` replicates the value on every CPU core, the total kernel me
 memory = value_size * max_entries * num_CPUs
 ```
 
-For the sliding window algorithm, which has the largest value (56 bytes due to 8 `u32` slots plus metadata), the cost can be significant:
+| `max_entries` | CPUs | Memory (consolidated) |
+|---------------|------|-----------------------|
+| 262 144 | 4 | ~64 MB |
+| 262 144 | 8 | ~128 MB |
 
-| `max_entries` | CPUs | Memory |
-|---------------|------|--------|
-| 65 536 | 4 | ~14 MB |
-| 65 536 | 8 | ~28 MB |
-| 65 536 | 16 | ~56 MB |
-| 131 072 | 8 | ~56 MB |
-
-Token bucket and fixed/leaky bucket use 16-byte values, so the same 65 536 entries on 8 CPUs cost only ~8 MB. Choose the algorithm and `max_entries` accordingly to stay within your memory budget.
+The consolidation reduces total kernel memory by ~75% compared to 4 separate maps (each with 65K entries).
 
 #### [`BPF_MAP_TYPE_PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/)
 
@@ -167,13 +162,15 @@ Lock-free, MPSC (multi-producer, single-consumer) ring buffer for **kernel→use
 - Variable-length records
 - Supports backpressure queries via [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/)
 
-Most programs emit `PacketEvent` (64 bytes) through the ring buffer using the reserve/submit pattern:
+Most programs emit `PacketEvent` through the ring buffer using the reserve/submit pattern. Events use **variable-size allocation** via `bpf_dynptr` (kernel 5.19+): only the actual payload bytes are reserved (`sizeof(PacketEvent) + payload_len`), saving ~70% ring buffer space for L7 events and allowing ~4× more events before drops.
 
 ```
-entry = bpf_ringbuf_reserve(&EVENTS, sizeof(PacketEvent), 0);
+// Variable-size: reserve header + actual payload
+size = sizeof(PacketEvent) + actual_payload_len;
+entry = bpf_ringbuf_reserve(&EVENTS, size, 0);
 if (!entry) return;  // buffer full
 entry->src_addr = ...;
-entry->dst_addr = ...;
+entry->payload_len = actual_payload_len;
 bpf_ringbuf_submit(entry, 0);
 ```
 
@@ -195,6 +192,25 @@ Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egres
 
 All RingBuf maps implement 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead.
 
+### Config Maps
+
+#### [`BPF_MAP_TYPE_USER_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_USER_RINGBUF/)
+
+**Kernel:** 6.1+ | **Used by:** xdp-firewall (pilot, extensible to all programs)
+
+Reverse-direction ring buffer: **userspace writes**, kernel drains via `bpf_user_ringbuf_drain`. Used for atomic batch config push — replacing per-entry `bpf_map_update_elem` syscalls with a single ring buffer drain operation.
+
+**Config command structure** (`ConfigCommand`, 136 bytes):
+- `cmd_type: u8` — `ADD_RULE`, `REMOVE_RULE`, `UPDATE_CONFIG`, `TOGGLE_FEATURE`
+- `domain: u8` — target subsystem
+- `payload_len: u16` — actual payload size
+- `payload: [u8; 128]` — command-specific data
+
+Benefits over `bpf_map_update_elem`:
+- **Atomic multi-entry updates** — no race conditions during bulk rule reloads
+- **Lower latency** — no per-entry syscall overhead
+- **No map-level lock contention** — MPSC ring buffer design
+
 ### Probabilistic Maps
 
 #### [`BPF_MAP_TYPE_BLOOM_FILTER`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/)
@@ -215,7 +231,7 @@ Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup 
 
 **Kernel:** 3.19+ | **Used by:** xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos
 
-A HashMap map (key = `u32` ifindex, value = `u32` bitmask, max 64 entries) that stores interface-to-group membership. Each program has its own copy of the map. Userspace writes the mapping when configuration is loaded or reloaded.
+A HashMap map (key = `u32` ifindex, value = `u32` bitmask, max 64 entries) that stores interface-to-group membership. Pinned to `/sys/fs/bpf/` and shared across all 6 programs. Userspace writes the mapping when configuration is loaded or reloaded.
 
 The bitmask encodes group membership (up to 31 groups, bits 0-30). Each rule carries a `group_mask` field: if `group_mask == 0`, the rule is a **floating rule** and applies to all interfaces. Otherwise, the eBPF program looks up the current interface's ifindex in `INTERFACE_GROUPS`, ANDs the result with the rule's `group_mask`, and skips the rule if the result is zero. Bit 31 is the inversion flag — when set, the match logic is inverted (rule applies to all interfaces *except* those in the specified groups).
 
@@ -250,7 +266,19 @@ Several maps are written from userspace when configuration changes:
 | QoS classifiers (HashMap) | Userspace → Kernel | Classifier add/delete |
 | QoS metrics (PerCpuArray) | Kernel → Userspace | Per-CPU shaping counters |
 
-Maps are updated atomically per-entry. Bulk updates (e.g., threat intel feed refresh) iterate and batch-update entries while the old values remain visible to the eBPF program until overwritten.
+Maps are updated atomically per-entry via `bpf_map_update_elem`, or in bulk via `USER_RINGBUF` drain (kernel 6.1+). Bulk updates (e.g., threat intel feed refresh) iterate and batch-update entries while the old values remain visible to the eBPF program until overwritten.
+
+### Pinned Maps (BPF Filesystem)
+
+Several maps are shared across programs via BPF filesystem pinning at `/sys/fs/bpf/`. This avoids duplicating large maps in each program's memory:
+
+| Map | Size | Programs | Savings |
+|-----|------|----------|---------|
+| `CT_TABLE_V4` | 262K entries × 48 B | tc-conntrack (writer), xdp-firewall, tc-nat-* (readers) | ~36 MB (was 4 copies) |
+| `CT_TABLE_V6` | 65K entries × 72 B | tc-conntrack (writer), xdp-firewall, tc-nat-* (readers) | ~13 MB (was 4 copies) |
+| `INTERFACE_GROUPS` | 64 entries × 8 B | 6 programs | Minimal (shared convenience) |
+
+Userspace uses `Map::pin()` at startup and `Map::from_pin()` in subsequent program loads.
 
 ### NAT Maps
 

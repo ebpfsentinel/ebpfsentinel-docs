@@ -12,7 +12,7 @@ The most feature-rich program. Processes every incoming packet through a **5-pha
 
 #### Phase 0 — Conntrack Fast-Path (O(1))
 
-ESTABLISHED and RELATED connections bypass all rule evaluation. The conntrack table is a shared [`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map (pinned via BPF filesystem) maintained by `tc-conntrack`.
+ESTABLISHED and RELATED connections bypass all rule evaluation. The conntrack table (`CT_TABLE_V4` / `CT_TABLE_V6`) is a shared [`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map pinned to `/sys/fs/bpf/` (saves ~49 MB vs. per-program copies) and maintained by `tc-conntrack`.
 
 - Lookup by normalized 5-tuple key
 - If state = ESTABLISHED or RELATED → `XDP_PASS` immediately
@@ -31,9 +31,18 @@ CIDR-only rules are loaded into 4 [`LPM_TRIE`](https://docs.ebpf.io/linux/map-ty
 
 Rules that only have source/destination CIDR (no port, protocol, or VLAN filter) are matched here, avoiding the linear scan entirely.
 
-#### Phase 2 — Linear Scan
+#### Phase 2 — HashMap + Linear Scan
 
-Rules with complex match criteria are evaluated in priority order (lowest priority number wins). Uses [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) (kernel 5.17+) to iterate without hitting the verifier loop limit.
+Rules are first looked up via multi-level HashMaps before falling back to a linear scan:
+
+| Level | Map | Complexity | Match Type |
+|-------|-----|-----------|------------|
+| 1 | `FW_HASH_5TUPLE` (HashMap) | O(1) | Exact 5-tuple |
+| 2 | `FW_LPM_*` (LPM Trie) | O(log n) | CIDR-only (Phase 1) |
+| 3 | `FW_HASH_PORT` (HashMap) | O(1) | Protocol + port |
+| 4 | `FW_RULES_ARRAY` + `bpf_loop` | O(n) | Complex rules (fallback) |
+
+Only rules with complex match criteria (combining multiple fields beyond what the HashMaps cover) reach the linear scan. Uses [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) (kernel 5.17+) to iterate without hitting the verifier loop limit. Achieves <500ns latency at 10K rules.
 
 Match fields (all optional — omitted = wildcard):
 
@@ -94,6 +103,10 @@ Before passing, the firewall writes metadata via [`bpf_xdp_adjust_meta`](https:/
 
 Downstream TC programs read this metadata without re-parsing packet headers.
 
+#### User RingBuf Config Push (kernel 6.1+)
+
+The firewall is the pilot program for `BPF_MAP_TYPE_USER_RINGBUF`. Userspace pushes config commands (`ADD_RULE`, `REMOVE_RULE`, `UPDATE_CONFIG`, `TOGGLE_FEATURE`) into a ring buffer, and the kernel drains them via `bpf_user_ringbuf_drain`. This replaces per-entry `bpf_map_update_elem` syscalls with atomic batch updates — no race conditions during bulk rule reloads.
+
 ---
 
 ### xdp-ratelimit
@@ -104,14 +117,14 @@ Per-IP rate limiting and DDoS protection at XDP speed.
 
 #### Rate Limiting Algorithms
 
-5 algorithms, configurable per-rule:
+5 algorithms, configurable per-rule. All 4 stateful algorithms share a single consolidated [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) map (`RL_BUCKETS`, 262K entries) using a discriminated union (`RateLimitBucketUnion`, 64 bytes per entry). This consolidation reduces kernel memory by ~75%.
 
-| Algorithm | Map Type | Behavior |
-|-----------|----------|----------|
-| Token Bucket | [`PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_HASH/) | Steady rate with burst allowance |
-| Fixed Window | PERCPU_HASH | Counter resets every interval |
-| Sliding Window | PERCPU_HASH | Weighted average of current + previous window |
-| Leaky Bucket | PERCPU_HASH | Constant drain rate, queued excess |
+| Algorithm | Union Variant | Behavior |
+|-----------|---------------|----------|
+| Token Bucket | `RateLimitBucketUnion::TokenBucket` | Steady rate with burst allowance |
+| Fixed Window | `RateLimitBucketUnion::FixedWindow` | Counter resets every interval |
+| Sliding Window | `RateLimitBucketUnion::SlidingWindow` | Weighted average of current + previous window |
+| Leaky Bucket | `RateLimitBucketUnion::LeakyBucket` | Constant drain rate, queued excess |
 | SYN Cookie | — | XDP SYN cookie forging via `XDP_TX` (see below) |
 
 Per-CPU maps eliminate lock contention: each CPU core maintains independent counters, aggregated at read time.
@@ -169,8 +182,8 @@ L4 load balancing at XDP speed. Rewrites destination IP/port to the selected bac
 
 | Feature | Description |
 |---------|-------------|
-| **Service lookup** | Maps incoming `(port, protocol)` to a service definition |
-| **Backend selection** | Per-service round-robin index stored in eBPF map, updated per packet |
+| **Service lookup** | Two-level HashMap: `LB_SERVICES` (4096 entries) → `LB_BACKENDS` (65536 entries). Scales to 4096 services × 256 backends |
+| **Backend selection** | Per-service round-robin index stored in `LB_RR_STATE` PerCpuArray (4096 entries), updated per packet |
 | **MAC address swap** | Swaps source and destination MAC addresses after DNAT rewrite so the packet is routed correctly at L2 |
 | **Packet rewriting** | Destination IP/port rewrite with L3/L4 checksum fixup |
 | **Health awareness** | Backends marked unhealthy by userspace are skipped |
@@ -207,7 +220,7 @@ Key design decisions:
 - **Byte counters**: each connection tracks both packet count and byte count, enabling volume-based analysis
 - **Normalized keys**: lower IP:port is always "source" — one entry covers both directions
 - **[`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map**: automatic eviction when table is full, no GC pauses
-- **Shared map** (BPF filesystem pinning): written by tc-conntrack, read by xdp-firewall for fast-path lookup
+- **Pinned maps**: `CT_TABLE_V4` (262K entries) and `CT_TABLE_V6` (65K entries) are pinned to `/sys/fs/bpf/` and shared across tc-conntrack, xdp-firewall, tc-nat-ingress, and tc-nat-egress — saving ~49 MB vs. per-program copies
 - **[`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/)**: unique per-connection ID for flow correlation
 - **[`bpf_sk_lookup_tcp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_tcp/)** / **[`bpf_sk_lookup_udp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_udp/)**: socket lookup for process attribution
 
@@ -245,7 +258,7 @@ Destination NAT for incoming packets (IPv4 and IPv6):
 - **Hairpin NAT**: detects when a DNAT target and source are in the same internal subnet. Applies additional SNAT (source → `hairpin_snat_ip`) and stores reverse mapping in `NAT_HAIRPIN_CT` LRU map. Return path reverses both translations. Configured via `NAT_HAIRPIN_CONFIG` map. IPv4 only.
 - **DNAT**: rewrite destination IP/port for port forwarding and 1:1 NAT
 - **Redirect**: rewrite destination to local address
-- **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit (same approach as the firewall linear scan)
+- **Multi-level rule lookup**: `NAT_HASH_EXACT` (HashMap, O(1)) → `NAT_HASH_CIDR` (LPM, O(log n)) → `NAT_RULES_ARRAY` + [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) (O(n) fallback)
 - Packet rewriting via [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/)
 - IPv4: checksum updates via [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) + [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/)
 - IPv6: L4 pseudo-header checksum update only (4-word loop, no IP header checksum in IPv6)
@@ -265,7 +278,7 @@ Source NAT for outgoing packets (IPv4 and IPv6):
 - **SNAT**: static source IP rewrite
 - **Masquerade**: dynamic source rewrite to outgoing interface address
 - **Port allocation**: hash-based ephemeral port selection (IPv6 uses XOR-fold of `[u32; 4]` to `u32`)
-- **Rule scanning via [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/)**: iterates over NAT rules without hitting the verifier loop limit
+- **Multi-level rule lookup**: same pattern as tc-nat-ingress — HashMap exact → LPM CIDR → `bpf_loop` fallback
 - Reverse mapping lookup from conntrack entries
 - Same checksum strategy as tc-nat-ingress (L3+L4 for IPv4, L4-only for IPv6)
 - **Interface groups**: NAT rules carry a `group_mask` for interface-scoped NAT via the `INTERFACE_GROUPS` map
@@ -283,6 +296,7 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | Random sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Sample N% of packets to reduce userspace load |
 | L7 detection | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | Match protocol signatures: `GET ` / `POST ` (HTTP), `\x16\x03` (TLS), `SSH-` (SSH) |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
+| Variable-size events | [`bpf_dynptr`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | Reserve only header + actual payload bytes, ~70% ring buffer savings for L7 events |
 
 Uses a **port-only key** for IDS rule matching — IP-version-agnostic (same rules apply to IPv4 and IPv6 traffic).
 
