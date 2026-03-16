@@ -7,29 +7,72 @@ eBPFsentinel is a single binary that runs two layers:
 1. **Kernel-space eBPF programs** — attached at XDP, TC, and uprobe hook points for wire-speed packet processing
 2. **Userspace Rust agent** — receives events via RingBuf, runs domain engines, serves the REST/gRPC API
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  Kernel                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────┐ │
-│  │ XDP Firewall │→ │ XDP RateLimit│→ │XDP LoadBalanc│  │ uprobe  │ │
-│  │ LPM Trie     │  │ PerCPU Hash  │  │ Consistent H │  │  DLP    │ │
-│  │ DEVMAP/CPUMAP│  │ SYN Cookie   │  │ Backend Pool │  │         │ │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └────┬────┘ │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │      │
-│  │ TC IDS       │  │ TC Conntrack │  │ TC NAT In/Eg │       │      │
-│  │ TC ThreatInt │  │ TC QoS       │  │ TC DNS       │       │      │
-│  │ TC Scrub     │  │              │  │ Bloom Filter │       │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │      │
-│         └──────────────────┴────────────────┬┴───────────────┘      │
-│                           RingBuf           │                        │
-└───────────────────────────┬─────────────────┘────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  Userspace                                                           │
-│  EventDispatcher → Domain Engines → AlertRouter                      │
-│                                                                      │
-│  REST API (Axum)  │  gRPC (tonic)  │  Prometheus                    │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Kernel["Kernel"]
+        direction TB
+
+        subgraph XDP["XDP Layer — Tail-Call Chain via PROG_ARRAY"]
+            XDP_FW["<b>xdp-firewall</b><br/>LPM Trie<br/>DEVMAP / CPUMAP"]
+            XDP_RL["<b>xdp-ratelimit</b><br/>PerCPU Hash<br/>SYN Cookie"]
+            XDP_LB["<b>xdp-loadbalancer</b><br/>Consistent Hash<br/>Backend Pool"]
+        end
+
+        XDP_FW -- "passed → tail-call" --> XDP_RL
+        XDP_RL -- "passed → tail-call" --> XDP_LB
+        XDP_FW -. "blocked → XDP_DROP" .-> DROP["XDP_DROP"]
+        XDP_LB -- "XDP_PASS / XDP_TX" --> TC_layer
+
+        subgraph UPROBE["uprobe Hook"]
+            DLP["<b>uprobe-dlp</b><br/>SSL/TLS interception"]
+        end
+
+        subgraph TC_layer["TC Layer — after SKB allocation"]
+            TC_IDS["<b>tc-ids</b><br/>tc-threatintel<br/>tc-scrub"]
+            TC_CT["<b>tc-conntrack</b><br/>tc-qos"]
+            TC_NAT["<b>tc-nat-ingress/egress</b><br/>tc-dns<br/>Bloom Filter"]
+        end
+
+        XDP_FW -- "bpf_xdp_adjust_meta" --> TC_IDS
+        XDP_RL -- "metadata" --> TC_CT
+        XDP_LB -- "metadata" --> TC_NAT
+
+        RB["RingBuf<br/><i>PacketEvent 64B</i><br/><i>adaptive backpressure</i>"]
+
+        TC_IDS --> RB
+        TC_CT --> RB
+        TC_NAT --> RB
+        DLP --> RB
+    end
+
+    subgraph Userspace["Userspace — Rust Agent"]
+        direction TB
+
+        ED["EventDispatcher"]
+        DE["Domain Engines<br/><i>pure Rust, no I/O, stateless</i>"]
+        AR["AlertRouter"]
+
+        ED --> DE --> AR
+
+        subgraph AlertPipeline["Alert Pipeline"]
+            DEDUP["Dedup"] --> THROTTLE["Throttle"] --> ROUTE["Route"]
+            ROUTE --> EMAIL["Email — SMTP"]
+            ROUTE --> WEBHOOK["Webhook — HTTP"]
+            ROUTE --> LOG["Log — file"]
+        end
+
+        AR --> DEDUP
+
+        subgraph APIs["Interfaces"]
+            REST["REST API — Axum"]
+            GRPC["gRPC — tonic"]
+            PROM["Prometheus"]
+        end
+    end
+
+    RB -- "events" --> ED
+
+    PKT["Packet ingress"] --> XDP_FW
 ```
 
 ## eBPF Hook Points
