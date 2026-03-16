@@ -1,23 +1,27 @@
 # Alerting Configuration
 
-The `alerting` section configures alert deduplication, throttling, routing, and delivery senders.
+The `alerting` section configures alert deduplication, throttling, routing, and delivery destinations.
 
 ## Reference
 
 ```yaml
 alerting:
-  dedup_window: 300            # Seconds to suppress duplicate alerts
-  throttle_rate: 100           # Max alerts per source per minute
+  enabled: true
+  dedup_window_secs: 300       # Seconds to suppress duplicate alerts
+  throttle_window_secs: 300    # Throttle window per source
+  throttle_max: 100            # Max alerts per source per window
+  smtp:                        # Required for email destinations
+    host: "smtp.example.com"
+    port: 587
+    from_address: "alerts@example.com"
+    tls: true
   routes:
     - name: "route-name"
-      severity: [critical, high]
-      component: [ids, ips]    # Optional — omit to match all components
-      senders: [sender-name]
-  senders:
-    - name: "sender-name"
-      type: webhook            # webhook, email, or log
-      url: "https://..."       # webhook only
-      timeout: 10              # webhook timeout in seconds
+      destination: webhook     # log, email, or webhook
+      min_severity: high       # Minimum severity to route
+      event_types: [ids, ips]  # Optional — omit to match all components
+      webhook_url: "https://..." # Required for webhook destination
+      email_to: "ops@example.com" # Required for email destination
 ```
 
 ## Fields
@@ -26,49 +30,35 @@ alerting:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `dedup_window` | `integer` | `300` | Seconds to suppress duplicate alerts |
-| `throttle_rate` | `integer` | `100` | Max alerts per source per minute |
+| `enabled` | `bool` | `true` | Enable/disable alerting |
+| `dedup_window_secs` | `integer` | `300` | Seconds to suppress duplicate alerts |
+| `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
+| `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
+| `smtp` | `SmtpConfig` | — | SMTP configuration (required for email destinations) |
 | `routes` | `[Route]` | `[]` | Alert routing rules |
-| `senders` | `[Sender]` | `[]` | Delivery targets |
 
 ### Route
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | Yes | Unique route name |
-| `severity` | `[string]` | Yes | Severity levels to match |
-| `component` | `[string]` | No | Components to match (omit = all) |
-| `senders` | `[string]` | Yes | Sender names to deliver to |
+| `destination` | `string` | Yes | Delivery type: `log`, `email`, or `webhook` |
+| `min_severity` | `string` | Yes | Minimum severity: `low`, `medium`, `high`, `critical` |
+| `event_types` | `[string]` | No | Components to match (omit = all) |
+| `webhook_url` | `string` | Webhook only | Webhook URL (required when `destination: webhook`) |
+| `webhook_headers` | `map` | No | Custom HTTP headers for webhook |
+| `email_to` | `string` | Email only | Recipient address (required when `destination: email`) |
 
-### Sender Types
+### SmtpConfig
 
-**Webhook:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | Yes | Unique name |
-| `type` | `"webhook"` | Yes | |
-| `url` | `string` | Yes | Webhook URL |
-| `timeout` | `integer` | No | Timeout in seconds (default: 10) |
-
-**Email:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | Yes | Unique name |
-| `type` | `"email"` | Yes | |
-| `smtp_host` | `string` | Yes | SMTP server |
-| `smtp_port` | `integer` | Yes | SMTP port |
-| `from` | `string` | Yes | Sender address |
-| `to` | `[string]` | Yes | Recipient addresses |
-
-**Log:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | Yes | Unique name |
-| `type` | `"log"` | Yes | |
-| `path` | `string` | Yes | Log file path |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `host` | `string` | Required | SMTP server hostname |
+| `port` | `integer` | `587` | SMTP port |
+| `username` | `string` | — | SMTP username (optional) |
+| `password` | `string` | — | SMTP password (optional) |
+| `from_address` | `string` | Required | Sender email address |
+| `tls` | `bool` | `true` | Enable TLS |
 
 ## Examples
 
@@ -76,34 +66,29 @@ alerting:
 
 ```yaml
 alerting:
-  dedup_window: 300
-  throttle_rate: 100
+  enabled: true
+  dedup_window_secs: 300
+  throttle_window_secs: 300
+  throttle_max: 100
+  smtp:
+    host: "smtp.example.com"
+    port: 587
+    from_address: "ebpfsentinel@example.com"
+    tls: true
   routes:
-    - name: critical-ops
-      severity: [critical, high]
-      senders: [webhook-slack, email-oncall]
-    - name: ids-alerts
-      severity: [critical, high, medium]
-      component: [ids, ips]
-      senders: [log-ids]
-    - name: all-alerts
-      severity: [critical, high, medium, low]
-      senders: [log-all]
-  senders:
-    - name: webhook-slack
-      type: webhook
-      url: "https://hooks.slack.com/services/T00/B00/xxx"
-      timeout: 10
-    - name: email-oncall
-      type: email
-      smtp_host: "smtp.example.com"
-      smtp_port: 587
-      from: "ebpfsentinel@example.com"
-      to: ["oncall@example.com"]
-    - name: log-ids
-      type: log
-      path: "/var/log/ebpfsentinel/ids-alerts.json"
-    - name: log-all
-      type: log
-      path: "/var/log/ebpfsentinel/all-alerts.json"
+    - name: critical-slack
+      destination: webhook
+      min_severity: high
+      webhook_url: "https://hooks.slack.com/services/T00/B00/xxx"
+    - name: ops-email
+      destination: email
+      min_severity: critical
+      email_to: "oncall@example.com"
+    - name: ids-log
+      destination: log
+      min_severity: medium
+      event_types: [ids, ips]
+    - name: all-log
+      destination: log
+      min_severity: low
 ```

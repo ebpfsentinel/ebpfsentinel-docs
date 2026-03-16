@@ -62,7 +62,7 @@ Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then
 | Fixed Window | `fixed_window` | Counter resets at fixed intervals |
 | Sliding Window | `sliding_window` | Weighted average of current and previous windows |
 | Leaky Bucket | `leaky_bucket` | Packets drain at fixed rate |
-| SYN Cookie | `syn_cookie` | `bpf_tcp_gen_syncookie` for SYN flood mitigation |
+| SYN Cookie | `syn_cookie` | Custom FNV-1a SYN cookie forging via `XDP_TX` for SYN flood mitigation |
 
 ## Examples
 

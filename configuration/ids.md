@@ -15,9 +15,10 @@ ids:
       severity: high           # critical, high, medium, low, info
       description: "Rule description"
       threshold:               # Optional threshold detection
-        mode: threshold        # limit, threshold, or both
+        type: threshold        # limit, threshold, or both
         count: 5
-        window: 60             # Seconds
+        window_secs: 60        # Seconds
+        track_by: src_ip       # src_ip, dst_ip, or both
 ```
 
 ## Fields
@@ -56,9 +57,10 @@ ids:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `mode` | `string` | Yes | `limit`, `threshold`, or `both` |
+| `type` | `string` | Yes | `limit`, `threshold`, or `both` |
 | `count` | `integer` | Yes | Match count for the mode |
-| `window` | `integer` | Yes | Time window in seconds |
+| `window_secs` | `integer` | Yes | Time window in seconds |
+| `track_by` | `string` | No | Tracking key: `src_ip` (default), `dst_ip`, or `both` |
 
 ## Threshold Modes
 

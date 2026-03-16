@@ -44,6 +44,11 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`audit`](audit.md) | No | Audit trail retention |
 | [`auth`](auth.md) | No | Authentication (JWT, OIDC, API keys) |
 | [`tls`](tls.md) | No | TLS certificates for REST/gRPC |
+| [`conntrack`](conntrack.md) | No | Connection tracking timeouts, limits |
+| [`nat`](nat.md) | No | SNAT, DNAT, masquerade, NPTv6, hairpin NAT |
+| [`routing`](routing.md) | No | Multi-WAN gateways, health checks, GeoIP routing |
+| [`zones`](zones.md) | No | Network zone segmentation, inter-zone policies |
+| [`qos`](qos.md) | No | QoS pipes, queues, classifiers, traffic shaping |
 
 ## Per-Feature Examples
 
@@ -66,6 +71,11 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `audit.yaml` | Retention, buffer size, storage path |
 | `auth.yaml` | API keys, JWT (RS256), OIDC (JWKS), roles |
 | `tls.yaml` | Certificate and key paths |
+| `conntrack.yaml` | Connection tracking timeouts, limits, flood thresholds |
+| `nat.yaml` | SNAT, DNAT, masquerade, port forwarding, NPTv6, hairpin |
+| `routing.yaml` | Multi-WAN gateways, health checks, GeoIP routing |
+| `zones.yaml` | Network zone definitions, inter-zone policies |
+| `qos.yaml` | Pipes, queues, classifiers, traffic shaping profiles |
 
 Each file is a standalone, valid configuration — copy one and customize it.
 

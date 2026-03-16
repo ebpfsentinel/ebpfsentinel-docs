@@ -117,6 +117,11 @@ Anti-lockout rules are injected at priority 0 (highest precedence) and marked as
 | `max_mss` | `integer` | `0` | Clamp TCP MSS on SYN packets (IPv4/IPv6, 0 = no clamp) |
 | `clear_df` | `bool` | `false` | Clear the Don't Fragment flag (IPv4 only) |
 | `random_ip_id` | `bool` | `false` | Randomize IP identification field (IPv4 only) |
+| `scrub_tcp_flags` | `bool` | `false` | Clear TCP reserved/NS/CWR/ECE bits (preserves ECN on SYN) |
+| `strip_ecn` | `bool` | `false` | Clear ECN bits in IPv4 TOS / IPv6 Traffic Class |
+| `normalize_tos` | `bool` | `false` | Force TOS/DSCP to a configured value |
+| `normalize_tos_value` | `integer` | `0` | TOS/DSCP value to set (0-255, used with `normalize_tos`) |
+| `strip_tcp_timestamps` | `bool` | `false` | Remove TCP timestamp option (kind=8) for anti-fingerprinting |
 
 Scrub runs as a TC program (`tc-scrub`) after XDP processing. IPv4 uses `bpf_l3_csum_replace` for header checksum updates; IPv6 has no header checksum so hop limit changes require no checksum update.
 

@@ -18,9 +18,10 @@ ips:
       mode: block              # Per-rule mode override
       description: "Rule description"
       threshold:
-        mode: both
+        type: both
         count: 3
-        window: 60
+        window_secs: 60
+        track_by: src_ip
 ```
 
 ## Fields
@@ -55,7 +56,8 @@ ips:
       mode: block
       description: "SQL injection — auto-block"
       threshold:
-        mode: both
+        type: both
         count: 3
-        window: 60
+        window_secs: 60
+        track_by: src_ip
 ```
