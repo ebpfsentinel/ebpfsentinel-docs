@@ -28,7 +28,7 @@ Use this to generate client libraries, import into Postman, or integrate with AP
 
 ## Features
 
-- Full request/response schema documentation for all 23+ endpoints
+- Full request/response schema documentation for all 73 routes
 - Try-it-out functionality (send real requests from the browser)
 - Authentication support (enter Bearer token or API key in the Swagger UI)
 - Schema validation for request bodies

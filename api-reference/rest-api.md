@@ -639,6 +639,102 @@ List loaded DLP detection patterns.
 curl http://localhost:8080/api/v1/dlp/patterns
 ```
 
+### QoS / Traffic Shaping
+
+#### GET /api/v1/qos/status
+
+QoS status: enabled flag, pipe/queue/classifier counts.
+
+```bash
+curl http://localhost:8080/api/v1/qos/status
+```
+
+#### GET /api/v1/qos/pipes
+
+List all QoS pipes.
+
+```bash
+curl http://localhost:8080/api/v1/qos/pipes
+```
+
+#### POST /api/v1/qos/pipes
+
+Create a QoS pipe. Requires `admin` role.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/qos/pipes \
+  -H "Content-Type: application/json" \
+  -d '{"id":1,"bandwidth_bps":10000000,"burst_bytes":65536,"delay_ms":0,"loss_percent":0,"scheduler":"wf2q"}'
+```
+
+#### DELETE /api/v1/qos/pipes/{id}
+
+Delete a QoS pipe. Requires `admin` role.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/qos/pipes/1
+```
+
+#### GET /api/v1/qos/queues
+
+List all QoS queues.
+
+```bash
+curl http://localhost:8080/api/v1/qos/queues
+```
+
+#### POST /api/v1/qos/queues
+
+Create a QoS queue. Requires `admin` role.
+
+#### DELETE /api/v1/qos/queues/{id}
+
+Delete a QoS queue. Requires `admin` role.
+
+#### GET /api/v1/qos/classifiers
+
+List all QoS classifiers.
+
+```bash
+curl http://localhost:8080/api/v1/qos/classifiers
+```
+
+#### POST /api/v1/qos/classifiers
+
+Create a QoS classifier. Requires `admin` role.
+
+#### DELETE /api/v1/qos/classifiers/{id}
+
+Delete a QoS classifier. Requires `admin` role.
+
+### NPTv6
+
+#### GET /api/v1/nat/nptv6
+
+List all NPTv6 prefix translation rules.
+
+```bash
+curl http://localhost:8080/api/v1/nat/nptv6
+```
+
+#### POST /api/v1/nat/nptv6
+
+Create an NPTv6 rule.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/nat/nptv6 \
+  -H "Content-Type: application/json" \
+  -d '{"id":"site-a","internal_prefix":"fd00:1::","external_prefix":"2001:db8:1::","prefix_len":48}'
+```
+
+#### DELETE /api/v1/nat/nptv6/{id}
+
+Delete an NPTv6 rule.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
+```
+
 ### Metrics
 
 #### GET /metrics
@@ -714,3 +810,16 @@ curl http://localhost:8080/metrics
 | PUT | `/api/v1/aliases/{id}/content` | Yes | Set external alias content |
 | GET | `/api/v1/dlp/status` | Yes | DLP status |
 | GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |
+| GET | `/api/v1/qos/status` | Yes | QoS status |
+| GET | `/api/v1/qos/pipes` | Yes | List QoS pipes |
+| POST | `/api/v1/qos/pipes` | Yes (admin) | Create QoS pipe |
+| DELETE | `/api/v1/qos/pipes/{id}` | Yes (admin) | Delete QoS pipe |
+| GET | `/api/v1/qos/queues` | Yes | List QoS queues |
+| POST | `/api/v1/qos/queues` | Yes (admin) | Create QoS queue |
+| DELETE | `/api/v1/qos/queues/{id}` | Yes (admin) | Delete QoS queue |
+| GET | `/api/v1/qos/classifiers` | Yes | List QoS classifiers |
+| POST | `/api/v1/qos/classifiers` | Yes (admin) | Create QoS classifier |
+| DELETE | `/api/v1/qos/classifiers/{id}` | Yes (admin) | Delete QoS classifier |
+| GET | `/api/v1/nat/nptv6` | Yes | List NPTv6 rules |
+| POST | `/api/v1/nat/nptv6` | Yes | Create NPTv6 rule |
+| DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
