@@ -95,6 +95,11 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
                     ║    → SNAT / masquerade       ║
                     ║    → Port allocation         ║
                     ║    → Checksum update         ║
+                    ║         │                    ║
+                    ║  tc-qos                      ║
+                    ║    → 4-level classifier      ║
+                    ║    → Token bucket shaping    ║
+                    ║    → Loss / delay emulation  ║
                     ║                              ║
                     ╚══════════════╤══════════════╝
                                    │

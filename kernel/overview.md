@@ -19,7 +19,7 @@ eBPFsentinel hooks into three kernel subsystems:
 | # | Program | Hook | Purpose | Key Kernel Features |
 |---|---------|------|---------|---------------------|
 | 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, DEVMAP, CPUMAP, conntrack fast-path |
-| 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | PerCPU hash, [`bpf_timer`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/), [`bpf_tcp_gen_syncookie`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_gen_syncookie/) |
+| 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | PerCPU hash, [`bpf_timer`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/), custom FNV-1a SYN cookie forging via `XDP_TX` |
 | 3 | `tc-conntrack` | TC ingress | TCP/UDP/ICMP state machine (IPv4/IPv6) | LRU hash, bidirectional key normalization, packet+byte counters, unified V4/V6 state machine |
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
 | 5 | `tc-nat-egress` | TC egress | SNAT / masquerade (IPv4/IPv6) | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) |
