@@ -234,6 +234,64 @@ ebpfsentinel-agent lb add --json '{
 ebpfsentinel-agent lb delete lb-api
 ```
 
+### qos
+
+QoS / traffic shaping: pipes, queues, and classifiers.
+
+```bash
+# QoS status
+ebpfsentinel-agent qos status
+
+# List pipes, queues, classifiers
+ebpfsentinel-agent qos pipes
+ebpfsentinel-agent qos queues
+ebpfsentinel-agent qos classifiers
+
+# Add a pipe
+ebpfsentinel-agent qos add-pipe --json '{
+  "id": 1,
+  "bandwidth_bps": 10000000,
+  "burst_bytes": 65536,
+  "delay_ms": 0,
+  "loss_percent": 0,
+  "scheduler": "wf2q"
+}'
+
+# Add a queue
+ebpfsentinel-agent qos add-queue --json '{"id": 1, "pipe_id": 1, "weight": 80}'
+
+# Add a classifier
+ebpfsentinel-agent qos add-classifier --json '{
+  "id": 1,
+  "queue_id": 1,
+  "priority": 10,
+  "protocol": 6,
+  "dst_port": 443
+}'
+
+# Delete
+ebpfsentinel-agent qos delete-pipe 1
+ebpfsentinel-agent qos delete-queue 1
+ebpfsentinel-agent qos delete-classifier 1
+```
+
+### nat
+
+NAT rules and NPTv6 prefix translation.
+
+```bash
+# NAT status
+ebpfsentinel-agent nat status
+
+# List NAT rules
+ebpfsentinel-agent nat rules
+
+# NPTv6 management
+ebpfsentinel-agent nat nptv6 list
+ebpfsentinel-agent nat nptv6 create --id site-a --internal-prefix fd00:1:: --external-prefix 2001:db8:1:: --prefix-len 48
+ebpfsentinel-agent nat nptv6 delete --id site-a
+```
+
 ### dns
 
 DNS intelligence data and cache management.
