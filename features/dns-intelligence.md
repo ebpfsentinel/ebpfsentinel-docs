@@ -57,7 +57,7 @@ dns:
     - name: abuse-ch-domains
       url: "https://urlhaus.abuse.ch/downloads/hostfile/"
       format: plaintext
-      refresh_interval: 3600
+      refresh_interval_secs: 3600
   reputation:
     enabled: true
     auto_block_threshold: 0.8    # Block domains scoring above this

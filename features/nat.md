@@ -97,9 +97,9 @@ nat:
 ### CLI
 
 ```bash
-ebpfsentinel nat nptv6 list
-ebpfsentinel nat nptv6 create --id site-a --internal-prefix fd00:1:: --external-prefix 2001:db8:1:: --prefix-len 48
-ebpfsentinel nat nptv6 delete --id site-a
+ebpfsentinel-agent nat nptv6 list
+ebpfsentinel-agent nat nptv6 create --id site-a --internal-prefix fd00:1:: --external-prefix 2001:db8:1:: --prefix-len 48
+ebpfsentinel-agent nat nptv6 delete --id site-a
 ```
 
 ## Hairpin NAT (NAT Reflection)

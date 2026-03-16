@@ -53,9 +53,10 @@ ips:
       mode: block
       description: "SQL injection — auto-block source"
       threshold:
-        mode: both
+        type: both
         count: 3
-        window: 60
+        window_secs: 60
+        track_by: src_ip
     - id: alert-port-scan
       pattern: ""
       severity: medium

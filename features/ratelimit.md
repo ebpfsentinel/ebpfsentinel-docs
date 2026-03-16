@@ -16,7 +16,7 @@ XDP-based rate limiting provides DDoS protection with five algorithms, per-CPU l
 | **Fixed Window** | Counter resets at fixed intervals | Simple rate caps per time window |
 | **Sliding Window** | Weighted average of current and previous windows | Smoother rate enforcement |
 | **Leaky Bucket** | Packets queue and drain at a fixed rate | Constant output rate |
-| **SYN Cookie** | `bpf_tcp_gen_syncookie` for SYN flood mitigation | TCP SYN flood protection |
+| **SYN Cookie** | Custom FNV-1a SYN cookie forging via `XDP_TX` for SYN flood mitigation | TCP SYN flood protection |
 
 ### Kernel-Side Implementation
 

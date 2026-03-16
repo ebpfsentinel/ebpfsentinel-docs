@@ -36,12 +36,12 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 
 | Feature | Edition | Status | Description |
 |---------|---------|--------|-------------|
-| REST API (50+ endpoints) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
+| REST API (73 routes) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
 | gRPC Streaming | OSS | Shipped | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
 | TLS 1.3 | OSS | Shipped | rustls with aws-lc backend |
 | Hot Reload | OSS | Shipped | SIGHUP, file watcher, or REST API trigger |
-| CLI (11 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
+| CLI (17 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise (Planned)

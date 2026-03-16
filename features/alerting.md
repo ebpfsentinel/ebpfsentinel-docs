@@ -9,7 +9,7 @@ The alert pipeline processes security events from all domain engines through ded
 ## How It Works
 
 ```
-Domain Engine → AlertRouter → Dedup → Throttle → Route → Sender
+Domain Engine → AlertRouter → Dedup → Throttle → Route → Destination
                                                           ├── Email (SMTP)
                                                           ├── Webhook (HTTP POST)
                                                           └── Log (file)
@@ -61,30 +61,28 @@ GeoIP enrichment is optional — enable it via the [`geoip`](../configuration/ge
 
 ```yaml
 alerting:
-  dedup_window: 300          # Seconds to suppress duplicate alerts
-  throttle_rate: 100         # Max alerts per source per minute
+  enabled: true
+  dedup_window_secs: 300       # Seconds to suppress duplicate alerts
+  throttle_window_secs: 300    # Throttle window per source
+  throttle_max: 100            # Max alerts per source per window
+  smtp:
+    host: "smtp.example.com"
+    port: 587
+    from_address: "ebpfsentinel@example.com"
+    tls: true
   routes:
-    - name: critical-ops
-      severity: [critical, high]
-      senders: [webhook-slack, email-oncall]
-    - name: all-alerts
-      severity: [critical, high, medium, low]
-      component: [ids, ips, dlp]
-      senders: [log-file]
-  senders:
-    - name: webhook-slack
-      type: webhook
-      url: "https://hooks.slack.com/services/T00/B00/xxx"
-      timeout: 10
-    - name: email-oncall
-      type: email
-      smtp_host: "smtp.example.com"
-      smtp_port: 587
-      from: "ebpfsentinel@example.com"
-      to: ["oncall@example.com"]
-    - name: log-file
-      type: log
-      path: "/var/log/ebpfsentinel/alerts.json"
+    - name: critical-slack
+      destination: webhook
+      min_severity: high
+      webhook_url: "https://hooks.slack.com/services/T00/B00/xxx"
+    - name: ops-email
+      destination: email
+      min_severity: critical
+      email_to: "oncall@example.com"
+    - name: all-to-log
+      destination: log
+      min_severity: low
+      event_types: [ids, ips, dlp]
 ```
 
 See [Configuration: Alerting](../configuration/alerting.md) for the full reference.

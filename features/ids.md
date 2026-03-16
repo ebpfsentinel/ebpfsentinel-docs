@@ -94,9 +94,10 @@ ids:
       severity: critical
       description: "Shellshock exploit attempt"
       threshold:
-        mode: threshold
+        type: threshold
         count: 5
-        window: 60
+        window_secs: 60
+        track_by: src_ip
 ```
 
 See [Configuration: IDS](../configuration/ids.md) for the full reference.
