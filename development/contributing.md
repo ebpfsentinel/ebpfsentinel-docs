@@ -48,7 +48,7 @@ cargo deny check
 ```
 
 Policy (`deny.toml`):
-- 8 approved licenses
+- 13 approved licenses
 - Yanked crates denied
 - Unknown registries and git sources denied
 - Vulnerability advisories denied

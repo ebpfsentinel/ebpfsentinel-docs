@@ -25,7 +25,7 @@ cargo build --release          # Release build
 ## eBPF Kernel Programs
 
 ```bash
-cargo xtask ebpf-build         # Builds all 6 programs with nightly
+cargo xtask ebpf-build         # Builds all 12 programs with nightly
 ```
 
 The eBPF programs are built for `bpfel-unknown-none` (little-endian BPF) and output to each program's `target/` directory. The `xtask` crate orchestrates this.

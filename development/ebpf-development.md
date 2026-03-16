@@ -62,16 +62,21 @@ Define shared types in `crates/ebpf-common/` with `#[repr(C)]`:
 ```rust
 #[repr(C)]
 pub struct PacketEvent {
+    pub timestamp_ns: u64,
     pub src_addr: [u32; 4],
     pub dst_addr: [u32; 4],
     pub src_port: u16,
     pub dst_port: u16,
     pub protocol: u8,
+    pub event_type: u8,
+    pub action: u8,
     pub flags: u8,
+    pub rule_id: u32,
     pub vlan_id: u16,
-    pub cpu_id: u32,
-    pub timestamp: u64,
+    pub cpu_id: u16,
+    pub socket_cookie: u64,
 }
+// Total: 64 bytes, aligned to 8 bytes
 ```
 
 ## Building
