@@ -38,7 +38,6 @@ License keys are two-line files:
 | `advanced-rbac` | Per-domain/resource permissions |
 | `air-gap` | Offline operation mode |
 | `advanced-analytics` | Historical traffic analytics |
-| `service-mesh` | Mesh-aware security policies |
 
 ## Machine Fingerprint Binding
 

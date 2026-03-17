@@ -32,7 +32,6 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 |---------|-------------|--------|
 | [Dashboard UI](dashboard.md) | Web-based management console | Planned |
 | [Kubernetes Operator](kubernetes-operator.md) | CRD-driven configuration | Planned |
-| [Service Mesh Integration](service-mesh.md) | Mesh-aware security policies | Planned |
 
 ## Enterprise Architecture
 

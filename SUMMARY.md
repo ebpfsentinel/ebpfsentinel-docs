@@ -47,7 +47,6 @@
   - [ML Anomaly Detection](features/enterprise/ml-detection.md)
   - [SIEM Integration](features/enterprise/siem-integration.md)
   - [Compliance Reports](features/enterprise/compliance-reports.md)
-  - [Service Mesh Integration](features/enterprise/service-mesh.md)
   - [Air-Gap Mode](features/enterprise/airgap.md)
   - [Advanced Analytics](features/enterprise/analytics.md)
   - [Advanced RBAC](features/enterprise/advanced-rbac.md)

@@ -56,7 +56,6 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [ML Anomaly Detection](enterprise/ml-detection.md) | Planned | Behavioral anomaly detection |
 | [SIEM Integration](enterprise/siem-integration.md) | Planned | Native Splunk, Elastic, Sentinel connectors |
 | [Compliance Reports](enterprise/compliance-reports.md) | Planned | Automated PCI-DSS, HIPAA, SOC 2 reports |
-| [Service Mesh Integration](enterprise/service-mesh.md) | Planned | Istio, Linkerd, Cilium mesh interop |
 | [Air-Gap Mode](enterprise/airgap.md) | Planned | Offline threat intel, local feed bundles |
 | [Advanced Analytics](enterprise/analytics.md) | Planned | Traffic analytics, trend analysis |
 | [Advanced RBAC](enterprise/advanced-rbac.md) | Planned | Fine-grained per-resource permissions |
