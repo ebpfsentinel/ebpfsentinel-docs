@@ -1,6 +1,6 @@
 # Enterprise Features
 
-> **Edition: Enterprise** | **Status: Partially Shipped**
+> **Edition: Enterprise** | **Status: Shipped**
 
 ## Overview
 
@@ -16,6 +16,15 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 |---------|-------------|--------|
 | [License System](license.md) | Ed25519-signed license keys, machine fingerprint binding, air-gap activation | **Shipped** |
 | [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection | **Shipped** |
+| [ML Anomaly Detection](ml-detection.md) | ONNX-based behavioral anomaly detection, multi-window aggregation, rule suggestion | **Shipped** |
+| [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC | **Shipped** |
+| [SIEM Integration](siem-integration.md) | Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog connectors | **Shipped** |
+| [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2 automated reporting | **Shipped** |
+| [High Availability](high-availability.md) | Leader election, state replication, split-brain resolution | **Shipped** |
+| [Multi-Cluster](multicluster.md) | Federation, policy distribution, alert aggregation | **Shipped** |
+| [Advanced RBAC](advanced-rbac.md) | 17 security domains, custom roles, permission inheritance | **Shipped** |
+| [Air-Gap Mode](airgap.md) | Offline feed bundles with Ed25519-signed import/export | **Shipped** |
+| [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports | **Shipped** |
 
 ## Planned Features
 
@@ -23,16 +32,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 |---------|-------------|--------|
 | [Dashboard UI](dashboard.md) | Web-based management console | Planned |
 | [Kubernetes Operator](kubernetes-operator.md) | CRD-driven configuration | Planned |
-| [High Availability](high-availability.md) | Active-passive clustering | Planned |
-| [Multi-Cluster](multicluster.md) | Federated policy management | Planned |
-| [Multi-Tenancy](multitenancy.md) | Namespace-scoped isolation | Planned |
-| [ML Anomaly Detection](ml-detection.md) | Behavioral anomaly detection | Planned |
-| [SIEM Integration](siem-integration.md) | Native connector ecosystem | Planned |
-| [Compliance Reports](compliance-reports.md) | Automated compliance reporting | Planned |
 | [Service Mesh Integration](service-mesh.md) | Mesh-aware security policies | Planned |
-| [Air-Gap Mode](airgap.md) | Offline threat intelligence | Planned |
-| [Advanced Analytics](analytics.md) | Traffic analytics and trends | Planned |
-| [Advanced RBAC](advanced-rbac.md) | Fine-grained permissions | Planned |
 
 ## Enterprise Architecture
 
@@ -40,13 +40,15 @@ The enterprise edition follows the same hexagonal/DDD architecture as the OSS ag
 
 ```
 ebpfsentinel-enterprise/
-├── enterprise-domain/          # License, DLP engine, TLS bypass rules
-├── enterprise-ports/           # Secondary port traits
-├── enterprise-application/     # License service
-├── enterprise-adapters/        # License file store, HTTP handlers
-├── enterprise-infrastructure/  # Config, integrity checks, cert authority
+├── enterprise-domain/          # License, DLP, ML, tenants, HA, SIEM, compliance, RBAC, federation, analytics, air-gap
+├── enterprise-ports/           # Secondary port traits (stores, transports, exporters)
+├── enterprise-application/     # Application services (DLP, ML, air-gap orchestration)
+├── enterprise-adapters/        # HTTP handlers, gRPC services, persistence (redb), SIEM connectors
+├── enterprise-infrastructure/  # Config parsing, TLS CA, encrypted assets, binary integrity
 ├── enterprise-agent/           # CLI + HTTP server entry point
-└── enterprise-license/         # License management CLI tool
+├── enterprise-license/         # License management CLI tool
+├── enterprise-vectorscan/      # Safe Rust Vectorscan wrapper
+└── enterprise-vectorscan-sys/  # Vectorscan FFI bindings
 ```
 
 Each enterprise crate depends on its OSS counterpart without modifying OSS code.
