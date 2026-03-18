@@ -10,7 +10,7 @@ DNS Intelligence provides passive DNS capture, domain-to-IP caching, and domain 
 
 ### Kernel Side (tc-dns)
 
-The TC classifier identifies DNS traffic (UDP port 53) and emits DNS query/response pairs to userspace via RingBuf.
+The TC classifier identifies DNS traffic (UDP and TCP port 53) and emits DNS query/response pairs to userspace via RingBuf. For TCP DNS, the eBPF program parses the variable-length TCP header, skips the 2-byte DNS length prefix, and sets `FLAG_TCP` (0x04) on the event so userspace can distinguish transport.
 
 ### Userspace Side
 
@@ -132,7 +132,7 @@ dns:
     - internal-doh.corp.local
 ```
 
-Detection is **passive** (informational logging + Prometheus metric). Enterprise adds policy enforcement (block/allow-list).
+Encrypted DNS detection emits security alerts to the alert pipeline (webhooks, email, OTLP, gRPC stream) with MITRE ATT&CK technique T1071.004 (DNS). Enterprise adds policy enforcement (block/allow-list).
 
 See [Operational Essentials: Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) for details.
 
@@ -140,28 +140,32 @@ See [Operational Essentials: Encrypted DNS Detection](operational-essentials.md#
 
 | Transport | Capture Method | Analysis |
 |-----------|---------------|----------|
-| **UDP port 53** | tc-dns eBPF (kernel) | Full: parsing, caching, blocklist, reputation |
-| **DoH (HTTPS/443)** | L7 TLS SNI match (userspace) | Detection only: resolver identified, logged, metric emitted |
-| **DoT (TLS/853)** | L7 port match (userspace) | Detection only: resolver identified, logged, metric emitted |
-| **TCP port 53** | Not captured | See limitation below |
+| **UDP port 53** | tc-dns eBPF (kernel) | Full: parsing, caching, blocklist, reputation, alerts |
+| **TCP port 53** | tc-dns eBPF (kernel) | Full: parsing, caching, blocklist, reputation, alerts |
+| **DoH (HTTPS/443)** | L7 TLS SNI match (userspace) | Detection + alert (T1071.004) |
+| **DoT (TLS/853)** | L7 port match (userspace) | Detection + alert (T1071.004) |
 
 ## Known Limitations
 
-### TCP DNS (port 53) is not captured
+### TCP DNS reassembly
 
-The `tc-dns` eBPF program only captures DNS traffic over **UDP port 53**. DNS queries and responses over **TCP port 53** (plaintext) are not intercepted. This affects:
-
-1. **DNS tunneling** — Tools like `iodine` or `dnscat2` that use TCP DNS will not be captured by the DNS engine.
-
-2. **Large DNS responses** — When a UDP DNS response is truncated (`TC` flag set), resolvers retry over TCP. These retried responses (large record sets, DNSSEC signatures, zone transfers AXFR/IXFR) will not appear in the DNS cache.
-
-EDNS(0) responses up to the negotiated UDP buffer size (commonly 1232-4096 bytes) are captured normally since they remain on UDP.
+TCP DNS responses that span multiple TCP segments are only partially captured: the `tc-dns` eBPF program captures the first segment of each packet. This is sufficient for parsing the DNS header and initial answer records, but very large zone transfers (AXFR/IXFR) spanning many segments may be truncated. Standard TCP DNS queries and responses fit within a single segment and are fully captured.
 
 > **Note:** Encrypted DNS (DoH/DoT) is detected separately via the L7 pipeline and is not affected by this limitation. See the coverage table above.
 
-### DNS enforcement actions are not alerted
+## Alert Pipeline Integration
 
-Blocklist hits and reputation-based auto-blocks currently operate silently: IPs are injected into eBPF maps and metrics are emitted, but **no security alert** is sent to the alert pipeline (webhook, email, OTLP, gRPC stream). Operators must monitor logs or Prometheus metrics to observe DNS enforcement actions. This is a known gap planned for a future epic.
+All DNS enforcement actions emit security alerts through the unified alert pipeline (webhooks, email, OTLP, gRPC stream, SIEM):
+
+| Event | Severity | MITRE ATT&CK | Rule ID Format |
+|-------|----------|---------------|----------------|
+| Blocklist match (block) | High | T1071.004 — DNS | `dns-blocklist:{pattern}` |
+| Blocklist match (alert) | Medium | T1071.004 — DNS | `dns-blocklist:{pattern}` |
+| Blocklist match (log) | Low | T1071.004 — DNS | `dns-blocklist:{pattern}` |
+| Reputation auto-block | High | T1568 — Dynamic Resolution | `dns-reputation:{score}` |
+| Encrypted DNS (DoH/DoT) | Medium | T1071.004 — DNS | `dns-encrypted:{protocol}:{resolver}` |
+
+Alerts include `matched_domain` for correlation and are routed through the same dedup/throttle/route matching as all other alert types.
 
 ## Metrics
 
