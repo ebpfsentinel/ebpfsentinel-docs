@@ -26,6 +26,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Air-Gap Mode](airgap.md) | Offline feed bundles with Ed25519-signed import/export | **Shipped** |
 | [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports | **Shipped** |
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph | **Shipped** |
+| [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy | **Shipped** |
 
 ## Planned Features
 
@@ -40,7 +41,7 @@ The enterprise edition follows the same hexagonal/DDD architecture as the OSS ag
 
 ```
 ebpfsentinel-enterprise/
-├── enterprise-domain/          # License, DLP, ML, tenants, HA, SIEM, compliance, RBAC, federation, analytics, air-gap, fleet
+├── enterprise-domain/          # License, DLP, ML, tenants, HA, SIEM, compliance, RBAC, federation, analytics, air-gap, fleet, AI security
 ├── enterprise-ports/           # Secondary port traits (stores, transports, exporters)
 ├── enterprise-application/     # Application services (DLP, ML, air-gap orchestration)
 ├── enterprise-adapters/        # HTTP handlers, gRPC services, persistence (redb), SIEM connectors
