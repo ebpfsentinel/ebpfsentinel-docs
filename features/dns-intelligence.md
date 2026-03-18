@@ -115,17 +115,53 @@ ebpfsentinel-agent domains unblock example.com
 | `ports` | `crates/ports/src/primary/dns.rs` | Port trait |
 | `application` | `crates/application/src/dns_service_impl.rs` | App service |
 
+## Encrypted DNS Detection (DoH/DoT)
+
+eBPFsentinel detects DNS traffic that bypasses traditional UDP/53 monitoring via encryption:
+
+| Protocol | Detection Method | Criteria |
+|----------|-----------------|----------|
+| **DoT** | Port-based | Destination port 853 (TCP/TLS) |
+| **DoH** | SNI-based | TLS ClientHello SNI matches known DoH resolvers |
+
+Built-in DoH resolver domains are checked (dns.google, cloudflare-dns.com, dns.quad9.net, etc.). Custom resolvers can be added via config:
+
+```yaml
+dns:
+  doh_resolvers:
+    - internal-doh.corp.local
+```
+
+Detection is **passive** (informational logging + Prometheus metric). Enterprise adds policy enforcement (block/allow-list).
+
+See [Operational Essentials: Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) for details.
+
+## DNS Coverage Summary
+
+| Transport | Capture Method | Analysis |
+|-----------|---------------|----------|
+| **UDP port 53** | tc-dns eBPF (kernel) | Full: parsing, caching, blocklist, reputation |
+| **DoH (HTTPS/443)** | L7 TLS SNI match (userspace) | Detection only: resolver identified, logged, metric emitted |
+| **DoT (TLS/853)** | L7 port match (userspace) | Detection only: resolver identified, logged, metric emitted |
+| **TCP port 53** | Not captured | See limitation below |
+
 ## Known Limitations
 
-### TCP DNS is not captured
+### TCP DNS (port 53) is not captured
 
-The `tc-dns` eBPF program only captures DNS traffic over **UDP port 53**. DNS queries and responses over TCP are not intercepted. This has two practical consequences:
+The `tc-dns` eBPF program only captures DNS traffic over **UDP port 53**. DNS queries and responses over **TCP port 53** (plaintext) are not intercepted. This affects:
 
-1. **DNS tunneling detection gaps** — DNS tunneling tools (e.g., `iodine`, `dnscat2`) often use TCP DNS to bypass UDP-based monitoring. These sessions will not be captured or analyzed by the DNS engine.
+1. **DNS tunneling** — Tools like `iodine` or `dnscat2` that use TCP DNS will not be captured by the DNS engine.
 
-2. **Large DNS responses (>512 bytes)** — When a UDP DNS response exceeds 512 bytes (the original RFC 1035 limit) or when the `TC` (truncation) flag is set, resolvers retry over TCP. These retried responses — which may contain large record sets, DNSSEC signatures, or zone transfer data (AXFR/IXFR) — will not appear in the DNS cache or trigger blocklist evaluation.
+2. **Large DNS responses** — When a UDP DNS response is truncated (`TC` flag set), resolvers retry over TCP. These retried responses (large record sets, DNSSEC signatures, zone transfers AXFR/IXFR) will not appear in the DNS cache.
 
-EDNS(0) responses up to the negotiated UDP buffer size (commonly 1232-4096 bytes) are captured normally, since they remain on UDP. The limitation only affects DNS traffic that uses TCP as transport.
+EDNS(0) responses up to the negotiated UDP buffer size (commonly 1232-4096 bytes) are captured normally since they remain on UDP.
+
+> **Note:** Encrypted DNS (DoH/DoT) is detected separately via the L7 pipeline and is not affected by this limitation. See the coverage table above.
+
+### DNS enforcement actions are not alerted
+
+Blocklist hits and reputation-based auto-blocks currently operate silently: IPs are injected into eBPF maps and metrics are emitted, but **no security alert** is sent to the alert pipeline (webhook, email, OTLP, gRPC stream). Operators must monitor logs or Prometheus metrics to observe DNS enforcement actions. This is a known gap planned for a future epic.
 
 ## Metrics
 
