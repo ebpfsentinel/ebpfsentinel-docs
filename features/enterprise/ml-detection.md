@@ -4,7 +4,7 @@
 
 ## Overview
 
-Machine learning-based behavioral anomaly detection that identifies threats without signature rules. Uses ONNX Runtime for inference, multi-window traffic aggregation for feature extraction, and Z-score-based scoring against learned baselines. Detected anomalies can automatically generate IDS/IPS rule suggestions, and operators can submit feedback to improve detection accuracy.
+Machine learning-based behavioral anomaly detection that identifies threats without signature rules. Uses ONNX Runtime for inference, multi-window traffic aggregation for feature extraction, and Z-score-based scoring against learned baselines. A parallel **EWMA streaming engine** adapts continuously with no learning period, catching drift the window-based approach misses. Both engines are fused via `max(baseline, ewma)` severity. Detected anomalies generate MITRE ATT&CK-mapped alerts, can automatically generate IDS/IPS rule suggestions, and operators can submit feedback to improve detection accuracy.
 
 ## Architecture
 
@@ -15,12 +15,16 @@ PacketEvent (eBPF kernel)
               ├── WindowAggregator (1min)   ─┐
               ├── WindowAggregator (5min)    ─┼── FeatureVector (12 features)
               └── WindowAggregator (15min)  ─┘
-                    └── TrafficBaseline (Welford's algorithm, per-scope)
-                          └── AnomalyScorer (weighted Z-scores)
-                                ├── AnomalyScore (severity classification)
-                                │     └── RuleSuggester (→ IDS/IPS rule proposals)
-                                └── Optional: OnnxEngine (model inference)
-                                      └── ModelHolder (reconstruction error)
+                    ├── TrafficBaseline (Welford's algorithm, per-scope)
+                    │     └── AnomalyScorer (weighted Z-scores)
+                    │           ├── AnomalyScore (severity classification)
+                    │           │     └── RuleSuggester (→ IDS/IPS rule proposals)
+                    │           └── Optional: OnnxEngine (model inference)
+                    │                 └── ModelHolder (reconstruction error)
+                    └── EwmaEngine (streaming, per-feature exponential decay)
+                          └── EwmaAnomalyScore (adaptive Z-scores)
+                                └── fuse_scores() → max(baseline, ewma) severity
+                                      └── Alert (with MITRE ATT&CK mapping)
 ```
 
 ## Feature Extraction
@@ -139,6 +143,64 @@ AnomalyScore {
 
 Up to **10,000** recent anomalies are retained in memory (FIFO eviction).
 
+## EWMA Streaming Engine
+
+The EWMA (Exponentially Weighted Moving Average) engine runs in parallel with the baseline scorer, adapting continuously with no learning/detection mode split. It catches gradual drift that the window-based baseline approach misses.
+
+### Algorithm
+
+Per-feature accumulators track mean and variance via exponential decay:
+
+```
+mean     ← α × value + (1 - α) × mean
+variance ← α × (value - mean)² + (1 - α) × variance
+z_score  = |value - mean| / sqrt(variance)
+```
+
+When variance is near-zero (stable baseline) and a significant deviation occurs, the z-score is maximized, ensuring anomaly detection even against perfectly stable traffic.
+
+Composite score is `max(feature z-scores)` — this catches single-feature spikes better than weighted averages.
+
+### Score Fusion
+
+Both engines score every completed `FeatureVector`. The final severity is `max(baseline_severity, ewma_severity)`:
+
+| Baseline | EWMA | Engine Label | Behavior |
+|----------|------|--------------|----------|
+| Active | Active | `fused` | Both score, max severity wins |
+| Active | Inactive | `baseline` | Baseline only |
+| Learning | Active | `ewma` | EWMA detects during baseline learning period |
+| Learning | Warmup | — | No scoring yet |
+
+### MITRE ATT&CK Mapping
+
+Every ML anomaly alert is enriched with MITRE ATT&CK technique mapping based on the top contributing feature:
+
+| Feature(s) | Anomaly Type | Technique | Tactic |
+|------------|-------------|-----------|--------|
+| `packet_rate`, `byte_rate` | Traffic volume drift | T1498.001 Direct Network Flood | impact |
+| `tcp/udp/icmp/other_ratio` | Protocol ratio drift | T1572 Protocol Tunneling | command-and-control |
+| `port_entropy` | Port entropy spike | T1046 Network Service Scanning | discovery |
+| `unique_src_ips` | Source diversity spike | T1090 Proxy | command-and-control |
+| `unique_dst_ports` | Dest port diversity spike | T1570 Lateral Tool Transfer | lateral-movement |
+| `avg/std_payload_size` | Payload size anomaly | T1074 Data Staged | collection |
+| `connection_count` | Connection count spike | T1110 Brute Force | credential-access |
+
+These 7 techniques appear in the MITRE coverage matrix under the `ml-anomaly` component.
+
+### Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `ewma_enabled` | bool | `true` | Enable EWMA streaming engine |
+| `ewma_alpha` | f64 | `0.01` | Decay factor — lower values adapt slower, higher values track recent traffic more closely. Must be in (0, 1) |
+| `ewma_threshold` | f64 | `3.0` | Z-score threshold for anomaly detection. Must be > 0 |
+| `ewma_warmup_samples` | u32 | `100` | Minimum samples before scoring begins. Must be > 0 |
+
+### Memory
+
+12 accumulators × 24 bytes each = **288 bytes** total state. Well under the 10 MB budget.
+
 ## Feature Normalization
 
 Before model inference, features can be normalized:
@@ -228,6 +290,10 @@ enterprise:
     learning_days: 7
     anomaly_threshold: 2.0
     time_windows: [60, 300, 900]
+    ewma_enabled: true
+    ewma_alpha: 0.01
+    ewma_threshold: 3.0
+    ewma_warmup_samples: 100
 ```
 
 | Field | Type | Default | Description |
@@ -237,13 +303,18 @@ enterprise:
 | `learning_days` | u32 | `7` | Baseline learning period in days |
 | `anomaly_threshold` | f64 | `2.0` | Z-score threshold for low-severity anomalies (must be > 0) |
 | `time_windows` | list | `[60, 300, 900]` | Aggregation windows in seconds (mapped to OneMin/FiveMin/FifteenMin) |
+| `ewma_enabled` | bool | `true` | Enable EWMA streaming engine |
+| `ewma_alpha` | f64 | `0.01` | EWMA decay factor, must be in (0, 1) |
+| `ewma_threshold` | f64 | `3.0` | EWMA z-score threshold, must be > 0 |
+| `ewma_warmup_samples` | u32 | `100` | Min samples before EWMA scores, must be > 0 |
 
 ## REST API
 
 | Method | Endpoint | Query/Body | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/v1/enterprise/ml/status` | — | Pipeline status (baseline learning, model loaded, counts) |
+| `GET` | `/api/v1/enterprise/ml/status` | — | Pipeline status (baseline learning, EWMA state, model loaded, counts) |
 | `GET` | `/api/v1/enterprise/ml/anomalies` | `limit` (default 100) | Recent anomalies (newest first) |
+| `GET` | `/api/v1/enterprise/ml/alerts` | `limit` (default 100) | Recent ML alerts with MITRE ATT&CK mapping (newest first) |
 | `GET` | `/api/v1/enterprise/ml/suggestions` | — | Pending rule suggestions |
 | `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | — | Approve suggestion (201) |
 | `POST` | `/api/v1/enterprise/ml/suggestions/{id}/reject` | — | Reject suggestion (200) |
@@ -251,6 +322,8 @@ enterprise:
 | `GET` | `/api/v1/enterprise/ml/feedback/stats` | — | Feedback statistics and FP rates |
 | `GET` | `/api/v1/enterprise/ml/training-data` | — | Export labeled training dataset |
 | `POST` | `/api/v1/enterprise/ml/model/reload` | `{ model_path }` | Hot-swap ONNX model |
+| `GET` | `/api/v1/enterprise/ml/ewma/status` | — | EWMA engine status (warmed_up, sample_count, alpha, threshold) |
+| `POST` | `/api/v1/enterprise/ml/ewma/reset` | — | Reset EWMA accumulators |
 
 ### Status Response
 
@@ -265,6 +338,20 @@ enterprise:
 | `model_loaded` | Whether an ONNX model is loaded |
 | `model_engine` | Engine name (e.g., "onnx-runtime", "identity") |
 | `anomaly_threshold` | Configured threshold |
+| `ewma_enabled` | Whether the EWMA streaming engine is active |
+| `ewma_warmed_up` | Whether EWMA has accumulated enough samples to score |
+| `ewma_sample_count` | Total feature vectors processed by EWMA |
+
+### EWMA Status Response
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Always `true` when engine exists |
+| `warmed_up` | Whether `total_samples >= warmup_samples` |
+| `total_samples` | Feature vectors processed since last reset |
+| `alpha` | Configured decay factor |
+| `threshold` | Configured z-score threshold |
+| `warmup_samples` | Configured warmup count |
 
 ## Feature Gating
 
