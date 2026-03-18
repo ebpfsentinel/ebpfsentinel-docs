@@ -31,17 +31,23 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [QoS / Traffic Shaping](qos.md) | OSS | Shipped | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, delay/loss emulation |
 | [IP/Port Aliases](aliases.md) | OSS | Shipped | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | Shipped | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
+| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Shipped | Userspace | 13 techniques mapped, filter by tactic/technique, coverage dashboard |
+| [JA4+ Fingerprinting](ja4-fingerprinting.md) | OSS | Shipped | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
+| [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Shipped | Userspace | DoH/DoT passive detection with built-in resolvers |
 
 ### Infrastructure
 
 | Feature | Edition | Status | Description |
 |---------|---------|--------|-------------|
-| REST API (73 routes) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
+| REST API (80+ routes) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
 | gRPC Streaming | OSS | Shipped | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
-| TLS 1.3 | OSS | Shipped | rustls with aws-lc backend |
+| [Post-Quantum TLS](pq-tls.md) | OSS | Shipped | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
 | Hot Reload | OSS | Shipped | SIGHUP, file watcher, or REST API trigger |
-| CLI (17 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
+| [OTLP Export](operational-essentials.md#otlp-export) | OSS | Shipped | Fire-and-forget OTLP Logs via gRPC or HTTP |
+| [Manual Response Actions](operational-essentials.md#manual-response-actions) | OSS | Shipped | Time-bounded block/throttle with TTL auto-expiry |
+| [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | Shipped | libpcap-based pcap capture with BPF filter |
+| CLI (20 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise (Planned)
