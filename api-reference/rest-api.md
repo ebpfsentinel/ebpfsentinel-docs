@@ -823,3 +823,19 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/nat/nptv6` | Yes | List NPTv6 rules |
 | POST | `/api/v1/nat/nptv6` | Yes | Create NPTv6 rule |
 | DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
+
+## Enterprise Endpoints
+
+Served on the enterprise API port (default `8444`). Requires `FleetManagement` license feature.
+
+### Fleet Management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/v1/agent/register` | None | Register agent, returns UUIDv7 identity + token |
+| POST | `/api/v1/agent/heartbeat` | None | Agent heartbeat with live rule counts and config version |
+| GET | `/api/v1/agent/identity` | None | Full agent identity, capabilities, eBPF status, TLS info |
+| GET | `/api/v1/agent/config/version` | None | Config SHA-256 hash + reload timestamp |
+| GET | `/api/v1/flows/graph` | None | Network flow graph from conntrack (query: `max_nodes`, `min_bytes`, `protocol`, `limit`) |
+
+See [Fleet Management](../features/enterprise/fleet-management.md) for request/response details.

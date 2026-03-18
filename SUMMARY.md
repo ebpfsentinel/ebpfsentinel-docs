@@ -54,6 +54,7 @@
   - [Air-Gap Mode](features/enterprise/airgap.md)
   - [Advanced Analytics](features/enterprise/analytics.md)
   - [Advanced RBAC](features/enterprise/advanced-rbac.md)
+  - [Fleet Management](features/enterprise/fleet-management.md)
 
 # Configuration
 

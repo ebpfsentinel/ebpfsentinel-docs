@@ -103,6 +103,11 @@ enterprise:
 
   # ── Air-Gap Mode ────────────────────────────────────────────────
   air_gap: false
+
+  # ── Fleet Management ──────────────────────────────────────────
+  fleet:
+    enabled: true
+    data_dir: /var/lib/ebpfsentinel/fleet
 ```
 
 ## Field Reference
@@ -138,6 +143,13 @@ enterprise:
 | `description` | string | none | Optional description |
 | `mode` | string | global mode | Per-pattern override: `alert` or `block` |
 
+### Fleet Management
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `fleet.enabled` | bool | `false` | Enable fleet management endpoints |
+| `fleet.data_dir` | string | none | Directory for persisting agent identity |
+
 ### Validation Rules
 
 - `license_path` cannot be empty if set
@@ -146,3 +158,4 @@ enterprise:
 - `ml_detection.anomaly_threshold` must be positive
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
+- `fleet.data_dir` cannot be empty when set

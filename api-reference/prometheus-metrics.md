@@ -116,6 +116,20 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=not) |
 | `ebpfsentinel_config_reloads_total` | Counter | `status` | Config reload count (success/failure) |
 
+## Enterprise Metrics
+
+> Scraped from enterprise agent port (default `:8444/metrics`). Prefix: `ebpfsentinel_ent_`.
+
+### Fleet Management
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ebpfsentinel_ent_fleet_registrations` | Counter | Agent registrations processed |
+| `ebpfsentinel_ent_fleet_heartbeats` | Counter | Agent heartbeats received |
+| `ebpfsentinel_ent_fleet_identity_queries` | Counter | Identity queries served |
+| `ebpfsentinel_ent_fleet_config_version_queries` | Counter | Config version queries served |
+| `ebpfsentinel_ent_fleet_flow_graph_queries` | Counter | Flow graph queries served |
+
 ## Scrape Configuration
 
 ### Prometheus
