@@ -19,6 +19,9 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `description` | Optional description |
 | `tenant_id` | Numeric tenant identifier (auto-assigned sequentially: 1, 2, 3, ...) |
 | `quota` | Per-tenant resource limits |
+| `status` | `Active` or `Suspended` (E4.5) |
+| `source` | `Config` (YAML) or `Api` (dynamic creation, E4.5) |
+| `self_service` | Self-service policy with allowed operations (E4.5) |
 
 ### Isolation Modes
 
@@ -169,6 +172,62 @@ Userspace resolution complements the eBPF kernel resolution:
 
 - Admin: uses requested tenant (or `None` for all tenants)
 - Non-admin: always scoped to own tenant (ignores requested)
+
+## Tenant Self-Service (E4.5)
+
+### Dynamic Tenant Lifecycle
+
+Tenants can be created, suspended, and reactivated dynamically via the REST API (in addition to YAML configuration):
+
+| Status | Description |
+|--------|-------------|
+| `Active` | Tenant is operational, rules are enforced, self-service allowed |
+| `Suspended` | Tenant rules are inactive, API operations blocked, alerts suppressed |
+
+| Source | Description |
+|--------|-------------|
+| `Config` | Defined in YAML config (default) |
+| `Api` | Created dynamically via `POST /api/v1/enterprise/tenants` |
+
+### Self-Service Policy
+
+Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits:
+
+```yaml
+self_service:
+  enabled: true
+  allowed_operations:
+    - manage_firewall_rules
+    - manage_ids_rules
+    - manage_dlp_patterns
+```
+
+| Operation | Description |
+|-----------|-------------|
+| `manage_firewall_rules` | Create/update/delete firewall rules scoped to this tenant |
+| `manage_ids_rules` | Create/update/delete IDS rules scoped to this tenant |
+| `manage_dlp_patterns` | Create/update/delete DLP patterns scoped to this tenant |
+
+Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/self-service/check` before allowing mutations. A `403 Forbidden` is returned if the operation is not allowed or the tenant is suspended.
+
+### Self-Service API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/enterprise/tenants` | Create tenant dynamically (admin) |
+| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | Suspend tenant (admin) |
+| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | Reactivate suspended tenant (admin) |
+| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | Get self-service policy |
+| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | Check if operation is allowed |
+
+### Self-Service Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `tenant_added` | Counter | tenant, source | Tenant created |
+| `tenant_suspended` | Counter | tenant | Tenant suspended |
+| `tenant_activated` | Counter | tenant | Tenant reactivated |
+| `self_service_check` | Counter | tenant, operation | Self-service authorization check |
 
 ## DDoS Impact on Shared Interfaces
 
