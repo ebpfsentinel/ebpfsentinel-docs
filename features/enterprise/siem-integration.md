@@ -4,7 +4,7 @@
 
 ## Overview
 
-Native connectors for 7 enterprise SIEM platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, and broadcast channel for internal subscribers (analytics bridge).
+Native connectors for 8 enterprise SIEM platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, broadcast channel for internal subscribers (analytics bridge), OTLP at-least-once delivery with retry/backoff, and retroactive IOC matching against the event buffer.
 
 ## Supported Platforms
 
@@ -17,6 +17,7 @@ Native connectors for 7 enterprise SIEM platforms with durable buffering (redb-b
 | **Microsoft Sentinel** | CEF over Syslog | CEF | RFC 5424 syslog, TLS/TCP transport, 6 custom extension fields |
 | **IBM QRadar** | LEEF over Syslog | LEEF 2.0 | Tab-delimited fields, TLS/TCP transport |
 | **Generic Syslog** | JSON over Syslog | JSON + RFC 5424 | TLS/TCP/UDP transport, all optional fields |
+| **OTLP** | HTTP JSON | OTLP Logs | At-least-once delivery, retry with exponential backoff |
 
 ## Architecture
 
@@ -35,7 +36,8 @@ Alert (OSS domain)
                                       ├── Wazuh API Exporter
                                       ├── Sentinel CEF Exporter
                                       ├── QRadar LEEF Exporter
-                                      └── Syslog JSON Exporter
+                                      ├── Syslog JSON Exporter
+                                      └── OTLP Enterprise Exporter (retry + backoff)
 ```
 
 ## SiemEvent
@@ -173,6 +175,96 @@ Used by Sentinel, QRadar, and generic Syslog connectors:
 - **Framing**: octet-counting format (`{len} {message}\n`, per RFC 3164)
 - **TLS**: rustls with configurable CA cert, optional `verify_tls=false`
 
+## OTLP Enterprise Connector
+
+An 8th connector sends events to any OpenTelemetry-compatible collector (Grafana Alloy, Datadog Agent, Jaeger, etc.) with **at-least-once delivery** guarantees — unlike the OSS fire-and-forget OTLP sender.
+
+Key features:
+
+- **Exponential backoff retry** — configurable `max_retries` (default 3) with `initial_backoff_ms` (default 500 ms, doubles each retry)
+- **Durable buffer integration** — events are persisted in the redb buffer before export; only acked after successful HTTP 2xx response from the collector
+- **Circuit breaker protection** — inherits the same 3-state circuit breaker as all other SIEM connectors
+- **OTLP/HTTP JSON format** — sends to `{endpoint}/v1/logs` with `resourceLogs` → `scopeLogs` → `logRecords` structure
+- **Attributes**: `event.id`, `alert.component`, `alert.rule_id` per log record
+
+```yaml
+enterprise:
+  siem:
+    enabled: true
+    otlp:
+      endpoint: http://otel-collector:4318
+      timeout_ms: 5000          # per-request timeout
+      max_retries: 3            # retries before failing to circuit breaker
+      initial_backoff_ms: 500   # first retry delay (doubles each time)
+```
+
+The OTLP connector plugs into the existing fan-out pipeline — it can run alongside Splunk, Elasticsearch, or any other connector simultaneously.
+
+## Retroactive IOC Matching
+
+When new threat intelligence IOCs are loaded, the retroactive IOC scanner checks the **entire SIEM event buffer** for historical matches. This catches connections to C2 infrastructure or malware IPs that occurred _before_ the IOC was known.
+
+### How It Works
+
+1. Submit a set of IOC IPs via `POST /api/v1/siem/retro-ioc-scan`
+2. The engine calls `SiemBuffer::scan_all()` to read all buffered events without removing them
+3. `RetroIocEngine::scan_events()` matches each event's `src_addr` and `dst_addr` against the IOC set
+4. Returns a `RetroIocScanResult` with match count, scan duration, and detailed per-match alerts
+
+### Retroactive Alert Fields
+
+Each `RetroIocAlert` contains:
+
+| Field | Description |
+|-------|-------------|
+| `original_event_id` | UUID of the buffered event that matched |
+| `original_timestamp_ns` | When the original event occurred |
+| `matched_ioc_ip` | The IOC IP that matched |
+| `match_direction` | `"src"` or `"dst"` |
+| `threat_type` | IOC threat category (malware, c2, scanner...) |
+| `confidence` | IOC confidence score (0-100) |
+| `feed_id` | Source feed identifier |
+| `component` | Original alert's component (ids, firewall...) |
+| `detected_at_ms` | When the retroactive match was found |
+
+### Example Request
+
+```bash
+curl -X POST http://agent:8080/api/v1/siem/retro-ioc-scan \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "iocs": [
+      {"ip": "198.51.100.1", "threat_type": "c2", "confidence": 95, "feed_id": "alienvault-otx"},
+      {"ip": "203.0.113.42", "threat_type": "malware", "confidence": 80, "feed_id": "abuse-ch"}
+    ]
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "events_scanned": 12847,
+  "matches_found": 3,
+  "scan_duration_ms": 42,
+  "retroactive_alerts": [
+    {
+      "original_event_id": "019606a2-...",
+      "original_timestamp_ns": 1742000000000,
+      "matched_ioc_ip": "198.51.100.1",
+      "match_direction": "dst",
+      "threat_type": "c2",
+      "confidence": 95,
+      "feed_id": "alienvault-otx",
+      "component": "ids",
+      "detected_at_ms": 1742300000000
+    }
+  ]
+}
+```
+
+The scan operates on the durable buffer's current contents — its depth depends on `buffer_size_bytes` and event throughput.
+
 ## Metrics
 
 `SiemExportService` tracks:
@@ -183,6 +275,7 @@ Used by Sentinel, QRadar, and generic Syslog connectors:
 | `events_dropped_total` | Buffer overflow drops |
 | `export_errors_total` | Failed export attempts |
 | `buffer_size_bytes` | Current buffer size |
+| `pending_events` | Events in buffer awaiting delivery |
 
 ## Configuration
 
@@ -246,6 +339,12 @@ enterprise:
       ca_cert: /etc/ebpfsentinel/ca.pem
       verify_tls: true
       hostname: ebpfsentinel
+
+    otlp:
+      endpoint: http://otel-collector:4318
+      timeout_ms: 5000
+      max_retries: 3
+      initial_backoff_ms: 500
 ```
 
 Only configure the connectors you need. Unconfigured connectors are ignored.
@@ -254,7 +353,8 @@ Only configure the connectors you need. Unconfigured connectors are ignored.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/siem/status` | Export pipeline status (connectors, buffer size, exported/dropped/error counts) |
+| `GET` | `/api/v1/siem/status` | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts) |
+| `POST` | `/api/v1/siem/retro-ioc-scan` | Retroactive IOC matching against buffered events |
 
 ## Feature Gating
 
