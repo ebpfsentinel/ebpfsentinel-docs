@@ -135,17 +135,90 @@ The HA subsystem controls eBPF program attachment tied to leadership:
 - Snapshot/delta payloads serialized as JSON via serde
 - Change detection via hash comparison avoids unnecessary replication
 
+## Active-Active Multi-Interface (E7.4)
+
+Standard HA is active-passive: one leader runs eBPF, followers are standby. Active-active mode allows **both nodes to run eBPF programs on their own assigned interfaces**, splitting traffic processing across the cluster.
+
+### HaMode
+
+| Mode | Behavior |
+|------|----------|
+| `ActivePassive` | Default. One leader owns all eBPF programs, followers are standby |
+| `ActiveActive` | Both nodes load eBPF programs for their assigned interfaces |
+
+### Interface Assignment
+
+`InterfaceAssignment` maps network interfaces to specific nodes:
+
+```yaml
+enterprise:
+  ha:
+    mode: active_active
+    interface_assignments:
+      node-a-uuid:
+        - eth0
+        - eth1
+      node-b-uuid:
+        - eth2
+        - eth3
+    takeover_on_failure: true
+```
+
+### Behavior
+
+- On startup in `ActiveActive` mode, each node loads eBPF programs **only** for its assigned interfaces
+- The leader still coordinates state replication and elections; both nodes process traffic independently on their interfaces
+- **Peer failure** with `takeover_on_failure: true`: the surviving node activates eBPF on the failed node's interfaces in addition to its own
+- **Peer recovery**: the recovered node reclaims its assigned interfaces; the surviving node releases the taken-over interfaces and detaches their eBPF programs
+- In `ActivePassive` mode (default), `interface_assignments` is ignored and behavior matches existing leader-only eBPF attachment
+
+## Graceful Degradation (E7.5)
+
+Controls agent behavior when it loses contact with its peer and enters a degraded state (e.g., network partition, peer crash).
+
+### DegradationPolicy
+
+| Policy | Behavior |
+|--------|----------|
+| `Continue` | Default. Keep running normally with a warning. Accept configuration changes. |
+| `ReadOnly` | Keep current eBPF rules active. Reject configuration changes via the API (returns `503 Service Unavailable`). |
+| `FailClosed` | Block all traffic by loading a deny-all eBPF rule until the peer is restored. |
+
+### ClusterHealth
+
+| State | Meaning |
+|-------|---------|
+| `Healthy` | All peers reachable, replication up to date |
+| `Degraded` | One or more peers unreachable, operating under degradation policy |
+| `Isolated` | No peers reachable, node is completely alone |
+
+### Behavior
+
+- **Degradation entry**: triggered when heartbeat timeout fires and no peer responds. The node transitions `cluster_health` to `Degraded` or `Isolated` and applies the configured `degradation_policy`.
+- **Continue**: logs a warning, no behavioral change. Config updates are accepted.
+- **ReadOnly**: current eBPF programs remain loaded. API mutations (`POST`, `PUT`, `DELETE` on config endpoints) return `503`. Read endpoints remain available.
+- **FailClosed**: a deny-all eBPF rule is loaded, dropping all traffic. This is the most conservative option for security-critical deployments.
+- **Recovery**: when the peer becomes reachable again, the node auto-resyncs state via snapshot replication and exits degraded mode. If `FailClosed` was active, the deny-all rule is removed and normal eBPF programs are restored.
+
+### Configuration
+
+```yaml
+enterprise:
+  ha:
+    degradation_policy: continue   # continue | read_only | fail_closed
+```
+
 ## Failover Events
 
 `FailoverEvent` records leadership changes:
 
 | Field | Description |
 |-------|-------------|
-| `event_type` | `AutomaticFailover`, `ManualFailover`, `NodeRecovery` |
+| `event_type` | `AutomaticFailover`, `ManualFailover`, `NodeRecovery`, `InterfaceTakeover`, `DegradationEntered`, `DegradationExited` |
 | `old_leader` | Previous leader node ID |
 | `new_leader` | New leader node ID |
 | `term` | Election term |
-| `trigger` | `HeartbeatTimeout`, `ManualApi`, `Recovery` |
+| `trigger` | `HeartbeatTimeout`, `ManualApi`, `Recovery`, `InterfaceTakeover`, `Degradation` |
 | `timestamp_ms` | Event timestamp |
 
 ## gRPC Service
@@ -166,6 +239,7 @@ The HA subsystem controls eBPF program attachment tied to leadership:
 enterprise:
   ha:
     enabled: true
+    mode: active_passive                    # active_passive | active_active
     peers:
       - 10.0.0.2:9443
       - 10.0.0.3:9443
@@ -176,6 +250,15 @@ enterprise:
     split_brain_policy: prefer_active       # prefer_active | prefer_standby | fence
     listen_addr: 0.0.0.0:9443
     data_dir: /var/lib/ebpfsentinel/ha
+    interface_assignments:                  # active_active mode only
+      node-a-uuid:
+        - eth0
+        - eth1
+      node-b-uuid:
+        - eth2
+        - eth3
+    takeover_on_failure: true               # active_active: take over peer interfaces on failure
+    degradation_policy: continue            # continue | read_only | fail_closed
 ```
 
 | Field | Type | Default | Description |
@@ -189,17 +272,23 @@ enterprise:
 | `split_brain_policy` | enum | `prefer_active` | Split-brain resolution policy |
 | `listen_addr` | string | `0.0.0.0:9443` | gRPC listen address |
 | `data_dir` | string | `/var/lib/ebpfsentinel/ha` | Persistent state directory |
+| `mode` | enum | `active_passive` | HA mode: `active_passive` or `active_active` |
+| `interface_assignments` | map | `{}` | Per-node interface list (active_active mode only) |
+| `takeover_on_failure` | bool | `true` | Take over peer interfaces on failure (active_active mode only) |
+| `degradation_policy` | enum | `continue` | Behavior when peer is lost: `continue`, `read_only`, `fail_closed` |
 
-Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty.
+Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty. When `mode` is `active_active`, `interface_assignments` must be non-empty.
 
 ## REST API
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/ha/status` | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active) |
+| `GET` | `/api/v1/ha/status` | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded) |
 | `GET` | `/api/v1/ha/peers` | Peer list with addresses |
 | `POST` | `/api/v1/ha/failover` | Manual failover (leader only, 409 Conflict if not leader or no peers) |
 | `GET` | `/api/v1/ha/replication` | Per-category replication status (leader_seq, synced flag) |
+| `GET` | `/api/v1/ha/interfaces` | Interface assignments and ownership status (active_active mode) |
+| `GET` | `/api/v1/ha/health` | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded) |
 
 ## Feature Gating
 

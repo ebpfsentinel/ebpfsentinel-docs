@@ -14,19 +14,20 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| [License System](license.md) | Ed25519-signed license keys, machine fingerprint binding, air-gap activation | **Shipped** |
+| [License System](license.md) | Ed25519 + ML-DSA-65 dual-signed license keys, machine fingerprint binding, air-gap activation | **Shipped** |
 | [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection | **Shipped** |
 | [ML Anomaly Detection](ml-detection.md) | ONNX-based behavioral anomaly detection, multi-window aggregation, rule suggestion | **Shipped** |
 | [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC | **Shipped** |
 | [SIEM Integration](siem-integration.md) | Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog connectors | **Shipped** |
 | [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2 automated reporting | **Shipped** |
-| [High Availability](high-availability.md) | Leader election, state replication, split-brain resolution | **Shipped** |
+| [High Availability](high-availability.md) | Active-passive/active-active clustering, state replication, graceful degradation | **Shipped** |
 | [Multi-Cluster](multicluster.md) | Federation, policy distribution, alert aggregation | **Shipped** |
 | [Advanced RBAC](advanced-rbac.md) | 17 security domains, custom roles, permission inheritance | **Shipped** |
 | [Air-Gap Mode](airgap.md) | Offline feed bundles with Ed25519-signed import/export | **Shipped** |
 | [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports | **Shipped** |
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph | **Shipped** |
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy | **Shipped** |
+| [TLS Intelligence](tls-intelligence.md) | JA4+ threat DB, TLS behavior anomaly, PQC compliance, cipher policy enforcement | **Shipped** |
 
 ## Planned Features
 

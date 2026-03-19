@@ -4,13 +4,23 @@
 
 ## Overview
 
-The enterprise license system gates feature activation at runtime using Ed25519-signed license keys bound to specific machines. It includes anti-tamper protections, air-gapped activation workflow, and cryptographic feature isolation.
+The enterprise license system gates feature activation at runtime using Ed25519 + ML-DSA-65 dual-signed license keys bound to specific machines. It includes anti-tamper protections, air-gapped activation workflow, and cryptographic feature isolation.
 
 ## License Key Format
 
-License keys are two-line files:
+License keys are two-line (v1) or three-line (v2) files:
+
+- **v1 (Ed25519-only):** backward-compatible, two lines
+- **v2 (Ed25519 + ML-DSA-65):** post-quantum dual-signed, three lines
+
+**v1 format:**
 - **Line 1:** Base64-encoded JSON payload (`LicenseInfo`)
 - **Line 2:** Base64-encoded Ed25519 signature
+
+**v2 format:**
+- **Line 1:** Base64-encoded JSON payload (`LicenseInfo`)
+- **Line 2:** Base64-encoded Ed25519 signature
+- **Line 3:** Base64-encoded ML-DSA-65 signature
 
 ```json
 {
@@ -20,7 +30,7 @@ License keys are two-line files:
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
   "machine_fingerprint": "ca9240c0e28de960...",
-  "version": 1
+  "version": 2
 }
 ```
 
@@ -38,6 +48,9 @@ License keys are two-line files:
 | `advanced-rbac` | Per-domain/resource permissions |
 | `air-gap` | Offline operation mode |
 | `advanced-analytics` | Historical traffic analytics |
+| `fleet-management` | Fleet agent management |
+| `ai-llm-security` | AI/LLM traffic security |
+| `tls-intelligence` | TLS threat intelligence & PQC compliance |
 
 ## Machine Fingerprint Binding
 
@@ -64,14 +77,20 @@ Wildcard fingerprint (`*`) is supported for development/testing licenses.
 ```bash
 ebpfsentinel-license keygen \
   --private-key license-signing.key \
-  --public-key license-signing.pub
+  --public-key license-signing.pub \
+  --pq-private-key license-signing-pq.key \
+  --pq-public-key license-signing-pq.pub
 ```
+
+This generates both an Ed25519 keypair and an ML-DSA-65 keypair. The `--pq-private-key` and `--pq-public-key` flags are optional; omit them to generate Ed25519-only keys for v1 license workflows.
 
 ### Generate License
 
 ```bash
+# v2 dual-signed license (Ed25519 + ML-DSA-65)
 ebpfsentinel-license generate \
   --signing-key license-signing.key \
+  --pq-signing-key license-signing-pq.key \
   --org "Acme Corp" \
   --features advanced-dlp,ml-detection \
   --expires 2027-01-01 \
@@ -80,11 +99,25 @@ ebpfsentinel-license generate \
   --output license.key
 ```
 
+Without `--pq-signing-key`, a v1 (Ed25519-only) license is generated for backward compatibility.
+
 ### Inspect License
 
 ```bash
-ebpfsentinel-license inspect license.key --public-key license-signing.pub
+ebpfsentinel-license inspect license.key \
+  --public-key license-signing.pub \
+  --pq-public-key license-signing-pq.pub
 ```
+
+Output includes both signature verification results:
+
+```
+Ed25519 signature:  VALID
+ML-DSA-65 signature: VALID
+License version:    2
+```
+
+The `--pq-public-key` flag is optional. When omitted, only the Ed25519 signature is verified.
 
 ## Air-Gap Activation Workflow
 
@@ -107,6 +140,23 @@ For environments without internet access:
 3. import-activation activation.key
    (validates + installs to /etc/ebpfsentinel/license.key)
 ```
+
+## Post-Quantum License Signing (E1.9)
+
+ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license keys. When a v2 license is issued, both an Ed25519 signature and an ML-DSA-65 signature are computed over the same JSON payload.
+
+**Verification behavior:**
+
+- **v2 licenses:** both Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature rejects the license.
+- **v1 licenses:** remain fully valid and are verified with Ed25519 only. No ML-DSA-65 key is required. This ensures backward compatibility with existing deployments.
+
+**Key storage:**
+
+ML-DSA-65 keys are stored as 32-byte seed files. The full keypair is deterministically expanded from the seed at signing/verification time, keeping key material compact and consistent with the Ed25519 key file size.
+
+**HKDF key derivation:**
+
+The License-as-Computation-Parameter mechanism (AES-256-GCM encryption of enterprise assets) continues to derive keys from the Ed25519 signature bytes via HKDF. The ML-DSA-65 signature is not used for key derivation, preserving compatibility between v1 and v2 licenses for asset decryption.
 
 ## Anti-Tamper Protections
 
