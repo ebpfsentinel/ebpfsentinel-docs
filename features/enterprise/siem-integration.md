@@ -4,7 +4,7 @@
 
 ## Overview
 
-Native connectors for 8 enterprise SIEM platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, broadcast channel for internal subscribers (analytics bridge), OTLP at-least-once delivery with retry/backoff, and retroactive IOC matching against the event buffer.
+Native connectors for 10 enterprise SIEM and data lake platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, broadcast channel for internal subscribers (analytics bridge), OTLP at-least-once delivery with retry/backoff, and retroactive IOC matching against the event buffer.
 
 ## Supported Platforms
 
@@ -18,6 +18,8 @@ Native connectors for 8 enterprise SIEM platforms with durable buffering (redb-b
 | **IBM QRadar** | LEEF over Syslog | LEEF 2.0 | Tab-delimited fields, TLS/TCP transport |
 | **Generic Syslog** | JSON over Syslog | JSON + RFC 5424 | TLS/TCP/UDP transport, all optional fields |
 | **OTLP** | HTTP JSON | OTLP Logs | At-least-once delivery, retry with exponential backoff |
+| **S3** | HTTP PUT | NDJSON (gzip) | Date-partitioned keys, S3/MinIO/R2 compatible, optional gzip compression |
+| **ClickHouse** | HTTP POST | JSONEachRow | Retry with exponential backoff, basic auth, configurable database/table |
 
 ## Architecture
 
@@ -37,7 +39,9 @@ Alert (OSS domain)
                                       ├── Sentinel CEF Exporter
                                       ├── QRadar LEEF Exporter
                                       ├── Syslog JSON Exporter
-                                      └── OTLP Enterprise Exporter (retry + backoff)
+                                      ├── OTLP Enterprise Exporter (retry + backoff)
+                                      ├── S3 Data Lake Exporter (NDJSON gzip)
+                                      └── ClickHouse Exporter (JSONEachRow)
 ```
 
 ## SiemEvent
@@ -200,6 +204,57 @@ enterprise:
 
 The OTLP connector plugs into the existing fan-out pipeline — it can run alongside Splunk, Elasticsearch, or any other connector simultaneously.
 
+## S3 Data Lake Connector
+
+Exports events as NDJSON (one JSON object per line) to any S3-compatible object store for long-term retention and threat hunting via tools like Athena, Trino, or Spark.
+
+Key features:
+
+- **Date-partitioned keys** — objects stored as `{prefix}/year=YYYY/month=MM/day=DD/hour=HH/{batch_id}.ndjson.gz` for efficient partition pruning
+- **Gzip compression** — configurable (enabled by default), reduces storage costs by 80-90%
+- **S3-compatible** — works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store
+- **Authentication** — access key/secret key pair, or IAM instance roles when credentials are omitted
+
+```yaml
+enterprise:
+  siem:
+    s3:
+      endpoint: http://minio:9000           # or https://s3.amazonaws.com
+      bucket: siem-data-lake
+      prefix: ebpfsentinel/siem
+      access_key_id: AKIAIOSFODNN7EXAMPLE   # optional — uses IAM if absent
+      secret_access_key: wJalrXUtnFEMI...   # optional
+      compress: true                         # gzip (default: true)
+      timeout_ms: 10000
+```
+
+## ClickHouse Connector
+
+Exports events directly to a ClickHouse table via the HTTP interface for real-time analytics and long-term retention with sub-second query performance.
+
+Key features:
+
+- **HTTP JSONEachRow format** — native ClickHouse ingestion format, no intermediate transform needed
+- **Retry with backoff** — configurable `max_retries` and `initial_backoff_ms`
+- **Basic auth** — optional username/password
+- **Configurable target** — database and table name
+
+```yaml
+enterprise:
+  siem:
+    clickhouse:
+      endpoint: http://clickhouse:8123
+      database: default
+      table: siem_events
+      username: default                     # optional
+      password: secret                      # optional
+      timeout_ms: 5000
+      max_retries: 3
+      initial_backoff_ms: 500
+```
+
+Both data lake connectors plug into the existing fan-out pipeline and can run alongside any other SIEM connector simultaneously.
+
 ## Retroactive IOC Matching
 
 When new threat intelligence IOCs are loaded, the retroactive IOC scanner checks the **entire SIEM event buffer** for historical matches. This catches connections to C2 infrastructure or malware IPs that occurred _before_ the IOC was known.
@@ -342,6 +397,21 @@ enterprise:
 
     otlp:
       endpoint: http://otel-collector:4318
+      timeout_ms: 5000
+      max_retries: 3
+      initial_backoff_ms: 500
+
+    s3:
+      endpoint: http://minio:9000
+      bucket: siem-data-lake
+      prefix: ebpfsentinel/siem
+      compress: true
+      timeout_ms: 10000
+
+    clickhouse:
+      endpoint: http://clickhouse:8123
+      database: default
+      table: siem_events
       timeout_ms: 5000
       max_retries: 3
       initial_backoff_ms: 500
