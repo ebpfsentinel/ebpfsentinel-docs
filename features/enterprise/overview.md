@@ -28,6 +28,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph | **Shipped** |
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy | **Shipped** |
 | [TLS Intelligence](tls-intelligence.md) | JA4+ threat DB, TLS behavior anomaly, PQC compliance, cipher policy enforcement | **Shipped** |
+| [Network Forensics](network-forensics.md) | Ring buffer capture engine, event-triggered captures, flow timeline reconstruction | **Shipped** |
 
 ## Planned Features
 
@@ -42,7 +43,7 @@ The enterprise edition follows the same hexagonal/DDD architecture as the OSS ag
 
 ```
 ebpfsentinel-enterprise/
-├── enterprise-domain/          # License, DLP, ML, tenants, HA, SIEM, compliance, RBAC, federation, analytics, air-gap, fleet, AI security
+├── enterprise-domain/          # License, DLP, ML, tenants, HA, SIEM, compliance, RBAC, federation, analytics, air-gap, fleet, AI security, TLS intelligence, forensics
 ├── enterprise-ports/           # Secondary port traits (stores, transports, exporters)
 ├── enterprise-application/     # Application services (DLP, ML, air-gap orchestration)
 ├── enterprise-adapters/        # HTTP handlers, gRPC services, persistence (redb), SIEM connectors
