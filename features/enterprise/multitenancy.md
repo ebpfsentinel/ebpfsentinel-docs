@@ -19,9 +19,9 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `description` | Optional description |
 | `tenant_id` | Numeric tenant identifier (auto-assigned sequentially: 1, 2, 3, ...) |
 | `quota` | Per-tenant resource limits |
-| `status` | `Active` or `Suspended` (E4.5) |
-| `source` | `Config` (YAML) or `Api` (dynamic creation, E4.5) |
-| `self_service` | Self-service policy with allowed operations (E4.5) |
+| `status` | `Active` or `Suspended`|
+| `source` | `Config` (YAML) or `Api` (dynamic creation) |
+| `self_service` | Self-service policy with allowed operations |
 
 ### Isolation Modes
 
@@ -173,7 +173,7 @@ Userspace resolution complements the eBPF kernel resolution:
 - Admin: uses requested tenant (or `None` for all tenants)
 - Non-admin: always scoped to own tenant (ignores requested)
 
-## Tenant Self-Service (E4.5)
+## Tenant Self-Service
 
 ### Dynamic Tenant Lifecycle
 

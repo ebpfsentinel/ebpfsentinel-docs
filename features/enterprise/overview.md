@@ -54,17 +54,3 @@ ebpfsentinel-enterprise/
 ```
 
 Each enterprise crate depends on its OSS counterpart without modifying OSS code.
-
-## What OSS Can Do Today
-
-Many enterprise use cases can be addressed with current OSS capabilities:
-
-| Enterprise Need | OSS Alternative |
-|----------------|-----------------|
-| Dashboard | REST API + Swagger UI + Grafana dashboards via Prometheus metrics |
-| K8s deployment | DaemonSet manifests with ConfigMap (manual, no operator) |
-| HA | Run on each node independently (no shared state needed per-node) |
-| SIEM export | Webhook alerts + structured JSON logs → log shipper → SIEM |
-| Compliance | Audit trail + alerting routes + Prometheus metrics for evidence collection |
-| RBAC | JWT/OIDC/API keys with admin/operator/viewer roles |
-| DLP patterns | 9 built-in patterns (PCI, PII, credentials) in alert mode |
