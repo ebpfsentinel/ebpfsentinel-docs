@@ -4,7 +4,7 @@
 
 ## Overview
 
-Automated compliance report generation for regulatory frameworks. Reports map eBPFsentinel controls to framework requirements, collect evidence from the running system, and produce exportable documents with pass/fail/partial/not-applicable status per control. Enterprise infrastructure state (HA, multi-tenancy, federation, air-gap) is automatically evaluated and appended.
+Automated compliance report generation for 8 regulatory frameworks including EU/French regulations. Reports map eBPFsentinel controls to framework requirements, collect evidence from the running system, and produce exportable documents with pass/fail/partial/not-applicable status per control. Enterprise infrastructure state (HA, multi-tenancy, federation, air-gap) and network segmentation validation are automatically evaluated and appended.
 
 ## Supported Frameworks
 
@@ -14,8 +14,12 @@ Automated compliance report generation for regulatory frameworks. Reports map eB
 | **HIPAA** | 3 | 13 | Health Insurance Portability and Accountability Act Security Rule |
 | **GDPR Art 32** | 3 | 8 | General Data Protection Regulation Article 32 technical measures |
 | **SOC 2** | 4 | 12 | Service Organization Control 2 Trust Service Categories |
+| **NIS2** | 2 | 8 | EU Network and Information Security Directive 2 (Articles 21, 23) |
+| **DORA** | 3 | 7 | EU Digital Operational Resilience Act (Chapters II, III, IV) |
+| **SecNumCloud** | 5 | 14 | ANSSI cloud security qualification (Ch.8-14) |
+| **HDS** | 6 | 11 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
 
-Plus up to **4 enterprise infrastructure sections** (8 additional controls) appended dynamically.
+Plus up to **5 enterprise infrastructure sections** (9 additional controls including segmentation) appended dynamically.
 
 ## Report Structure
 
@@ -100,6 +104,42 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 | CC7 System Operations | 4 | Change detection, monitoring, event evaluation, incident response |
 | CC8 Change Management | 1 | Infrastructure/software changes |
 
+### NIS2 (2 sections, 8 controls)
+
+| Section | Controls | Topics |
+|---------|----------|--------|
+| Article 21 — Risk Management Measures | 5 | Network monitoring, incident handling, cryptography, supply chain security, access control |
+| Article 23 — Incident Reporting | 3 | 24h early warning detection, 72h incident notification, final report generation |
+
+### DORA (3 sections, 7 controls)
+
+| Section | Controls | Topics |
+|---------|----------|--------|
+| Chapter II — ICT Risk Management | 3 | Risk management tools, ICT systems, protection and prevention |
+| Chapter III — Incident Management | 3 | Detection capabilities, incident classification, incident reporting |
+| Chapter IV — Resilience Testing | 1 | Testing requirements, MITRE coverage validation |
+
+### SecNumCloud (5 sections, 14 controls)
+
+| Section | Controls | Topics |
+|---------|----------|--------|
+| Ch.8 — Access Control | 2 | Authentication (JWT/OIDC/API key), authorization (RBAC) |
+| Ch.9 — Network Security | 3 | Segmentation, flow filtering, flow monitoring |
+| Ch.10 — Operations and Monitoring | 3 | Logging, monitoring/detection, event correlation |
+| Ch.12 — Cryptography | 2 | TLS configuration, post-quantum readiness |
+| Ch.14 — Incident Management | 2 | Incident detection, forensics |
+
+### HDS (6 sections, 11 controls)
+
+| Section | Controls | Topics |
+|---------|----------|--------|
+| ISO 27001 A.13 — Communications Security | 2 | Network security management, information transfer |
+| ISO 27001 A.10 — Cryptography | 1 | Cryptographic controls |
+| ISO 27001 A.12.4 — Logging/Monitoring | 2 | Event logging, log protection |
+| ISO 27001 A.16 — Incident Management | 2 | Incident response, ARS notification (Art. R.1111-9) |
+| ISO 27018 — PII Protection | 1 | Health data DLP (NIR, RPPS, IPP, FINESS patterns recommended) |
+| Art. R.1111-10 — Traceability | 1 | Access audit trail |
+
 ### Enterprise Infrastructure Sections
 
 Four optional sections appended based on runtime status:
@@ -110,6 +150,7 @@ Four optional sections appended based on runtime status:
 | Multi-Tenant Isolation | 3 (isolation, RBAC, quotas) | Tenant status provided |
 | Multi-Cluster Federation | 2 (cluster health, policy consistency) | Federation status provided |
 | Air-Gap Network Isolation | 1 (enforcement) | Air-gap status provided |
+| Network Segmentation Validation | 1 (zone topology compliance) | Segmentation policy configured |
 
 ## Runtime Overrides
 
@@ -151,7 +192,7 @@ The scheduler runs as a background tokio task, generating reports for all config
 enterprise:
   compliance:
     enabled: true
-    frameworks: [pci_dss4, hipaa, gdpr_art32, soc2]
+    frameworks: [pci_dss4, hipaa, gdpr_art32, soc2, nis2, dora, secnumcloud, hds]
     schedule:
       frequency: weekly
       frameworks: [pci_dss4, soc2]
@@ -163,7 +204,7 @@ enterprise:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `true` | Enable compliance reporting |
-| `frameworks` | list | all 4 | Frameworks to evaluate (accepts `pci_dss4`/`pci_dss_4`, `hipaa`, `gdpr_art32`/`gdpr_art_32`, `soc2`/`soc_2`) |
+| `frameworks` | list | all 8 | Frameworks to evaluate (accepts `pci_dss4`, `hipaa`, `gdpr_art32`, `soc2`, `nis2`, `dora`, `secnumcloud`, `hds`) |
 | `retention_days` | u32 | `90` | Days to retain generated reports |
 | `output_dir` | string | — | Optional directory for disk persistence |
 | `schedule` | object | — | Optional automated generation config |
@@ -177,6 +218,7 @@ enterprise:
 | `GET` | `/api/v1/compliance/reports/{id}` | Fetch full report (JSON) |
 | `GET` | `/api/v1/compliance/reports/{id}/csv` | Export as CSV (attachment: `report.csv`) |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | Export as structured text |
+| `POST` | `/api/v1/compliance/segmentation/validate` | Validate a network segmentation policy (zones, allowed flows) |
 
 ### Error Responses
 
