@@ -19,7 +19,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [ML Anomaly Detection](ml-detection.md) | ONNX-based behavioral anomaly detection, multi-window aggregation, rule suggestion | **Shipped** |
 | [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC, self-service API | **Shipped** |
 | [SIEM Integration](siem-integration.md) | 10 connectors: Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse | **Shipped** |
-| [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2 automated reporting | **Shipped** |
+| [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export | **Shipped** |
 | [High Availability](high-availability.md) | Active-passive/active-active clustering, state replication, graceful degradation | **Shipped** |
 | [Multi-Cluster](multicluster.md) | Federation, policy distribution, alert aggregation | **Shipped** |
 | [Advanced RBAC](advanced-rbac.md) | 17 security domains, custom roles, permission inheritance | **Shipped** |

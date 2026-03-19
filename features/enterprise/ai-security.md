@@ -10,13 +10,13 @@ Five sub-capabilities:
 
 | Capability | Story | Description |
 |-----------|-------|-------------|
-| AI Provider Registry | E12.1 | 38+ built-in AI provider domain entries with wildcard matching |
-| Shadow AI Detection | E12.2 | Monitor, block, or allow-list mode for AI provider access |
-| AI-aware DLP | E12.3 | Regex-based payload scanning for sensitive data sent to AI providers |
-| Exfiltration Detection | E12.4 | Per-request, aggregate, and burst rate threshold enforcement |
-| Encrypted DNS Policy | E12.5 | Resolver allow/block lists for encrypted DNS (DoH/DoT/DoQ) |
+| AI Provider Registry | 38+ built-in AI provider domain entries with wildcard matching |
+| Shadow AI Detection | Monitor, block, or allow-list mode for AI provider access |
+| AI-aware DLP | Regex-based payload scanning for sensitive data sent to AI providers |
+| Exfiltration Detection | Per-request, aggregate, and burst rate threshold enforcement |
+| Encrypted DNS Policy | Resolver allow/block lists for encrypted DNS (DoH/DoT/DoQ) |
 
-## AI Provider Registry (E12.1)
+## AI Provider Registry
 
 38+ built-in provider entries covering major AI services:
 
@@ -59,7 +59,7 @@ POST   /api/v1/enterprise/ai-security/providers
 DELETE /api/v1/enterprise/ai-security/providers/{id}
 ```
 
-## Shadow AI Detection (E12.2)
+## Shadow AI Detection
 
 Detects outbound connections to AI providers and applies policy:
 
@@ -95,7 +95,7 @@ GET /api/v1/enterprise/ai-security/shadow-ai/policy
 PUT /api/v1/enterprise/ai-security/shadow-ai/policy
 ```
 
-## AI-aware DLP (E12.3)
+## AI-aware DLP
 
 Regex-based payload scanning applied when traffic is destined for an AI provider. Separate from the Vectorscan-based enterprise DLP — this is a lightweight, AI-context-specific scanner.
 
@@ -133,7 +133,7 @@ POST   /api/v1/enterprise/ai-security/ai-dlp/patterns
 DELETE /api/v1/enterprise/ai-security/ai-dlp/patterns/{id}
 ```
 
-## Exfiltration Detection (E12.4)
+## Exfiltration Detection
 
 Tracks upload volume and request rates to AI providers per source IP. Three threshold types:
 
@@ -169,7 +169,7 @@ GET /api/v1/enterprise/ai-security/exfiltration/thresholds
 PUT /api/v1/enterprise/ai-security/exfiltration/thresholds
 ```
 
-## Encrypted DNS Policy (E12.5)
+## Encrypted DNS Policy
 
 Enforces policy on encrypted DNS resolvers (DoH, DoT, DoQ):
 
@@ -251,10 +251,10 @@ Status returns:
 
 | Story | Technique | Name | Tactic |
 |-------|-----------|------|--------|
-| E12.2 Shadow AI | T1567.002 | Exfiltration to Cloud Storage | exfiltration |
-| E12.3 AI DLP | T1048 | Exfiltration Over Alternative Protocol | exfiltration |
-| E12.4 Exfiltration | T1048.001 | Exfil Over Symmetric Encrypted Non-C2 | exfiltration |
-| E12.5 Encrypted DNS | T1071.004 | DNS | command-and-control |
+| Shadow AI | T1567.002 | Exfiltration to Cloud Storage | exfiltration |
+| AI DLP | T1048 | Exfiltration Over Alternative Protocol | exfiltration |
+| Exfiltration | T1048.001 | Exfil Over Symmetric Encrypted Non-C2 | exfiltration |
+| Encrypted DNS | T1071.004 | DNS | command-and-control |
 
 ## Metrics
 

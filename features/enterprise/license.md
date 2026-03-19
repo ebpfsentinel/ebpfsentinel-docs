@@ -51,6 +51,8 @@ License keys are two-line (v1) or three-line (v2) files:
 | `fleet-management` | Fleet agent management |
 | `ai-llm-security` | AI/LLM traffic security |
 | `tls-intelligence` | TLS threat intelligence & PQC compliance |
+| `network-forensics` | Ring buffer capture & flow timeline |
+| `automated-response` | Policy engine & SOAR webhook integration |
 
 ## Machine Fingerprint Binding
 
@@ -141,7 +143,7 @@ For environments without internet access:
    (validates + installs to /etc/ebpfsentinel/license.key)
 ```
 
-## Post-Quantum License Signing (E1.9)
+## Post-Quantum License Signing
 
 ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license keys. When a v2 license is issued, both an Ed25519 signature and an ML-DSA-65 signature are computed over the same JSON payload.
 

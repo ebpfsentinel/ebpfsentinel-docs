@@ -8,14 +8,14 @@ TLS Intelligence provides deep visibility into TLS handshake metadata across the
 
 Four sub-capabilities:
 
-| Capability | Story | Description |
-|-----------|-------|-------------|
-| JA4+ Threat Database | E13.1 | Fingerprint-based threat detection with 20+ built-in C2/malware signatures |
-| TLS Behavior Anomaly | E13.2 | Statistical rarity scoring of TLS fingerprints over a sliding window |
-| PQC Compliance Detection | E13.3 | Track ML-KEM and hybrid key exchange adoption per destination |
-| Cipher/Protocol Compliance | E13.4 | Enforce minimum TLS versions, block weak ciphers and signature algorithms |
+| Capability | Description |
+|-----------|-------------|
+| JA4+ Threat Database | Fingerprint-based threat detection with 20+ built-in C2/malware signatures |
+| TLS Behavior Anomaly | Statistical rarity scoring of TLS fingerprints over a sliding window |
+| PQC Compliance Detection | Track ML-KEM and hybrid key exchange adoption per destination |
+| Cipher/Protocol Compliance | Enforce minimum TLS versions, block weak ciphers and signature algorithms |
 
-## JA4+ Threat Database (E13.1)
+## JA4+ Threat Database
 
 20+ built-in threat fingerprint entries covering common offensive tools:
 
@@ -85,7 +85,7 @@ GET    /api/v1/enterprise/tls-intelligence/threats/allowlist
 PUT    /api/v1/enterprise/tls-intelligence/threats/allowlist
 ```
 
-## TLS Behavior Anomaly (E13.2)
+## TLS Behavior Anomaly
 
 Statistical rarity scoring detects unusual TLS fingerprints that may indicate novel malware, misconfigured clients, or tunneling tools not yet in the threat database.
 
@@ -132,7 +132,7 @@ GET /api/v1/enterprise/tls-intelligence/anomalies/stats
 GET /api/v1/enterprise/tls-intelligence/fingerprints
 ```
 
-## PQC Compliance Detection (E13.3)
+## PQC Compliance Detection
 
 Tracks adoption of post-quantum key exchange groups across the network. Identifies which destinations negotiate ML-KEM (NIST FIPS 203) groups and which remain on classical-only key exchange.
 
@@ -183,7 +183,7 @@ GET /api/v1/enterprise/tls-intelligence/pqc/summary
 GET /api/v1/enterprise/tls-intelligence/pqc/destinations
 ```
 
-## Cipher/Protocol Compliance (E13.4)
+## Cipher/Protocol Compliance
 
 Enforces organizational policies on TLS protocol versions, cipher suites, and signature algorithms.
 
@@ -260,10 +260,10 @@ GET /api/v1/enterprise/tls-intelligence/compliance/violations
 
 | Story | Technique | Name | Tactic |
 |-------|-----------|------|--------|
-| E13.1 JA4+ Threat DB | T1573.002 | Encrypted Channel: Asymmetric Cryptography | command-and-control |
-| E13.2 Behavior Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
-| E13.3 PQC Compliance | T1573.001 | Encrypted Channel: Symmetric Cryptography | command-and-control |
-| E13.4 Cipher Compliance | T1600.001 | Weaken Encryption: Reduce Key Space | defense-evasion |
+| JA4+ Threat DB | T1573.002 | Encrypted Channel: Asymmetric Cryptography | command-and-control |
+| Behavior Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
+| PQC Compliance | T1573.001 | Encrypted Channel: Symmetric Cryptography | command-and-control |
+| Cipher Compliance | T1600.001 | Weaken Encryption: Reduce Key Space | defense-evasion |
 
 ## Metrics
 
@@ -309,7 +309,7 @@ enterprise:
   tls_intelligence:
     enabled: true
 
-    # E13.1 - JA4+ Threat Database
+    # JA4+ Threat Database
     threat_db:
       custom_entries:
         - id: custom-c2-001
@@ -323,19 +323,19 @@ enterprise:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
           reason: "Known monitoring tool"
 
-    # E13.2 - TLS Behavior Anomaly
+    # TLS Behavior Anomaly
     behavior_anomaly:
       rarity_threshold: 0.01
       window_days: 7
       min_total_handshakes: 1000
 
-    # E13.3 - PQC Compliance Detection
+    # PQC Compliance Detection
     pqc_compliance:
       enabled: true
       report_classical_only: true
       min_handshakes: 100
 
-    # E13.4 - Cipher/Protocol Compliance
+    # Cipher/Protocol Compliance
     cipher_compliance:
       min_tls_version: tls_1_2
       blocked_cipher_categories:

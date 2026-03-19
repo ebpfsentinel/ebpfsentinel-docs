@@ -177,7 +177,9 @@ Userspace resolution complements the eBPF kernel resolution:
 
 ### Dynamic Tenant Lifecycle
 
-Tenants can be created, suspended, and reactivated dynamically via the REST API (in addition to YAML configuration):
+Tenants can be created, suspended, and reactivated dynamically via the REST API (in addition to YAML configuration). Dynamic tenants created via the API are automatically persisted to a **redb** state store and restored on agent restart.
+
+The tenant registry uses **ArcSwap** for lock-free reads on the hot path — tenant lookups (which happen on every packet in eBPF userspace fallback) never block, even during concurrent write operations like add/suspend/activate.
 
 | Status | Description |
 |--------|-------------|

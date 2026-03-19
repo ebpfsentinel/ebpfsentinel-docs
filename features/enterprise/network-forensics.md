@@ -147,6 +147,7 @@ Flow entries group events by `(src_port, dst_port, protocol)` and track first/la
 | `forensics_captures_completed` | Counter | Captures completed successfully |
 | `forensics_captures_failed` | Counter | Captures that failed |
 | `forensics_captures_expired` | Counter | Captures expired by retention policy |
+| `forensics_ingestion_latency_us` | Histogram | Per-event ingestion latency in microseconds |
 
 ## Configuration
 

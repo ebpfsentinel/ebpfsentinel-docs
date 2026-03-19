@@ -18,7 +18,7 @@ OSS Alert Pipeline
                     │     ├── Match policies by component + severity + MITRE tactic
                     │     └── Check cooldown per (policy_id, src_addr)
                     ├── execute_action() → ResponseActionResult
-                    │     ├── BlockIp / RateLimitIp / IsolateFlow → intent recorded
+                    │     ├── BlockIp / RateLimitIp / IsolateFlow → OssEnforcementAdapter → eBPF maps
                     │     └── WebhookNotify → HTTP POST with retry + backoff
                     ├── engine.record_cooldown()
                     ├── engine.record_action_result() → audit trail
@@ -36,7 +36,7 @@ Four types of automated response actions can be configured per policy:
 | **IsolateFlow** | Block the specific 5-tuple flow via firewall deny rule |
 | **WebhookNotify** | Send alert details to a SOAR/webhook endpoint with retry |
 
-`BlockIp`, `RateLimitIp`, and `IsolateFlow` are recorded as enforcement intents in the audit trail. `WebhookNotify` executes an HTTP POST to the configured SOAR endpoint.
+`BlockIp`, `RateLimitIp`, and `IsolateFlow` are enforced at the eBPF kernel level via the `OssEnforcementAdapter`, which calls into the OSS IPS blacklist and firewall services to inject actual blocking rules into eBPF maps. `WebhookNotify` executes an HTTP POST to the configured SOAR endpoint. All actions are recorded in the audit trail.
 
 ## Response Policies
 
@@ -185,6 +185,28 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50
 | `response_policies_active` | Gauge | — | Active (enabled) policies |
 | `response_cooldowns_active` | Gauge | — | Currently active cooldowns |
 | `response_audit_trail_depth` | Gauge | — | Audit trail entry count |
+
+## State Persistence
+
+Response policies, webhook endpoints, and the audit trail are persisted to a **redb** key-value store. This ensures:
+
+- **Policies survive restarts** — API-created policies and webhooks are restored on startup
+- **Audit trail durability** — action records are not lost on agent restart
+- **Consistent enforcement** — active block/rate-limit actions remain effective across restarts
+
+The state store path is configured via `enterprise.state_store_path` (default: `/var/lib/ebpfsentinel/state.redb`).
+
+## eBPF Enforcement
+
+When `BlockIp`, `RateLimitIp`, or `IsolateFlow` actions fire, the `OssEnforcementAdapter` translates them into real eBPF program calls:
+
+| Action | eBPF Enforcement |
+|--------|-----------------|
+| `BlockIp` | Adds source/destination IP to the IPS blacklist eBPF map |
+| `RateLimitIp` | Adds a rate-limit entry for the IP in the XDP rate limiter |
+| `IsolateFlow` | Injects a deny rule into the XDP firewall for the specific 5-tuple |
+
+All enforcement actions include a TTL (duration) and auto-expire. The enforcement adapter works in both standalone and fleet/HA modes.
 
 ## Configuration
 

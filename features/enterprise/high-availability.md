@@ -135,7 +135,7 @@ The HA subsystem controls eBPF program attachment tied to leadership:
 - Snapshot/delta payloads serialized as JSON via serde
 - Change detection via hash comparison avoids unnecessary replication
 
-## Active-Active Multi-Interface (E7.4)
+## Active-Active Multi-Interface
 
 Standard HA is active-passive: one leader runs eBPF, followers are standby. Active-active mode allows **both nodes to run eBPF programs on their own assigned interfaces**, splitting traffic processing across the cluster.
 
@@ -172,7 +172,7 @@ enterprise:
 - **Peer recovery**: the recovered node reclaims its assigned interfaces; the surviving node releases the taken-over interfaces and detaches their eBPF programs
 - In `ActivePassive` mode (default), `interface_assignments` is ignored and behavior matches existing leader-only eBPF attachment
 
-## Graceful Degradation (E7.5)
+## Graceful Degradation
 
 Controls agent behavior when it loses contact with its peer and enters a degraded state (e.g., network partition, peer crash).
 

@@ -184,7 +184,18 @@ The scheduler runs as a background tokio task, generating reports for all config
 |--------|----------------|--------------|-------------|
 | JSON | — | `application/json` | Full structured report with all sections and evidence |
 | CSV | `/csv` | `text/csv` | Columns: section_id, section_title, control_id, control_name, status, evidence_count, recommendations |
-| Text | `/text` | `text/plain` | Structured text with title, metadata, summary table, section details (PDF-ready) |
+| Text | `/text` | `text/plain` | Structured text with title, metadata, summary table, section details |
+| PDF | `/pdf` | `application/pdf` | Branded PDF with company logo, cross-reference matrix, and compliance score summary |
+
+### PDF Export
+
+PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla) library and include:
+
+- **Company branding** — configurable company name displayed in the header
+- **Cross-reference matrix** — maps each control to framework requirements
+- **Compliance score** — visual summary with pass/fail/partial counts
+- **Section details** — per-control status, evidence, and remediation guidance
+- **Embedded fonts** — Liberation Sans family for consistent rendering across systems
 
 ## Configuration
 
@@ -218,6 +229,7 @@ enterprise:
 | `GET` | `/api/v1/compliance/reports/{id}` | Fetch full report (JSON) |
 | `GET` | `/api/v1/compliance/reports/{id}/csv` | Export as CSV (attachment: `report.csv`) |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | Export as structured text |
+| `GET` | `/api/v1/compliance/reports/{id}/pdf` | Export as branded PDF (attachment: `report.pdf`) |
 | `POST` | `/api/v1/compliance/segmentation/validate` | Validate a network segmentation policy (zones, allowed flows) |
 
 ### Error Responses
