@@ -50,21 +50,28 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | CLI (20 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
-### Enterprise (Planned)
+### Enterprise
 
 | Feature | Status | Description |
 |---------|--------|-------------|
+| [License System](enterprise/license.md) | Shipped | Ed25519 + ML-DSA-65 dual-signed keys, machine fingerprint, air-gap activation |
+| [Advanced DLP](enterprise/dlp.md) | Shipped | Vectorscan engine, custom patterns, block mode, TLS deep inspection |
+| [ML Anomaly Detection](enterprise/ml-detection.md) | Shipped | ONNX behavioral anomaly detection, multi-window, rule suggestion |
+| [Multi-Tenancy](enterprise/multitenancy.md) | Shipped | Namespace/interface isolation, quotas, RBAC, self-service API |
+| [SIEM Integration](enterprise/siem-integration.md) | Shipped | 10 connectors: Splunk, ES, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
+| [Compliance Reports](enterprise/compliance-reports.md) | Shipped | PCI-DSS 4, HIPAA, GDPR, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
+| [High Availability](enterprise/high-availability.md) | Shipped | Active-passive/active-active, state replication, graceful degradation |
+| [Multi-Cluster](enterprise/multicluster.md) | Shipped | Federation, policy distribution, alert aggregation |
+| [Advanced RBAC](enterprise/advanced-rbac.md) | Shipped | 17 security domains, custom roles, permission inheritance |
+| [Air-Gap Mode](enterprise/airgap.md) | Shipped | Offline feed bundles with Ed25519-signed import/export |
+| [Advanced Analytics](enterprise/analytics.md) | Shipped | Top talkers, trends, IOC summaries, flow query API |
+| [Fleet Management](enterprise/fleet-management.md) | Shipped | Agent registration, heartbeat, identity, config versioning |
+| [AI/LLM Security](enterprise/ai-security.md) | Shipped | Shadow AI detection, AI-aware DLP, exfiltration, encrypted DNS |
+| [TLS Intelligence](enterprise/tls-intelligence.md) | Shipped | JA4+ threat DB, behavior anomaly, PQC compliance, cipher policy |
+| [Network Forensics](enterprise/network-forensics.md) | Shipped | Ring buffer capture, event-triggered captures, flow timeline |
+| [Automated Response](enterprise/automated-response.md) | Shipped | Policy engine, SOAR webhook, eBPF enforcement, audit trail |
 | [Dashboard UI](enterprise/dashboard.md) | Planned | Web-based management console |
-| [Kubernetes Operator](enterprise/kubernetes-operator.md) | Planned | CRD-driven configuration, auto-reconciliation |
-| [High Availability](enterprise/high-availability.md) | Planned | Active-passive clustering, state replication |
-| [Multi-Cluster](enterprise/multicluster.md) | Planned | Federated policy across clusters |
-| [Multi-Tenancy](enterprise/multitenancy.md) | Planned | Namespace-scoped isolation |
-| [ML Anomaly Detection](enterprise/ml-detection.md) | Planned | Behavioral anomaly detection |
-| [SIEM Integration](enterprise/siem-integration.md) | Planned | Native Splunk, Elastic, Sentinel connectors |
-| [Compliance Reports](enterprise/compliance-reports.md) | Planned | Automated PCI-DSS, HIPAA, SOC 2 reports |
-| [Air-Gap Mode](enterprise/airgap.md) | Planned | Offline threat intel, local feed bundles |
-| [Advanced Analytics](enterprise/analytics.md) | Planned | Traffic analytics, trend analysis |
-| [Advanced RBAC](enterprise/advanced-rbac.md) | Planned | Fine-grained per-resource permissions |
+| [Kubernetes Operator](enterprise/kubernetes-operator.md) | Planned | CRD-driven configuration |
 
 ## Deployment Compatibility
 
