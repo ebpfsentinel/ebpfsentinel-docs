@@ -140,15 +140,27 @@ xdp-firewall:
 
 #### [`BPF_MAP_TYPE_DEVMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_DEVMAP/)
 
-**Kernel:** 4.14+ | **Used by:** xdp-firewall
+**Kernel:** 4.14+ | **Used by:** xdp-loadbalancer
 
-Device map for **packet mirroring**. Maps interface index to redirect target. Used with [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) to mirror traffic to a monitoring port without slowing down the forwarding path.
+Device map for **wire-speed load balancer forwarding**. Maps `backend_id` to the backend's network interface index. When populated by userspace (via `LbMapManager`), the load balancer uses `DevMap.redirect()` for native XDP forwarding instead of MAC swap + XDP_TX. Falls back to XDP_TX when the entry is not populated.
+
+| Map | Max Entries | Key | Value | Purpose |
+|-----|-------------|-----|-------|---------|
+| `LB_DEVMAP` | 256 | `backend_id` (u32) | `ifindex` (u32) | Backend interface redirect |
+
+Userspace resolves the ifindex from the backend IP address via `ip route get` + `/sys/class/net/{dev}/ifindex` and populates the DevMap automatically when a backend is synced.
 
 #### [`BPF_MAP_TYPE_CPUMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_CPUMAP/)
 
 **Kernel:** 4.15+ | **Used by:** xdp-firewall
 
-CPU map for **NUMA-aware packet distribution**. Redirects packets to specific CPUs via [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/), ensuring processing stays on the same NUMA node as the NIC for optimal cache locality.
+CPU map for **DDoS CPU steering**. When a packet is dropped by the firewall, it is redirected to a dedicated CPU via `CpuMap.redirect()` instead of being silently discarded. This preserves visibility for rate-limited analysis while isolating attack traffic from legitimate processing.
+
+| Map | Max Entries | Key | Value | Purpose |
+|-----|-------------|-----|-------|---------|
+| `DDOS_CPUMAP` | 128 | `cpu_index` (u32) | `queue_size` (u32, default 192) | DDoS traffic CPU steering |
+
+Populated at agent startup with all online CPUs (via `std::thread::available_parallelism`). Falls back to XDP_DROP when the map is empty.
 
 ### Event Maps
 
@@ -210,6 +222,19 @@ Benefits over `bpf_map_update_elem`:
 - **Atomic multi-entry updates** — no race conditions during bulk rule reloads
 - **Lower latency** — no per-entry syscall overhead
 - **No map-level lock contention** — MPSC ring buffer design
+
+#### `IDS_MIRROR_CONFIG` (Array)
+
+**Kernel:** 3.19+ | **Used by:** tc-ids | **Managed by:** Enterprise forensics module
+
+A 2-entry Array map controlling packet mirroring for forensic capture:
+
+| Index | Value | Purpose |
+|-------|-------|---------|
+| 0 | `ifindex` (u32) | Target interface for mirrored packets |
+| 1 | `enabled` (u32) | 1 = mirror active, 0 = disabled |
+
+When enabled, `bpf_clone_redirect` clones suspicious packets (those triggering IDS alerts) and sends the copy to the mirror interface. The original packet continues normal processing. Controlled by the enterprise forensics API (`POST /mirror/start`, `POST /mirror/stop`).
 
 ### Probabilistic Maps
 

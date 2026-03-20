@@ -110,6 +110,7 @@
 - [Program Details](kernel/programs.md)
 - [eBPF Helper Functions](kernel/helpers.md)
 - [eBPF Map Types](kernel/maps.md)
+- [eBPF KFuncs](kernel/kfuncs.md)
 - [Kernel Compatibility](kernel/requirements.md)
 
 # Operations
