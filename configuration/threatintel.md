@@ -1,6 +1,6 @@
 # Threat Intelligence Configuration
 
-The `threatintel` section configures external OSINT feeds for IOC-based threat detection. Feeds are **source-agnostic** — any HTTP/HTTPS endpoint serving IP lists in plaintext, CSV, or JSON format works through field mappings.
+The `threatintel` section configures external OSINT feeds for IOC-based threat detection. Feeds are **source-agnostic** — any HTTP/HTTPS endpoint serving indicators in plaintext, CSV, JSON, or STIX 2.1 bundle format works through field mappings.
 
 ## Reference
 
@@ -13,7 +13,7 @@ threatintel:
     - id: "feed-id"                # Unique identifier (required)
       name: "Human Name"           # Display name (required)
       url: "https://..."           # Feed URL, http:// or https:// only (required)
-      format: plaintext            # plaintext, csv, json (default: plaintext)
+      format: plaintext            # plaintext, csv, json, stix (default: plaintext)
       enabled: true                # Per-feed enable/disable (default: true)
       refresh_interval_secs: 3600  # Seconds between re-fetches (default: 3600)
       max_iocs: 500000             # Max IOCs to load from this feed (default: 500000)
@@ -48,7 +48,7 @@ threatintel:
 | `id` | `string` | Yes | — | Unique feed identifier |
 | `name` | `string` | Yes | — | Human-readable feed name |
 | `url` | `string` | Yes | — | Feed URL. Must use `http://` or `https://` (SSRF prevention) |
-| `format` | `string` | No | `"plaintext"` | Data format: `plaintext`, `txt`, `text`, `csv`, `json` |
+| `format` | `string` | No | `"plaintext"` | Data format: `plaintext`, `txt`, `text`, `csv`, `json`, `stix` |
 | `enabled` | `bool` | No | `true` | Enable/disable this feed |
 | `refresh_interval_secs` | `integer` | No | `3600` | Seconds between re-fetches. Must be > 0 |
 | `max_iocs` | `integer` | No | `500000` | Maximum IOCs to load. Excess entries are truncated |
@@ -130,6 +130,48 @@ format: json
 ip_field: indicator
 category_field: type
 confidence_field: pulse_count
+```
+
+### STIX 2.1
+
+Expects a STIX 2.1 bundle (`{"type": "bundle", "objects": [...]}`). The parser extracts indicators from multiple object types and distributes them to the appropriate engines:
+
+| STIX Object | Extracted Data | Target Engine |
+|-------------|---------------|---------------|
+| `indicator` (SDO) | IPs from pattern (`[ipv4-addr:value = '...']`) | Threat Intel |
+| `indicator` (SDO) | Domains from pattern (`[domain-name:value = '...']`) | DNS Blocklist + Domain Reputation |
+| `indicator` (SDO) | URLs from pattern (`[url:value = '...']`) | L7 Firewall |
+| `ipv4-addr` / `ipv6-addr` (SCO) | IP address directly | Threat Intel (confidence=50) |
+| `domain-name` (SCO) | Domain name directly | DNS Blocklist (confidence=50) |
+| `malware` / `attack-pattern` / `threat-actor` (SDO) | Threat type enrichment | Via `relationship` objects |
+| `relationship` (SRO) | Links indicator to malware/attack-pattern | Overrides `indicator_types` mapping |
+
+**Supported pattern forms:** `[type:value = '...']` (simple equality). Compound patterns (`AND`, `OR`) are supported for multiple values. Complex STIX patterning operators (`LIKE`, `MATCHES`, `IN`) are not supported.
+
+**Temporal filtering:** Indicators with `valid_until` in the past are automatically skipped.
+
+**Source tagging:** Domain patterns injected from STIX feeds are tagged with `stix:<feed-id>`, enabling bulk cleanup on feed refresh via `remove_patterns_by_source`.
+
+**`indicator_types` mapping:**
+
+| STIX indicator type | Maps to |
+|--------------------|---------|
+| `malicious-activity`, `malware` | Malware |
+| `command-and-control`, `botnet` | C2 |
+| `compromised`, `anomalous-activity` | Scanner |
+| `unwanted` | Spam |
+| anything else | Other |
+
+```yaml
+threatintel:
+  feeds:
+    - id: misp-stix
+      name: MISP STIX Feed
+      url: https://misp.internal.corp/feeds/stix2.1/bundle.json
+      format: stix
+      refresh_interval_secs: 1800
+      min_confidence: 40
+      auth_header: "Authorization: Bearer misp-api-key"
 ```
 
 ## Deduplication

@@ -11,6 +11,16 @@
 | `application` | `#![forbid(unsafe_code)]` | Orchestration only |
 | `infrastructure` | `#![forbid(unsafe_code)]` | Config, logging, metrics |
 | `adapters` | `#![deny(unsafe_code)]` | One targeted `#[allow]` for eBPF ring buffer parsing |
+| `ebpf-common` | `#![deny(unsafe_op_in_unsafe_fn)]` | Shared kernel/userspace types — enforces explicit unsafe blocks inside unsafe fns |
+
+### UB Detection
+
+| Tool | Scope | What it checks |
+|------|-------|----------------|
+| **Miri** | `ebpf-common` | Undefined behavior in `Pod` impls, alignment, uninitialized memory, aliasing (Tree Borrows) |
+| **cargo-careful** | All userspace crates | Extra stdlib UB checks, integer overflow, out-of-bounds in release mode |
+
+Both run in the daily `security.yml` CI workflow.
 
 ### Dependency Auditing
 

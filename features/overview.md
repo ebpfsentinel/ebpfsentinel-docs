@@ -15,7 +15,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Rate Limiting](ratelimit.md) | OSS | Shipped | XDP | 5 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | Shipped | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
 | [L4 Load Balancer](loadbalancer.md) | OSS | Shipped | XDP | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn |
-| [Threat Intelligence](threatintel.md) | OSS | Shipped | TC classifier | OSINT feeds, Bloom filter, IOC correlation, VLAN quarantine |
+| [Threat Intelligence](threatintel.md) | OSS | Shipped | TC classifier | OSINT feeds (plaintext, CSV, JSON, STIX 2.1), IOC correlation, multi-engine distribution (IP, domain, URL), VLAN quarantine |
 | [L7 Firewall](l7-firewall.md) | OSS | Shipped | Userspace | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB protocol-aware rules |
 | [DNS Intelligence](dns-intelligence.md) | OSS | Shipped | TC classifier | Passive DNS, domain blocklists, feed integration |
 | [Alerting](alerting.md) | OSS | Shipped | Userspace | Circuit breaker, dedup, routing to email/webhook/log |
@@ -28,7 +28,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [NAT](nat.md) | OSS | Shipped | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | Shipped | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Shipped | Kernel + Userspace | Network zones with inter-zone policies |
-| [QoS / Traffic Shaping](qos.md) | OSS | Shipped | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, delay/loss emulation |
+| [QoS / Traffic Shaping](qos.md) | OSS | Shipped | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation |
 | [IP/Port Aliases](aliases.md) | OSS | Shipped | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | Shipped | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 | [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Shipped | Userspace | 13 techniques mapped, filter by tactic/technique, coverage dashboard |
@@ -39,7 +39,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 
 | Feature | Edition | Status | Description |
 |---------|---------|--------|-------------|
-| REST API (80+ routes) | OSS | Shipped | OpenAPI 3.0, Swagger UI, Axum |
+| REST API (82 endpoints) | OSS | Shipped | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Shipped | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Shipped | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | Shipped | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -92,7 +92,7 @@ Twelve kernel programs cover all enforcement points:
 | `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure, interface groups |
 | `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN quarantine, backpressure |
-| `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, delay/loss emulation, interface groups |
+| `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
 

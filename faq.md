@@ -60,7 +60,7 @@ The OSS edition ships with 9 built-in patterns (PCI, PII, credentials) that are 
 
 ### What threat intelligence feed formats are supported?
 
-Plaintext (one IOC per line), CSV (configurable column mapping), and JSON (field name mapping). STIX support is planned but not yet implemented.
+Plaintext (one IOC per line), CSV (configurable column mapping), JSON (field name mapping), and STIX 2.1 bundles. STIX feeds automatically distribute indicators to the appropriate engines: IPs to threat intel, domains to DNS blocklist and reputation, URLs to L7 firewall.
 
 ### How does hot reload work?
 
