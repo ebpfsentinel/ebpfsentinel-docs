@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 12 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
+eBPFsentinel includes 14 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
 
 ## Programs
 
@@ -11,6 +11,8 @@ eBPFsentinel includes 12 eBPF kernel programs, all written in Rust using the [Ay
 | `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering + reject (XDP_TX) |
 | `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection + per-country rate limit tiers (LPM) |
 | `xdp-loadbalancer` | XDP | `crates/ebpf-programs/xdp-loadbalancer/` | L4 load balancing (TCP/UDP/TLS passthrough) |
+| `xdp-firewall-reject` | XDP (tail-call) | `crates/ebpf-programs/xdp-firewall-reject/` | TCP RST / ICMP Unreachable forging for REJECT action |
+| `xdp-ratelimit-syncookie` | XDP (tail-call) | `crates/ebpf-programs/xdp-ratelimit-syncookie/` | SYN cookie SYN+ACK forging for DDoS protection |
 | `tc-conntrack` | TC classifier | `crates/ebpf-programs/tc-conntrack/` | Connection tracking (TCP/UDP/ICMP state machine) |
 | `tc-scrub` | TC classifier | `crates/ebpf-programs/tc-scrub/` | Packet normalization (TTL, MSS, DF, IP ID, TCP flags, ECN, TOS, TCP timestamps) |
 | `tc-nat-ingress` | TC ingress | `crates/ebpf-programs/tc-nat-ingress/` | DNAT (destination NAT, ingress direction) |
@@ -52,7 +54,7 @@ The most feature-rich eBPF program. Processes packets through a 5-phase pipeline
 Key eBPF features:
 
 - **LPM Trie** maps for O(log n) CIDR matching (4 tries: src/dst × IPv4/IPv6)
-- **PROG_ARRAY** tail-call to `xdp-ratelimit` for chained processing
+- **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`
 - **DEVMAP** for packet mirroring to monitoring interfaces
 - **CPUMAP** for NUMA-aware CPU steering
 - **bpf_fib_lookup** for FIB routing enrichment and policy routing
@@ -65,14 +67,14 @@ Key eBPF features:
 - MAC address matching (L2), DSCP classification
 - IP set maps for aliases and overload blacklist
 - Per-source state counters for connection limit enforcement
-- **Reject action** via `XDP_TX` — forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable and transmits back to sender using `bpf_xdp_adjust_tail`
+- **Reject action** via tail-call to `xdp-firewall-reject` (slot 1) — forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable in a separate program with its own 512-byte stack budget, then transmits back via `XDP_TX`
 
 ## XDP Rate Limiter (xdp-ratelimit)
 
 - **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching — if a source IP falls within a country tier's CIDR range, the tier config is used
 - **PerCPU Hash** maps for lock-free per-IP counters
 - **bpf_timer** for periodic bucket expiration
-- **XDP SYN cookies** — forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret from `SYNCOOKIE_SECRET` map) via `XDP_TX`, validates ACK with dual-window check; replaces `bpf_tcp_gen_syncookie`
+- **XDP SYN cookies** — via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
 - **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
 - 5 algorithms: token bucket, fixed window, sliding window, leaky bucket, SYN cookie
@@ -98,6 +100,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`
 - **LB_METRICS PerCpuArray**: per-CPU forwarding counters read by `MetricsReader`
 - Health-aware: unhealthy backends are skipped in selection
+- **Tail-call integration**: when firewall and/or ratelimit are active on the same interface, the LB runs as a tail-call target (FW slot 2, RL slot 1) instead of attaching directly. Standalone mode when no other XDP program is present.
 
 ## TC IDS (tc-ids)
 
@@ -188,7 +191,7 @@ All features require Linux kernel 6.1+ with BTF. See the [Compatibility](../oper
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 12 programs with nightly
+cargo xtask ebpf-build    # Builds all 14 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

@@ -10,28 +10,47 @@ Network Interface
     ▼
 XDP Hook (earliest possible)
     │
-    ├── xdp-firewall
+    ├── xdp-firewall (attached to interface)
     │   ├── LPM trie lookup (CIDR rules)
     │   ├── Linear scan (port/protocol/VLAN rules)
     │   ├── XDP_DROP (denied) ──→ [end]
+    │   ├── ACTION_REJECT → tail_call slot 1 → xdp-firewall-reject
+    │   │   └── Forge TCP RST / ICMP Unreachable → XDP_TX ──→ [sent back]
     │   ├── XDP_PASS + emit RingBuf event
-    │   └── tail_call → xdp-ratelimit
-    │       ├── Country LPM tier lookup (RL_LPM_SRC_V4/V6)
-    │       ├── DDoS protections (SYN/ICMP/UDP amp/conntrack)
-    │       ├── Per-IP rate check (PerCPU hash)
-    │       ├── XDP_DROP (rate exceeded or DDoS detected) ──→ [end]
-    │       └── XDP_PASS + emit RingBuf event
+    │   │   └── tail_call slot 0 → xdp-ratelimit
+    │   │       ├── Country LPM tier lookup (RL_LPM_SRC_V4/V6)
+    │   │       ├── DDoS protections (SYN/ICMP/UDP amp/conntrack)
+    │   │       ├── SYN flood → tail_call → xdp-ratelimit-syncookie
+    │   │       │   └── Forge SYN+ACK cookie → XDP_TX ──→ [sent back]
+    │   │       ├── Per-IP rate check (PerCPU hash)
+    │   │       ├── XDP_DROP (rate exceeded or DDoS) ──→ [end]
+    │   │       └── XDP_PASS → tail_call → xdp-loadbalancer
+    │   │           ├── Service lookup → DNAT → XDP_TX/XDP_REDIRECT
+    │   │           └── No match → XDP_PASS
+    │   └── (if ratelimit absent) tail_call slot 2 → xdp-loadbalancer
     │
     ▼
 Kernel Network Stack (SKB allocation)
     │
     ▼
-TC Hook (classifier)
+TC Hook (ingress classifier)
+    │
+    ├── tc-conntrack
+    │   ├── TCP/UDP/ICMP state machine
+    │   └── Bidirectional connection tracking (shared CT_TABLE)
+    │
+    ├── tc-scrub
+    │   ├── TTL / MSS / DF / IP ID normalization
+    │   └── TCP timestamp stripping
+    │
+    ├── tc-nat-ingress
+    │   ├── NPTv6 prefix translation (stateless)
+    │   ├── DNAT rule scan (bpf_loop) + hairpin NAT
+    │   └── L3/L4 checksum update
     │
     ├── tc-ids
     │   ├── Sampling (bpf_get_prandom_u32)
     │   ├── L7 detection (bpf_strncmp)
-    │   ├── Backpressure check (bpf_ringbuf_query)
     │   └── Emit PacketEvent to RingBuf
     │
     ├── tc-threatintel
@@ -53,7 +72,8 @@ Application
 TC Hook (egress)
     │
     ├── tc-nat-egress
-    │   ├── SNAT / masquerade rule scan
+    │   ├── NPTv6 prefix translation (stateless)
+    │   ├── SNAT / masquerade rule scan (bpf_loop)
     │   └── Source IP/port rewrite + checksum update
     │
     └── tc-qos
@@ -66,6 +86,12 @@ TC Hook (egress)
     │
     ▼
 Wire
+
+uprobe Hook (SSL_write / SSL_read)
+    │
+    └── uprobe-dlp
+        ├── Capture plaintext before encryption / after decryption
+        └── Emit DlpEvent to RingBuf
 ```
 
 ### 2. Event Dispatch (Userspace)
@@ -194,6 +220,9 @@ Some eBPF maps are updated from userspace:
 | Rate limit country LPM (×2) | Userspace → Kernel | GeoIP country tier reload |
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
+| Syncookie secret | Userspace → Kernel | 32-byte FNV-1a secret for SYN cookie generation |
+| Conntrack tables (CT_TABLE_V4/V6) | Kernel ↔ Kernel | Shared via pinning between xdp-firewall and tc-conntrack |
+| XDP PROG_ARRAY | Userspace → Kernel | Tail-call wiring: firewall → ratelimit/reject/loadbalancer |
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
 | Threat intel LRU hash maps | Userspace → Kernel | IOC exact-match confirmation |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |

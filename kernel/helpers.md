@@ -12,7 +12,7 @@ eBPFsentinel uses 30+ kernel helper functions across its programs. This page doc
 | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | 4.5+ | tc-ids | Load packet bytes into stack buffer for DPI |
 | [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | 4.3+ | tc-ids | Linearize multi-fragment SKBs before deep packet inspection |
 | [`bpf_xdp_adjust_meta`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_meta/) | 4.15+ | xdp-firewall | Prepend metadata area before packet data for XDP-to-TC passing |
-| [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.18+ | xdp-firewall, xdp-ratelimit | Grow or shrink packet tail for reject responses and SYN cookie SYN+ACK packets |
+| [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.18+ | xdp-firewall, xdp-firewall-reject, xdp-ratelimit, xdp-ratelimit-syncookie | Grow or shrink packet tail for reject responses and SYN cookie SYN+ACK packets |
 | [`bpf_skb_vlan_push`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_push/) | 4.3+ | tc-threatintel | Push 802.1Q VLAN tag for quarantine tagging |
 | [`bpf_skb_vlan_pop`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_pop/) | 4.3+ | tc-threatintel | Remove VLAN tag |
 | [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | 4.2+ | tc-ids | Clone packet and redirect copy to a mirror interface for forensic capture (enterprise) |
@@ -38,7 +38,7 @@ eBPFsentinel uses 30+ kernel helper functions across its programs. This page doc
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/) | 4.2+ | xdp-firewall | Jump to xdp-ratelimit via PROG_ARRAY for chained processing |
+| [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/) | 4.2+ | xdp-firewall, xdp-ratelimit | Chain XDP programs: firewall → ratelimit → loadbalancer, firewall → reject, ratelimit → syncookie → loadbalancer |
 
 ### Event Emission (RingBuf)
 

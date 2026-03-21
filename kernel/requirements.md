@@ -4,14 +4,14 @@
 
 | Requirement | Value |
 |-------------|-------|
-| Linux kernel | **6.1+** |
+| Linux kernel | **6.6+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Capabilities | `CAP_BPF` + `CAP_NET_ADMIN` (or root) |
 
 Verify on your system:
 
 ```bash
-uname -r                       # Must be >= 6.1
+uname -r                       # Must be >= 6.6
 ls /sys/kernel/btf/vmlinux     # Must exist
 ```
 

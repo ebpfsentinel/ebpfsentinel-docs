@@ -9,36 +9,66 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
                     │          NIC (driver)       │
                     └──────────────┬──────────────┘
                                    │
-                    ╔══════════════╧════════════════════╗
-                    ║     XDP Hook (earliest)           ║
-                    ╠═══════════════════════════════════╣
-                    ║                                   ║
-                    ║  ┌──────────────────────────┐     ║
-                    ║  │    xdp-firewall          │     ║
-                    ║  │                          │     ║
-                    ║  │  1. Conntrack fast-path  │     ║
-                    ║  │  2. LPM trie lookup      │     ║
-                    ║  │  3. Linear rule scan     │     ║
-                    ║  │  4. Connection limits    │     ║
-                    ║  │  5. Routing actions      │     ║
-                    ║  └──────┬────────┬──────────┘     ║
-                    ║         │        │                ║
-                    ║    XDP_DROP   tail_call           ║
-                    ║    [end]      (PROG_ARRAY)        ║
-                    ║              │                    ║
-                    ║  ┌───────────▼──────────────┐     ║
-                    ║  │    xdp-ratelimit          │    ║
-                    ║  │                           │    ║
-                    ║  │  • Per-IP rate check      │    ║
-                    ║  │  • SYN cookie protection  │    ║
-                    ║  │  • ICMP rate limiting     │    ║
-                    ║  │  • UDP amp detection      │    ║
-                    ║  └──────┬────────┬───────────┘    ║
-                    ║         │        │                ║
-                    ║    XDP_DROP   XDP_PASS            ║
-                    ║    [end]      + metadata          ║
-                    ║              (bpf_xdp_adjust_meta)║
-                    ╚══════════════╤════════════════════╝
+                    ╔══════════════╧══════════════════════════════════╗
+                    ║     XDP Hook (earliest)                          ║
+                    ╠══════════════════════════════════════════════════╣
+                    ║                                                  ║
+                    ║  ┌──────────────────────────────────┐            ║
+                    ║  │    xdp-firewall (attached)       │            ║
+                    ║  │                                  │            ║
+                    ║  │  1. Conntrack fast-path          │            ║
+                    ║  │  2. LPM trie lookup              │            ║
+                    ║  │  3. Linear rule scan             │            ║
+                    ║  │  4. Connection limits            │            ║
+                    ║  │  5. Routing actions              │            ║
+                    ║  └───┬──────────┬──────────┬────────┘            ║
+                    ║      │          │          │                     ║
+                    ║  XDP_DROP  PROG_ARRAY  PROG_ARRAY               ║
+                    ║  [end]     slot 0      slot 1                   ║
+                    ║      │          │          │                     ║
+                    ║      │          ▼          ▼                     ║
+                    ║      │  ┌──────────────┐  ┌───────────────────┐  ║
+                    ║      │  │xdp-ratelimit │  │xdp-firewall-     │  ║
+                    ║      │  │              │  │reject             │  ║
+                    ║      │  │ • Per-IP     │  │                   │  ║
+                    ║      │  │   rate check │  │ • TCP RST forge   │  ║
+                    ║      │  │ • ICMP limit │  │ • ICMP Unreach    │  ║
+                    ║      │  │ • UDP amp    │  │   forge           │  ║
+                    ║      │  │   detection  │  │                   │  ║
+                    ║      │  └──┬───┬───┬───┘  └───────┬───────────┘  ║
+                    ║      │     │   │   │              │              ║
+                    ║      │  XDP_   │  RL_PROG     XDP_TX            ║
+                    ║      │  DROP   │  slot 0      [reject           ║
+                    ║      │  [end]  │   │           & return]        ║
+                    ║      │        │   ▼                             ║
+                    ║      │        │  ┌─────────────────┐            ║
+                    ║      │        │  │xdp-ratelimit-   │            ║
+                    ║      │        │  │syncookie        │            ║
+                    ║      │        │  │                 │            ║
+                    ║      │        │  │ • SYN+ACK forge │            ║
+                    ║      │        │  │   (FNV-1a)     │            ║
+                    ║      │        │  └───────┬─────────┘            ║
+                    ║      │        │          │                      ║
+                    ║      │        │       XDP_TX                    ║
+                    ║      │        │       [cookie                   ║
+                    ║      │        │        & return]                ║
+                    ║      │        │                                 ║
+                    ║      │     RL_PROG  ◄── also FW PROG_ARRAY     ║
+                    ║      │     slot 1       slot 2 (fallback       ║
+                    ║      │        │         when RL absent)        ║
+                    ║      │        ▼                                 ║
+                    ║      │  ┌──────────────────┐                    ║
+                    ║      │  │xdp-loadbalancer  │                    ║
+                    ║      │  │                  │                    ║
+                    ║      │  │ • Service lookup │                    ║
+                    ║      │  │ • Backend select │                    ║
+                    ║      │  │ • DNAT rewrite   │                    ║
+                    ║      │  └───────┬──────────┘                    ║
+                    ║      │          │                               ║
+                    ║      │       XDP_PASS                           ║
+                    ║      │       + metadata                         ║
+                    ║      │       (bpf_xdp_adjust_meta)              ║
+                    ╚══════╧══════════╤════════════════════════════════╝
                                    │
                     ┌──────────────▼──────────────┐
                     │    Kernel Network Stack      │

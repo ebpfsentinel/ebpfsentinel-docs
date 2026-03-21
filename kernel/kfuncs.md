@@ -140,7 +140,9 @@ Available on 6.1+ but requires kfunc support in aya.
 
 | Phase | Kfuncs | Dependency |
 |-------|--------|------------|
-| **Phase 1** (when aya adds kfunc support) | CT kfuncs — replace custom conntrack with nf_conntrack integration | aya kfunc API |
-| **Phase 2** (kernel 6.4+ target) | Dynptr kfuncs — replace `ptr_at` with safe dynptr access | Minimum kernel bump |
-| **Phase 3** (kernel 6.8+ target) | XDP metadata, XFRM kfuncs | Minimum kernel bump |
-| **Phase 4** (kernel 6.10+ target) | Crypto kfuncs for DLP, string kfuncs for DNS | Minimum kernel bump |
+| **Phase 1** (when aya adds kfunc support) | CT kfuncs (5.18+), `bpf_sock_destroy` (6.5), `bpf_skb_get_xfrm_info` (6.2) — all within our 6.6 minimum | aya kfunc API only |
+| **Phase 2** (when aya adds kfunc support) | Dynptr kfuncs (6.4) — replace `ptr_at` with safe dynptr access, resolve verifier issues | aya kfunc API only |
+| **Phase 3** (kernel bump to 6.8+) | XDP metadata kfuncs, open-coded iterators | Minimum kernel bump |
+| **Phase 4** (kernel bump to 6.10+) | Crypto kfuncs for DLP, string kfuncs for DNS | Minimum kernel bump |
+
+With the 6.6 minimum kernel, Phases 1-2 are **unblocked by kernel version** — they only need aya to expose the kfunc calling API. When aya adds kfunc support, all CT, dynptr, sock_destroy, and XFRM kfuncs can be adopted immediately without a kernel bump.

@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 12 eBPF kernel programs.
+Detailed documentation for each of the 14 eBPF kernel programs.
 
 ## XDP Programs
 
@@ -76,20 +76,35 @@ Policy routing via [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function
 
 MTU validated with [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) before any redirect.
 
-#### Reject Action (XDP_TX)
+#### Reject Action (Tail-Call to xdp-firewall-reject)
 
-When a rule has `action: reject`, the firewall forges a response packet and transmits it back via `XDP_TX`:
+When a rule has `action: reject`, the firewall returns a sentinel value (`0xFF`) to the entry point, which tail-calls into `xdp-firewall-reject` via `PROG_ARRAY` slot 1. The reject program runs with its own fresh 512-byte stack:
 
-- **TCP**: Constructs a TCP RST with correct seq/ack numbers per RFC 793 by swapping addresses/ports and rewriting headers in-place
-- **UDP/other IPv4**: Constructs an ICMP Destination Unreachable (type 3, code 3) using [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) to resize the packet
+- **TCP**: Constructs a TCP RST with correct seq/ack numbers per RFC 793
+- **UDP/other IPv4**: Constructs an ICMP Destination Unreachable (type 3, code 3)
 - **IPv6 + TCP**: TCP RST with IPv6 headers
 - **IPv6 + UDP**: ICMPv6 Destination Unreachable (type 1, code 4)
 
-If packet construction fails, the program silently falls back to `XDP_DROP`.
+The reject program reads packet context from the shared `PKT_CTX` PerCpuArray map (populated by `process_firewall_v4/v6`), rebuilds the packet at constant offsets (stripping any VLAN tags), and transmits via `XDP_TX`. If the reject program is not loaded, the tail-call silently fails and the packet is dropped (`XDP_DROP`).
 
-#### Tail-Call to Rate Limiter
+Verifier-safe patterns used:
+- `copy_mac_asm!` for MAC address swaps (prevents LLVM memcpy outlining)
+- `barrier()` after `bpf_xdp_adjust_tail` (prevents pointer hoisting)
+- Constant write offsets (14/34/54) for verifier-provable packet writes
+- `REJECT_SCRATCH` PerCpuArray for ICMP payload buffers (avoids stack overflow)
+- Shared checksum functions from `ebpf_helpers::checksum` with fixed-iteration folds
 
-When the firewall passes a packet, it tail-calls into `xdp-ratelimit` via [`PROG_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PROG_ARRAY/) + [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/). This means only one XDP program needs to be attached to the interface.
+#### XDP Tail-Call Chain
+
+The firewall entry point dispatches via `XDP_PROG_ARRAY`:
+
+| Slot | Target | Condition |
+|------|--------|-----------|
+| 0 | `xdp-ratelimit` | On `XDP_PASS` (first attempt) |
+| 1 | `xdp-firewall-reject` | On `ACTION_REJECT` sentinel |
+| 2 | `xdp-loadbalancer` | On `XDP_PASS` if ratelimit slot is empty |
+
+When ratelimit is loaded, it handles the loadbalancer chain itself (RL slot 1 → LB). The firewall's slot 2 is a fallback for when ratelimit is disabled but loadbalancer is enabled.
 
 #### XDP Metadata
 
@@ -111,7 +126,7 @@ The firewall is the pilot program for `BPF_MAP_TYPE_USER_RINGBUF`. Userspace pus
 
 ### xdp-ratelimit
 
-**Hook:** [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) (via tail-call) | **Path:** `crates/ebpf-programs/xdp-ratelimit/`
+**Hook:** XDP (standalone or via tail-call from xdp-firewall) | **Path:** `crates/ebpf-programs/xdp-ratelimit/`
 
 Per-IP rate limiting and DDoS protection at XDP speed.
 
