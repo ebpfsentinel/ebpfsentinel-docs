@@ -2,80 +2,94 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** — 12 eBPF programs attached at XDP, TC, and uprobe hook points
+1. **Kernel-space** — 14 eBPF programs attached at XDP, TC, and uprobe hook points
 2. **Userspace** — Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
-graph TB
-    subgraph Kernel["Kernel (eBPF)"]
-        direction LR
-        XDP_FW["<b>XDP</b><br/>xdp-firewall<br/><i>LPM trie · DEVMAP · CPUMAP</i>"]
-        XDP_RL["<b>XDP</b><br/>xdp-ratelimit<br/><i>PerCPU · SYN cookie · bpf_timer</i>"]
-        XDP_LB["<b>XDP</b><br/>xdp-loadbalancer<br/><i>L4 DNAT · health-aware</i>"]
-        TC["<b>TC classifier</b><br/>tc-ids · tc-threatintel · tc-dns<br/>tc-conntrack · tc-nat · tc-qos · tc-scrub<br/><i>Bloom filter · L7 detect · VLAN rewrite</i>"]
-        UPROBE["<b>uprobe</b><br/>uprobe-dlp"]
-        XDP_FW -->|"tail_call<br/>(PROG_ARRAY)"| XDP_RL
-        XDP_FW -->|"bpf_xdp_adjust_meta<br/>(metadata)"| TC
-    end
-
-    XDP_FW -->|RingBuf| ED
-    XDP_RL -->|RingBuf| ED
-    XDP_LB -->|RingBuf| ED
-    TC -->|RingBuf| ED
-    UPROBE -->|RingBuf| ED
-
-    subgraph Userspace["Userspace (Rust)"]
-        ED[EventDispatcher]
-
-        subgraph Engines["Domain Engines"]
-            FW[Firewall]
-            IDS[IDS / IPS]
-            L7[L7 Protocol Parser]
-            DLP[DLP]
-            RL[Rate Limit]
-            DDOS[DDoS Detection]
-            TI[Threat Intel]
-            DNS[DNS Intelligence]
-            DR[Domain Reputation]
-            LB[Load Balancer]
-            NAT[NAT]
-            CT[Conntrack]
-            QOS[QoS]
-            RT[Routing]
-            ZN[Zone]
+flowchart TB
+    subgraph kernel["Linux Kernel (14 eBPF programs)"]
+        direction TB
+        subgraph xdp["XDP — wire-speed packet processing"]
+            fw["xdp-firewall\n(stateful L3/L4)"]
+            fw_rej["xdp-firewall-reject\n(TCP RST / ICMP)"]
+            rl["xdp-ratelimit\n(DDoS / rate limit)"]
+            rl_sc["xdp-ratelimit-syncookie\n(SYN cookie forge)"]
+            lb["xdp-loadbalancer\n(L4 DNAT)"]
         end
-
-        ENRICH["Alert Enrichment<br/>DNS · Reputation · GeoIP"]
-        AR[AlertRouter]
-        Senders["Senders<br/>Email · Webhook · Log"]
-
-        ED --> Engines
-        Engines --> ENRICH
-        ENRICH --> AR
-        AR --> Senders
+        subgraph tc["TC — deep packet inspection & rewriting"]
+            ct[tc-conntrack]
+            scrub[tc-scrub]
+            nat_i[tc-nat-ingress]
+            nat_e[tc-nat-egress]
+            ids[tc-ids]
+            ti[tc-threatintel]
+            dns[tc-dns]
+            qos[tc-qos]
+        end
+        uprobe["uprobe-dlp\n(SSL/TLS intercept)"]
     end
 
-    subgraph Interfaces["External Interfaces"]
-        REST["REST API<br/>OpenAPI · Swagger UI"]
-        GRPC["gRPC<br/>Alert Streaming"]
-        PROM["Prometheus<br/>Metrics"]
+    packets(("Packets")) --> fw
+
+    fw -- "PASS → slot 0" --> rl
+    fw -- "REJECT → slot 1" --> fw_rej
+    fw -- "PASS (no RL) → slot 2" --> lb
+    rl -- "SYN flood → slot 0" --> rl_sc
+    rl -- "PASS → slot 1" --> lb
+    fw_rej -- "XDP_TX" --> packets
+    rl_sc -- "XDP_TX" --> packets
+    lb -- "XDP_TX / REDIRECT" --> packets
+
+    fw -- "XDP_PASS" --> tc
+    tc --- uprobe
+
+    subgraph agent["Userspace Agent (Rust)"]
+        direction LR
+        subgraph domain["Domain Engines"]
+            de["Pure business logic\n(zero deps)"]
+        end
+        subgraph app["Application Services"]
+            as["Use cases\n& orchestration"]
+        end
+        subgraph adapters["Adapters"]
+            ebpf_a["eBPF maps\n& events"]
+            http["REST API\n(Axum)"]
+            grpc["gRPC\n(tonic)"]
+            store["Storage\n(redb)"]
+            otlp["OTLP exporter\n(logs/traces)"]
+        end
     end
 
-    Userspace --- REST
-    Userspace --- GRPC
-    Userspace --- PROM
+    xdp -- "RingBuf / Maps" --> ebpf_a
+    tc -- "RingBuf / Maps" --> ebpf_a
+    uprobe -- "RingBuf" --> ebpf_a
+
+    ebpf_a --> as
+    as --> de
+    http --> as
+    grpc --> as
+    store --> as
+
+    cli(("CLI")) --> http
+    swagger(("Swagger UI")) --> http
+    prom(("Prometheus")) --> http
+    alerts(("Alert clients")) --> grpc
+    otel(("OTLP collector")) --> otlp
+    otlp --> as
 ```
 
 ## Crate Dependency Graph
 
 | Crate | Role | Depends On |
 |-------|------|-----------|
+| `ebpf-common` | Shared `#[repr(C)]` types (kernel + userspace) | Nothing |
 | `domain` | Business logic, engines, entities | Nothing |
 | `ports` | Trait definitions (primary + secondary) | `domain` |
 | `application` | Use cases, pipelines, orchestration | `domain`, `ports` |
 | `infrastructure` | Config, logging, metrics | `domain`, `ports` |
-| `adapters` | HTTP, gRPC, eBPF, storage (redb) | `domain`, `ports` |
+| `adapters` | HTTP, gRPC, eBPF, storage (redb), GeoIP | `domain`, `ports` |
 | `agent` | Binary entry point, startup | All crates |
+| `xtask` | Build orchestration (eBPF multi-program builds) | None |
 
 ## Project Structure
 
@@ -94,7 +108,9 @@ ebpfsentinel/
 │   ├── ebpf-common/                  # Shared #[repr(C)] types (kernel + userspace)
 │   ├── ebpf-programs/                # eBPF kernel programs (nightly, bpfel-unknown-none)
 │   │   ├── xdp-firewall/
+│   │   ├── xdp-firewall-reject/
 │   │   ├── xdp-ratelimit/
+│   │   ├── xdp-ratelimit-syncookie/
 │   │   ├── xdp-loadbalancer/
 │   │   ├── tc-ids/
 │   │   ├── tc-threatintel/
@@ -112,8 +128,8 @@ ebpfsentinel/
 │   ├── infrastructure/               # Config, logging, metrics
 │   ├── agent/                        # Binary entry point
 │   └── xtask/                        # Build orchestration
-├── tests/integration/                # BATS integration tests (30 suites)
-├── fuzz/                             # libFuzzer fuzz targets (24 targets)
+├── tests/integration/                # BATS integration tests
+├── fuzz/                             # libFuzzer fuzz targets
 └── .github/workflows/                # CI/CD pipelines
 ```
 
@@ -125,3 +141,10 @@ ebpfsentinel/
 - **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure crates
 - **Single binary** — no sidecar processes, no daemon dependencies
 - **Source-agnostic feeds** — threat intel feeds are configured in YAML, no provider-specific code
+- **MITRE ATT&CK mapping** — every alert tagged with tactic + technique ID
+- **GeoIP enforcement** — MaxMind-backed country resolution shared across all engines
+- **Hot reload** — configuration updates without restart (file watcher, SIGHUP, or API)
+- **JWT/OIDC/API key auth** — role-based access control (Admin, Operator, Viewer)
+- **TLS 1.3** — REST and gRPC secured with rustls + aws_lc_rs
+- **OTLP export** — alerts as OpenTelemetry Logs to any OTLP-compatible collector
+- **CLI** — 13 domain subcommands covering all endpoints
