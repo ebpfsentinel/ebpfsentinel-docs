@@ -60,6 +60,10 @@ EGRESS:
                     → TC egress (tc-qos: traffic shaping) → wire
 ```
 
+## Dynamic Program Lifecycle
+
+All 10 eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
+
 ## Cross-Cutting: Interface Groups
 
 Six of the 12 eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share an `INTERFACE_GROUPS` HashMap map that maps ifindex to a u32 bitmask. Each rule struct in these programs carries a `group_mask` field. When `group_mask == 0`, the rule is a **floating rule** and applies everywhere. Otherwise, the program performs a single AND + compare against the current interface's group bitmask to decide whether the rule applies. Bit 31 acts as an inversion flag. Up to 31 groups are supported. See [Interface Groups](../features/interface-groups.md).

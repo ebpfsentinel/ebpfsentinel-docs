@@ -38,7 +38,7 @@ The DaemonSet performs a rolling update — one node at a time. During the upgra
 
 ## Configuration Changes
 
-Most configuration changes don't require a restart:
+Most configuration changes don't require a restart — including enabling or disabling entire features, which dynamically loads or unloads the corresponding eBPF programs:
 
 ```bash
 # Edit config
@@ -49,6 +49,8 @@ kill -HUP $(pidof ebpfsentinel-agent)
 # Or:
 curl -X POST http://localhost:8080/api/v1/config/reload
 ```
+
+See [Hot Reload](hot-reload.md) for the full reference on what can be reloaded at runtime.
 
 ## Rollback
 

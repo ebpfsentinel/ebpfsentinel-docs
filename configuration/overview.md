@@ -93,7 +93,7 @@ Per-module log filtering: `RUST_LOG=domain=debug,adapters::http=trace`
 
 ## Hot Reload
 
-The agent watches the config file for changes and reloads rules without restart:
+The agent watches the config file for changes and applies them without restart — including dynamically loading and unloading eBPF kernel programs when features are enabled or disabled:
 
 ```bash
 # Send SIGHUP
@@ -102,8 +102,12 @@ kill -HUP $(pidof ebpfsentinel-agent)
 # Or via REST API
 curl -X POST http://localhost:8080/api/v1/config/reload
 
-# Or let the file watcher detect changes automatically
+# Or let the file watcher detect changes automatically (500ms debounce)
 ```
+
+All 10 eBPF programs (XDP, TC, uprobe) support dynamic load/unload. The XDP tail-call chain is automatically rewired when programs are added or removed. Pinned maps preserve kernel state (connection tracking, counters) across reloads.
+
+See [Hot Reload](../operations/hot-reload.md) for the full reference.
 
 ## Validation
 
