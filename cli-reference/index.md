@@ -26,6 +26,52 @@ Display version and build information.
 ebpfsentinel-agent version
 ```
 
+### investigate
+
+Correlate all data about an IP address — alerts, connections, DNS, blacklist, and threat intel IOCs. Supports both IPv4 and IPv6.
+
+```bash
+# Investigate an IPv4 address
+ebpfsentinel-agent investigate 203.0.113.42
+
+# Investigate an IPv6 address
+ebpfsentinel-agent investigate 2001:db8::1
+
+# JSON output for scripting
+ebpfsentinel-agent investigate 203.0.113.42 -o json
+
+# Fetch more alerts
+ebpfsentinel-agent investigate 203.0.113.42 --alert-limit 500
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--alert-limit <N>` | Max alerts to fetch | `100` |
+
+Example output:
+
+```
+  IP: 203.0.113.42  |  Blacklisted: YES (auto-response:block-critical, 2158s left)  |  IOC: 1 match(es)
+
+  Alerts: 12 matching
+  COMPONENT   SEVERITY  ACTION  SOURCE              DESTINATION         MESSAGE
+  ids         high      alert   203.0.113.42        10.0.1.15           SSH brute force (rule ssh-bf-001)
+  ddos        medium    alert   203.0.113.42        10.0.1.15           SYN rate spike from /24
+  threatintel high      alert   203.0.113.42        10.0.1.15           IOC match: abuse.ch feed
+
+  Connections: 3 active
+  SOURCE                  PORT  DESTINATION            PORT  PROTO  STATE   BYTES
+  203.0.113.42              22  10.0.1.15             38821  TCP    ESTAB    2.1 MB
+  203.0.113.42             443  10.0.1.15             52431  TCP    ESTAB  450.0 KB
+  203.0.113.42            3306  10.0.1.20             49100  TCP    SYN       0 B
+
+  DNS Reverse Lookups:
+    evil.example.com -> 203.0.113.42 (queries: 14) [BLOCKED]
+
+  Threat Intel IOC Matches:
+    203.0.113.42 (type: scanner, feed: abuse.ch, confidence: 85)
+```
+
 ### status
 
 Enhanced agent dashboard — shows version, uptime, eBPF programs, conntrack, DDoS status, and recent alerts in one view.
