@@ -26,6 +26,40 @@ Display version and build information.
 ebpfsentinel-agent version
 ```
 
+### score
+
+Network risk score — single 0-10 metric summarizing security posture based on alert severity, DDoS activity, blacklisted IPs, threat intel IOCs, and connection count.
+
+```bash
+ebpfsentinel-agent score
+ebpfsentinel-agent score --alert-limit 500
+ebpfsentinel-agent score -o json
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--alert-limit <N>` | Max alerts to analyze | `200` |
+
+Example output:
+
+```
+  Network Risk Score: 3.2 / 10 (Medium)
+
+  Contributing Factors:
+    Alerts          1.2  (0 critical, 12 high, 8 medium, 20 low)
+    DDoS            0.0  (0 active, 3 mitigated total)
+    Blacklist       1.0  (5 IPs blocked)
+    Threat Intel    0.5  (2 IOC matches)
+    Connections     0.5  (6120 active)
+```
+
+**Scoring formula** (0-10 scale):
+- **Alerts (0-3)**: weighted severity (critical=4, high=2, medium=1, low=0.25), normalized at 50 weighted points = 3.0
+- **DDoS (0-2)**: 2.0 if active attacks, 0.5 if >10 mitigated
+- **Blacklist (0-2)**: 0.5/1.0/2.0 based on count (1-4/5-19/20+)
+- **Threat Intel (0-2)**: 0.5/1.0/2.0 based on IOC count (1-9/10-49/50+)
+- **Connections (0-1)**: 0.5 if >5k, 1.0 if >10k active connections
+
 ### investigate
 
 Correlate all data about an IP address — alerts, connections, DNS, blacklist, and threat intel IOCs. Supports both IPv4 and IPv6.

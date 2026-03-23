@@ -49,7 +49,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Auto-Response](operational-essentials.md#auto-response) | OSS | Shipped | Severity-based auto block/throttle on alerts (max 3 policies, multi-component filter) |
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | Shipped | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Shipped | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
-| CLI (23 subcommands) | OSS | Shipped | `investigate` (IP correlation), `top` (top talkers), `flows` (network map), enhanced `status` dashboard |
+| CLI (24 subcommands) | OSS | Shipped | `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows` (network map), `alerts stats` |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise
