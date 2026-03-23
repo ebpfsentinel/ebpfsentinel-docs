@@ -283,6 +283,41 @@ ebpfsentinel-agent alerts list --component ids --severity high --limit 50
 ebpfsentinel-agent alerts mark-fp alert-001
 ```
 
+#### stats
+
+Alert statistics: severity distribution, top sources, top rules, component breakdown with bar chart.
+
+```bash
+ebpfsentinel-agent alerts stats
+ebpfsentinel-agent alerts stats --limit 1000
+ebpfsentinel-agent alerts stats -o json
+```
+
+Example output:
+
+```
+  Alerts: 142 total (12 critical, 34 high, 56 medium, 40 low)
+
+  Top Sources              Alerts
+  ----------------------------------------
+  203.0.113.42                 12
+  198.51.100.15                 8
+  192.168.1.50                  5
+
+  Top Rules                Alerts  Severity
+  --------------------------------------------------
+  ssh-bf-001                   12  high
+  dns-blocked                   8  medium
+  syn-flood-detect              5  critical
+
+  Components               Alerts
+  --------------------------------------------------
+  ids              67  ████████████████████
+  ddos             34  ██████████
+  dns              28  ████████
+  dlp              13  ████
+```
+
 ### audit
 
 View audit logs and rule history.
