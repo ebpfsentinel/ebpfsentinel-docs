@@ -1,5 +1,25 @@
 # Performance Tuning
 
+## XDP Attachment Mode
+
+The single highest-impact tuning knob. Native XDP runs inside the NIC driver — packets never allocate an `sk_buff`. Generic XDP (the fallback on unsupported drivers) runs after SKB allocation, losing the zero-copy advantage.
+
+```yaml
+agent:
+  xdp_mode: native    # auto | native | generic | offloaded
+```
+
+| Mode | When to use |
+|------|-------------|
+| `native` | Production on supported drivers (`virtio_net`, `mlx5`, `i40e`, `ena`, `gve`, etc.) |
+| `generic` | Development, veth pairs, unsupported drivers |
+| `auto` |  Safe default — kernel tries native first |
+| `offloaded` | Netronome NFP SmartNICs only |
+
+Check your driver: `ethtool -i eth0 | grep driver`. If it supports native XDP, set `xdp_mode: native` explicitly — this avoids any ambiguity and logs the confirmed mode at startup.
+
+> **Note**: `xdp_mode` is read at program attachment time. Changing it requires a restart or a hot-reload that re-attaches XDP programs (e.g. toggling the firewall off and on).
+
 ## IDS Sampling
 
 For high-traffic environments, enable kernel-side sampling to reduce userspace load:

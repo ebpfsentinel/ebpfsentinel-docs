@@ -68,6 +68,8 @@ When a program in the chain is disabled, the tail-call slot is cleared (becomes 
 
 The "root" XDP program (the one physically attached to the interface) is selected by priority: firewall > ratelimit > loadbalancer. If the root changes, the new root replaces it on the interface.
 
+> **XDP mode on re-attach**: when a program is re-attached during hot-reload (e.g. enabling the firewall), it uses the `agent.xdp_mode` from the current configuration. This means you can change `xdp_mode` in the YAML and trigger a reload that re-attaches XDP programs to apply the new mode without restarting the agent.
+
 ## Map Pinning and State Preservation
 
 eBPF maps are pinned to `/sys/fs/bpf/ebpfsentinel/`. When a program is unloaded and re-loaded, the new instance reuses the existing pinned maps. This preserves:

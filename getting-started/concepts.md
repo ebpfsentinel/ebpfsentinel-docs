@@ -87,6 +87,8 @@ eBPFsentinel uses three types of eBPF hooks:
 
 XDP programs can **drop, pass, redirect, or tail-call** into other XDP programs. The firewall tail-calls into the rate limiter via `PROG_ARRAY`, meaning only one XDP program needs to be attached per interface.
 
+XDP supports three attachment modes: **native** (fastest — runs in the NIC driver), **generic** (universal — runs after SKB allocation), and **offloaded** (runs on SmartNIC hardware). The mode is configurable via [`agent.xdp_mode`](../configuration/agent.md#xdp-attachment-mode). Default is `auto` (kernel picks best available).
+
 ## Tail-Call Chaining
 
 The XDP programs are chained via tail calls through a `PROG_ARRAY`:

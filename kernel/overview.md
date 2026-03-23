@@ -60,6 +60,20 @@ EGRESS:
                     → TC egress (tc-qos: traffic shaping) → wire
 ```
 
+## XDP Attachment Modes
+
+XDP programs can be attached in three modes, controlled by [`agent.xdp_mode`](../configuration/agent.md#xdp-attachment-mode):
+
+| Mode | Where it runs | `sk_buff` allocated? | Performance | Kernel requirement |
+|------|--------------|---------------------|-------------|-------------------|
+| **Native** (`drv`) | Inside the NIC driver's receive path | No | Fastest — zero-copy packet access | Driver must implement `ndo_bpf` |
+| **Generic** (`skb`) | After the kernel allocates an `sk_buff` | Yes | Slower — same as TC hook | Any interface (universal) |
+| **Offloaded** (`hw`) | On the NIC hardware itself | No | Line-rate, zero CPU | SmartNIC required (Netronome NFP) |
+
+In **auto** mode (default), the kernel tries native first, then falls back to generic. If native is explicitly requested but unsupported, eBPFsentinel falls back to auto and logs a warning.
+
+> **Performance impact**: native XDP on `virtio_net` (common in VMs) processes packets before any kernel allocation. Generic XDP loses this advantage — packets are already wrapped in `sk_buff` when the program runs. On a 4 vCPU VM, the difference is typically 2-3x throughput for pure XDP_DROP workloads.
+
 ## Dynamic Program Lifecycle
 
 All 10 eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
