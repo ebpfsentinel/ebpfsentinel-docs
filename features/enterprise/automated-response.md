@@ -6,6 +6,8 @@
 
 Automated response orchestration evaluates every security alert against configurable policies and executes response actions in real-time. Supports IP blocking, rate limiting, flow isolation, and SOAR webhook integration with cooldown protection and a full audit trail.
 
+> **OSS includes basic auto-response**: up to 3 severity-based policies with block/throttle actions. See [Auto-Response (OSS)](../operational-essentials.md#auto-response). Enterprise adds unlimited policies, MITRE ATT&CK tactic matching, SOAR webhooks, per-IP cooldowns, flow isolation, and a queryable audit trail.
+
 ## Architecture
 
 ```

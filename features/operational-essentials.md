@@ -71,7 +71,65 @@ ebpfsentinel responses revoke resp-1234
 
 `30s`, `5m`, `1h`, `1d`, or bare seconds (`3600`). Maximum TTL: 24 hours (configurable).
 
-Enterprise adds automated response policies triggered by alerts.
+---
+
+## Auto-Response
+
+Automatic block or throttle of source IPs when alerts match severity-based policies. Up to 3 policies in OSS. Evaluated on every alert (IDS, DLP, DDoS, DNS, packet security).
+
+### Configuration
+
+```yaml
+auto_response:
+  enabled: true
+  policies:
+    - name: block-critical
+      min_severity: critical       # low, medium, high, critical
+      action: block                # block or throttle
+      ttl_secs: 3600               # 1 hour
+    - name: block-ids-ddos-high
+      min_severity: high
+      components: [ids, ddos]      # optional filter (empty = all components)
+      action: block
+      ttl_secs: 1800
+    - name: throttle-dns-medium
+      min_severity: medium
+      components: [dns]
+      action: throttle
+      ttl_secs: 600
+      rate_pps: 100
+```
+
+### How It Works
+
+1. An alert is created (IDS pattern match, DDoS detection, DNS blocklist hit, DLP violation, etc.)
+2. Each policy is evaluated in order — first match wins (no stacking)
+3. If `min_severity` matches and `components` matches (or is empty = all), the source IP is blocked or throttled via the IPS blacklist
+4. The block/throttle has a bounded TTL and auto-expires
+5. Every action is logged via `tracing::info` with policy name, alert ID, source IP, and TTL
+
+### Policy Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | `string` | Yes | — | Policy name (used in logs) |
+| `min_severity` | `string` | No | `high` | Minimum alert severity to trigger |
+| `components` | `[string]` | No | `[]` (all) | Component filter: `ids`, `ddos`, `dns`, `dlp`, `firewall`, etc. |
+| `action` | `string` | No | `block` | `block` (deny) or `throttle` (rate limit) |
+| `ttl_secs` | `integer` | No | `3600` | Duration of the block/throttle in seconds |
+| `rate_pps` | `integer` | No | — | Packets per second (only for `throttle`) |
+
+### Limits (OSS vs Enterprise)
+
+| | OSS | Enterprise |
+|---|---|---|
+| Max policies | 3 | Unlimited |
+| Conditions | Severity + components | + MITRE ATT&CK tactic/technique |
+| Actions | block, throttle | + flow isolation, SOAR webhooks |
+| Cooldown | No (first match per alert) | Per (policy, source IP) with configurable cooldown |
+| Audit trail | Log output only | Queryable audit trail via API |
+
+See [Enterprise Automated Response](enterprise/automated-response.md) for the full orchestration engine.
 
 ---
 

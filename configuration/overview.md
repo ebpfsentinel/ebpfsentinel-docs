@@ -49,6 +49,7 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`routing`](routing.md) | No | Multi-WAN gateways, health checks, GeoIP routing |
 | [`zones`](zones.md) | No | Network zone segmentation, inter-zone policies |
 | [`qos`](qos.md) | No | QoS pipes, queues, classifiers, traffic shaping |
+| `auto_response` | No | Auto block/throttle on alerts (max 3 severity-based policies) |
 
 ## Per-Feature Examples
 

@@ -46,6 +46,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Hot Reload | OSS | Shipped | SIGHUP, file watcher, or REST API trigger |
 | [OTLP Export](operational-essentials.md#otlp-export) | OSS | Shipped | Fire-and-forget OTLP Logs via gRPC or HTTP |
 | [Manual Response Actions](operational-essentials.md#manual-response-actions) | OSS | Shipped | Time-bounded block/throttle with TTL auto-expiry |
+| [Auto-Response](operational-essentials.md#auto-response) | OSS | Shipped | Severity-based auto block/throttle on alerts (max 3 policies, multi-component filter) |
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | Shipped | libpcap-based pcap capture with BPF filter |
 | CLI (22 subcommands) | OSS | Shipped | Table/JSON output, `top` (top talkers), `flows` (network map), enhanced `status` dashboard |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
