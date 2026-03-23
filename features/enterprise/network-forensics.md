@@ -4,6 +4,8 @@
 
 ## Overview
 
+> **OSS includes basic auto-capture**: event-triggered PCAP on high-severity alerts (1 capture at a time, max 60s, auto-generated BPF filter). See [Auto-Capture (OSS)](../operational-essentials.md#auto-capture). Enterprise adds continuous ring buffer, multi-capture, flow timeline, and forensics API.
+
 Automated forensic capture and flow timeline reconstruction for incident investigation. A userspace ring buffer continuously stores alert context from all OSS security components. When a high-severity event occurs, the system automatically freezes the surrounding context, registers a forensic capture, and enables retrospective timeline analysis around any alert.
 
 ## Architecture

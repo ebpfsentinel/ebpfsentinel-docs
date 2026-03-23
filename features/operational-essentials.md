@@ -166,7 +166,55 @@ ebpfsentinel capture list
 - Output: `/tmp/ebpfsentinel-{id}.pcap`
 - Requires `libpcap-dev` at build time (feature `pcap-capture`, enabled by default)
 
-Enterprise adds continuous ring buffer, event-triggered PCAP, and forensics API.
+---
+
+## Auto-Capture
+
+Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`). One capture at a time, max 60 seconds.
+
+### Configuration
+
+```yaml
+auto_capture:
+  enabled: true
+  min_severity: high             # low, medium, high, critical
+  components: []                 # empty = all components
+  duration_secs: 30              # max 60s in OSS
+  snap_length: 1500
+  interface: eth0                # default: first agent interface
+```
+
+### How It Works
+
+1. An alert fires (IDS, DLP, DDoS, DNS, packet security)
+2. If severity >= `min_severity` and component matches, a capture is triggered
+3. If another capture is already running, the trigger is skipped (no stacking)
+4. A BPF filter `host {source_ip}` is auto-generated from the alert
+5. A `.pcap` file is written to `/var/lib/ebpfsentinel/captures/auto-{timestamp}.pcap`
+6. The capture auto-stops after `duration_secs`
+
+### Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `enabled` | `bool` | No | `false` | Enable auto-capture |
+| `min_severity` | `string` | No | `high` | Minimum alert severity to trigger |
+| `components` | `[string]` | No | `[]` (all) | Component filter |
+| `duration_secs` | `integer` | No | `30` | Capture duration (max 60s in OSS) |
+| `snap_length` | `integer` | No | `1500` | Max bytes per packet |
+| `interface` | `string` | No | First agent interface | Network interface |
+
+### Limits (OSS vs Enterprise)
+
+| | OSS | Enterprise |
+|---|---|---|
+| Concurrent captures | 1 | Multiple + ring buffer |
+| Max duration | 60s | Unlimited |
+| BPF filter | Auto-generated from alert | Customizable per policy |
+| Trigger | Severity + components | + MITRE tactic, custom conditions |
+| Output | `.pcap` file | + flow timeline, forensics API |
+
+See [Enterprise Network Forensics](enterprise/network-forensics.md) for the full forensics engine.
 
 ---
 
