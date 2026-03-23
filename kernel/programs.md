@@ -74,7 +74,7 @@ Policy routing via [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function
 - `reply-to` — force reply path
 - `dup-to` — duplicate to monitoring (via [`DEVMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_DEVMAP/) + [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/))
 
-MTU validated with [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) before any redirect.
+MTU validated with [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) before any redirect or pass. Packets exceeding the interface MTU are dropped and the `mtu_exceeded` metric is incremented.
 
 #### Reject Action (Tail-Call to xdp-firewall-reject)
 
@@ -312,6 +312,9 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | L7 detection | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | Match protocol signatures: `GET ` / `POST ` (HTTP), `\x16\x03` (TLS), `SSH-` (SSH) |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
 | Variable-size events | [`bpf_dynptr`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | Reserve only header + actual payload bytes, ~70% ring buffer savings for L7 events |
+| SKB linearization | [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | Linearize full SKB (`ctx.len()`) before L7 payload capture — handles jumbo frames and GRO aggregates |
+
+**Jumbo frame support:** before calling `bpf_skb_load_bytes` for L7 payload capture, `bpf_skb_pull_data(ctx.len())` is called to linearize the full SKB. This ensures that payload spread across multiple fragments (jumbo frames with MTU > 1500, GRO-aggregated segments) is accessible in a single contiguous read. The full SKB length (`ctx.len()`) is used instead of the linear buffer size (`data_end - data`) to cover all fragments.
 
 Uses a **port-only key** for IDS rule matching — IP-version-agnostic (same rules apply to IPv4 and IPv6 traffic).
 
@@ -339,7 +342,9 @@ Separate V6 maps for IPv6 IOC lookups. Same RingBuf backpressure pattern as tc-i
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-dns/`
 
 Passive DNS capture:
-- Identifies UDP port 53 traffic
+- Identifies UDP and TCP port 53 traffic (queries and responses)
+- Linearizes the SKB via `bpf_skb_pull_data(ctx.len())` before payload read to handle jumbo frames and GRO aggregates
+- Reads DNS payload (up to 512 bytes) via `bpf_skb_load_bytes` with compile-time constant length
 - Forwards raw DNS wire-format packets to userspace via RingBuf
 - Userspace DNS engine parses, caches domain↔IP mappings, and checks blocklists
 

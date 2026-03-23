@@ -10,7 +10,7 @@ eBPFsentinel uses 30+ kernel helper functions across its programs. This page doc
 |--------|--------|---------|---------|
 | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/) | 4.1+ | tc-nat-ingress, tc-nat-egress, tc-conntrack | Rewrite packet bytes in-place (IP/port for NAT) |
 | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | 4.5+ | tc-ids | Load packet bytes into stack buffer for DPI |
-| [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | 4.3+ | tc-ids | Linearize multi-fragment SKBs before deep packet inspection |
+| [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | 4.3+ | tc-ids, tc-dns | Linearize multi-fragment SKBs (jumbo frames, GRO aggregates) before payload inspection. Called with `ctx.len()` (full SKB size) to cover fragments beyond the linear buffer. |
 | [`bpf_xdp_adjust_meta`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_meta/) | 4.15+ | xdp-firewall | Prepend metadata area before packet data for XDP-to-TC passing |
 | [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.18+ | xdp-firewall, xdp-firewall-reject, xdp-ratelimit, xdp-ratelimit-syncookie | Grow or shrink packet tail for reject responses and SYN cookie SYN+ACK packets |
 | [`bpf_skb_vlan_push`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_push/) | 4.3+ | tc-threatintel | Push 802.1Q VLAN tag for quarantine tagging |
@@ -32,7 +32,7 @@ eBPFsentinel uses 30+ kernel helper functions across its programs. This page doc
 | [`bpf_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_redirect/) | 4.4+ | xdp-firewall | Redirect packet to another interface or CPU |
 | [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-firewall, xdp-loadbalancer | Redirect using DevMap (wire-speed LB forwarding) or CpuMap (DDoS CPU steering) |
 | [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | FIB (routing table) lookup for next-hop resolution and policy routing |
-| [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-loadbalancer | Validate MTU before forwarding to avoid silent fragmentation |
+| [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding — drops oversized packets and increments `mtu_exceeded` metric |
 
 ### Tail Call & Program Chaining
 

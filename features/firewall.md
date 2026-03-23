@@ -333,7 +333,7 @@ The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule
 - **Packet mirroring** via `DEVMAP` + `bpf_redirect` to monitoring interfaces
 - **CPU steering** via `CPUMAP` for NUMA-aware packet distribution
 - **FIB routing enrichment** via `bpf_fib_lookup` for next-hop and routing anomaly detection
-- **MTU validation** via `bpf_check_mtu` before redirect operations
+- **MTU validation** via `bpf_check_mtu` before pass and redirect operations — drops oversized packets and increments `mtu_exceeded` Prometheus metric
 - **Checksum offload** via `bpf_csum_diff` / `bpf_l3_csum_replace` / `bpf_l4_csum_replace`
 
 ## Configuration

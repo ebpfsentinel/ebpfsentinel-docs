@@ -59,7 +59,7 @@ Key eBPF features:
 - **CPUMAP** for NUMA-aware CPU steering
 - **bpf_fib_lookup** for FIB routing enrichment and policy routing
 - **bpf_xdp_adjust_meta** for metadata passing to TC programs (rule ID, DSCP mark, route action)
-- **bpf_check_mtu** for MTU validation before redirect
+- **bpf_check_mtu** for MTU validation before pass/redirect (all 3 XDP programs)
 - **bpf_csum_diff** / `bpf_l3_csum_replace` / `bpf_l4_csum_replace` for checksums
 - Inline `VlanHdr` / `Ipv6Hdr` parsing
 - `bpf_loop` for iterating large rule sets (kernel 5.17+)
