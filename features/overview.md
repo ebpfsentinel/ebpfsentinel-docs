@@ -47,7 +47,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [OTLP Export](operational-essentials.md#otlp-export) | OSS | Shipped | Fire-and-forget OTLP Logs via gRPC or HTTP |
 | [Manual Response Actions](operational-essentials.md#manual-response-actions) | OSS | Shipped | Time-bounded block/throttle with TTL auto-expiry |
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | Shipped | libpcap-based pcap capture with BPF filter |
-| CLI (20 subcommands) | OSS | Shipped | Table/JSON output, authenticated access |
+| CLI (22 subcommands) | OSS | Shipped | Table/JSON output, `top` (top talkers), `flows` (network map), enhanced `status` dashboard |
 | Docker / Compose | OSS | Shipped | Multi-stage build, compose file included |
 
 ### Enterprise

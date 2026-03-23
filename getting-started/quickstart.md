@@ -66,17 +66,20 @@ You should see:
 ## 3. Verify
 
 ```bash
-# Health check
-curl http://localhost:8080/healthz
+# Agent dashboard — programs loaded, conntrack, DDoS, recent alerts
+ebpfsentinel-agent status
 
-# Agent status
-curl http://localhost:8080/api/v1/agent/status
+# Top talkers — most active connections by traffic volume
+ebpfsentinel-agent top
+
+# Network flows — aggregated connection map
+ebpfsentinel-agent flows
 
 # List firewall rules
 ebpfsentinel-agent firewall list
 
-# Check metrics
-curl http://localhost:8080/metrics | grep ebpfsentinel_packets_total
+# Health check (HTTP)
+curl http://localhost:8080/healthz
 ```
 
 ## 4. Add Rules at Runtime

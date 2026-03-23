@@ -28,11 +28,90 @@ ebpfsentinel-agent version
 
 ### status
 
-Query running agent status.
+Enhanced agent dashboard — shows version, uptime, eBPF programs, conntrack, DDoS status, and recent alerts in one view.
 
 ```bash
 ebpfsentinel-agent status
 ebpfsentinel-agent status --host 10.0.0.1 --port 8080
+```
+
+Example output:
+
+```
+eBPFsentinel v0.1.0 -- up 3h 12m 05s -- 24 rules loaded
+
+  Programs  12/12 loaded    xdp-firewall ✓  xdp-ratelimit ✓  tc-ids ✓  tc-dns ✓
+
+  Conntrack  1,247 active connections
+  DDoS       no active attacks (3 mitigated total)
+
+  Recent Alerts (42 total)
+  COMPONENT   SEVERITY  SOURCE              DESTINATION         MESSAGE
+  ids         high      203.0.113.42        10.0.1.15           SSH brute force detected
+  dns         medium    192.168.1.50        8.8.8.8             Blocked domain: evil.example.com
+```
+
+### top
+
+Top talkers — live view of the most active connections sorted by traffic volume.
+
+```bash
+# Default: top 20 by bytes
+ebpfsentinel-agent top
+
+# Top 50 sorted by packet count
+ebpfsentinel-agent top -n 50 --sort packets
+
+# JSON output for scripting
+ebpfsentinel-agent top -o json | jq '.[0]'
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-n, --limit <N>` | Number of entries to display | `20` |
+| `-s, --sort <FIELD>` | Sort by: `bytes` or `packets` | `bytes` |
+
+Example output:
+
+```
+SOURCE                  PORT  DESTINATION            PORT  PROTO  STATE   BYTES     PACKETS
+----------------------------------------------------------------------------------------------------
+10.0.1.15              443    10.0.2.100             52431  TCP    ESTAB    1.2 GB     890234
+192.168.1.50            53    8.8.8.8                41922  UDP    NEW     45.3 MB     120891
+203.0.113.42            22    10.0.1.15              38821  TCP    ESTAB    2.1 MB       1243
+
+3 connection(s) shown (sorted by bytes).
+```
+
+### flows
+
+Network flows — aggregated connection map from conntrack, grouped by /24 subnet (IPv4) or /48 (IPv6).
+
+```bash
+# Default: aggregate up to 1000 connections
+ebpfsentinel-agent flows
+
+# Larger sample
+ebpfsentinel-agent flows -n 5000
+
+# JSON for pipeline processing
+ebpfsentinel-agent flows -o json
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-n, --limit <N>` | Max connections to fetch for aggregation | `1000` |
+
+Example output:
+
+```
+FLOW                                                          CONNS    BYTES     PACKETS
+--------------------------------------------------------------------------------------------
+10.0.1.0/24 -> 10.0.2.0/24:443 (TCP)                           32    4.2 GB     3102840
+10.0.1.0/24 -> 8.8.8.0/24:53 (UDP)                              8   120.5 MB     320120
+10.0.1.0/24 -> 203.0.113.0/24:22 (TCP)                          3    2.1 MB       4320
+
+3 aggregated flow(s) from 43 connection(s).
 ```
 
 ### health
