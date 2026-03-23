@@ -69,6 +69,9 @@ You should see:
 # Agent dashboard — programs loaded, conntrack, DDoS, recent alerts
 ebpfsentinel-agent status
 
+# Watch alerts in real-time (Ctrl+C to stop)
+ebpfsentinel-agent watch
+
 # Top talkers — most active connections by traffic volume
 ebpfsentinel-agent top
 

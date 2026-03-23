@@ -26,6 +26,36 @@ Display version and build information.
 ebpfsentinel-agent version
 ```
 
+### watch
+
+Real-time alert stream — like `tail -f` for security events. Polls the agent API and displays only new alerts with ANSI severity coloring.
+
+```bash
+# Watch all alerts (poll every 2s)
+ebpfsentinel-agent watch
+
+# Watch only high+ severity IDS alerts, poll every 5s
+ebpfsentinel-agent watch --severity high --component ids --interval 5
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-i, --interval <SECS>` | Poll interval in seconds | `2` |
+| `--component <NAME>` | Filter by component (ids, ddos, dns, dlp, etc.) | All |
+| `--severity <LEVEL>` | Filter by minimum severity (low, medium, high, critical) | All |
+
+Example output:
+
+```
+Watching alerts (severity>=high) — poll every 2s. Press Ctrl+C to stop.
+
+  ids         critical  203.0.113.42       -> 10.0.1.15          SSH brute force (rule ssh-bf-001)
+  threatintel high      203.0.113.42       -> 10.0.1.15          IOC match: abuse.ch feed
+  ddos        high      198.51.100.0       -> 10.0.1.15          SYN flood detected (1.2K pps)
+```
+
+Severity levels are color-coded: **critical** = red, **high** = yellow, **medium** = orange, **low** = default.
+
 ### score
 
 Network risk score — single 0-10 metric summarizing security posture based on alert severity, DDoS activity, blacklisted IPs, threat intel IOCs, and connection count.
