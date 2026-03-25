@@ -88,6 +88,55 @@ WARN XDP attach failed with requested mode, falling back to auto  requested_mode
 INFO XDP program attached (fallback from native)  mode="auto"
 ```
 
+### Multi-NIC and Bond Interfaces
+
+eBPFsentinel natively supports multiple interfaces. Every eBPF program (XDP and TC) is attached to **each** interface listed in `agent.interfaces`. All 14 security domains work identically across all listed interfaces.
+
+```yaml
+# Multi-NIC: attach to all physical interfaces
+agent:
+  interfaces: [eth0, eth1, eth2]
+```
+
+**Bond / Team interfaces**: attach to the bond master, not the member NICs. The bond device receives all traffic from its members:
+
+```yaml
+# Linux bond (active-passive or LACP)
+agent:
+  interfaces: [bond0]
+```
+
+**VLAN trunk interfaces**: attach to the parent interface. VLAN-tagged traffic passes through XDP/TC on the physical NIC before VLAN decapsulation. eBPFsentinel parses 802.1Q/802.1ad headers natively — firewall rules can match on `vlan_id`:
+
+```yaml
+# Physical interface carrying tagged VLANs
+agent:
+  interfaces: [eth0]
+
+firewall:
+  rules:
+    - id: block-guest-vlan
+      action: deny
+      vlan_id: 100       # matches 802.1Q VLAN 100
+```
+
+If you also need rules scoped per-interface, use [interface groups](../features/interface-groups.md):
+
+```yaml
+agent:
+  interfaces: [eth0, eth1, eth2]
+
+interface_groups:
+  lan:
+    interfaces: [eth0, eth1]
+  wan:
+    interfaces: [eth2]
+```
+
+**What NOT to do**:
+- Do not list both a bond master and its members (`[bond0, eth0, eth1]`) — traffic would be processed twice.
+- Do not list VLAN sub-interfaces (`eth0.100`) — attach to the parent (`eth0`) and use `vlan_id` in rules.
+
 ### Debug logging with text format
 
 ```yaml

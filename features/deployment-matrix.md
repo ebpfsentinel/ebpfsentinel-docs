@@ -33,22 +33,22 @@ This page documents which features are fully supported, partially supported, or 
 | **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **DLP** | :white_check_mark: | :warning: | :warning: | :warning: |
-| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :warning: | :x: |
+| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: |
 | **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
-:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported
+:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note
 
 ## Detailed Explanations
 
 ### XDP/TC Programs (Firewall, NAT, Conntrack, Rate Limiting, DDoS, Load Balancer, Scrub)
 
-These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine.
+These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine. **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets — see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
 
-- **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed.
-- **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attachment may also fail on virtual interfaces (veth) depending on the kernel version and CNI driver.
+- **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
+- **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
 
 **Requirements**: `--privileged` or `CAP_BPF` + `CAP_NET_ADMIN`, `--network host` (container), `hostNetwork: true` (Kubernetes).
 
@@ -88,9 +88,17 @@ spec:
 
 Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes). It requires access to the **host routing table** to apply policy routing decisions.
 
-- **Bare metal / Container** (`CAP_NET_ADMIN`): full support.
-- **K8s DaemonSet**: gateway health checks work, but applying routing policies to the node's routing table requires `CAP_NET_ADMIN` and may conflict with the CNI plugin.
-- **Sidecar**: cannot modify the host routing table from an isolated pod network namespace.
+- **Bare metal / Container** (`--network host`, `CAP_NET_ADMIN`): full support. The container shares the host network namespace and has direct access to `ip route` / `ip rule`.
+- **K8s DaemonSet** (`hostNetwork: true`, `privileged: true`): **full support** — the pod shares the host network namespace, same as Docker host mode. Gateway health checks and policy routing (`ip rule add`) work correctly.
+
+  > **CNI compatibility note**: eBPFsentinel adds policy routes (`ip rule`) to the host routing table. Most CNIs are unaffected because they use separate routing tables or eBPF-based routing:
+  > - **Flannel, Calico (iptables mode), kube-router**: compatible — these use standard routing tables that don't conflict with policy routing rules.
+  > - **Cilium (eBPF routing mode)**: compatible — Cilium uses eBPF for pod routing and doesn't rely on `ip rule`.
+  > - **Calico (BGP mode)**: test before production — Calico BGP injects routes into the default table. Policy routing rules take precedence (`ip rule` is evaluated before the main table), so conflicts are unlikely but environment-specific.
+  >
+  > If in doubt, run `ip rule list` and `ip route show table all` on a node to check for overlapping rules before enabling multi-WAN.
+
+- **Sidecar**: not supported — the pod has an isolated network namespace and cannot modify the host routing table.
 
 ### Userspace-Only Features (Alert Pipeline, Metrics, API, CLI)
 

@@ -2,7 +2,7 @@
 
 ## Platform
 
-**Linux only.** Requires kernel 6.1+ with BTF support.
+**Linux only.** Requires kernel 6.6+ with BTF support.
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
