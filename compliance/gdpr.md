@@ -22,6 +22,15 @@ tls:
   key_path: /etc/ebpfsentinel/server.key
 ```
 
+Encryption and key management hardening:
+
+- **TLS 1.3 by default** with TLS 1.2 available as opt-in for legacy clients
+- **RSA 2048-bit minimum** for JWT signing keys (RS256)
+- **CA private key zeroization** ensures signing material is scrubbed from memory
+- **Constant-time API key comparison** prevents timing side-channel attacks
+- **Token revocation** allows immediate invalidation of compromised credentials
+- **Auth rate limiting** protects against brute-force attempts on authentication endpoints
+
 ## Art. 32(1)(b) — Confidentiality
 
 ```yaml

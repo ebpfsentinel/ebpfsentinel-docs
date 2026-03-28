@@ -10,7 +10,7 @@ eBPFsentinel supports three authentication methods for API and CLI access: stati
 
 ### API Keys
 
-Static tokens configured in YAML. Best for automation, CI/CD pipelines, and monitoring agents.
+Static tokens configured in YAML. Best for automation, CI/CD pipelines, and monitoring agents. Keys are stored as configurable salted SHA-256 hashes — plaintext keys never persist in memory after initial hashing. Validation uses constant-time comparison to prevent timing side-channels.
 
 ```yaml
 auth:
@@ -33,7 +33,9 @@ ebpfsentinel-agent --token sk-change-me-admin-key firewall list
 
 ### JWT (RS256)
 
-Service-to-service authentication with an RSA public key. The agent validates JWT tokens against the configured issuer, audience, and public key.
+Service-to-service authentication with an RSA public key. The agent validates JWT tokens against the configured issuer, audience, and public key. Bearer tokens are pre-validated for correct JWT structure (three dot-separated Base64 parts) before cryptographic verification, rejecting malformed inputs early. RSA 2048-bit minimum key size is enforced at key load and on rotation.
+
+Token revocation is supported via `sub:iat` revocation keys — when a token is revoked, its subject and issued-at timestamp form a composite key that is checked on every request.
 
 ```yaml
 auth:
@@ -57,7 +59,7 @@ auth:
 
 ### Combined Authentication
 
-API keys can be combined with JWT or OIDC for mixed environments (human users via SSO, automation via API keys):
+API keys can be combined with JWT or OIDC for mixed environments (human users via SSO, automation via API keys). The composite auth provider returns a generic "authentication failed" error on all failures — no information about which provider was tried or why it failed is leaked to the caller.
 
 ```yaml
 auth:
@@ -75,7 +77,7 @@ auth:
 | Role | Permissions |
 |------|-------------|
 | `admin` | Full access to all endpoints |
-| `operator` | Namespace-scoped writes (create/update/delete rules) |
+| `operator` | Namespace-scoped writes (create/update/delete rules). `namespace: None` in claims means deny-all (not unrestricted) — operators without explicit namespace grants cannot write to any namespace. |
 | `viewer` | Read-only access to all endpoints |
 
 ### Public Endpoints (No Auth Required)
@@ -86,6 +88,10 @@ auth:
 | `/readyz` | Readiness probe |
 
 All `/api/v1/*` endpoints require authentication when `auth.enabled: true`.
+
+### Rate Limiting
+
+When authentication is enabled, auth endpoints are rate-limited to **10 requests per second per source IP**. This applies to all authenticated API paths and prevents brute-force attacks against API keys and tokens.
 
 ## Configuration
 

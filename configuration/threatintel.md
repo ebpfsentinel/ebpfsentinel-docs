@@ -174,6 +174,15 @@ threatintel:
       auth_header: "Authorization: Bearer misp-api-key"
 ```
 
+## Security Validation
+
+Feed fetching and parsing enforce several security constraints:
+
+- **URL validation (SSRF prevention)**: feed URLs must use `http://` or `https://` schemes. URLs resolving to private (RFC 1918), loopback, link-local, or multicast IP addresses are rejected. HTTP redirects are not followed.
+- **Auth header validation**: the `auth_header` value is validated against CRLF injection (`\r\n` sequences are rejected).
+- **JSON depth limit**: JSON feed parsing is limited to 64 nesting levels to prevent stack exhaustion.
+- **YAML config size limit**: threat intel YAML configuration is limited to 10 MiB.
+
 ## Deduplication
 
 When the same IP appears in multiple feeds, the **highest-confidence** entry wins. This happens at two levels:

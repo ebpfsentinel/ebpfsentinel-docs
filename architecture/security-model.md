@@ -47,7 +47,13 @@ All user-supplied regex patterns are compiled with safety limits:
 
 - **10 MiB** maximum compiled regex size
 - **200** maximum nesting depth
+- **4 KiB** maximum regex source length
 - Compilation timeout prevents hangs
+
+### DNS Parser Safety
+
+- Pointer hop limit fixed at exactly **10 hops** to prevent infinite-loop or amplification attacks in compressed DNS names
+- Checked arithmetic on DNS event payload offsets to prevent integer overflow
 
 ### Configuration Limits
 
@@ -79,14 +85,17 @@ The agent requires `CAP_BPF` + `CAP_NET_ADMIN` capabilities (or root).
 
 - **JWT validation** — RS256 signature, issuer, audience, expiration checks
 - **OIDC** — JWKS key rotation support via discovery URL
-- **API keys** — constant-time comparison to prevent timing attacks
+- **API keys** — configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
 - **TLS 1.3** — rustls with aws-lc backend, older protocol versions rejected
+- **CA private key zeroized on drop** — enterprise TLS inspection CA key material is securely erased from memory when no longer needed
 
 ## Network Security
 
 - REST API listens on `127.0.0.1` by default (not exposed to network)
 - Health endpoints (`/healthz`, `/readyz`) are unauthenticated for probe compatibility
 - All other endpoints require authentication when `auth.enabled: true`
+- Metrics endpoint is rate-limited regardless of authentication state
+- **CORS** — exact `localhost` host matching rejects subdomain bypass attempts (e.g., `localhost.attacker.com` is not treated as localhost)
 - gRPC supports TLS when enabled
 
 ## Error Handling

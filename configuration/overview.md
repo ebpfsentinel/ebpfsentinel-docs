@@ -120,3 +120,11 @@ Configuration is validated at load time. Invalid configuration produces clear er
 - Missing required fields → field name and section
 - Rule count limits → maximum 4096 rules per domain (prevents OOM)
 - Regex size limits → 10 MiB size, 200 nesting depth (prevents ReDoS)
+
+## Security-Related Defaults
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `agent.grpc_reflection` | `bool` | `false` | gRPC reflection disabled by default for security |
+| `auth.api_key_salt` | `string` | random | Salt for API key hashing. Random 32-byte generated if omitted |
+| `tls.allow_tls12` | `bool` | `false` | TLS 1.3 only by default. Set `true` to allow TLS 1.2 for legacy clients |

@@ -12,6 +12,19 @@ eBPFsentinel supports PCI-DSS compliance across five key requirements.
 | **Req. 10** — Logging and Monitoring | Audit trail with 90-day retention | `audit` section |
 | **Req. 11** — Security Testing | IPS auto-blocking, threat intelligence | `ips`, `threatintel` sections |
 
+## Cryptographic and Authentication Controls
+
+PCI-DSS requires strong cryptography and access controls (Requirements 2, 4, 8):
+
+| Control | Implementation |
+|---------|---------------|
+| TLS version | TLS 1.3 by default (TLS 1.2 opt-in for legacy systems) |
+| JWT signing | RS256 with RSA 2048-bit minimum key size |
+| API key comparison | Constant-time to prevent timing attacks |
+| CA private keys | Zeroized from memory after use |
+| Token revocation | Immediate invalidation of compromised tokens |
+| Auth rate limiting | Brute-force protection on authentication endpoints |
+
 ## Requirement 1: Network Security Controls
 
 Configure the firewall to enforce network segmentation:

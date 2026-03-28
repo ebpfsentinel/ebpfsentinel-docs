@@ -11,6 +11,7 @@ agent:
   host: "127.0.0.1"            # REST API listen address. Default: 127.0.0.1
   port: 8080                   # REST API port. Default: 8080
   grpc_port: 50051             # gRPC port. Default: 50051
+  grpc_reflection: false       # gRPC reflection. Default: false (disabled for security)
   metrics_port: 9090           # Prometheus metrics port. Default: 9090 (or shared with REST)
   log_level: "info"            # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"           # Log format: json or text. Default: json
@@ -25,6 +26,7 @@ agent:
 | `host` | `string` | No | `127.0.0.1` | REST API listen address |
 | `port` | `integer` | No | `8080` | REST API port |
 | `grpc_port` | `integer` | No | `50051` | gRPC streaming port |
+| `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security — exposes service definitions |
 | `metrics_port` | `integer` | No | `9090` | Prometheus metrics port |
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |

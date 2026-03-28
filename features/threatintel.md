@@ -210,6 +210,15 @@ threatintel:
 
 See [Configuration: Threat Intelligence](../configuration/threatintel.md) for the full field reference.
 
+## Feed Security
+
+Feed ingestion enforces several hardening measures to prevent abuse:
+
+- **SSRF prevention** — feed URLs are resolved before connection and rejected if the resolved IP falls within private (RFC 1918), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`, `fe80::/10`), or multicast ranges. Only `http://` and `https://` URL schemes are accepted.
+- **No HTTP redirects** — the HTTP client does not follow redirects, preventing redirect-based SSRF bypass.
+- **Auth header CRLF injection prevention** — the `auth_header` value is validated to reject carriage-return and line-feed characters, preventing HTTP header injection.
+- **JSON depth limit** — JSON feed parsing enforces a maximum nesting depth of 64 levels to prevent stack exhaustion from deeply nested payloads.
+
 ## CLI Usage
 
 ```bash

@@ -18,6 +18,12 @@ Firewall rules can be scoped to control where they apply:
 | **Interface(`name`)** | Rule applies only to traffic on the named interface |
 | **Namespace(`name`)** | Rule applies only within the named network namespace |
 
+Scope values are validated at config load and API ingestion:
+
+- **Interface names**: 1-15 characters, restricted to alphanumeric characters plus `_`, `-`, `.`, and `:`.
+- **Namespace names**: 1-63 characters, restricted to lowercase alphanumeric characters plus `-`.
+- **`namespace: None`** in RBAC claims means **deny-all** (not unrestricted) — an operator without an explicit namespace grant cannot modify rules in any namespace.
+
 ### Firewall Mode
 
 The firewall operates in one of two modes:
@@ -61,7 +67,7 @@ Each rule field is optional — omitted fields act as wildcards:
 | `negate_source` | `false` | Invert source IP match (match if NOT in CIDR) |
 | `negate_destination` | `false` | Invert destination IP match |
 
-**Default policy** (`pass` or `drop`) applies when no rule matches. Maximum 4096 rules per address family.
+**Default policy** (`pass` or `drop`) applies when no rule matches. Maximum 4096 rules per address family. Firewall fast-path `HashMap` caches are flushed on every rule reload to prevent stale entries from surviving across configuration changes.
 
 ### XDP Actions
 

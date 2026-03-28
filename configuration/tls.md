@@ -9,6 +9,7 @@ tls:
   enabled: true
   cert_path: /etc/ebpfsentinel/server.crt
   key_path: /etc/ebpfsentinel/server.key
+  allow_tls12: false              # TLS 1.3 only by default
 ```
 
 ## Fields
@@ -18,10 +19,11 @@ tls:
 | `enabled` | `bool` | `false` | Enable TLS |
 | `cert_path` | `string` | — | Path to PEM certificate file |
 | `key_path` | `string` | — | Path to PEM private key file |
+| `allow_tls12` | `bool` | `false` | Allow TLS 1.2 connections. When `false` (default), only TLS 1.3 is accepted |
 
 ## Implementation
 
-TLS is provided by **rustls** with the **aws-lc** cryptographic backend. Only TLS 1.3 is supported — older protocol versions are rejected.
+TLS is provided by **rustls** with the **aws-lc** cryptographic backend. By default, only TLS 1.3 is accepted -- older protocol versions are rejected. Set `allow_tls12: true` to permit TLS 1.2 connections for legacy clients.
 
 When enabled, both REST API and gRPC endpoints use TLS:
 
@@ -49,3 +51,4 @@ kill -HUP $(pidof ebpfsentinel-agent)
 
 - Key files should be `chmod 600` and owned by the agent's runtime user
 - The agent warns on world-readable key files at startup
+- Post-quantum hybrid key exchange (`X25519MLKEM768`) requires TLS 1.3 -- it is not available when `allow_tls12` is set to `true` for the TLS 1.2 negotiation path

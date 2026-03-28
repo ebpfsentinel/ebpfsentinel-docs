@@ -39,6 +39,14 @@ firewall:
       protocol: tcp
 ```
 
+Additional access-control hardening:
+
+- **Constant-time API key comparison** prevents timing side-channel attacks on key validation
+- **Auth rate limiting** protects against brute-force authentication attempts
+- **Token revocation** allows immediate invalidation of compromised JWT tokens
+- **RSA 2048-bit minimum** enforced for JWT signing keys (RS256)
+- **CA private key zeroization** ensures signing material is scrubbed from memory after use
+
 ## CC6.6 — Incident Detection
 
 ```yaml
@@ -81,6 +89,17 @@ audit:
   enabled: true
   retention_days: 365
 ```
+
+## Cryptographic Controls
+
+| Control | Implementation |
+|---------|---------------|
+| TLS version | TLS 1.3 by default; TLS 1.2 available as opt-in for legacy clients |
+| JWT signing | RS256 with RSA 2048-bit minimum key size |
+| API key storage | SHA-256 hashed; constant-time comparison at validation |
+| CA private keys | Zeroized from memory after use |
+| Token lifecycle | Revocation support for immediate invalidation |
+| Auth protection | Rate limiting on authentication endpoints |
 
 ## Evidence Collection for Auditors
 

@@ -15,6 +15,12 @@ DLP scans decrypted network traffic for sensitive data patterns — credit card 
 
 DLP is **userspace-only** for pattern matching — there is no eBPF map synchronization needed (unlike IDS/IPS where rules are pushed to kernel maps).
 
+All regex patterns (built-in and enterprise custom) are **pre-compiled at config load** with safety limits to prevent ReDoS:
+
+- **10 MiB** maximum compiled regex size
+- **200** maximum nesting depth
+- **4 KiB** maximum regex source length per pattern
+
 ## OSS vs Enterprise
 
 The DLP module is available in both editions, with the following differences:

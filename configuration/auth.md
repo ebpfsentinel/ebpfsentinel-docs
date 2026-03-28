@@ -7,6 +7,7 @@ The `auth` section configures API authentication and RBAC.
 ```yaml
 auth:
   enabled: true
+  api_key_salt: "optional-custom-salt"  # Random 32-byte generated if omitted
   api_keys:
     - name: "key-name"
       key: "secret-key-value"
@@ -27,6 +28,7 @@ auth:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable authentication |
 | `api_keys` | `[ApiKey]` | `[]` | Static API keys |
+| `api_key_salt` | `string` | random | Salt for API key hashing. A random 32-byte value is generated if omitted |
 | `jwt` | `JwtConfig` | — | JWT (RS256) settings |
 | `oidc` | `OidcConfig` | — | OIDC (JWKS) settings |
 
@@ -44,13 +46,13 @@ auth:
 |-------|------|----------|-------------|
 | `issuer` | `string` | Yes | Expected token issuer |
 | `audience` | `string` | Yes | Expected token audience |
-| `public_key_path` | `string` | Yes | Path to RS256 public key |
+| `public_key_path` | `string` | Yes | Path to RS256 public key (RSA 2048-bit minimum enforced) |
 
 ### OidcConfig
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `jwks_url` | `string` | Yes | JWKS discovery URL |
+| `jwks_url` | `string` | Yes | JWKS discovery URL (must be HTTPS, 10s fetch timeout) |
 
 ## Authentication Methods
 
@@ -64,8 +66,20 @@ API keys can be combined with JWT or OIDC. The `CompositeAuthProvider` tries eac
 | Role | Read | Write | Admin |
 |------|------|-------|-------|
 | `viewer` | All endpoints | No | No |
-| `operator` | All endpoints | Namespace-scoped | No |
+| `operator` | All endpoints | Namespace-scoped (see below) | No |
 | `admin` | All endpoints | All endpoints | Config reload, eBPF status |
+
+## Namespace Scoping
+
+Operators are scoped to namespaces. A namespace value of `None` (or omitted) means **deny-all** -- it does not grant unrestricted access. Operators must list their allowed namespaces explicitly.
+
+## Token Revocation
+
+Token revocation is built-in using a `sub:iat` (subject + issued-at) pair. Revoking a token invalidates all tokens for that subject issued at or before the revocation timestamp.
+
+## Rate Limiting
+
+When authentication is enabled, an additional rate limit of **10 requests per second per IP** is applied to authentication endpoints. This is layered on top of any global rate limiting configured in the `ratelimit` section.
 
 ## Examples
 

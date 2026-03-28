@@ -66,3 +66,13 @@ Policy (`deny.toml`):
 - Config files containing secrets should be `chmod 640` or stricter
 - All regex patterns are compiled with size and nesting limits (DoS prevention)
 - Rule count limits are enforced at config load time
+
+### Security Checklist for PRs
+
+Before submitting a PR that touches security-sensitive code, verify:
+
+- **SSRF prevention:** Validate URLs against private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, `fe80::/10`), and multicast (`224.0.0.0/4`, `ff00::/8`) ranges before making outbound requests
+- **CRLF injection:** Validate HTTP header values contain no `\r` or `\n` characters before setting them on outbound requests
+- **Constant-time comparison:** Use constant-time comparison (`subtle::ConstantTimeEq` or equivalent) for all secret comparisons (API keys, tokens, HMACs) -- never use `==`
+- **Regex safety:** Pre-compile all regex patterns with explicit `size_limit` and `nest_limit` to prevent ReDoS
+- **Deserialization limits:** Enforce depth and size limits on all untrusted input (config files, API payloads, feed data) to prevent resource exhaustion

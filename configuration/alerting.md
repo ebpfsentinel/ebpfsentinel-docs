@@ -92,3 +92,8 @@ alerting:
       destination: log
       min_severity: low
 ```
+
+## Security Notes
+
+- **Webhook URL validation (SSRF prevention)**: webhook URLs must use `http://` or `https://` schemes. URLs resolving to private (RFC 1918), loopback, link-local, or multicast IP addresses are rejected. HTTP redirects are not followed. The same rules apply as for [threat intel feed URLs](threatintel.md#security-validation).
+- **SMTP TLS warning**: the agent logs a warning at startup when SMTP is configured with `tls: false`. Unencrypted SMTP exposes alert content and credentials in transit.
