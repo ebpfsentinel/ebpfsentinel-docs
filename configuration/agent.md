@@ -6,17 +6,17 @@ The `agent` section configures the core agent behavior — network interfaces, A
 
 ```yaml
 agent:
-  interfaces: [eth0]           # Required. Network interfaces to attach eBPF programs to.
-  xdp_mode: auto               # XDP attachment mode: auto, native, generic, offloaded. Default: auto
-  bind_address: "127.0.0.1"    # REST API listen address. Default: 127.0.0.1
-  http_port: 8080              # REST API port. Default: 8080
-  grpc_port: 50051             # gRPC port. Default: 50051
-  grpc_reflection: false       # gRPC reflection. Default: false (disabled for security)
-  metrics_port: 9090           # Prometheus metrics port. Default: 9090 (or shared with REST)
-  ebpf_program_dir: null        # Directory for eBPF binaries. Default: null (uses embedded)
-  event_workers: 4              # Parallel event dispatcher workers. Default: 4
-  log_level: "info"            # Log level: error, warn, info, debug, trace. Default: info
-  log_format: "json"           # Log format: json or text. Default: json
+  interfaces: [eth0]                    # Required. Network interfaces to attach eBPF programs to.
+  xdp_mode: auto                        # XDP attachment mode: auto, native, generic, offloaded. Default: auto
+  bind_address: "127.0.0.1"             # REST API listen address. Default: 127.0.0.1
+  http_port: 8080                       # REST API port. Default: 8080
+  grpc_port: 50051                      # gRPC port. Default: 50051
+  grpc_reflection: false                # gRPC reflection. Default: false (disabled for security)
+  metrics_port: 9090                    # Prometheus metrics port. Default: 9090 (or shared with REST)
+  ebpf_program_dir: null                # Directory for eBPF binaries. Default: null (uses embedded)
+  event_workers: 4                      # Parallel event dispatcher workers. Default: 4
+  log_level: "info"                     # Log level: error, warn, info, debug, trace. Default: info
+  log_format: "json"                    # Log format: json or text. Default: json
 ```
 
 ## Fields
@@ -123,7 +123,7 @@ firewall:
   rules:
     - id: block-guest-vlan
       action: deny
-      vlan_id: 100       # matches 802.1Q VLAN 100
+      vlan_id: 100         # matches 802.1Q VLAN 100
 ```
 
 If you also need rules scoped per-interface, use [interface groups](../features/interface-groups.md):

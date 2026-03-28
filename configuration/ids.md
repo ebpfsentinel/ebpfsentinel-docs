@@ -6,19 +6,19 @@ The `ids` section configures intrusion detection rules, sampling, and threshold 
 
 ```yaml
 ids:
-  mode: alert                  # alert or block
-  sample_rate: 0               # 1-in-N packet sampling (0 = disabled)
-  sample_mode: random          # random or hash
+  mode: alert                         # alert or block
+  sample_rate: 0                      # 1-in-N packet sampling (0 = disabled)
+  sample_mode: random                 # random or hash
   rules:
     - id: "rule-id"
       pattern: "regex-pattern"
-      severity: high           # critical, high, medium, low, info
+      severity: high                  # critical, high, medium, low, info
       description: "Rule description"
-      threshold:               # Optional threshold detection
-        type: threshold        # limit, threshold, or both
+      threshold:                      # Optional threshold detection
+        type: threshold               # limit, threshold, or both
         count: 5
-        window_secs: 60        # Seconds
-        track_by: src_ip       # src_ip, dst_ip, or both
+        window_secs: 60               # Seconds
+        track_by: src_ip              # src_ip, dst_ip, or both
 ```
 
 ## Fields
@@ -96,8 +96,8 @@ ids:
     mode: country_based
     rate: 1.0
     high_risk_countries: [RU, CN, KP, IR]
-    high_risk_rate: 1.0        # 100% inspection for high-risk countries
-    default_rate: 0.1          # 10% for all others
+    high_risk_rate: 1.0                   # 100% inspection for high-risk countries
+    default_rate: 0.1                     # 10% for all others
   rules:
     - id: ssh-bruteforce
       protocol: tcp
@@ -111,7 +111,7 @@ ids:
       country_thresholds:
         RU:
           type: threshold
-          count: 2             # Only 2 attempts from Russia
+          count: 2                        # Only 2 attempts from Russia
           window_secs: 60
           track_by: src_ip
 ```

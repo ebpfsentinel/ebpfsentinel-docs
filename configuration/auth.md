@@ -7,12 +7,12 @@ The `auth` section configures API authentication and RBAC.
 ```yaml
 auth:
   enabled: true
-  metrics_auth_required: true            # Set to false to expose /metrics without auth
-  api_key_salt: "optional-custom-salt"   # Random 32-byte generated if omitted
+  metrics_auth_required: true             # Set to false to expose /metrics without auth
+  api_key_salt: "optional-custom-salt"    # Random 32-byte generated if omitted
   api_keys:
     - name: "key-name"
       key: "secret-key-value"
-      role: admin              # admin, operator, or viewer
+      role: admin                         # admin, operator, or viewer
   jwt:
     issuer: "https://auth.example.com"
     audience: "ebpfsentinel"

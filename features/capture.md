@@ -110,7 +110,7 @@ ebpfsentinel-agent capture list
 
 All endpoints require authentication (Bearer JWT, OIDC, or API key).
 
-See the full [API reference](../api/captures.md) for request/response schemas.
+See the full [API reference](../api-reference/rest-api.md#captures) for request/response schemas.
 
 ## Limits (OSS vs Enterprise)
 

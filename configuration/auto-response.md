@@ -24,14 +24,16 @@ auto_response:
       ttl_secs: 600
 ```
 
-## Core
+## Fields
+
+### Core
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable auto-response |
 | `policies` | list | `[]` | Response policies (max 3 in OSS) |
 
-## Policy Fields
+### Policy
 
 Each policy defines a severity trigger and the response action to take.
 

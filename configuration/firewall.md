@@ -6,9 +6,9 @@ The `firewall` section configures L3/L4 packet filtering rules enforced at XDP s
 
 ```yaml
 firewall:
-  enabled: true                # Enable/disable firewall (default: true)
-  mode: alert                  # block or alert (default: alert)
-  default_policy: pass         # pass or drop. Default: pass
+  enabled: true                         # Enable/disable firewall (default: true)
+  mode: alert                           # block or alert (default: alert)
+  default_policy: pass                  # pass or drop. Default: pass
   anti_lockout:
     enabled: true
     interfaces: ["eth0"]
@@ -21,32 +21,32 @@ firewall:
     clear_df: true
     random_ip_id: true
   rules:
-    - id: "rule-id"            # Unique rule identifier
-      priority: 10             # Lower number = higher precedence
-      action: allow            # allow, deny, or log
-      protocol: tcp            # tcp, udp, icmp, or any
-      src_ip: "10.0.0.0/8"    # Source CIDR (optional — omit to match any)
-      dst_ip: "192.168.1.0/24" # Destination CIDR (optional)
-      src_port: "1024-65535"   # Source port or range (optional)
-      dst_port: "80-443"       # Destination port or range (optional)
-      vlan_id: 100             # 802.1Q VLAN ID (optional — omit to match any)
-      scope: global            # global, interface:<name>, namespace:<name>
-      flags: "S/SA"            # TCP flags match/mask notation (optional)
-      icmp_type: 8             # ICMP type number or name (optional)
-      icmp_code: 0             # ICMP code number (optional)
-      negate_source: false     # Invert source IP match (optional)
-      negate_destination: false # Invert destination IP match (optional)
-      src_mac: "aa:bb:cc:dd:ee:ff"  # Source MAC address (optional)
-      dst_mac: "00:11:22:33:44:55"  # Destination MAC address (optional)
-      dscp_match: 46           # Match DSCP value 0-63 (optional)
-      dscp_mark: 46            # Set DSCP value on matched packets (optional)
-      ct_states: [established, related]  # Conntrack state filter (optional)
-      src_alias: trusted-networks  # Named IP alias for source (optional)
-      dst_alias: servers       # Named IP alias for destination (optional)
-      dst_port_alias: web-ports  # Named port alias for destination (optional)
-      schedule: business_hours # Time-based schedule name (optional)
-      max_states: 1000         # Per-rule connection state limit (optional)
-      route_to:                # Policy routing action (optional)
+    - id: "rule-id"                     # Unique rule identifier
+      priority: 10                      # Lower number = higher precedence
+      action: allow                     # allow, deny, or log
+      protocol: tcp                     # tcp, udp, icmp, or any
+      src_ip: "10.0.0.0/8"              # Source CIDR (optional — omit to match any)
+      dst_ip: "192.168.1.0/24"          # Destination CIDR (optional)
+      src_port: "1024-65535"            # Source port or range (optional)
+      dst_port: "80-443"                # Destination port or range (optional)
+      vlan_id: 100                      # 802.1Q VLAN ID (optional — omit to match any)
+      scope: global                     # global, interface:<name>, namespace:<name>
+      flags: "S/SA"                     # TCP flags match/mask notation (optional)
+      icmp_type: 8                      # ICMP type number or name (optional)
+      icmp_code: 0                      # ICMP code number (optional)
+      negate_source: false              # Invert source IP match (optional)
+      negate_destination: false         # Invert destination IP match (optional)
+      src_mac: "aa:bb:cc:dd:ee:ff"      # Source MAC address (optional)
+      dst_mac: "00:11:22:33:44:55"      # Destination MAC address (optional)
+      dscp_match: 46                    # Match DSCP value 0-63 (optional)
+      dscp_mark: 46                     # Set DSCP value on matched packets (optional)
+      ct_states: [established, related] # Conntrack state filter (optional)
+      src_alias: trusted-networks       # Named IP alias for source (optional)
+      dst_alias: servers                # Named IP alias for destination (optional)
+      dst_port_alias: web-ports         # Named port alias for destination (optional)
+      schedule: business_hours          # Time-based schedule name (optional)
+      max_states: 1000                  # Per-rule connection state limit (optional)
+      route_to:                         # Policy routing action (optional)
         gateway: "203.0.113.1"
         interface: "eth1"
 ```

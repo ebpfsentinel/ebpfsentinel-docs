@@ -279,7 +279,7 @@ spec:
       path: /metrics
 ```
 
-> **Enterprise**: HA clustering (`enterprise.ha.enabled=true`) and multi-agent-per-node deployments (`enterprise.multiNode.enabled=true`) require an enterprise license key. See the [Enterprise Kubernetes guide](../../../ebpfsentinel-enterprise-docs/operations/deployment/kubernetes.md).
+> **Enterprise**: HA clustering (`enterprise.ha.enabled=true`) and multi-agent-per-node deployments (`enterprise.multiNode.enabled=true`) require an enterprise license key. See the Enterprise Kubernetes guide in the `ebpfsentinel-enterprise` documentation.
 
 ## Requirements
 

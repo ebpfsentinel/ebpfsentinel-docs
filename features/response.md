@@ -114,7 +114,7 @@ ebpfsentinel-agent responses revoke resp-1234
 
 All endpoints require authentication (Bearer JWT, OIDC, or API key).
 
-See the full [API reference](../api/responses.md) for request/response schemas.
+See the full [API reference](../api-reference/rest-api.md#responses) for request/response schemas.
 
 ## Limits (OSS vs Enterprise)
 

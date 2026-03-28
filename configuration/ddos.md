@@ -6,30 +6,30 @@ The `ddos` section configures kernel-side protections and userspace detection po
 
 ```yaml
 ddos:
-  enabled: true                    # Enable/disable DDoS protection
+  enabled: true                     # Enable/disable DDoS protection
   syn_protection:
     enabled: true
-    threshold_mode: true           # Enable SYN rate threshold enforcement
-    threshold_pps: 10000           # SYN packets per second before rate limiting
+    threshold_mode: true            # Enable SYN rate threshold enforcement
+    threshold_pps: 10000            # SYN packets per second before rate limiting
   icmp_protection:
     enabled: true
-    max_pps: 10                    # Maximum ICMP packets per second
-    max_payload_size: 64           # Maximum ICMP payload bytes (oversized = dropped)
+    max_pps: 10                     # Maximum ICMP packets per second
+    max_payload_size: 64            # Maximum ICMP payload bytes (oversized = dropped)
   amplification_protection:
     enabled: true
     ports:
-      - port: 53                   # DNS
+      - port: 53                    # DNS
         protocol: "udp"
-        max_pps: 1000              # Per-source-per-port PPS limit
-      - port: 123                  # NTP
+        max_pps: 1000               # Per-source-per-port PPS limit
+      - port: 123                   # NTP
         protocol: "udp"
         max_pps: 500
   connection_tracking:
     enabled: true
-    half_open_threshold: 100       # Max half-open connections per source
-    rst_threshold: 50              # RST packets/sec per source before drop
-    fin_threshold: 50              # FIN packets/sec per source before drop
-    ack_threshold: 200             # ACK packets/sec per source before drop
+    half_open_threshold: 100        # Max half-open connections per source
+    rst_threshold: 50               # RST packets/sec per source before drop
+    fin_threshold: 50               # FIN packets/sec per source before drop
+    ack_threshold: 200              # ACK packets/sec per source before drop
   policies:
     - id: "policy-id"
       attack_type: "syn_flood"

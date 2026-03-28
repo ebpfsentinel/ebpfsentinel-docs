@@ -38,14 +38,16 @@ qos:
         vlan_id: null
 ```
 
-## Core
+## Fields
+
+### Core
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable QoS traffic shaping |
 | `scheduler` | string | `"fifo"` | Packet scheduler: `fifo`, `wf2q` (weighted fair queuing), or `fq_codel` |
 
-## Pipes
+### Pipes
 
 Pipes define bandwidth limits and link characteristics. Each pipe acts as a virtual link with a rate cap.
 
@@ -63,7 +65,7 @@ Pipes define bandwidth limits and link characteristics. Each pipe acts as a virt
 
 Maximum 64 pipes.
 
-## Queues
+### Queues
 
 Queues attach to pipes and control how traffic within a pipe is scheduled.
 
@@ -76,7 +78,7 @@ Queues attach to pipes and control how traffic within a pipe is scheduled.
 
 Maximum 256 queues.
 
-## Classifiers
+### Classifiers
 
 Classifiers match traffic and assign it to queues. They are evaluated in priority order (lowest number first).
 
@@ -90,7 +92,7 @@ Classifiers match traffic and assign it to queues. They are evaluated in priorit
 
 Maximum 1024 classifiers.
 
-### Match Rule
+#### Match Rule
 
 All fields in `match_rule` are optional. Omitted fields match any value.
 

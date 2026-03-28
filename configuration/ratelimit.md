@@ -6,17 +6,17 @@ The `ratelimit` section configures DDoS protection rules with five available alg
 
 ```yaml
 ratelimit:
-  enabled: false               # Enable/disable rate limiting (default: false)
-  default_rate: 1000           # Default PPS for unmatched IPs
-  default_burst: 2000          # Default burst capacity for unmatched IPs
-  default_algorithm: token_bucket  # Default algorithm for unmatched IPs
+  enabled: false                         # Enable/disable rate limiting (default: false)
+  default_rate: 1000                     # Default PPS for unmatched IPs
+  default_burst: 2000                    # Default burst capacity for unmatched IPs
+  default_algorithm: token_bucket        # Default algorithm for unmatched IPs
   rules:
     - id: "rule-id"
-      rate: 10000              # Packets per second
-      burst: 20000             # Burst capacity
-      algorithm: token_bucket  # Algorithm choice
-      scope: per_ip            # per_ip or global
-      src_ip: "10.0.0.0/8"    # Source CIDR filter (optional)
+      rate: 10000                        # Packets per second
+      burst: 20000                       # Burst capacity
+      algorithm: token_bucket            # Algorithm choice
+      scope: per_ip                      # per_ip or global
+      src_ip: "10.0.0.0/8"               # Source CIDR filter (optional)
 ```
 
 ## Fields

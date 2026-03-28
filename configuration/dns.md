@@ -6,11 +6,11 @@ The `dns` section configures DNS caching, domain blocklists, and reputation scor
 
 ```yaml
 dns:
-  cache_size: 100000           # Maximum cache entries
-  cache_ttl: 3600              # Default TTL in seconds
+  cache_size: 100000                # Maximum cache entries
+  cache_ttl: 3600                   # Default TTL in seconds
   blocklist:
     - domain: "malware.example.com"
-      action: block            # block or log
+      action: block                 # block or log
     - domain: "*.ad-network.com"
       action: block
   feeds:
@@ -20,12 +20,12 @@ dns:
       refresh_interval_secs: 3600
   reputation:
     enabled: true
-    auto_block_threshold: 0.8  # Block domains scoring above this
-    decay_half_life_hours: 24  # Exponential decay half-life in hours
-    max_tracked_domains: 50000 # Maximum domains tracked for reputation
-    auto_block_enabled: false  # Enable automatic blocking of high-score domains
-    auto_block_ttl_secs: 3600  # TTL for auto-blocked domains in seconds
-    doh_resolvers: []          # DNS-over-HTTPS resolver URLs for encrypted DNS detection
+    auto_block_threshold: 0.8       # Block domains scoring above this
+    decay_half_life_hours: 24       # Exponential decay half-life in hours
+    max_tracked_domains: 50000      # Maximum domains tracked for reputation
+    auto_block_enabled: false       # Enable automatic blocking of high-score domains
+    auto_block_ttl_secs: 3600       # TTL for auto-blocked domains in seconds
+    doh_resolvers: []               # DNS-over-HTTPS resolver URLs for encrypted DNS detection
 ```
 
 ## Fields

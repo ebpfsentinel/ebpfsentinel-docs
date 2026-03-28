@@ -15,18 +15,18 @@ loadbalancer:
       algorithm: "round_robin"           # round_robin, weighted, ip_hash, least_conn
       enabled: true                      # Administrative enable flag
       backends:
-        - id: "backend-id"              # Unique backend identifier within service
-          addr: "10.0.1.10"             # Backend IP (IPv4 or IPv6)
-          port: 443                     # Backend port
-          weight: 1                     # Traffic weight (higher = more traffic)
-          enabled: true                 # Administrative enable flag
-      health_check:                     # Optional health probe
-        target: "10.0.1.10"            # Probe target address
-        protocol: "tcp"                # tcp or icmp
-        interval_secs: 10             # Probe interval
-        timeout_secs: 5               # Probe timeout
-        failure_threshold: 3          # Failures before marking unhealthy
-        recovery_threshold: 2         # Successes before marking healthy
+        - id: "backend-id"               # Unique backend identifier within service
+          addr: "10.0.1.10"              # Backend IP (IPv4 or IPv6)
+          port: 443                      # Backend port
+          weight: 1                      # Traffic weight (higher = more traffic)
+          enabled: true                  # Administrative enable flag
+      health_check:                      # Optional health probe
+        target: "10.0.1.10"              # Probe target address
+        protocol: "tcp"                  # tcp or icmp
+        interval_secs: 10                # Probe interval
+        timeout_secs: 5                  # Probe timeout
+        failure_threshold: 3             # Failures before marking unhealthy
+        recovery_threshold: 2            # Successes before marking healthy
 ```
 
 ## Fields

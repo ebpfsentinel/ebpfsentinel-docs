@@ -7,25 +7,25 @@ The `alerting` section configures alert deduplication, throttling, routing, and 
 ```yaml
 alerting:
   enabled: true
-  dedup_window_secs: 60        # Seconds to suppress duplicate alerts
-  throttle_window_secs: 300    # Throttle window per source
-  throttle_max: 100            # Max alerts per source per window
-  smtp:                        # Required for email destinations
+  dedup_window_secs: 60                    # Seconds to suppress duplicate alerts
+  throttle_window_secs: 300                # Throttle window per source
+  throttle_max: 100                        # Max alerts per source per window
+  smtp:                                    # Required for email destinations
     host: "smtp.example.com"
     port: 587
     from_address: "alerts@example.com"
     tls: true
   routes:
     - name: "route-name"
-      destination: webhook     # log, email, or webhook
-      min_severity: high       # Minimum severity to route
-      event_types: [ids, ips]  # Optional — omit to match all components
-      webhook_url: "https://..." # Required for webhook destination
-      email_to: "ops@example.com" # Required for email destination
-  otlp:                          # OpenTelemetry export (optional)
+      destination: webhook                 # log, email, or webhook
+      min_severity: high                   # Minimum severity to route
+      event_types: [ids, ips]              # Optional — omit to match all components
+      webhook_url: "https://..."           # Required for webhook destination
+      email_to: "ops@example.com"          # Required for email destination
+  otlp:                                    # OpenTelemetry export (optional)
     endpoint: "http://otel-collector:4317"
-    protocol: "grpc"             # grpc or http. Default: grpc
-    timeout_ms: 5000             # Export timeout in milliseconds. Default: 5000
+    protocol: "grpc"                       # grpc or http. Default: grpc
+    timeout_ms: 5000                       # Export timeout in milliseconds. Default: 5000
 ```
 
 ## Fields
