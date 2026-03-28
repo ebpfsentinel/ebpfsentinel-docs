@@ -549,6 +549,74 @@ ebpfsentinel-agent domains block malware.example.com
 ebpfsentinel-agent domains unblock example.com
 ```
 
+### mitre
+
+MITRE ATT&CK coverage matrix for active features.
+
+```bash
+# Show MITRE ATT&CK technique coverage
+ebpfsentinel-agent mitre coverage
+ebpfsentinel-agent mitre coverage -o json
+```
+
+### capture
+
+Manual packet capture (pcap). Requires the `pcap-capture` feature and `libpcap-dev`.
+
+```bash
+# List all capture sessions
+ebpfsentinel-agent capture list
+
+# Start a time-bounded capture
+ebpfsentinel-agent capture start --filter "host 1.2.3.4 and port 443" --duration 60s
+ebpfsentinel-agent capture start --filter "tcp port 80" --duration 5m --snap-length 256 --interface eth0
+
+# Stop a running capture
+ebpfsentinel-agent capture stop cap-001
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--filter <EXPR>` | BPF filter expression | Required |
+| `--duration <DUR>` | Capture duration (e.g. `60s`, `5m`) | `60s` |
+| `--snap-length <BYTES>` | Max bytes per packet | `1500` |
+| `--interface <NAME>` | Network interface | First configured |
+
+### responses
+
+Manual response actions: time-bounded IP blocks and throttles.
+
+```bash
+# List active response actions
+ebpfsentinel-agent responses list
+
+# Create a block action (1 hour TTL)
+ebpfsentinel-agent responses create --action block_ip --target 203.0.113.42 --ttl 1h
+
+# Create a throttle action
+ebpfsentinel-agent responses create --action throttle_ip --target 10.0.0.0/24 --ttl 30m --rate-pps 100
+
+# Revoke an action early
+ebpfsentinel-agent responses revoke resp-001
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--action <TYPE>` | `block_ip` or `throttle_ip` | Required |
+| `--target <IP/CIDR>` | Target IP or CIDR | Required |
+| `--ttl <DUR>` | Duration (e.g. `1h`, `30m`, `3600s`) | Required |
+| `--rate-pps <N>` | Rate limit in pps (for `throttle_ip`) | None |
+
+### fingerprints
+
+JA4+ TLS fingerprint cache and analysis.
+
+```bash
+# Show fingerprint cache summary
+ebpfsentinel-agent fingerprints summary
+ebpfsentinel-agent fingerprints summary -o json
+```
+
 ## Output Formats
 
 ### Table (default)

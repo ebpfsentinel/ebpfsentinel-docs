@@ -14,8 +14,10 @@ service AlertStreamService {
 }
 
 message StreamAlertsRequest {
-  string min_severity = 1;    // Optional: critical, high, medium, low, info
-  string component = 2;       // Optional: ids, ips, dlp, firewall, threatintel, dns, l7
+  string min_severity = 1;        // Optional: critical, high, medium, low, info
+  string component = 2;           // Optional: ids, ips, dlp, firewall, threatintel, dns, l7
+  string mitre_tactic = 3;        // Optional: MITRE ATT&CK tactic (e.g. "exfiltration")
+  string mitre_technique_id = 4;  // Optional: MITRE ATT&CK technique ID (e.g. "T1041")
 }
 
 message AlertEvent {
@@ -38,6 +40,14 @@ grpcurl -plaintext localhost:50051 ebpfsentinel.v1.AlertStreamService/StreamAler
 
 # Only critical IDS alerts
 grpcurl -plaintext -d '{"min_severity":"critical","component":"ids"}' \
+  localhost:50051 ebpfsentinel.v1.AlertStreamService/StreamAlerts
+
+# Filter by MITRE ATT&CK tactic
+grpcurl -plaintext -d '{"mitre_tactic":"exfiltration"}' \
+  localhost:50051 ebpfsentinel.v1.AlertStreamService/StreamAlerts
+
+# Filter by MITRE ATT&CK technique ID
+grpcurl -plaintext -d '{"mitre_technique_id":"T1041"}' \
   localhost:50051 ebpfsentinel.v1.AlertStreamService/StreamAlerts
 
 # With TLS

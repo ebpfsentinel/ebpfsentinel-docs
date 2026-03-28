@@ -7,7 +7,7 @@ The `alerting` section configures alert deduplication, throttling, routing, and 
 ```yaml
 alerting:
   enabled: true
-  dedup_window_secs: 300       # Seconds to suppress duplicate alerts
+  dedup_window_secs: 60        # Seconds to suppress duplicate alerts
   throttle_window_secs: 300    # Throttle window per source
   throttle_max: 100            # Max alerts per source per window
   smtp:                        # Required for email destinations
@@ -22,6 +22,10 @@ alerting:
       event_types: [ids, ips]  # Optional — omit to match all components
       webhook_url: "https://..." # Required for webhook destination
       email_to: "ops@example.com" # Required for email destination
+  otlp:                          # OpenTelemetry export (optional)
+    endpoint: "http://otel-collector:4317"
+    protocol: "grpc"             # grpc or http. Default: grpc
+    timeout_ms: 5000             # Export timeout in milliseconds. Default: 5000
 ```
 
 ## Fields
@@ -31,10 +35,11 @@ alerting:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable alerting |
-| `dedup_window_secs` | `integer` | `300` | Seconds to suppress duplicate alerts |
+| `dedup_window_secs` | `integer` | `60` | Seconds to suppress duplicate alerts |
 | `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
 | `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
 | `smtp` | `SmtpConfig` | — | SMTP configuration (required for email destinations) |
+| `otlp` | `OtlpConfig` | — | OpenTelemetry export configuration |
 | `routes` | `[Route]` | `[]` | Alert routing rules |
 
 ### Route
@@ -60,6 +65,14 @@ alerting:
 | `from_address` | `string` | Required | Sender email address |
 | `tls` | `bool` | `true` | Enable TLS |
 
+### OtlpConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `endpoint` | `string` | Required | OpenTelemetry collector endpoint (e.g. `http://otel-collector:4317`) |
+| `protocol` | `string` | `grpc` | Export protocol: `grpc` or `http` |
+| `timeout_ms` | `u64` | `5000` | Export timeout in milliseconds |
+
 ## Examples
 
 ### Multi-channel alerting
@@ -67,7 +80,7 @@ alerting:
 ```yaml
 alerting:
   enabled: true
-  dedup_window_secs: 300
+  dedup_window_secs: 60
   throttle_window_secs: 300
   throttle_max: 100
   smtp:

@@ -195,23 +195,22 @@ metrics:
     interval: 15s
     labels: {}           # extra labels for ServiceMonitor (e.g., release: prometheus)
 
-# -- Security features toggles (maps to config.yaml sections)
+# -- Security features toggles
+# Each domain is enabled/disabled here. Detailed configuration (rules, feeds,
+# patterns, policies) belongs in `configOverride` or the mounted ConfigMap —
+# the Helm values only expose boolean toggles and simple defaults.
 firewall:
   enabled: true
   defaultPolicy: pass   # pass | deny
-  rules: []             # inline rules or use configOverride
 
 ids:
   enabled: true
-  mode: alert            # alert | enforce
 
 ratelimit:
   enabled: false
-  rules: []
 
 threatintel:
   enabled: false
-  feeds: []
 
 dlp:
   enabled: false

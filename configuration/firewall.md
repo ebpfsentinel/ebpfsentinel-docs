@@ -7,7 +7,7 @@ The `firewall` section configures L3/L4 packet filtering rules enforced at XDP s
 ```yaml
 firewall:
   enabled: true                # Enable/disable firewall (default: true)
-  mode: block                  # block or alert (default: block)
+  mode: alert                  # block or alert (default: alert)
   default_policy: pass         # pass or drop. Default: pass
   anti_lockout:
     enabled: true
@@ -58,7 +58,7 @@ firewall:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable the firewall |
-| `mode` | `string` | `block` | `block` (deny→drop) or `alert` (deny→log only) |
+| `mode` | `string` | `alert` | `block` (deny→drop) or `alert` (deny→log only) |
 | `default_policy` | `string` | `pass` | Action when no rule matches: `pass` or `drop` |
 | `rules` | `[Rule]` | `[]` | Firewall rules list |
 | `anti_lockout` | `AntiLockout` | see below | Anti-lockout safety mechanism |
@@ -87,15 +87,13 @@ firewall:
 | `dst_mac` | `string` | No | Destination MAC address |
 | `dscp_match` | `integer` | No | Match DSCP value (0-63, omit = any) |
 | `dscp_mark` | `integer` | No | Set DSCP value on matched packets (0-63) |
-| `ct_states` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid` |
+| `ct_states` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid`, `syn_sent`, `syn_recv`, `fin_wait`, `close_wait`, `time_wait` |
 | `src_alias` | `string` | No | Named IP alias for source (resolved to IP set) |
 | `dst_alias` | `string` | No | Named IP alias for destination |
 | `dst_port_alias` | `string` | No | Named port alias for destination |
 | `schedule` | `string` | No | Time-based schedule name |
 | `max_states` | `integer` | No | Per-rule concurrent connection state limit |
 | `route_to` | `object` | No | Force packet to a specific egress gateway |
-| `reply_to` | `object` | No | Store ingress interface for stateful return routing |
-| `dup_to` | `object` | No | Mirror packet to another interface |
 
 ### Anti-Lockout
 
@@ -120,7 +118,7 @@ Anti-lockout rules are injected at priority 0 (highest precedence) and marked as
 | `scrub_tcp_flags` | `bool` | `false` | Clear TCP reserved/NS/CWR/ECE bits (preserves ECN on SYN) |
 | `strip_ecn` | `bool` | `false` | Clear ECN bits in IPv4 TOS / IPv6 Traffic Class |
 | `normalize_tos` | `bool` | `false` | Force TOS/DSCP to a configured value |
-| `normalize_tos_value` | `integer` | `0` | TOS/DSCP value to set (0-255, used with `normalize_tos`) |
+| `tos_value` | `integer` | `0` | TOS/DSCP value to set (0-255, used with `normalize_tos`) |
 | `strip_tcp_timestamps` | `bool` | `false` | Remove TCP timestamp option (kind=8) for anti-fingerprinting |
 
 Scrub runs as a TC program (`tc-scrub`) after XDP processing. IPv4 uses `bpf_l3_csum_replace` for header checksum updates; IPv6 has no header checksum so hop limit changes require no checksum update.

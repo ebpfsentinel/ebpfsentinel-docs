@@ -41,25 +41,18 @@ Four independent protection subsystems run in XDP:
 
 The DDoS engine uses EWMA (α=0.3) to smooth traffic rate calculations and a state machine to track attack lifecycle:
 
-```
-            ┌───────────┐
-            │ Detecting │ ← initial state (rate exceeds threshold)
-            └─────┬─────┘
-                  │ rate sustained > 3 seconds
-                  ▼
-            ┌───────────┐
-            │  Active   │ ← mitigation action applied
-            └─────┬─────┘
-                  │ rate below threshold > 30 seconds
-                  ▼
-            ┌───────────┐
-            │ Mitigated │ ← attack subsiding
-            └─────┬─────┘
-                  │ rate below threshold > 5 minutes
-                  ▼
-            ┌───────────┐
-            │  Expired  │ ← attack over, entry cleaned up
-            └───────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> Detecting : Rate exceeds threshold
+    Detecting --> Active : Rate sustained > 3 seconds
+    Active --> Mitigated : Rate below threshold > 30 seconds
+    Mitigated --> Expired : Rate below threshold > 5 minutes
+    Expired --> [*]
+
+    note right of Detecting : Initial state
+    note right of Active : Mitigation action applied
+    note right of Mitigated : Attack subsiding
+    note right of Expired : Entry cleaned up
 ```
 
 **Mitigation Actions:**

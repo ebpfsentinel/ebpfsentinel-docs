@@ -4,162 +4,92 @@ The full kernel-side packet processing pipeline, from NIC to userspace.
 
 ## Ingress Pipeline
 
-```
-                    ┌─────────────────────────────┐
-                    │          NIC (driver)       │
-                    └──────────────┬──────────────┘
-                                   │
-                    ╔══════════════╧══════════════════════════════════╗
-                    ║     XDP Hook (earliest)                          ║
-                    ╠══════════════════════════════════════════════════╣
-                    ║                                                  ║
-                    ║  ┌──────────────────────────────────┐            ║
-                    ║  │    xdp-firewall (attached)       │            ║
-                    ║  │                                  │            ║
-                    ║  │  1. Conntrack fast-path          │            ║
-                    ║  │  2. LPM trie lookup              │            ║
-                    ║  │  3. Linear rule scan             │            ║
-                    ║  │  4. Connection limits            │            ║
-                    ║  │  5. Routing actions              │            ║
-                    ║  └───┬──────────┬──────────┬────────┘            ║
-                    ║      │          │          │                     ║
-                    ║  XDP_DROP  PROG_ARRAY  PROG_ARRAY               ║
-                    ║  [end]     slot 0      slot 1                   ║
-                    ║      │          │          │                     ║
-                    ║      │          ▼          ▼                     ║
-                    ║      │  ┌──────────────┐  ┌───────────────────┐  ║
-                    ║      │  │xdp-ratelimit │  │xdp-firewall-     │  ║
-                    ║      │  │              │  │reject             │  ║
-                    ║      │  │ • Per-IP     │  │                   │  ║
-                    ║      │  │   rate check │  │ • TCP RST forge   │  ║
-                    ║      │  │ • ICMP limit │  │ • ICMP Unreach    │  ║
-                    ║      │  │ • UDP amp    │  │   forge           │  ║
-                    ║      │  │   detection  │  │                   │  ║
-                    ║      │  └──┬───┬───┬───┘  └───────┬───────────┘  ║
-                    ║      │     │   │   │              │              ║
-                    ║      │  XDP_   │  RL_PROG     XDP_TX            ║
-                    ║      │  DROP   │  slot 0      [reject           ║
-                    ║      │  [end]  │   │           & return]        ║
-                    ║      │        │   ▼                             ║
-                    ║      │        │  ┌─────────────────┐            ║
-                    ║      │        │  │xdp-ratelimit-   │            ║
-                    ║      │        │  │syncookie        │            ║
-                    ║      │        │  │                 │            ║
-                    ║      │        │  │ • SYN+ACK forge │            ║
-                    ║      │        │  │   (FNV-1a)     │            ║
-                    ║      │        │  └───────┬─────────┘            ║
-                    ║      │        │          │                      ║
-                    ║      │        │       XDP_TX                    ║
-                    ║      │        │       [cookie                   ║
-                    ║      │        │        & return]                ║
-                    ║      │        │                                 ║
-                    ║      │     RL_PROG  ◄── also FW PROG_ARRAY     ║
-                    ║      │     slot 1       slot 2 (fallback       ║
-                    ║      │        │         when RL absent)        ║
-                    ║      │        ▼                                 ║
-                    ║      │  ┌──────────────────┐                    ║
-                    ║      │  │xdp-loadbalancer  │                    ║
-                    ║      │  │                  │                    ║
-                    ║      │  │ • Service lookup │                    ║
-                    ║      │  │ • Backend select │                    ║
-                    ║      │  │ • DNAT rewrite   │                    ║
-                    ║      │  └───────┬──────────┘                    ║
-                    ║      │          │                               ║
-                    ║      │       XDP_PASS                           ║
-                    ║      │       + metadata                         ║
-                    ║      │       (bpf_xdp_adjust_meta)              ║
-                    ╚══════╧══════════╤════════════════════════════════╝
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │    Kernel Network Stack      │
-                    │    (SKB allocation)          │
-                    └──────────────┬──────────────┘
-                                   │
-                    ╔══════════════╧════════════════╗
-                    ║    TC Hook (classifier)       ║
-                    ╠═══════════════════════════════╣
-                    ║                               ║
-                    ║  tc-conntrack                 ║
-                    ║    → TCP/UDP/ICMP state       ║
-                    ║    → Bidirectional tracking   ║
-                    ║         │                     ║
-                    ║  tc-scrub                     ║
-                    ║    → TTL / MSS / DF / IP ID   ║
-                    ║         │                     ║
-                    ║  tc-nat-ingress               ║
-                    ║    → DNAT rewrite             ║
-                    ║    → Checksum update          ║
-                    ║         │                     ║
-                    ║  tc-ids                       ║
-                    ║    → Sampling                 ║
-                    ║    → L7 signature detection   ║
-                    ║         │                     ║
-                    ║  tc-threatintel               ║
-                    ║    → Bloom filter pre-check   ║
-                    ║    → VLAN quarantine          ║
-                    ║         │                     ║
-                    ║  tc-dns                       ║
-                    ║    → UDP:53 capture           ║
-                    ║                               ║
-                    ╚══════════════╤════════════════╝
-                                   │
-                         RingBuf events ──→ Userspace
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │       Application            │
-                    └─────────────────────────────┘
+```mermaid
+flowchart TD
+    NIC["NIC (driver)"]
+
+    subgraph XDP["XDP Programs (earliest hook)"]
+        FW["xdp-firewall\n1. Conntrack fast-path\n2. LPM trie lookup\n3. Linear rule scan\n4. Connection limits\n5. Routing actions"]
+        FW -->|XDP_DROP| DROP1(("DROP\n(end)"))
+        FW -->|"PROG_ARRAY slot 1"| REJECT["xdp-firewall-reject\nTCP RST forge\nICMP Unreach forge"]
+        REJECT -->|XDP_TX| REJECT_OUT(("TX\n(reject & return)"))
+        FW -->|"PROG_ARRAY slot 0"| RL["xdp-ratelimit\nPer-IP rate check\nICMP limit\nUDP amp detection"]
+        RL -->|XDP_DROP| DROP2(("DROP\n(end)"))
+        RL -->|"RL_PROG slot 0"| SYNCOOKIE["xdp-ratelimit-syncookie\nSYN+ACK forge (FNV-1a)"]
+        SYNCOOKIE -->|XDP_TX| COOKIE_OUT(("TX\n(cookie & return)"))
+        RL -->|"RL_PROG slot 1\n(also FW slot 2 fallback)"| LB["xdp-loadbalancer\nService lookup\nBackend select\nDNAT rewrite"]
+        LB -->|"XDP_PASS + metadata\n(bpf_xdp_adjust_meta)"| XDP_PASS(("PASS"))
+        RL -->|XDP_PASS| XDP_PASS
+    end
+
+    STACK["Kernel Network Stack\n(SKB allocation)"]
+
+    subgraph TC["TC Programs (classifier hook)"]
+        CONNTRACK["tc-conntrack\nTCP/UDP/ICMP state\nBidirectional tracking"]
+        SCRUB["tc-scrub\nTTL / MSS / DF / IP ID"]
+        NAT_IN["tc-nat-ingress\nDNAT rewrite\nChecksum update"]
+        IDS["tc-ids\nSampling\nL7 signature detection"]
+        THREATINTEL["tc-threatintel\nBloom filter pre-check\nVLAN quarantine"]
+        DNS["tc-dns\nUDP:53 capture"]
+
+        CONNTRACK --> SCRUB --> NAT_IN --> IDS --> THREATINTEL --> DNS
+    end
+
+    RINGBUF["RingBuf events"]
+    APP["Application / Userspace"]
+
+    NIC --> FW
+    XDP_PASS --> STACK
+    STACK --> CONNTRACK
+    DNS --> RINGBUF --> APP
 ```
 
 ## Egress Pipeline
 
-```
-                    ┌─────────────────────────────┐
-                    │       Application            │
-                    └──────────────┬──────────────┘
-                                   │
-                    ╔══════════════╧══════════════╗
-                    ║   TC Hook (egress)           ║
-                    ╠═════════════════════════════╣
-                    ║                              ║
-                    ║  tc-nat-egress               ║
-                    ║    → SNAT / masquerade       ║
-                    ║    → Port allocation         ║
-                    ║    → Checksum update         ║
-                    ║         │                    ║
-                    ║  tc-qos                      ║
-                    ║    → 4-level classifier      ║
-                    ║    → Token bucket shaping    ║
-                    ║    → Loss / delay emulation  ║
-                    ║                              ║
-                    ╚══════════════╤══════════════╝
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │          NIC → wire          │
-                    └─────────────────────────────┘
+```mermaid
+flowchart TD
+    APP["Application"]
+    APP --> NAT_EG
+
+    subgraph TC_EG["TC Programs (egress hook)"]
+        NAT_EG["tc-nat-egress\nSNAT / masquerade\nPort allocation\nChecksum update"]
+        QOS["tc-qos\n4-level classifier\nToken bucket shaping\nLoss / delay emulation"]
+        NAT_EG --> QOS
+    end
+
+    WIRE["NIC --> wire"]
+    QOS --> WIRE
 ```
 
 ## XDP→TC Metadata Flow
 
 The XDP firewall uses [`bpf_xdp_adjust_meta`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_meta/) to pass context to downstream TC programs:
 
-```
-XDP data area (before adjust_meta):
-  ┌──────────────────────────────────┐
-  │ data                        data_end │
-  │ [packet bytes .................]     │
-  └──────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph BEFORE["Before bpf_xdp_adjust_meta"]
+        direction LR
+        B_DATA["data\n(packet bytes)"]
+        B_END["data_end"]
+        B_DATA --- B_END
+    end
 
-After bpf_xdp_adjust_meta(ctx, -sizeof(metadata)):
-  ┌────────────────────────────────────────┐
-  │ data_meta    data              data_end │
-  │ [metadata]   [packet bytes ........]    │
-  └────────────────────────────────────────┘
+    subgraph AFTER["After bpf_xdp_adjust_meta(ctx, -sizeof metadata)"]
+        direction LR
+        A_META["data_meta\n(metadata)"]
+        A_DATA["data\n(packet bytes)"]
+        A_END["data_end"]
+        A_META --- A_DATA --- A_END
+    end
 
-Metadata struct:
-  ┌──────────┬──────────┬────────┐
-  │ rule_id  │ flags    │ status │
-  │ (u32)    │ (u16)    │ (u16)  │
-  └──────────┴──────────┴────────┘
+    subgraph STRUCT["Metadata struct (8 bytes)"]
+        direction LR
+        RULE["rule_id\n(u32)"]
+        FLAGS["flags\n(u16)"]
+        STATUS["status\n(u16)"]
+    end
+
+    BEFORE --> AFTER --> STRUCT
 ```
 
 TC programs access `ctx->data_meta` directly without re-parsing Ethernet/IP/TCP headers, saving ~50ns per packet.
@@ -168,22 +98,36 @@ TC programs access `ctx->data_meta` directly without re-parsing Ethernet/IP/TCP 
 
 All kernel programs emit events to userspace via the same [`BPF_MAP_TYPE_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/):
 
-```
-Kernel programs                          Userspace
-┌─────────────┐
-│ xdp-firewall│──┐
-├─────────────┤  │   ┌────────────────┐    ┌───────────────────┐
-│xdp-ratelimit│──┼──→│   RingBuf      │───→│  EventDispatcher  │
-├─────────────┤  │   │  (shared)      │    │                   │
-│   tc-ids    │──┤   │                │    │  ├─→ IDS engine   │
-├─────────────┤  │   │  PacketEvent   │    │  ├─→ Firewall eng │
-│tc-threatintel──┤   │  (64 bytes)    │    │  ├─→ DLP engine   │
-├─────────────┤  │   │                │    │  ├─→ ThreatIntel  │
-│   tc-dns    │──┤   │  MPSC: multi-  │    │  ├─→ DNS engine   │
-├─────────────┤  │   │  producer,     │    │  └─→ ...          │
-│  uprobe-dlp │──┘   │  single-       │    └───────────────────┘
-└─────────────┘      │  consumer      │
-                     └────────────────┘
+```mermaid
+flowchart LR
+    subgraph KERNEL["Kernel producers"]
+        FW["xdp-firewall"]
+        RL["xdp-ratelimit"]
+        IDS["tc-ids"]
+        TI["tc-threatintel"]
+        DNS["tc-dns"]
+        DLP["uprobe-dlp"]
+    end
+
+    RING["RingBuf (shared)\nPacketEvent (64 bytes)\nMPSC: multi-producer,\nsingle-consumer"]
+
+    subgraph USER["Userspace"]
+        DISP["EventDispatcher"]
+        DISP --> IDS_E["IDS engine"]
+        DISP --> FW_E["Firewall engine"]
+        DISP --> DLP_E["DLP engine"]
+        DISP --> TI_E["ThreatIntel engine"]
+        DISP --> DNS_E["DNS engine"]
+        DISP --> OTHER["..."]
+    end
+
+    FW --> RING
+    RL --> RING
+    IDS --> RING
+    TI --> RING
+    DNS --> RING
+    DLP --> RING
+    RING --> DISP
 ```
 
 ### PacketEvent Structure (64 bytes)

@@ -37,8 +37,7 @@ ids:
 |-------|------|---------|-------------|
 | `mode` | `string` | `none` | `none`, `random`, `hash`, or `country_based` |
 | `rate` | `float` | `1.0` | Sample rate 0.0–1.0 (for `random`/`hash` modes) |
-| `kernel_sampling` | `bool` | `true` | Push sampling into eBPF (`bpf_get_prandom_u32`) |
-| `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 codes for full inspection (`country_based` mode) |
+| `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 codes for full inspection (`country_based` mode). Max 250 codes |
 | `high_risk_rate` | `float` | `1.0` | Sample rate for high-risk countries (default: 100%) |
 | `default_rate` | `float` | `0.1` | Sample rate for all other countries |
 
@@ -95,10 +94,10 @@ ids:
   mode: alert
   sampling:
     mode: country_based
+    rate: 1.0
     high_risk_countries: [RU, CN, KP, IR]
-    high_risk_rate: 1.0       # 100% inspection for high-risk countries
+    high_risk_rate: 1.0        # 100% inspection for high-risk countries
     default_rate: 0.1          # 10% for all others
-    kernel_sampling: true
   rules:
     - id: ssh-bruteforce
       protocol: tcp

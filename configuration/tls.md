@@ -10,6 +10,7 @@ tls:
   cert_path: /etc/ebpfsentinel/server.crt
   key_path: /etc/ebpfsentinel/server.key
   allow_tls12: false              # TLS 1.3 only by default
+  pq_mode: prefer                 # Post-quantum key exchange: prefer, require, disable. Default: prefer
 ```
 
 ## Fields
@@ -20,6 +21,7 @@ tls:
 | `cert_path` | `string` | — | Path to PEM certificate file |
 | `key_path` | `string` | — | Path to PEM private key file |
 | `allow_tls12` | `bool` | `false` | Allow TLS 1.2 connections. When `false` (default), only TLS 1.3 is accepted |
+| `pq_mode` | `string` | `prefer` | Post-quantum key exchange mode: `prefer`, `require`, or `disable` (see below) |
 
 ## Implementation
 
@@ -29,6 +31,18 @@ When enabled, both REST API and gRPC endpoints use TLS:
 
 - REST: `https://localhost:8080/`
 - gRPC: TLS on port 50051
+
+## Post-Quantum Key Exchange
+
+The `pq_mode` field controls whether the agent advertises the `X25519MLKEM768` hybrid key exchange during TLS handshakes.
+
+| Mode | Behavior |
+|------|----------|
+| `prefer` | Advertise PQ hybrid key exchange; fall back to classical X25519 if the client does not support it. Default. |
+| `require` | Only accept connections that negotiate PQ hybrid key exchange. Clients without PQ support are rejected. |
+| `disable` | Do not advertise PQ key exchange. Only classical key exchanges are used. |
+
+**Important**: PQ hybrid key exchange (`X25519MLKEM768`) requires TLS 1.3. When `allow_tls12: true` is set, connections that negotiate TLS 1.2 always use classical key exchange regardless of `pq_mode`.
 
 ## Certificate Generation
 

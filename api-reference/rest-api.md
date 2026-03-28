@@ -687,6 +687,20 @@ curl http://localhost:8080/api/v1/qos/queues
 
 Create a QoS queue. Requires `admin` role.
 
+```bash
+curl -X POST http://localhost:8080/api/v1/qos/queues \
+  -H "Content-Type: application/json" \
+  -d '{"id":"q-web","pipe_id":"p-wan","weight":80}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique queue identifier (max 64 chars) |
+| `pipe_id` | string | Yes | Parent pipe identifier |
+| `weight` | integer | No | Scheduling weight (default: 50) |
+
 #### DELETE /api/v1/qos/queues/{id}
 
 Delete a QoS queue. Requires `admin` role.
@@ -702,6 +716,43 @@ curl http://localhost:8080/api/v1/qos/classifiers
 #### POST /api/v1/qos/classifiers
 
 Create a QoS classifier. Requires `admin` role.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/qos/classifiers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "cls-https",
+    "queue_id": "q-web",
+    "priority": 10,
+    "direction": "egress",
+    "match_rule": {
+      "dst_port": 443,
+      "protocol": 6
+    }
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique classifier identifier (max 64 chars) |
+| `queue_id` | string | Yes | Target queue identifier |
+| `priority` | integer | No | Priority (lower = higher, default: 100) |
+| `direction` | string | No | `ingress`, `egress`, or `both` (default: `egress`) |
+| `match_rule` | object | No | Traffic match criteria (see below) |
+
+**`match_rule` fields (all optional, defaults to match-all):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `src_ip` | string | Source IP or CIDR |
+| `dst_ip` | string | Destination IP or CIDR |
+| `src_port` | integer | Source port (0 = any) |
+| `dst_port` | integer | Destination port (0 = any) |
+| `protocol` | integer | IP protocol number (6=TCP, 17=UDP, 0=any) |
+| `dscp` | integer | DSCP value (0 = any) |
+| `vlan_id` | integer | VLAN ID (0 = any) |
 
 #### DELETE /api/v1/qos/classifiers/{id}
 
@@ -733,6 +784,105 @@ Delete an NPTv6 rule.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
+```
+
+### MITRE ATT&CK
+
+#### GET /api/v1/mitre/coverage
+
+MITRE ATT&CK technique coverage map based on active features.
+
+```bash
+curl http://localhost:8080/api/v1/mitre/coverage
+```
+
+### JA4+ Fingerprints
+
+#### GET /api/v1/fingerprints/summary
+
+JA4+ TLS fingerprint cache summary.
+
+```bash
+curl http://localhost:8080/api/v1/fingerprints/summary
+```
+
+### Responses
+
+#### GET /api/v1/responses
+
+List active response actions (blocks and throttles).
+
+```bash
+curl http://localhost:8080/api/v1/responses
+```
+
+#### POST /api/v1/responses/manual
+
+Create a time-bounded response action. Requires `admin` role.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/responses/manual \
+  -H "Content-Type: application/json" \
+  -d '{"action":"block_ip","target":"203.0.113.42","ttl":"1h"}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | string | Yes | `block_ip` or `throttle_ip` |
+| `target` | string | Yes | Target IP or CIDR (e.g. `1.2.3.4` or `10.0.0.0/24`) |
+| `ttl` | string | Yes | Duration string: `30s`, `5m`, `1h`, `1d`, or bare seconds |
+| `rate_pps` | integer | No | Rate limit in packets/sec (required for `throttle_ip`) |
+
+#### DELETE /api/v1/responses/{id}
+
+Revoke a response action early. Requires `admin` role.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/responses/resp-001
+```
+
+### Captures
+
+#### GET /api/v1/captures
+
+List all packet capture sessions.
+
+```bash
+curl http://localhost:8080/api/v1/captures
+```
+
+#### POST /api/v1/captures/manual
+
+Start a time-bounded packet capture. Requires `admin` role.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/captures/manual \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": "host 1.2.3.4 and port 443",
+    "duration_seconds": 60,
+    "snap_length": 1500,
+    "interface": "eth0"
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filter` | string | Yes | BPF filter expression (max 2048 chars) |
+| `duration_seconds` | integer | Yes | Capture duration in seconds |
+| `snap_length` | integer | No | Max bytes per packet (default: 1500) |
+| `interface` | string | No | Network interface (default: first configured, or `any`) |
+
+#### DELETE /api/v1/captures/{id}
+
+Stop a running capture. Requires `admin` role.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/captures/cap-001
 ```
 
 ### Metrics
@@ -823,6 +973,14 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/nat/nptv6` | Yes | List NPTv6 rules |
 | POST | `/api/v1/nat/nptv6` | Yes | Create NPTv6 rule |
 | DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
+| GET | `/api/v1/mitre/coverage` | Yes | MITRE ATT&CK technique coverage map |
+| GET | `/api/v1/fingerprints/summary` | Yes | JA4+ fingerprint cache summary |
+| GET | `/api/v1/responses` | Yes | List active auto-response actions |
+| POST | `/api/v1/responses/manual` | Yes (admin) | Create manual response action (block/throttle) |
+| DELETE | `/api/v1/responses/{id}` | Yes (admin) | Revoke a response action |
+| GET | `/api/v1/captures` | Yes | List packet capture sessions |
+| POST | `/api/v1/captures/manual` | Yes (admin) | Start a manual packet capture |
+| DELETE | `/api/v1/captures/{id}` | Yes (admin) | Stop a running capture |
 
 ## Enterprise Endpoints
 

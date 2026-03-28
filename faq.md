@@ -12,13 +12,13 @@ GNU Affero General Public License v3.0 (AGPL-3.0). All features documented as OS
 
 ### Does it work on macOS / Windows?
 
-No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.1+). It is Linux-only.
+No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.6+). It is Linux-only.
 
 ## Installation & Requirements
 
 ### What kernel version do I need?
 
-Linux kernel **6.1 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist).
+Linux kernel **6.6 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist).
 
 ### Does it require kernel modules?
 

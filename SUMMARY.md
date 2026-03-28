@@ -1,6 +1,6 @@
 # Summary
 
-[Introduction](introduction.md)
+[Introduction](README.md)
 
 # Getting Started
 
@@ -38,6 +38,8 @@
 - [MITRE ATT&CK Mapping](features/mitre-attack.md)
 - [JA4+ TLS Fingerprinting](features/ja4-fingerprinting.md)
 - [Post-Quantum TLS](features/pq-tls.md)
+- [Packet Capture](features/capture.md)
+- [Automated Response](features/response.md)
 - [Operational Essentials](features/operational-essentials.md)
 - [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)
@@ -57,6 +59,8 @@
   - [Fleet Management](features/enterprise/fleet-management.md)
   - [AI/LLM Security](features/enterprise/ai-security.md)
   - [TLS Intelligence](features/enterprise/tls-intelligence.md)
+  - [Automated Response](features/enterprise/automated-response.md)
+  - [Network Forensics](features/enterprise/network-forensics.md)
 
 # Configuration
 
@@ -78,6 +82,10 @@
 - [NAT](configuration/nat.md)
 - [Policy Routing](configuration/routing.md)
 - [QoS / Traffic Shaping](configuration/qos.md)
+- [Aliases](configuration/aliases.md)
+- [Auto-Response](configuration/auto-response.md)
+- [Auto-Capture](configuration/auto-capture.md)
+- [Interface Groups](configuration/interface-groups.md)
 - [Zone Segmentation](configuration/zones.md)
 - [GeoIP](configuration/geoip.md)
 - [Authentication](configuration/auth.md)

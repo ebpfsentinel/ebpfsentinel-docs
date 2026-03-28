@@ -38,20 +38,14 @@ Optional per-service health probes monitor backend availability:
 - **Configurable intervals**: probe frequency, timeout, failure/recovery thresholds
 - **State transitions**: backends transition between `healthy` and `unhealthy` based on consecutive probe results
 
-```
-            ┌─────────┐
-            │ Healthy │ ← initial state
-            └────┬────┘
-                 │ consecutive failures >= failure_threshold
-                 ▼
-            ┌───────────┐
-            │ Unhealthy │ ← removed from selection pool
-            └─────┬─────┘
-                  │ consecutive successes >= recovery_threshold
-                  ▼
-            ┌─────────┐
-            │ Healthy │ ← restored to selection pool
-            └─────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> Healthy
+    Healthy --> Unhealthy : Consecutive failures >= failure_threshold
+    Unhealthy --> Healthy : Consecutive successes >= recovery_threshold
+
+    note right of Healthy : In selection pool
+    note right of Unhealthy : Removed from selection pool
 ```
 
 ### Engine Limits

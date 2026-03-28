@@ -4,12 +4,12 @@
 
 ### Linux Kernel
 
-eBPFsentinel requires **Linux kernel 6.1+** with BTF (BPF Type Format) support.
+eBPFsentinel requires **Linux kernel 6.6+** with BTF (BPF Type Format) support.
 
 Verify your system:
 
 ```bash
-# Kernel version — must be >= 6.1
+# Kernel version — must be >= 6.6
 uname -r
 
 # BTF support — this file must exist
@@ -38,15 +38,15 @@ sudo setcap cap_bpf,cap_net_admin+ep ./ebpfsentinel-agent
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 12+ | Yes | Ships 6.1 kernel |
+| Debian 12 (backports) / 13+ | Yes | Debian 13 ships 6.12; Debian 12 needs `linux-image-amd64/bookworm-backports` (6.6+) |
 | Ubuntu 24.04+ | Yes | Ships 6.8 kernel |
-| Ubuntu 22.04 (HWE) | Yes | HWE 6.5+ kernel required |
-| RHEL 9.4+ | Yes | Stock 5.14 insufficient; `kernel-ml` 6.1+ or RHEL 10 |
+| Ubuntu 22.04 (HWE) | Yes | HWE 6.8 kernel required |
+| RHEL 9.4+ | Yes | Stock 5.14 insufficient; `kernel-ml` 6.6+ or RHEL 10 |
 | Rocky Linux 9.4+ | Yes | Same as RHEL (ELRepo `kernel-ml`) |
-| Alpine 3.18+ | Yes | `linux-lts` package (6.1+) |
-| Fedora 37+ | Yes | Ships 6.0+ kernel |
-| Arch Linux | Yes | Rolling, always 6.1+ |
-| NixOS | Yes | Requires 6.1+ kernel |
+| Alpine 3.20+ | Yes | `linux-lts` package (6.6+) |
+| Fedora 39+ | Yes | Ships 6.6+ kernel |
+| Arch Linux | Yes | Rolling, always 6.6+ |
+| NixOS | Yes | Requires 6.6+ kernel |
 | Talos Linux | Yes | Ships 6.x kernel |
 
 **Architectures:** x86_64 (primary), aarch64/ARM64 (cross-tested)

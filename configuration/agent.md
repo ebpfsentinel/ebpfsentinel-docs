@@ -8,11 +8,13 @@ The `agent` section configures the core agent behavior — network interfaces, A
 agent:
   interfaces: [eth0]           # Required. Network interfaces to attach eBPF programs to.
   xdp_mode: auto               # XDP attachment mode: auto, native, generic, offloaded. Default: auto
-  host: "127.0.0.1"            # REST API listen address. Default: 127.0.0.1
-  port: 8080                   # REST API port. Default: 8080
+  bind_address: "127.0.0.1"    # REST API listen address. Default: 127.0.0.1
+  http_port: 8080              # REST API port. Default: 8080
   grpc_port: 50051             # gRPC port. Default: 50051
   grpc_reflection: false       # gRPC reflection. Default: false (disabled for security)
   metrics_port: 9090           # Prometheus metrics port. Default: 9090 (or shared with REST)
+  ebpf_program_dir: null        # Directory for eBPF binaries. Default: null (uses embedded)
+  event_workers: 4              # Parallel event dispatcher workers. Default: 4
   log_level: "info"            # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"           # Log format: json or text. Default: json
 ```
@@ -23,11 +25,13 @@ agent:
 |-------|------|----------|---------|-------------|
 | `interfaces` | `[string]` | Yes | — | Network interfaces to monitor |
 | `xdp_mode` | `string` | No | `auto` | XDP attachment mode (see below) |
-| `host` | `string` | No | `127.0.0.1` | REST API listen address |
-| `port` | `integer` | No | `8080` | REST API port |
+| `bind_address` | `string` | No | `127.0.0.1` | REST API listen address |
+| `http_port` | `integer` | No | `8080` | REST API port |
 | `grpc_port` | `integer` | No | `50051` | gRPC streaming port |
 | `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security — exposes service definitions |
 | `metrics_port` | `integer` | No | `9090` | Prometheus metrics port |
+| `ebpf_program_dir` | `Option<string>` | No | `None` | Directory for eBPF binaries. When `None`, the agent uses embedded programs |
+| `event_workers` | `usize` | No | `4` | Number of parallel event dispatcher workers |
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |
 
@@ -60,8 +64,8 @@ ebpfsentinel-agent \
 ## Environment Variables
 
 ```bash
-EBPFSENTINEL_HOST=0.0.0.0
-EBPFSENTINEL_PORT=8080
+EBPFSENTINEL_BIND_ADDRESS=0.0.0.0
+EBPFSENTINEL_HTTP_PORT=8080
 RUST_LOG=info
 ```
 
@@ -72,7 +76,7 @@ RUST_LOG=info
 ```yaml
 agent:
   interfaces: [eth0, eth1]
-  host: "0.0.0.0"
+  bind_address: "0.0.0.0"
 ```
 
 ### Force native XDP for production

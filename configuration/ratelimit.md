@@ -6,6 +6,7 @@ The `ratelimit` section configures DDoS protection rules with five available alg
 
 ```yaml
 ratelimit:
+  enabled: false               # Enable/disable rate limiting (default: false)
   default_rate: 1000           # Default PPS for unmatched IPs
   default_burst: 2000          # Default burst capacity for unmatched IPs
   default_algorithm: token_bucket  # Default algorithm for unmatched IPs
@@ -24,6 +25,7 @@ ratelimit:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Enable/disable rate limiting |
 | `default_rate` | `integer` | `1000` | Default packets per second for unmatched source IPs |
 | `default_burst` | `integer` | `2000` | Default burst capacity for unmatched source IPs |
 | `default_algorithm` | `string` | `token_bucket` | Default algorithm for unmatched source IPs |
@@ -70,6 +72,7 @@ Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then
 
 ```yaml
 ratelimit:
+  enabled: true
   default_rate: 1000
   default_burst: 2000
   default_algorithm: token_bucket
@@ -95,6 +98,7 @@ ratelimit:
 
 ```yaml
 ratelimit:
+  enabled: true
   default_rate: 1000
   default_burst: 2000
   country_tiers:

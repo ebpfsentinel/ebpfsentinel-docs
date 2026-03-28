@@ -7,7 +7,8 @@ The `auth` section configures API authentication and RBAC.
 ```yaml
 auth:
   enabled: true
-  api_key_salt: "optional-custom-salt"  # Random 32-byte generated if omitted
+  metrics_auth_required: true            # Set to false to expose /metrics without auth
+  api_key_salt: "optional-custom-salt"   # Random 32-byte generated if omitted
   api_keys:
     - name: "key-name"
       key: "secret-key-value"
@@ -27,6 +28,7 @@ auth:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable authentication |
+| `metrics_auth_required` | `bool` | `true` | Whether `/metrics` requires authentication when auth is enabled |
 | `api_keys` | `[ApiKey]` | `[]` | Static API keys |
 | `api_key_salt` | `string` | random | Salt for API key hashing. A random 32-byte value is generated if omitted |
 | `jwt` | `JwtConfig` | — | JWT (RS256) settings |
@@ -44,8 +46,8 @@ auth:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `issuer` | `string` | Yes | Expected token issuer |
-| `audience` | `string` | Yes | Expected token audience |
+| `issuer` | `string` | No | Expected token issuer (validated when set) |
+| `audience` | `string` | No | Expected token audience (validated when set) |
 | `public_key_path` | `string` | Yes | Path to RS256 public key (RSA 2048-bit minimum enforced) |
 
 ### OidcConfig

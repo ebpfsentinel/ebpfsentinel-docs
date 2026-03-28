@@ -21,7 +21,11 @@ dns:
   reputation:
     enabled: true
     auto_block_threshold: 0.8  # Block domains scoring above this
-    decay_rate: 0.01           # Score decay per hour
+    decay_half_life_hours: 24  # Exponential decay half-life in hours
+    max_tracked_domains: 50000 # Maximum domains tracked for reputation
+    auto_block_enabled: false  # Enable automatic blocking of high-score domains
+    auto_block_ttl_secs: 3600  # TTL for auto-blocked domains in seconds
+    doh_resolvers: []          # DNS-over-HTTPS resolver URLs for encrypted DNS detection
 ```
 
 ## Fields
@@ -49,7 +53,11 @@ dns:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable domain reputation scoring |
 | `auto_block_threshold` | `float` | `0.8` | Auto-block domains above this score |
-| `decay_rate` | `float` | `0.01` | Score decay per hour |
+| `decay_half_life_hours` | `u64` | `24` | Exponential decay half-life in hours |
+| `max_tracked_domains` | `usize` | `50000` | Maximum domains tracked for reputation |
+| `auto_block_enabled` | `bool` | `false` | Enable automatic blocking of high-score domains |
+| `auto_block_ttl_secs` | `u64` | `3600` | TTL for auto-blocked domains in seconds |
+| `doh_resolvers` | `[string]` | `[]` | DNS-over-HTTPS resolver URLs for encrypted DNS detection |
 | `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 country codes. Domains resolving to IPs in listed countries receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold |
 
 ## Examples
@@ -74,6 +82,10 @@ dns:
   reputation:
     enabled: true
     auto_block_threshold: 0.8
-    decay_rate: 0.01
+    decay_half_life_hours: 24
+    max_tracked_domains: 50000
+    auto_block_enabled: false
+    auto_block_ttl_secs: 3600
+    doh_resolvers: []
     high_risk_countries: [RU, CN, KP, IR]
 ```

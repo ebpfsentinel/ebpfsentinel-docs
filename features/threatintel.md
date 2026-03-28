@@ -10,45 +10,36 @@ Threat intelligence integrates external OSINT feeds into the packet processing p
 
 The threat intel system is **bidirectional**: external feeds flow down into the kernel, the kernel sends match events up to userspace, and userspace engines (DNS, reputation, IPS) can inject new IOCs back into the kernel maps.
 
-```
-External Feeds (CSV/JSON/TXT)         DNS Blocklist
-        │                                  │
-        ▼                                  ▼
-┌───────────────────┐     ┌──────────────────────────┐
-│ Feed Fetcher      │     │ DomainBlocklistEngine    │
-│ (HTTP, auth,      │     │ (resolved IPs injected   │
-│  100 MiB cap)     │     │  into threat intel maps) │
-└────────┬──────────┘     └────────────┬─────────────┘
-         │                             │
-         ▼                             │
-┌───────────────────┐                  │
-│ Feed Parser       │                  │
-│ (Plaintext/CSV/   │                  │
-│  JSON + mapping)  │                  │
-└────────┬──────────┘                  │
-         │                             │
-         ▼                             │
-┌───────────────────┐                  │
-│ ThreatIntelEngine │ ◄────────────────┘
-│ (dedup, validate, │
-│  atomic reload)   │
-└────────┬──────────┘
-         │ load_iocs()
-         ▼
-┌──────────────────────────────────────────┐
-│ eBPF Maps (kernel)                        │
-│                                           │
-│  BLOOM_V4/V6 ──→ LruHashMap V4/V6        │
-│  (pre-filter)    (1M entries, 4-byte val) │
-└────────┬─────────────────────────────────┘
-         │ packet match → PacketEvent
-         ▼
-┌───────────────────┐
-│ Userspace engines  │
-│ ├─ Alert Router    │ → email / webhook / log
-│ ├─ DNS Reputation  │ → CtiMatch factor (weight 0.8)
-│ └─ IPS Engine      │ → auto-blacklist
-└───────────────────┘
+```mermaid
+flowchart TD
+    FEEDS["External Feeds\n(CSV / JSON / TXT)"]
+    DNSBL["DNS Blocklist"]
+
+    FETCHER["Feed Fetcher\n(HTTP, auth, 100 MiB cap)"]
+    DOMAIN_BL["DomainBlocklistEngine\n(resolved IPs injected\ninto threat intel maps)"]
+
+    PARSER["Feed Parser\n(Plaintext / CSV / JSON + mapping)"]
+
+    ENGINE["ThreatIntelEngine\n(dedup, validate, atomic reload)"]
+
+    subgraph KERNEL["eBPF Maps (kernel)"]
+        BLOOM["BLOOM_V4 / V6\n(pre-filter)"]
+        LRU["LruHashMap V4 / V6\n(1M entries, 4-byte val)"]
+        BLOOM --> LRU
+    end
+
+    USERSPACE["Userspace engines"]
+    ALERT["Alert Router\nemail / webhook / log"]
+    DNSREP["DNS Reputation\nCtiMatch factor (weight 0.8)"]
+    IPS["IPS Engine\nauto-blacklist"]
+
+    FEEDS --> FETCHER --> PARSER --> ENGINE
+    DNSBL --> DOMAIN_BL --> ENGINE
+    ENGINE -->|"load_iocs()"| BLOOM
+    LRU -->|"packet match --> PacketEvent"| USERSPACE
+    USERSPACE --> ALERT
+    USERSPACE --> DNSREP
+    USERSPACE --> IPS
 ```
 
 ## How It Works
