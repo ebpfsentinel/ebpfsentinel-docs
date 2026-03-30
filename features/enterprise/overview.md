@@ -16,7 +16,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 |---------|-------------|--------|
 | [License System](license.md) | Ed25519 + ML-DSA-65 dual-signed license keys, machine fingerprint binding, air-gap activation | **Shipped** |
 | [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection | **Shipped** |
-| [ML Anomaly Detection](ml-detection.md) | ONNX-based behavioral anomaly detection, multi-window aggregation, rule suggestion, CUSUM change-point, HyperLogLog cardinality, Count-Min Sketch heavy-hitters, DNS entropy/DGA Markov model, TLS fingerprint K-Means clustering, TLSH C2 beaconing detection | **Shipped** |
+| [ML Anomaly Detection](ml-detection.md) | 8 detection engines: baseline Z-score, EWMA streaming, CUSUM change-point, ONNX model, heavy-hitter (CMS), DGA/tunneling (Markov), TLS fingerprint clustering (K-Means), C2 beaconing (TLSH) | **Shipped** |
 | [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC, self-service API | **Shipped** |
 | [SIEM Integration](siem-integration.md) | 10 connectors: Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse | **Shipped** |
 | [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export | **Shipped** |
