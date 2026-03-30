@@ -42,6 +42,48 @@ enterprise:
     learning_days: 7               # baseline learning period
     anomaly_threshold: 2.0         # standard deviations
     time_windows: [60, 300, 900]   # feature extraction windows (seconds)
+    ewma_enabled: true
+    ewma_alpha: 0.01
+    ewma_threshold: 3.0
+    ewma_warmup_samples: 100
+    cusum_enabled: true
+    cusum_slack: 0.5
+    cusum_threshold: 5.0
+    heavy_hitter_enabled: true     # Count-Min Sketch top-K detection
+    heavy_hitter_k: 100
+    heavy_hitter_threshold_pct: 10.0
+    cms_width: 2048
+    cms_depth: 4
+
+  # ── DNS Entropy / DGA Detection ─────────────────────────────────
+  dns_entropy:
+    enabled: true
+    entropy_threshold: 3.5         # Shannon entropy (bits/char)
+    markov_threshold: -4.0         # bigram log-likelihood
+    tunnel_label_length: 30        # min label length for tunneling detection
+    tunnel_entropy_threshold: 3.0
+    allowlist:
+      - "*.cdn.cloudflare.net"
+      - "*.cloudfront.net"
+      - "*.amazonaws.com"
+
+  # ── TLS Fingerprint Clustering ──────────────────────────────────
+  tls_clustering:
+    enabled: true
+    k: 50                          # number of clusters
+    outlier_threshold: 8.0         # Euclidean distance threshold
+    batch_size: 32                 # mini-batch size for centroid updates
+
+  # ── C2 Beaconing Detection (TLSH) ──────────────────────────────
+  beaconing:
+    enabled: true
+    min_payload_size: 50           # minimum bytes for TLSH hash
+    tlsh_distance_threshold: 40    # 0=identical, <100=similar
+    min_similar_count: 3           # similar payloads to trigger alert
+    window_secs: 3600              # 1 hour matching window
+    max_tracked_tuples: 100        # LRU eviction limit
+    hashes_per_tuple: 10
+    allowlisted_ports: [53, 123, 5353]
 
   # ── Multi-Tenancy ───────────────────────────────────────────────
   tenants:

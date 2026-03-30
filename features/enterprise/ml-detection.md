@@ -13,7 +13,7 @@ PacketEvent (eBPF kernel)
   └── packet_event_to_sample() (IPv4/IPv6 handling)
         └── MultiWindowAggregator (3 parallel windows)
               ├── WindowAggregator (1min)   ─┐
-              ├── WindowAggregator (5min)    ─┼── FeatureVector (12 features)
+              ├── WindowAggregator (5min)    ─┼── FeatureVector (14 features)
               └── WindowAggregator (15min)  ─┘
                     ├── TrafficBaseline (Welford's algorithm, per-scope)
                     │     └── AnomalyScorer (weighted Z-scores)
@@ -45,8 +45,10 @@ Each `FeatureVector` contains 12 numeric features computed from aggregated traff
 | 9 | `avg_payload_size` | Mean payload in bytes |
 | 10 | `std_payload_size` | Standard deviation of payload |
 | 11 | `connection_count` | Total connections in window |
+| 12 | `dst_ip_cardinality` | HyperLogLog estimate of unique destination IPs |
+| 13 | `flow_cardinality` | HyperLogLog estimate of unique (src, dst, port) tuples |
 
-The `as_model_input()` method flattens these into a `[f64; 12]` array for ML model inference.
+The `as_model_input()` method flattens these into a `[f64; 14]` array for ML model inference.
 
 ### Shannon Entropy
 
@@ -268,7 +270,7 @@ Operators can submit false positive / true positive feedback to improve detectio
 |-------|-------------|
 | `anomaly_id` | UUID of the anomaly being labeled |
 | `label` | `TruePositive` or `FalsePositive` |
-| `feature_vector` | The 12-feature vector that triggered the anomaly |
+| `feature_vector` | The 14-feature vector that triggered the anomaly |
 | `anomaly_score` | The composite Z-score |
 | `category` | Top contributing feature name (e.g., `"packet_rate"`) |
 | `submitted_by` | Optional operator identity |
@@ -277,7 +279,7 @@ Operators can submit false positive / true positive feedback to improve detectio
 
 - Tracks per-category false positive rates: `FP / (TP + FP)`
 - Export threshold: **100** samples (default) — when reached, `export_ready()` returns true
-- Export formats: JSON (`export_json()`) and CSV (`export_csv()` with header: `label, anomaly_score, category, f0-f11`)
+- Export formats: JSON (`export_json()`) and CSV (`export_csv()` with header: `label, anomaly_score, category, f0-f13`)
 - `TrainingDataset` export includes all labeled samples with FP rates for model retraining
 
 ## Configuration
@@ -353,6 +355,119 @@ enterprise:
 | `threshold` | Configured z-score threshold |
 | `warmup_samples` | Configured warmup count |
 
+## Advanced Streaming Algorithms (E17)
+
+Beyond EWMA and baseline scoring, the ML pipeline includes specialized streaming statistical algorithms that operate independently on different traffic dimensions.
+
+### CUSUM Change-Point Detection
+
+Two-sided CUSUM (Cumulative Sum) detects sustained mean shifts that EWMA adapts to — catching slow-ramp DDoS and gradual exfiltration that evade standard anomaly detectors.
+
+- Per-feature accumulators: `S+ = max(0, S+ + (x - mu - k))`, `S- = max(0, S- - (x - mu + k))`
+- Alert when cumulative sum exceeds threshold `h` (default: 5.0)
+- Drift direction (increase/decrease) and duration reported per feature
+- Configurable slack `k` (default: 0.5) and threshold `h` (default: 5.0)
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `cusum_enabled` | `true` | Enable CUSUM engine |
+| `cusum_slack` | `0.5` | Allowable drift before accumulation (parameter k) |
+| `cusum_threshold` | `5.0` | Cumulative sum alert threshold (parameter h) |
+
+API: `POST /api/v1/enterprise/ml/cusum/reset` — reset CUSUM accumulators.
+
+### HyperLogLog Cardinality Estimation
+
+Memory-efficient unique count estimation for source IPs, destination IPs, and flow tuples. Used within the `WindowAggregator` to compute `dst_ip_cardinality` and `flow_cardinality` features without per-element state.
+
+- Precision: 12 bits (~1.5 KB per counter, <1.6% error)
+- Three counters per window: source IPs, destination IPs, flow tuples (src_ip, dst_ip, dst_port)
+- Feeds into the feature vector as dimensions 12 and 13
+
+### Count-Min Sketch & Heavy-Hitter Detection
+
+Approximate top-K heavy hitter identification using a Count-Min Sketch probabilistic data structure. Identifies elephant flows (potential exfiltration) and top talkers in constant memory.
+
+- CMS dimensions: width=2048, depth=4 (~64 KB, epsilon ~0.001)
+- TopK tracker: min-heap maintaining the top-K sources by byte volume
+- Window rotation: CMS resets per aggregation window with snapshot of previous top-K
+- Threshold alerting: sources exceeding X% of total traffic trigger alerts
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `heavy_hitter_enabled` | `true` | Enable heavy-hitter tracking |
+| `heavy_hitter_k` | `100` | Top-K count |
+| `heavy_hitter_threshold_pct` | `10.0` | Alert threshold (% of total traffic) |
+| `cms_width` | `2048` | CMS width (columns) |
+| `cms_depth` | `4` | CMS depth (hash functions) |
+
+API: `GET /api/v1/enterprise/ml/heavy-hitters` — current top-K heavy hitters with estimated bytes and rank.
+
+### DNS Entropy & Character Markov Model
+
+Statistical DGA (Domain Generation Algorithm) and DNS tunneling detection based on domain name entropy and character sequence analysis. Detects algorithmically generated C2 domains without signature updates.
+
+- Shannon entropy per second-level domain label (threshold: 3.5 bits/char)
+- Character bigram Markov model: 37x37 transition matrix (a-z, 0-9, hyphen) scoring domain name plausibility by log-likelihood
+- Combined threshold: entropy > X AND Markov log-likelihood < Y triggers DGA flag
+- DNS tunneling heuristic: subdomain labels > 30 chars with high entropy
+- Allowlist for legitimate high-entropy domains (CDNs, cloud providers)
+- Pre-trained model on common English domain character patterns (~5.3 KB)
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `dns_entropy.enabled` | `false` | Enable DGA/tunneling detection |
+| `dns_entropy.entropy_threshold` | `3.5` | Shannon entropy threshold (bits/char) |
+| `dns_entropy.markov_threshold` | `-4.0` | Bigram log-likelihood threshold |
+| `dns_entropy.tunnel_label_length` | `30` | Min label length for tunneling detection |
+| `dns_entropy.tunnel_entropy_threshold` | `3.0` | Entropy threshold for tunneling labels |
+
+API:
+- `GET /api/v1/enterprise/dns/dga-scores` — recent DGA scores
+- `GET /api/v1/enterprise/dns/dga-scores/{domain}` — score a domain on demand
+- `POST /api/v1/enterprise/dns/allowlist` — add allowlist pattern
+- `DELETE /api/v1/enterprise/dns/allowlist/{pattern}` — remove pattern
+
+### TLS Fingerprint Clustering (Mini-Batch K-Means)
+
+Groups JA4+ TLS fingerprints into behavioral clusters and flags outliers (novel or spoofed fingerprints). Pre-seeded with known browser profiles (Chrome, Firefox, Safari, Edge, curl, Python, Go, Java).
+
+- Mini-Batch K-Means: incremental centroid updates without full recomputation
+- 10-dimensional feature vector from `TlsClientHello` fields (cipher count, extension count, groups, signature algorithms, ALPN, versions, SNI, handshake version, key shares)
+- Outlier detection: Euclidean distance > configurable threshold from all centroids
+- Memory: K x 10 x 8 bytes (~4 KB for K=50)
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `tls_clustering.enabled` | `false` | Enable fingerprint clustering |
+| `tls_clustering.k` | `50` | Number of clusters |
+| `tls_clustering.outlier_threshold` | `8.0` | Euclidean distance threshold for outliers |
+| `tls_clustering.batch_size` | `32` | Mini-batch size for centroid updates |
+
+API: `GET /api/v1/enterprise/tls-intelligence/clusters` — cluster centroids, member counts, and labels.
+
+### TLSH Payload Similarity (C2 Beaconing Detection)
+
+Detects command-and-control beaconing channels by identifying repetitive payload patterns across sessions using TLSH locality-sensitive hashing.
+
+- TLSH hash computed per flow payload (minimum 50 bytes)
+- Per-tuple (src_ip, dst_ip, dst_port) hash ring with LRU eviction
+- Similarity comparison: TLSH distance < threshold across N sessions within time window
+- Periodicity estimation: inter-arrival time variance (low = regular beaconing)
+- Allowlist for known repetitive protocols (NTP, DNS, mDNS)
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `beaconing.enabled` | `false` | Enable beaconing detection |
+| `beaconing.min_payload_size` | `50` | Minimum payload bytes for TLSH |
+| `beaconing.tlsh_distance_threshold` | `40` | TLSH distance threshold (0=identical, <100=similar) |
+| `beaconing.min_similar_count` | `3` | Minimum similar payloads to trigger alert |
+| `beaconing.window_secs` | `3600` | Similarity matching window (seconds) |
+| `beaconing.max_tracked_tuples` | `100` | Maximum tracked flow tuples |
+| `beaconing.hashes_per_tuple` | `10` | Hash ring size per tuple |
+
+API: `GET /api/v1/enterprise/ml/beaconing` — active beaconing suspects with similarity scores, periodicity estimates, and sample hashes.
+
 ## Feature Gating
 
-ML Anomaly Detection requires a valid license with the `ml-detection` feature. Without a license, the ML pipeline is disabled and all endpoints return 402.
+ML Anomaly Detection (including all E17 streaming algorithms) requires a valid license with the `ml-detection` feature. Without a license, the ML pipeline is disabled and all endpoints return 402.
