@@ -8,7 +8,7 @@ eBPFsentinel provides full dual-stack IPv4/IPv6 support across all eBPF programs
 
 ## eBPF Programs
 
-All 12 eBPF programs parse both IPv4 and IPv6 headers natively, including **IPv6 extension header chains** (Hop-by-Hop, Routing, Fragment, Destination Options, AH, ESP). The parser walks the extension header chain to locate the upper-layer protocol header (TCP/UDP/ICMPv6), ensuring correct operation even when extension headers are present.
+All 14 eBPF programs parse both IPv4 and IPv6 headers natively, including **IPv6 extension header chains** (Hop-by-Hop, Routing, Fragment, Destination Options, AH, ESP). The parser walks the extension header chain to locate the upper-layer protocol header (TCP/UDP/ICMPv6), ensuring correct operation even when extension headers are present.
 
 - **Firewall** — separate LPM trie maps for IPv4 and IPv6 (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`)
 - **Conntrack** — `ConnKeyV6` / `ConnValueV6` with 128-bit NAT addresses, shared LRU map between programs

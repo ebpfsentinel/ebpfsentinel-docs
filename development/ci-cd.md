@@ -6,7 +6,7 @@
 |----------|---------|------|
 | `ci.yml` | PR to main | Format, clippy, tests, cargo-deny, coverage, release build |
 | `integration.yml` | Daily + dispatch | Build agent + eBPF, BATS suites (API, Docker, eBPF) |
-| `ebpf.yml` | Dispatch | Build all 12 eBPF kernel programs |
+| `ebpf.yml` | Dispatch | Build all 14 eBPF kernel programs |
 | `docker.yml` | Called by release | Multi-arch Docker image (amd64 + arm64) |
 | `release.yml` | Tag push / dispatch | Multi-arch tarballs + Docker + GitHub Release |
 | `benchmarks.yml` | PR to main | Criterion benchmarks, regression detection |

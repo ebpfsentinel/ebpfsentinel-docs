@@ -228,6 +228,6 @@ Larger RingBuf because DLP events carry L7 payload content.
 | Zone policies | 64 | `MAX_ZONE_POLICIES` |
 | Total RingBuf memory | 10.25 MB | Sum of all program RingBuf allocations |
 | Pinned CT table memory | ~17 MB | `CT_TABLE_V4` (262K × 48 B) + `CT_TABLE_V6` (65K × 72 B) |
-| Tail-call chain depth | 1 | xdp-firewall → xdp-ratelimit only |
+| Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
 | TC programs per hook | 6 ingress, 2 egress | Ordered by priority in TC classifier chain |
-| eBPF programs total | 12 | 3 XDP + 8 TC + 1 uprobe |
+| eBPF programs total | 14 | 5 XDP + 8 TC + 1 uprobe |
