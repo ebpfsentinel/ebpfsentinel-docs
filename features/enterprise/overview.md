@@ -38,6 +38,8 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS. Kernel-side uprobe attachment deferred. | **Shipped — detection layer** |
 | [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols-enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port. Per-protocol matcher evaluation | **Shipped — detection layer** |
 | [L7 Deep Content Inspection](l7-deep-inspection.md) | Vectorscan-backed pattern engine with 40+ curated SQLi / XSS / path traversal / command injection / data exfil signatures. HTTP handler + L7 pipeline wiring | **Shipped — detection engine** |
+| [Per-Protocol Security Policies](l7-per-protocol-policies.md) | Redis / MongoDB / Kafka / SQL / LDAP / SSH policy engines with dangerous-command blocking, namespace/ACL enforcement, weak-crypto rejection. HTTP admin API and L7 dispatcher wiring ship in a follow-up release. | **Shipped — policy engines** |
+| [L7 Alert Enrichment](l7-alert-enrichment.md) | `L7Enricher` mapping Vectorscan + policy signals to OWASP Top 10, MITRE ATT&CK (T1190/T1059/T1048/T1069/T1078/T1040/T1555) and PCI-DSS 6.5. SIEM export + compliance-report wiring ship in a follow-up release. | **Shipped — enrichment engine** |
 
 ## Planned Features
 

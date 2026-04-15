@@ -155,7 +155,7 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> **Status: Shipped (detection layer)** — tracked by story E19.5.
+> **Status: Shipped (detection layer).**
 > Discovery, ELF symbol resolution, and the `TlsProbeManager`
 > orchestrator are in place and emit attachment plans with per-library
 > symbol offsets. Actual kernel-side uprobe attachment for the two new

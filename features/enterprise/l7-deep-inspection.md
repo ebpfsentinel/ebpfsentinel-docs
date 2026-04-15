@@ -29,14 +29,13 @@ neither workload starves the other of scratch space.
 
 The built-in catalogue ships ~40 curated patterns today and is
 extensible: every additional signature is a one-line `InspectPattern`
-literal in `enterprise-domain::l7_inspect::builtin`. Story E18.2 lays
-out a roadmap for growing the catalogue to the full 120+ patterns
-called out in the PRD.
+literal in `enterprise-domain::l7_inspect::builtin`. The catalogue is
+on a roadmap to grow to 120+ patterns.
 
 ## Architecture
 
 ```
-L7 payload (up to 2 KiB — see E18-OSS-1)
+L7 payload (up to 2 KiB)
   └── L7InspectEngine
         └── CompiledState
               ├── BlockDatabase (Vectorscan — atomically swapped on reload)
@@ -105,7 +104,7 @@ for m in engine.scan(request_body)? {
 ```
 
 An HTTP admin API (`POST /api/v1/enterprise/l7/patterns`) is on the
-roadmap (story E18.2b).
+roadmap for a follow-up release.
 
 ## Status & Roadmap
 
@@ -121,7 +120,7 @@ roadmap (story E18.2b).
   patterns, duplicates, disabled patterns, empty payload, severity →
   confidence mapping.
 
-### Deferred (E18.2b)
+### Shipping in a follow-up release
 
 - REST API handlers: `GET/POST/DELETE /api/v1/enterprise/l7/patterns`
   and `GET /api/v1/enterprise/l7/matches`.

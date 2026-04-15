@@ -44,7 +44,7 @@ The enterprise edition registers an `L7ExtendedParser` on the dispatcher. It is 
 | **NATS** | Line-prefixed verb (CONNECT / INFO / PUB / HPUB / SUB / UNSUB / MSG / HMSG / PING / PONG / +OK / -ERR) | Command verb, first subject |
 | **Cassandra CQL v3/v4/v5** | 9-byte frame header with version 0x03–0x05 and opcode ≤ 0x10 | Version, opcode, stream, body length, CQL query text (opcode QUERY) |
 
-Only label detection is wired today (E18.1 — enterprise tier). Per-protocol matcher evaluation for MQTT/AMQP/NATS/Cassandra rules is tracked as E18.1c.
+Only label detection is wired today (enterprise tier). Per-protocol matcher evaluation for MQTT/AMQP/NATS/Cassandra rules ships in a follow-up release.
 
 ### GeoIP Country Matching
 
