@@ -36,7 +36,8 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | Feature | Description | Status |
 |---------|-------------|--------|
 | [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS. Kernel-side uprobe attachment deferred. | **Shipped — detection layer** |
-| [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols-enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port. Per-protocol matcher evaluation deferred to E18.1c. | **Shipped — detection layer** |
+| [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols-enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port. Per-protocol matcher evaluation | **Shipped — detection layer** |
+| [L7 Deep Content Inspection](l7-deep-inspection.md) | Vectorscan-backed pattern engine with 40+ curated SQLi / XSS / path traversal / command injection / data exfil signatures. HTTP handler + L7 pipeline wiring | **Shipped — detection engine** |
 
 ## Planned Features
 
