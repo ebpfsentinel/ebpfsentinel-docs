@@ -1,148 +1,132 @@
 # eBPF KFuncs
 
-KFuncs (kernel functions) are a newer mechanism for exposing kernel functionality to eBPF programs. Unlike helper functions (which are stable ABI), kfuncs can change between kernel versions. eBPFsentinel documents kfuncs it plans to adopt as they become available in aya-ebpf.
+KFuncs (kernel functions) expose kernel functionality to eBPF programs that is not reachable through the stable BPF helper ABI. eBPFsentinel calls kfuncs through the `ebpf-helpers` crate, which ships manual `extern "C"` declarations + safe Rust wrappers for every kfunc the eBPF programs use. Since aya 0.13 has no native kfunc infrastructure (upstream issue `aya-rs/aya#432`), each binding is hand-written and validated against the kernel BTF signature at load time.
 
-## Current Status
+## Status
 
-eBPFsentinel does not currently call any kfuncs directly. All kernel interactions use stable BPF helper functions. Kfuncs are documented here as the upgrade path for features that require deeper kernel integration.
+eBPFsentinel uses kfuncs from kernel **5.18 → 6.9**. The agent enforces a **6.9 minimum kernel** at startup (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=9`), so every kfunc listed below is guaranteed-available at runtime — there are no fallback paths.
 
-## Conntrack KFuncs (kernel 5.18+)
+The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.rs`. Every safe wrapper enforces the verifier's `KF_ACQUIRE` / `KF_RELEASE` pairing and any `KF_RCU` requirements through one of three patterns:
 
-The most impactful kfuncs for eBPFsentinel — they enable integration with the kernel's native nf_conntrack instead of maintaining a parallel connection tracking table.
+- **Closure-scoped** (`with_*` helpers) — the kernel reference lives for the duration of the closure body and is released on every control-flow path on the way out.
+- **`Drop`-based** (`CtBuilder`, `CtEntry`) — the wrapper owns the kernel reference and releases it in `Drop` if the caller never transitions through `insert()`.
+- **Internal RCU lock** (`task_under_cgroup`) — the wrapper opens its own `bpf_rcu_read_lock` region so callers never have to manage RCU manually.
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_skb_ct_lookup` | 5.18+ | Look up an existing conntrack entry from TC classifier |
-| `bpf_xdp_ct_lookup` | 5.18+ | Look up conntrack from XDP context |
-| `bpf_skb_ct_alloc` | 6.0+ | Create a new conntrack entry from TC |
-| `bpf_xdp_ct_alloc` | 6.0+ | Create a new conntrack entry from XDP |
-| `bpf_ct_insert_entry` | 6.0+ | Insert an allocated conntrack entry |
-| `bpf_ct_release` | 5.18+ | Release a conntrack reference |
-| `bpf_ct_set_timeout` | 6.0+ | Set timeout on a conntrack entry |
-| `bpf_ct_change_timeout` | 6.0+ | Modify timeout on an existing entry |
-| `bpf_ct_set_status` | 6.0+ | Set conntrack status flags (NAT, ASSURED) |
-| `bpf_ct_change_status` | 6.0+ | Modify existing status flags |
-| `bpf_ct_set_nat_info` | 6.1+ | Configure NAT for a conntrack entry |
+Host-side stubs maintain `HOST_CT_LIVE` / `HOST_CT_INIT_LIVE` / `HOST_CGROUP_LIVE` counters so unit tests assert acquire/release balance even when running outside a real BPF context.
 
-### Upgrade Path
+## KFunc Reference
 
-Current: `tc-conntrack` maintains its own LRU hash map with lazy timeout eviction.
+### Conntrack lookup (kernel 5.18)
 
-Future: Replace with `bpf_skb_ct_lookup` / `bpf_ct_insert_entry` to:
-- Share state with the kernel's nf_conntrack (visible to iptables, nftables, conntrack-tools)
-- Get kernel-managed timeouts instead of lazy eviction
-- Enable kernel-native NAT via `bpf_ct_set_nat_info`
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_skb_ct_lookup` | 5.18+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up an existing conntrack entry from a TC classifier |
+| `bpf_xdp_ct_lookup` | 5.18+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up an existing conntrack entry from XDP context |
+| `bpf_ct_release` | 5.18+ | `KF_RELEASE` | Release any `nf_conn*` / `nf_conn___init*` reference |
 
-### Blocker
+Safe wrappers: `with_skb_ct_lookup`, `with_xdp_ct_lookup`. The closure body owns the live `nf_conn` reference; release is automatic on every exit path.
 
-aya-ebpf 0.1.1 does not support calling kfuncs. Kfuncs require BTF-based function declaration that aya does not yet expose. Tracking: [aya issue](https://github.com/aya-rs/aya/issues).
+### Conntrack write-side delegation (kernel 6.0 / 6.1)
 
-## XFRM/IPsec KFuncs (kernel 6.2+)
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_skb_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from a TC classifier |
+| `bpf_xdp_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from XDP |
+| `bpf_ct_insert_entry` | 6.0+ | `KF_ACQUIRE \| KF_RELEASE` | Commit an allocated `nf_conn___init` and return a live `nf_conn*` |
+| `bpf_ct_set_timeout` | 6.0+ | — | Set the initial timeout on an allocated entry |
+| `bpf_ct_change_timeout` | 6.0+ | — | Update the timeout on an inserted entry |
+| `bpf_ct_set_status` | 6.0+ | — | Set the initial status bitmask on an allocated entry |
+| `bpf_ct_change_status` | 6.0+ | — | Update the status bitmask on an inserted entry |
+| `bpf_ct_set_nat_info` | 6.1+ | — | Configure SNAT/DNAT rewrite info on an allocated entry |
 
-For IPsec-aware packet classification.
+Safe wrappers: `CtBuilder` (allocate → configure → insert) and `CtEntry` (live entry mutators). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically. `IPS_DYING` is exposed via `CtEntry::mark_dying()` plus the `kill_flow_via_skb_ct` / `kill_flow_via_xdp_ct` one-shot helpers used by the IDS verdict pipeline to terminate a flow in netfilter from inside the BPF program.
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_skb_get_xfrm_info` | 6.2+ | Get IPsec transform info from a TC packet |
-| `bpf_skb_set_xfrm_info` | 6.2+ | Set IPsec transform info |
-| `bpf_xdp_get_xfrm_state` | 6.8+ | Get XFRM state in XDP context |
+### Cgroup tree (kernel 6.0 / 6.1 / 6.5 / 6.8)
 
-### Use Case
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_cgroup_ancestor` | 6.0+ | `KF_ACQUIRE \| KF_RCU \| KF_RET_NULL` | Walk to an ancestor at a given depth |
+| `bpf_cgroup_acquire` | 6.0+ | `KF_ACQUIRE \| KF_RCU` | Bump the refcount on an existing cgroup pointer |
+| `bpf_task_under_cgroup` | 6.1+ | `KF_RCU` | Test whether a task is a descendant of an ancestor cgroup |
+| `bpf_cgroup_release` | 6.5+ | `KF_RELEASE` | Release any cgroup reference acquired via the kfuncs above |
+| `bpf_cgroup_from_id` | 6.5+ | `KF_ACQUIRE \| KF_RET_NULL` | Resolve a 64-bit kernfs cgroup id to a `struct cgroup*` |
+| `bpf_task_get_cgroup1` | 6.8+ | `KF_ACQUIRE \| KF_RCU \| KF_RET_NULL` | Resolve the cgroup1 hierarchy a task belongs to |
 
-Detect IPsec-encrypted traffic and apply differentiated policies (allow VPN, block unencrypted). Currently, the IPv6 extension header parser treats ESP (protocol 50) as a terminal header — these kfuncs would provide richer metadata.
+Safe wrappers: `with_cgroup_from_id`, `with_cgroup_ancestor`, `with_cgroup_acquired`, `with_task_cgroup1`, `task_under_cgroup`. The cgroup id resolver replaces the userspace `/proc/<pid>/cgroup` round-trip on the hot packet path: a BPF program reads `cgroup_id` from the skb metadata and resolves it to a kernel cgroup pointer in-kernel.
 
-## Dynamic Pointer KFuncs (kernel 6.4+)
+### RCU plumbing & pointer casting (kernel 6.2)
 
-Safe, bounds-checked packet access replacing manual `ptr_at` patterns.
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_rcu_read_lock` | 6.2+ | — | Begin a BPF RCU read-side critical section |
+| `bpf_rcu_read_unlock` | 6.2+ | — | End a BPF RCU read-side critical section |
+| `bpf_rdonly_cast` | 6.2+ | — | Re-type an opaque pointer as `PTR_TO_BTF_ID` (read-only) |
+| `bpf_cast_to_kern_ctx` | 6.2+ | — | Cast a program ctx pointer back to its kernel-internal type |
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_dynptr_from_skb` | 6.4+ | Create a dynptr from an SKB for safe access |
-| `bpf_dynptr_from_xdp` | 6.4+ | Create a dynptr from an XDP buffer |
-| `bpf_dynptr_slice` | 6.4+ | Get a zero-copy slice of packet data |
-| `bpf_dynptr_slice_rdwr` | 6.4+ | Get a read-write slice for packet modification |
+Safe wrappers: `with_rcu_read_lock` (closure-scoped lock/unlock), `rdonly_cast`, `cast_to_kern_ctx` (Option-typed null-safe casts). Required for any program that dereferences RCU-protected kernel fields (`task->cgroups`, `nf_conn->ct_general`, etc.) or hands an opaque program context to a kfunc that expects the kernel-native type.
 
-### Upgrade Path
+### IPsec interface steering (kernel 6.2)
 
-Current: All packet access goes through `ebpf-helpers::ptr_at()` which manually checks `data + offset + size <= data_end`.
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_skb_get_xfrm_info` | 6.2+ | — | Read the `xfrm` interface metadata attached to a TC skb |
+| `bpf_skb_set_xfrm_info` | 6.2+ | — | Push a TC skb through a specific `xfrmi` virtual device |
 
-Future: Replace with `bpf_dynptr_from_skb` + `bpf_dynptr_slice` for verifier-friendly, zero-copy packet access. This would eliminate the class of verifier issues we've encountered (unbounded offsets, pointer tracking across function calls).
+Safe wrappers: `skb_get_xfrm_info`, `skb_set_xfrm_info`. Used by the IPsec-aware NAT path to route encapsulated traffic through the matching kernel `xfrm` policy without smuggling intent through DSCP bits.
 
-## XDP Metadata KFuncs (kernel 6.3+)
+### XDP metadata (kernel 6.3 / 6.8)
 
-Hardware-offloaded packet metadata.
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_xdp_metadata_rx_hash` | 6.3+ | — | Read the NIC-computed RSS hash and `xdp_rss_hash_type` bitmask |
+| `bpf_xdp_metadata_rx_timestamp` | 6.3+ | — | Read the hardware RX timestamp (nanoseconds since boot) |
+| `bpf_xdp_metadata_rx_vlan_tag` | 6.8+ | — | Read the hardware-stripped VLAN tag |
+| `bpf_xdp_get_xfrm_state` | 6.8+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up the `xfrm_state` matching an XDP packet |
+| `bpf_xdp_xfrm_state_release` | 6.8+ | `KF_RELEASE` | Release an `xfrm_state*` acquired above |
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_xdp_metadata_rx_timestamp` | 6.3+ | Hardware RX timestamp for precise timing |
-| `bpf_xdp_metadata_rx_hash` | 6.3+ | Hardware RSS hash (avoid recalculating) |
-| `bpf_xdp_metadata_rx_vlan_tag` | 6.8+ | Hardware VLAN tag extraction |
+Safe wrappers: `xdp_rx_hash`, `xdp_rx_timestamp`, `xdp_rx_vlan_tag`, `with_xdp_xfrm_state`. The RSS hash wrapper exposes a `xdp_rss_hash_type` constant module so callers can switch on `L3_IPV4 | L4 | L4_TCP` etc. without literal hex.
 
-### Use Case
+### Dynptr packet parsing (kernel 6.4 / 6.5)
 
-- Hardware timestamps for sub-microsecond rate limiting precision
-- RSS hash reuse for faster flow classification in the load balancer
-- VLAN tag extraction without parsing Ethernet headers
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_dynptr_from_skb` | 6.4+ | — | Initialise a dynptr over a TC skb |
+| `bpf_dynptr_from_xdp` | 6.4+ | — | Initialise a dynptr over an XDP frame |
+| `bpf_dynptr_slice` | 6.4+ | — | Read-only zero-copy slice view of packet bytes |
+| `bpf_dynptr_slice_rdwr` | 6.4+ | — | Read-write slice view of packet bytes |
+| `bpf_dynptr_adjust` | 6.5+ | — | Narrow a dynptr to a `[start, end)` byte window |
+| `bpf_dynptr_size` | 6.5+ | — | Report the logical size of a dynptr in bytes |
+| `bpf_dynptr_is_null` | 6.5+ | — | Detect an uninitialised / invalidated dynptr |
+| `bpf_dynptr_clone` | 6.5+ | — | Clone a dynptr so two cursors can advance independently |
 
-## Crypto KFuncs (kernel 6.10+)
+Safe wrappers: `SkbDynptr`, `XdpDynptr` with typed `read::<T>(offset)`, `slice`, `slice_rdwr`, `adjust`, `size`, `is_null`, `clone_dynptr` methods. Replaces the manual `ptr_at` + bounds-check pattern with verifier-friendly accessors that work transparently on linear, paged, or `XDP_FRAGS` buffers.
 
-In-kernel cryptographic operations.
+### FOU/GUE overlay encapsulation (kernel 6.4)
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_crypto_ctx_create` | 6.10+ | Create a crypto context |
-| `bpf_crypto_decrypt` | 6.10+ | Decrypt data in eBPF |
-| `bpf_crypto_encrypt` | 6.10+ | Encrypt data in eBPF |
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_skb_get_fou_encap` | 6.4+ | — | Read FOU/GUE encap parameters attached to a TC skb |
+| `bpf_skb_set_fou_encap` | 6.4+ | — | Install FOU or GUE encap parameters on a TC egress skb |
 
-### Use Case (future)
+Safe wrappers: `skb_get_fou_encap`, `skb_set_fou_encap`. Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
 
-- Decrypt TLS traffic for DLP inspection without userspace roundtrip
-- Encrypt sensitive event data before ring buffer emission
+### Cgroup iteration (kernel 6.7)
 
-**Kernel requirement (6.10+)** exceeds our 6.1 minimum — future consideration only.
+| KFunc | Kernel | Acquire/Release | Purpose |
+|-------|--------|-----------------|---------|
+| `bpf_iter_css_task_new` / `_next` / `_destroy` | 6.7+ | — | Iterate the tasks attached to a cgroup subsystem state |
+| `bpf_iter_css_new` / `_next` / `_destroy` | 6.7+ | — | Iterate the cgroup tree rooted at a `cgroup_subsys_state` |
 
-## String KFuncs (kernel 6.17+)
+Used to walk container hierarchies in-kernel for tenant enumeration and policy rebuilds without batching syscalls from userspace.
 
-Native string operations in eBPF.
+## Verification
 
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_strcmp` | 6.17+ | String comparison |
-| `bpf_strstr` | 6.17+ | Substring search |
-| `bpf_strcasestr` | 6.17+ | Case-insensitive substring search |
-| `bpf_strlen` | 6.17+ | String length |
+Run the helpers test suite to verify all kfunc wrappers compile and that the host stubs balance acquire/release:
 
-### Use Case (future)
+```bash
+cd crates/ebpf-helpers
+cargo fmt
+cargo test --lib
+```
 
-- DNS domain matching without manual byte comparison
-- DLP keyword detection in packet payloads
-- HTTP header parsing
-
-**Kernel requirement (6.17+)** exceeds our 6.1 minimum — future consideration only.
-
-## Key Verification KFuncs (kernel 6.1+)
-
-Signature verification in eBPF.
-
-| KFunc | Kernel | Purpose |
-|-------|--------|---------|
-| `bpf_lookup_user_key` | 6.1+ | Look up a key in the user keyring |
-| `bpf_verify_pkcs7_signature` | 6.1+ | Verify PKCS7 signatures |
-
-### Use Case
-
-- Verify update signatures before applying config changes
-- Validate signed rule bundles from CTI feeds
-
-Available on 6.1+ but requires kfunc support in aya.
-
-## Adoption Timeline
-
-| Phase | Kfuncs | Dependency |
-|-------|--------|------------|
-| **Phase 1** (when aya adds kfunc support) | CT kfuncs (5.18+), `bpf_sock_destroy` (6.5), `bpf_skb_get_xfrm_info` (6.2) — all within our 6.6 minimum | aya kfunc API only |
-| **Phase 2** (when aya adds kfunc support) | Dynptr kfuncs (6.4) — replace `ptr_at` with safe dynptr access, resolve verifier issues | aya kfunc API only |
-| **Phase 3** (kernel bump to 6.8+) | XDP metadata kfuncs, open-coded iterators | Minimum kernel bump |
-| **Phase 4** (kernel bump to 6.10+) | Crypto kfuncs for DLP, string kfuncs for DNS | Minimum kernel bump |
-
-With the 6.6 minimum kernel, Phases 1-2 are **unblocked by kernel version** — they only need aya to expose the kfunc calling API. When aya adds kfunc support, all CT, dynptr, sock_destroy, and XFRM kfuncs can be adopted immediately without a kernel bump.
+At runtime the agent verifies the kernel version meets the 6.9 floor before loading any BPF program. See [Kernel Compatibility](requirements.md) for distribution support.

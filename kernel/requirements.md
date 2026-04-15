@@ -4,14 +4,16 @@
 
 | Requirement | Value |
 |-------------|-------|
-| Linux kernel | **6.6+** |
+| Linux kernel | **6.9+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Capabilities | `CAP_BPF` + `CAP_NET_ADMIN` (or root) |
+
+The 6.9 floor is enforced at agent startup before any BPF program is loaded — there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation and BPF arena maps.
 
 Verify on your system:
 
 ```bash
-uname -r                       # Must be >= 6.6
+uname -r                       # Must be >= 6.9
 ls /sys/kernel/btf/vmlinux     # Must exist
 ```
 
@@ -69,6 +71,36 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`BPF_MAP_TYPE_BLOOM_FILTER`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) | 5.16+ | tc-threatintel | IOC pre-filtering |
 | [`BPF_MAP_TYPE_USER_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_USER_RINGBUF/) | 6.1+ | xdp-firewall (extensible to all programs) | Userspace→kernel config push |
 
+### KFuncs
+
+KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs` since aya 0.13 has no native kfunc infrastructure. See [KFuncs](kfuncs.md) for full per-kfunc semantics and safe-wrapper coverage.
+
+| Feature | Min Kernel | Used By | Reference |
+|---------|-----------|---------|-----------|
+| `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` / `bpf_ct_release` | 5.18+ | tc-conntrack, tc-ids, tc-nat-* | Read kernel netfilter conntrack from BPF |
+| `bpf_skb_ct_alloc` / `bpf_xdp_ct_alloc` / `bpf_ct_insert_entry` | 6.0+ | tc-conntrack, tc-nat-* | Write-side conntrack delegation |
+| `bpf_ct_set_timeout` / `bpf_ct_change_timeout` | 6.0+ | tc-conntrack | Conntrack timeout management |
+| `bpf_ct_set_status` / `bpf_ct_change_status` | 6.0+ | tc-conntrack, tc-ids | Conntrack status flag management (`IPS_CONFIRMED`, `IPS_DYING`) |
+| `bpf_cgroup_ancestor` / `bpf_cgroup_acquire` | 6.0+ | tc-ids, tc-threatintel | Cgroup tree walk + refcount bump |
+| `bpf_ct_set_nat_info` | 6.1+ | tc-nat-ingress, tc-nat-egress | In-kernel SNAT/DNAT rewrite delegation |
+| `bpf_task_under_cgroup` | 6.1+ | tc-ids, tc-threatintel | Per-tenant membership test |
+| `bpf_rcu_read_lock` / `bpf_rcu_read_unlock` | 6.2+ | tc-ids, tc-threatintel | RCU read-side critical sections for kernel field access |
+| `bpf_rdonly_cast` / `bpf_cast_to_kern_ctx` | 6.2+ | tc-ids, tc-threatintel | Re-type opaque pointers as `PTR_TO_BTF_ID` |
+| `bpf_skb_get_xfrm_info` / `bpf_skb_set_xfrm_info` | 6.2+ | tc-nat-* | IPsec interface steering via `xfrmi` devices |
+| `bpf_xdp_metadata_rx_hash` | 6.3+ | xdp-ratelimit, xdp-loadbalancer | NIC-offloaded RSS hash reuse |
+| `bpf_xdp_metadata_rx_timestamp` | 6.3+ | xdp-ratelimit, tc-ids | Hardware RX timestamps |
+| `bpf_dynptr_from_skb` / `bpf_dynptr_from_xdp` | 6.4+ | tc-ids, tc-dns, uprobe-dlp | dynptr packet parsing |
+| `bpf_dynptr_slice` / `bpf_dynptr_slice_rdwr` | 6.4+ | tc-ids, tc-dns | Zero-copy + read-write dynptr slices |
+| `bpf_skb_get_fou_encap` / `bpf_skb_set_fou_encap` | 6.4+ | tc-nat-egress | FOU/GUE cloud-overlay encapsulation |
+| `bpf_dynptr_adjust` / `_size` / `_is_null` / `_clone` | 6.5+ | tc-ids, tc-dns | dynptr accessors and window narrowing |
+| `bpf_cgroup_release` | 6.5+ | tc-ids, tc-threatintel | Release any cgroup pointer |
+| `bpf_cgroup_from_id` | 6.5+ | tc-ids, tc-threatintel | Resolve `cgroup_id` to a kernel cgroup pointer in-kernel |
+| `bpf_iter_css_task_new` / `_next` / `_destroy` | 6.7+ | tc-ids | Iterate tasks attached to a cgroup |
+| `bpf_iter_css_new` / `_next` / `_destroy` | 6.7+ | tc-ids | Iterate the cgroup tree |
+| `bpf_task_get_cgroup1` | 6.8+ | tc-ids, tc-threatintel | Resolve cgroup1 hierarchy for a task |
+| `bpf_xdp_metadata_rx_vlan_tag` | 6.8+ | xdp-firewall, xdp-ratelimit | Hardware VLAN tag extraction |
+| `bpf_xdp_get_xfrm_state` / `bpf_xdp_xfrm_state_release` | 6.8+ | xdp-firewall | XDP-side `xfrm_state` lookup |
+
 ### Other Kernel Features
 
 | Feature | Min Kernel | Description |
@@ -76,6 +108,8 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere — portable eBPF binaries |
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
+| BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
+| BPF arena maps | 6.9+ | Shared kernel/userspace data regions |
 
 ## Kernel 6.1+ Optimizations
 
@@ -133,18 +167,21 @@ Uses `BPF_MAP_TYPE_USER_RINGBUF` (kernel 6.1+) and `bpf_user_ringbuf_drain` for 
 
 ## Distribution Compatibility
 
-| Distribution | Kernel | BTF | Status |
-|-------------|--------|-----|--------|
-| Debian 12+ | 6.1+ | Yes | Verified |
-| Ubuntu 24.04+ | 6.8+ | Yes | Verified |
-| Ubuntu 22.04 (HWE) | 6.5+ (HWE) | Yes | Verified (HWE kernel required) |
-| RHEL 9.4+ | 5.14+ (backports) | Yes | Verified (kernel-ml 6.1+ recommended) |
-| Rocky Linux 9.4+ | 5.14+ (backports) | Yes | Verified (kernel-ml 6.1+ recommended) |
-| Alpine 3.18+ | 6.1+ (lts) | Yes | Verified |
-| Fedora 37+ | 6.0+ | Yes | Verified |
-| Arch Linux | Rolling | Yes | Verified |
-| NixOS | Varies | Yes | Requires 6.1+ kernel |
-| Talos Linux | 6.x | Yes | Verified |
+The 6.9 minimum kernel narrows the supported distribution surface. Older LTS distributions need a backport / HWE / kernel-ml channel to ship a recent enough kernel.
+
+| Distribution | Stock Kernel | 6.9+ Path | Status |
+|-------------|--------------|-----------|--------|
+| Debian 13 (Trixie) | 6.12 | stock | Verified |
+| Debian 12 (Bookworm) | 6.1 | backports kernel required | Not supported on stock kernel |
+| Ubuntu 24.10+ | 6.11+ | stock | Verified |
+| Ubuntu 24.04 LTS | 6.8 | HWE 6.11+ required | Verified with HWE only |
+| Ubuntu 22.04 LTS | 5.15 | HWE 6.8 still below floor | Not supported |
+| Fedora 40+ | 6.8+ | kernel update to 6.9+ | Verified |
+| Arch Linux | Rolling (≥6.9) | stock | Verified |
+| Alpine 3.20+ | 6.6 | edge / kernel-lts upgrade | Verified with edge kernel |
+| RHEL / Rocky 9.x | 5.14 (backports) | `kernel-ml` (ELRepo) 6.9+ | Verified with kernel-ml |
+| NixOS unstable | Varies | `boot.kernelPackages = pkgs.linuxPackages_latest` | Verified |
+| Talos Linux 1.8+ | 6.10+ | stock | Verified |
 
 **Not supported:** macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
@@ -153,7 +190,7 @@ Uses `BPF_MAP_TYPE_USER_RINGBUF` (kernel 6.1+) and `bpf_user_ringbuf_drain` for 
 ## Verifying Kernel Support
 
 ```bash
-# Check kernel version
+# Check kernel version (must be >= 6.9)
 uname -r
 
 # Check BTF support
