@@ -153,6 +153,134 @@ Dynamic per-SNI certificate generation:
 
 **Privacy Note:** TLS deep inspection requires explicit opt-in. The CA certificate must be deployed to all monitored endpoints.
 
+## Extended TLS Library Coverage
+
+> **Status: Shipped (detection layer)** — tracked by story E19.5.
+> Discovery, ELF symbol resolution, and the `TlsProbeManager`
+> orchestrator are in place and emit attachment plans with per-library
+> symbol offsets. Actual kernel-side uprobe attachment for the two new
+> eBPF programs (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is deferred to an
+> aya uprobe-by-offset helper follow-up.
+
+The OSS `uprobe-dlp` program only hooks OpenSSL's `libssl.so.3`
+(`SSL_write` / `SSL_read`). Any application that manages TLS outside of
+OpenSSL is invisible to OSS DLP. Enterprise widens coverage to five
+more TLS implementations so decrypted plaintext can be scanned
+regardless of the TLS library the workload links against.
+
+### Supported libraries
+
+| Library | Detection | Hook target | Typical workloads |
+|---------|-----------|-------------|-------------------|
+| **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse | `crypto/tls.(*Conn).Write` / `.Read` uprobes, Go ≥1.17 register ABI, Go <1.17 stack ABI | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
+| **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
+| **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
+| **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
+| **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
+
+### Architecture
+
+```
+                          TlsProbeManager
+                                │
+           ┌────────────────┬───┴────┬────────────────┬─────────────┐
+           │                │        │                │             │
+       GoProbes        JavaProbes  BoringSslStatic  KtlsProbes   GnuTlsProbes
+           │                │        │                │             │
+   ELF .gopclntab      path+maps  symtab scan    /proc/net/    maps+libgnutls
+   + .go.buildinfo     heuristic  (libssl-less)   tls_stat     symbol scan
+           │                │        │                │             │
+           └────────────────┴────────┴────────────────┴─────────────┘
+                                │
+                  Vec<TlsProbePlan>  (library, binary, offsets, pids)
+                                │
+                     aya uprobe / kprobe attach
+                                │
+             DlpEvent → shared RingBuf → DLP pattern engine
+```
+
+### Orchestrator
+
+`TlsProbeManager::scan()` takes a batch of `ProcessSnapshot`s (binary
+bytes + `/proc/{pid}/maps` dump) plus the optional contents of
+`/proc/net/tls_stat` and returns a deduplicated `ScanResult`. The
+orchestrator:
+
+- runs every enabled library detector in priority order (Go → Java →
+  BoringSSL static → GnuTLS) — a binary is classified once and
+  subsequent detectors are skipped for that path;
+- aggregates pids per `(library, binary_path)` so probe attachment can
+  run once per unique binary;
+- emits a kTLS plan whenever `/proc/net/tls_stat` reports active
+  software counters and the `ktls` flag is on;
+- collects per-process errors as structured warnings (invalid ELF,
+  truncated `/proc` file, `object` parse failure…) without aborting
+  the scan.
+
+### Container-aware attach
+
+Extended TLS hooking is designed to be fully container-aware: the
+enterprise loader walks every process matched by the
+[container resolver](../container-awareness.md), inspects its mapped
+libraries, and plans the right uprobe set per workload. A Go
+microservice and an Envoy sidecar running in neighbouring pods are
+discovered independently and tracked by unique canonical binary path.
+
+### Configuration
+
+Extended TLS probing is opt-in and configured under
+`enterprise.advanced_dlp.extended_tls`:
+
+```yaml
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: alert
+    extended_tls:
+      enabled: true
+      scan_interval_seconds: 30      # minimum 5s, enforced by validator
+      exclude_paths:                  # binary path prefixes that must not be probed
+        - /snap
+        - /var/lib/flatpak
+      go_tls:          { enabled: true }
+      java_jsse:       { enabled: true }
+      boringssl_static: { enabled: true }
+      ktls:            { enabled: false }  # opt-in, requires kprobe + kernel ≥ 5.11
+      gnutls:          { enabled: true }
+```
+
+Each per-library block is a flag — set `enabled: false` to skip the
+corresponding detector entirely. The scan interval minimum of 5s is
+enforced at config load, not silently clamped.
+
+### Metrics
+
+The `ExtendedTlsMetrics` port emits per-library counters and a scan
+duration histogram. Default Prometheus names once the enterprise
+metrics registry wires them:
+
+| Metric | Type | Labels | Meaning |
+|--------|------|--------|---------|
+| `ebpfsentinel_dlp_tls_binary_discovered_total` | Counter | `library` | Unique binaries seen per library |
+| `ebpfsentinel_dlp_tls_probe_attached_total` | Counter | `library` | Successful probe attach attempts |
+| `ebpfsentinel_dlp_tls_probe_failed_total` | Counter | `library`, `reason` | Failed probe attach attempts |
+| `ebpfsentinel_dlp_tls_binaries_tracked` | Gauge | `library` | Current binary cache size per library |
+| `ebpfsentinel_dlp_tls_scan_duration_seconds` | Histogram | — | End-to-end `TlsProbeManager::scan` duration |
+| `ebpfsentinel_dlp_tls_scan_warning_total` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse …) |
+
+### Requirements
+
+- `CAP_SYS_PTRACE` for inspecting `/proc/{pid}/maps` and attaching
+  uprobes to other processes
+- `hostPID: true` (Kubernetes) / `--pid host` (Docker) when the agent
+  must reach processes outside its own pod
+- Kernel 5.11+ for the kTLS kprobe path; older kernels silently skip
+  the kTLS hooks
+
+Every hook feeds the same DLP alert/block/per-pattern engine — the
+extended TLS layer widens the visible surface without changing the
+pattern configuration or the alert schema.
+
 ## Hot-Reload
 
 Pattern changes take effect without restarting the agent:

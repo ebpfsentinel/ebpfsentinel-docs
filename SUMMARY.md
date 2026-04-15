@@ -41,6 +41,7 @@
 - [Packet Capture](features/capture.md)
 - [Automated Response](features/response.md)
 - [Operational Essentials](features/operational-essentials.md)
+- [Container Awareness](features/container-awareness.md)
 - [Deployment Compatibility Matrix](features/deployment-matrix.md)
 - [Enterprise Features](features/enterprise/overview.md)
   - [License System](features/enterprise/license.md)

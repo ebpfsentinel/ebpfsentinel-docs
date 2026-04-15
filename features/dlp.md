@@ -58,6 +58,35 @@ With the `enterprise` feature, organizations can:
 
 See [Enterprise DLP](enterprise/dlp.md) for details.
 
+## Container-Aware DLP
+
+When the container resolver is enabled (see
+[Container Awareness](container-awareness.md)), every DLP alert is
+automatically enriched with the workload that produced the leak:
+
+- `container` — runtime (`docker`/`containerd`/`crio`/`podman`) and
+  canonical container id resolved from `/proc/{pid}/cgroup`
+- `container_metadata` — Docker image + labels (Docker enricher) or
+  pod name, namespace, labels, service account, and owner reference
+  (Kubernetes enricher)
+
+For Kubernetes deployments this means DLP alerts carry the pod and
+namespace that leaked the data — no manual IP-to-workload correlation
+required downstream. SIEM exports, the gRPC alert stream, the REST API,
+and the audit trail all carry the enrichment.
+
+### Extended TLS library coverage (Enterprise)
+
+The OSS uprobe-dlp program hooks OpenSSL's `libssl.so.3` only.
+Applications that manage TLS internally — Go's `crypto/tls`, Java's
+JSSE, Envoy / sidecar proxies linking BoringSSL statically, kTLS kernel
+offload, GnuTLS — are invisible to the OSS DLP. Enterprise ships a
+discovery layer that detects all five library families and produces
+uprobe attachment plans for the DLP pipeline; kernel-side attach of
+the new Go/kTLS probes is deferred pending an aya uprobe-by-offset
+helper. See
+[Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
+
 ## Configuration
 
 ### OSS Configuration

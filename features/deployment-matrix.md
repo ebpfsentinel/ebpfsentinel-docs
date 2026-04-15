@@ -13,8 +13,8 @@ This page documents which features are fully supported, partially supported, or 
 | Mode | Description | Network Namespace | Process Namespace |
 |------|-------------|-------------------|-------------------|
 | **Bare metal / VM** | Agent binary runs directly on the host | Host | Host |
-| **Container** | `docker run --privileged --network host` | Host (shared) | Container (isolated) |
-| **Kubernetes DaemonSet** | One privileged pod per node with `hostNetwork: true` | Host (shared) | Pod (isolated unless `hostPID: true`) |
+| **Container** | `docker run --network host --cap-add …` (least-privilege on kernel 5.8+, `--privileged` fallback) | Host (shared) | Container (isolated) |
+| **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true` and a minimal `capabilities.add` list | Host (shared) | Pod (isolated unless `hostPID: true`) |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
 ## Compatibility Matrix
@@ -33,6 +33,10 @@ This page documents which features are fully supported, partially supported, or 
 | **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **DLP** | :white_check_mark: | :warning: | :warning: | :warning: |
+| **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
+| **Docker Enricher** (OSS) | :x: | :white_check_mark: | :white_check_mark: | :x: |
+| **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: |
+| **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: |
 | **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -50,7 +54,7 @@ These programs attach to **host network interfaces** (e.g., `eth0`). They requir
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
 
-**Requirements**: `--privileged` or `CAP_BPF` + `CAP_NET_ADMIN`, `--network host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: least-privilege capability set (`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_PERFMON` + `CAP_SYS_PTRACE` + `CAP_SYS_RESOURCE`) on kernel 5.8+, or `--privileged` on older kernels; `--network host` (container), `hostNetwork: true` (Kubernetes).
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 
@@ -70,7 +74,9 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 | **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility. |
 | **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it uses `libssl.so.3` in the same shared PID namespace. |
 
-**Key constraint**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. DLP only works when the target process links against OpenSSL's `libssl.so.3`.
+**Key constraint (OSS)**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. The OSS uprobe-dlp only hooks OpenSSL's `libssl.so.3`.
+
+**Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still scanned. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
 To enable full DLP coverage in Kubernetes, add `hostPID: true` to the DaemonSet pod spec:
 
@@ -104,13 +110,53 @@ Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes)
 
 These features have no kernel dependency. They work in all deployment modes as long as the agent process is running and the relevant eBPF programs are loaded (metrics read eBPF map counters).
 
+### Container Awareness (Resolver, Docker, Kubernetes)
+
+Container awareness enriches every alert with the workload that
+generated it. It is composed of three OSS building blocks that attach
+independently after the packet pipeline.
+
+| Block | Requires | Notes |
+|-------|----------|-------|
+| **Container Resolver** | read access to host `/proc` (bind-mount `/proc:/host/proc:ro` when containerised) | Works anywhere a process is reachable via `/proc/{pid}/cgroup`; sidecar mode sees only pods in the shared PID namespace |
+| **Docker Enricher** | `/var/run/docker.sock:/var/run/docker.sock:ro` bind-mount | Non-Docker hosts disable the enricher at startup — zero runtime cost |
+| **Kubernetes Enricher** | in-cluster service account with `pods` `get/list/watch` | Auto-disables when `KUBERNETES_SERVICE_HOST` is absent; not useful on bare metal |
+
+See the full reference at [Container Awareness](container-awareness.md).
+
+## Least-Privilege Mode
+
+On kernel 5.8+ eBPFsentinel runs with a minimal Linux capability set
+instead of `privileged: true`. The full list is:
+
+| Capability | Used for |
+|------------|----------|
+| `CAP_BPF` | Loading eBPF programs and creating BPF maps |
+| `CAP_NET_ADMIN` | XDP / TC attach |
+| `CAP_PERFMON` | Perf / uprobe events |
+| `CAP_SYS_PTRACE` | Reading `/proc/{pid}` and attaching uprobes to other processes |
+| `CAP_SYS_RESOURCE` | Raising `RLIMIT_MEMLOCK` for BPF maps |
+
+Additional capabilities are only needed for specific features:
+
+| Feature | Extra capabilities |
+|---------|-------------------|
+| Raw socket tooling / `libpcap` | `CAP_NET_RAW` |
+| Multi-WAN routing table updates | already covered by `CAP_NET_ADMIN` |
+
+Pre-5.8 kernels (RHEL 8 initial release, some embedded distros) lack
+`CAP_BPF` and `CAP_PERFMON`; on those systems fall back to
+`privileged: true` / `--privileged`. See the
+[Kubernetes deployment guide](../operations/deployment/kubernetes.md#kernel-version-matrix)
+for the kernel-version matrix.
+
 ## Recommendations
 
 | Deployment Goal | Recommended Mode |
 |----------------|-----------------|
 | Full host/VM protection (all features) | Bare metal binary |
-| Containerized with full coverage | Container with `--privileged --network host` |
-| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true` |
+| Containerized with full coverage | Container with least-privilege capabilities + `--network host --pid host` |
+| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, granular `capabilities.add` |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
-For production Kubernetes deployments, use the **DaemonSet** pattern with `hostPID: true` for full feature coverage including DLP. See the [Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the complete manifest.
+For production Kubernetes deployments, use the **DaemonSet** pattern with `hostPID: true` for full feature coverage including DLP, and enable the Kubernetes metadata enricher for workload-aware alerts. See the [Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the complete manifest.

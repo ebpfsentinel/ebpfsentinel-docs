@@ -31,6 +31,12 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Network Forensics](network-forensics.md) | Ring buffer capture engine, event-triggered captures, flow timeline reconstruction | **Shipped** |
 | [Automated Response](automated-response.md) | Policy engine, SOAR webhook integration, cooldown tracking, audit trail | **Shipped** |
 
+## Shipped — Partial
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS. Kernel-side uprobe attachment deferred. | **Shipped — detection layer** |
+
 ## Planned Features
 
 | Feature | Description | Status |
