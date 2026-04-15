@@ -35,7 +35,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS. Kernel-side uprobe attachment deferred. | **Shipped — detection layer** |
+| [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS; `/proc` scanner, background scan loop, 6 Prometheus metrics, and `/api/v1/enterprise/tls-probes/*` admin API wired. Kernel-side uprobe attachment blocked on upstream aya support. | **Shipped — discovery + admin API** |
 | [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols-enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port. Per-protocol matcher evaluation | **Shipped — detection layer** |
 | [L7 Deep Content Inspection](l7-deep-inspection.md) | Vectorscan-backed pattern engine with 40+ curated SQLi / XSS / path traversal / command injection / data exfil signatures. HTTP handler + L7 pipeline wiring | **Shipped — detection engine** |
 | [Per-Protocol Security Policies](l7-per-protocol-policies.md) | Redis / MongoDB / Kafka / SQL / LDAP / SSH policy engines with dangerous-command blocking, namespace/ACL enforcement, weak-crypto rejection. HTTP admin API and L7 dispatcher wiring ship in a follow-up release. | **Shipped — policy engines** |

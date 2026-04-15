@@ -81,10 +81,12 @@ The OSS uprobe-dlp program hooks OpenSSL's `libssl.so.3` only.
 Applications that manage TLS internally — Go's `crypto/tls`, Java's
 JSSE, Envoy / sidecar proxies linking BoringSSL statically, kTLS kernel
 offload, GnuTLS — are invisible to the OSS DLP. Enterprise ships a
-discovery layer that detects all five library families and produces
-uprobe attachment plans for the DLP pipeline; kernel-side attach of
-the new Go/kTLS probes is deferred pending an aya uprobe-by-offset
-helper. See
+full discovery pipeline: a `/proc` scanner walks every process,
+detects the TLS library, resolves symbol offsets, and publishes an
+attachment plan via the `/api/v1/enterprise/tls-probes/*` admin API
+plus six Prometheus metrics. Kernel-side uprobe attach for the new
+Go/kTLS probes is blocked on upstream aya support for uprobe-by-offset
+attachment. See
 [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
 ## Configuration

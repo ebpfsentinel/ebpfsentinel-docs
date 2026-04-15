@@ -155,12 +155,15 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> **Status: Shipped (detection layer).**
-> Discovery, ELF symbol resolution, and the `TlsProbeManager`
-> orchestrator are in place and emit attachment plans with per-library
-> symbol offsets. Actual kernel-side uprobe attachment for the two new
-> eBPF programs (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is deferred to an
-> aya uprobe-by-offset helper follow-up.
+> **Status: Shipped — discovery + admin API + metrics wired.**
+> Discovery, ELF symbol resolution, the `TlsProbeManager` orchestrator,
+> the `/proc`-based scanner, a periodic background scan loop, Prometheus
+> metrics, and the `/api/v1/enterprise/tls-probes/*` admin endpoints
+> are all live. Actual kernel-side uprobe attachment for the two new
+> eBPF programs (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is still blocked on
+> upstream aya support for uprobe-by-offset attachment — the enterprise
+> agent exposes the attachment plan so operators can see exactly which
+> binaries and symbols would be probed once that support lands.
 
 The OSS `uprobe-dlp` program only hooks OpenSSL's `libssl.so.3`
 (`SSL_write` / `SSL_read`). Any application that manages TLS outside of
@@ -256,17 +259,29 @@ enforced at config load, not silently clamped.
 ### Metrics
 
 The `ExtendedTlsMetrics` port emits per-library counters and a scan
-duration histogram. Default Prometheus names once the enterprise
-metrics registry wires them:
+duration gauge. All metrics are registered under the
+`ebpfsentinel_ent` prefix in the enterprise Prometheus registry:
 
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
-| `ebpfsentinel_dlp_tls_binary_discovered_total` | Counter | `library` | Unique binaries seen per library |
-| `ebpfsentinel_dlp_tls_probe_attached_total` | Counter | `library` | Successful probe attach attempts |
-| `ebpfsentinel_dlp_tls_probe_failed_total` | Counter | `library`, `reason` | Failed probe attach attempts |
-| `ebpfsentinel_dlp_tls_binaries_tracked` | Gauge | `library` | Current binary cache size per library |
-| `ebpfsentinel_dlp_tls_scan_duration_seconds` | Histogram | — | End-to-end `TlsProbeManager::scan` duration |
-| `ebpfsentinel_dlp_tls_scan_warning_total` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse …) |
+| `ebpfsentinel_ent_tls_probes_binaries_discovered` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
+| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Successful probe attach attempts (populated once aya uprobe-by-offset support lands) |
+| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Failed probe attach attempts |
+| `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
+| `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
+| `ebpfsentinel_ent_tls_probes_scan_warnings` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
+
+### Admin API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/v1/enterprise/tls-probes/status` | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat` |
+| `GET` | `/api/v1/enterprise/tls-probes/warnings` | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …) |
+
+All three endpoints are read-only and gated behind the `advanced-dlp`
+license feature. Configuration is managed via the enterprise YAML
+(`enterprise.advanced_dlp.extended_tls`), not via the API.
 
 ### Requirements
 
