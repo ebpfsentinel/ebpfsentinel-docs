@@ -164,12 +164,21 @@ No RingBuf.
 |----------|-------|----------------|
 | IDS patterns | 10,240 | `IDS_PATTERNS` (HashMap, port+protocol key) |
 | L7 inspection ports | 64 | `L7_PORTS` (HashMap) |
-| L7 payload capture | 512 bytes | `MAX_L7_PAYLOAD` (compact: 128 bytes `SMALL_L7_PAYLOAD`) |
+| L7 payload capture | 2,048 bytes | `MAX_L7_PAYLOAD` (compact: 512 bytes `SMALL_L7_PAYLOAD`) |
 | Sampling rate | 0–100% | `IDS_SAMPLING_CONFIG` (Array) |
 | L7 signatures detected | 4 | HTTP GET, HTTP POST, TLS, SSH |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
-| RingBuf size | 1 MB | `EVENTS` (variable-size via `bpf_dynptr`) |
+| RingBuf size | 4 MB | `EVENTS` (variable-size via `bpf_dynptr`) |
 | Backpressure threshold | 75% | Events dropped when buffer >75% full |
+
+**Rationale for the 2 KiB payload budget**: full HTTP/1.1 request
+headers, TLS ClientHello with SNI + ALPN + supported_groups +
+signature_algorithms, gRPC HEADERS frames, and most database query
+statements all fit below 2 KiB. The small-tier (512 B) still covers
+HTTP request lines, TLS record headers, and protocol signatures —
+it is selected when the TCP payload is ≤ 512 bytes, saving 1 536 B
+per RingBuf entry. The 4 MiB ring buffer absorbs the larger events
+without backpressure drops at typical enterprise rates.
 
 ### tc-threatintel
 
