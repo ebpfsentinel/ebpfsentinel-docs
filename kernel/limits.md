@@ -34,7 +34,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | tc-nat-egress | SNAT rules (IPv6) | 128 |
 | tc-nat-egress | NAT port allocations | 65,536 |
 | tc-ids | IDS patterns | 10,240 |
-| tc-ids | L7 inspection ports | 64 |
+| tc-ids | L7 inspection ports | 256 |
 | tc-threatintel | IOCs per family | 1,048,576 |
 | tc-threatintel | Bloom filter per family | 1,048,576 |
 | tc-qos | Pipes | 64 |
@@ -163,7 +163,7 @@ No RingBuf.
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
 | IDS patterns | 10,240 | `IDS_PATTERNS` (HashMap, port+protocol key) |
-| L7 inspection ports | 64 | `L7_PORTS` (HashMap) |
+| L7 inspection ports | 256 | `L7_PORTS` (HashMap, `MAX_L7_PORTS`) |
 | L7 payload capture | 2,048 bytes | `MAX_L7_PAYLOAD` (compact: 512 bytes `SMALL_L7_PAYLOAD`) |
 | Sampling rate | 0–100% | `IDS_SAMPLING_CONFIG` (Array) |
 | L7 signatures detected | 4 | HTTP GET, HTTP POST, TLS, SSH |
