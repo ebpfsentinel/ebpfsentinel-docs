@@ -4,12 +4,18 @@
 
 ### Linux Kernel
 
-eBPFsentinel requires **Linux kernel 6.6+** with BTF (BPF Type Format) support.
+eBPFsentinel requires **Linux kernel 6.9+** with BTF (BPF Type Format) support.
+
+The 6.9 floor is driven by:
+
+- **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`) — container-aware least-privilege mode
+- **`BPF_MAP_TYPE_ARENA`** — mmap'd zero-copy maps
+- Kfuncs `bpf_task_get_cgroup1` (6.8), `bpf_xdp_metadata_rx_vlan_tag` (6.8), `bpf_xdp_get_xfrm_state` (6.8), `bpf_iter_css_task` (6.7)
 
 Verify your system:
 
 ```bash
-# Kernel version — must be >= 6.6
+# Kernel version — must be >= 6.9
 uname -r
 
 # BTF support — this file must exist
@@ -38,16 +44,17 @@ sudo setcap cap_bpf,cap_net_admin+ep ./ebpfsentinel-agent
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 12 (backports) / 13+ | Yes | Debian 13 ships 6.12; Debian 12 needs `linux-image-amd64/bookworm-backports` (6.6+) |
-| Ubuntu 24.04+ | Yes | Ships 6.8 kernel |
-| Ubuntu 22.04 (HWE) | Yes | HWE 6.8 kernel required |
-| RHEL 9.4+ | Yes | Stock 5.14 insufficient; `kernel-ml` 6.6+ or RHEL 10 |
-| Rocky Linux 9.4+ | Yes | Same as RHEL (ELRepo `kernel-ml`) |
-| Alpine 3.20+ | Yes | `linux-lts` package (6.6+) |
-| Fedora 39+ | Yes | Ships 6.6+ kernel |
-| Arch Linux | Yes | Rolling, always 6.6+ |
-| NixOS | Yes | Requires 6.6+ kernel |
-| Talos Linux | Yes | Ships 6.x kernel |
+| Debian 13+ | Yes | Ships 6.12 kernel natively |
+| Debian 12 | No | Ships 6.1 — install mainline 6.9+ or upgrade to Debian 13 |
+| Ubuntu 24.04.2+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.11 |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 — below floor, use HWE or 6.9 mainline |
+| RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
+| RHEL 9.x / Rocky 9.x | No | Requires ELRepo `kernel-ml` 6.9+ |
+| Alpine Edge | Yes | `linux-edge` tracks mainline 6.9+ |
+| Fedora 40+ | Yes | Fedora 41 ships 6.10, Fedora 42 ships 6.12 |
+| Arch Linux | Yes | Rolling, always 6.9+ |
+| NixOS 24.11+ | Yes | Ships 6.11 |
+| Talos Linux 1.8+ | Yes | Ships 6.9 |
 
 **Architectures:** x86_64 (primary), aarch64/ARM64 (cross-tested)
 

@@ -2,24 +2,38 @@
 
 ## Platform
 
-**Linux only.** Requires kernel 6.6+ with BTF support.
+**Linux only.** Requires kernel **6.9+** with BTF support.
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
+
+The 6.9 floor is driven by three hard kernel dependencies:
+
+- **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) — required
+  for delegating eBPF load capabilities to unprivileged containers
+  without `CAP_BPF`
+- **`BPF_MAP_TYPE_ARENA`** (kernel 6.9) — required for zero-copy
+  mmap'd map sharing between kernel programs and userspace readers
+- **`bpf_task_get_cgroup1`**, **`bpf_xdp_metadata_rx_vlan_tag`**,
+  **`bpf_xdp_get_xfrm_state`**, **`bpf_iter_css_task`** kfuncs
+  (kernel 6.7–6.8) — required for in-kernel container id enrichment,
+  VLAN hardware offload metadata reads, IPsec state lookups, and
+  cgroup descendant iteration
 
 ## Distributions
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 12+ | Yes | Ships 6.1 kernel |
-| Ubuntu 24.04+ | Yes | Ships 6.8 kernel |
-| Ubuntu 22.04 (HWE) | Yes | HWE 6.5+ kernel required (`linux-generic-hwe-22.04`) |
-| RHEL 9.4+ | Yes | Stock 5.14 insufficient; install `kernel-ml` 6.1+ or use RHEL 10 |
-| Rocky Linux 9.4+ | Yes | Same as RHEL (use ELRepo `kernel-ml`) |
-| Alpine 3.18+ | Yes | `linux-lts` package (6.1+) |
-| Fedora 37+ | Yes | Ships 6.0+ kernel |
-| Arch Linux | Yes | Rolling, always 6.1+ |
-| NixOS | Yes | Requires 6.1+ kernel in configuration |
-| Talos Linux | Yes | Ships 6.x kernel |
+| Debian 13 | Yes | Ships 6.12 kernel natively |
+| Debian 12 | No | Ships 6.1 (below 6.9 floor) — use backports kernel or upgrade |
+| Ubuntu 24.04.2+ | Yes | Use HWE stack (`linux-generic-hwe-24.04` → 6.11) |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 — upgrade to HWE or install 6.9 mainline |
+| RHEL 10 / Rocky 10 | Yes | Ships 6.12 kernel |
+| RHEL 9.x / Rocky 9.x | No | Stock 5.14 far below floor — requires ELRepo `kernel-ml` 6.9+ |
+| Alpine 3.20+ | Yes | `linux-lts` package (6.6+) — upgrade to edge for 6.9+ |
+| Fedora 40+ | Yes | Ships 6.8 (F40) / 6.10 (F41) / 6.12 (F42) |
+| Arch Linux | Yes | Rolling, always 6.9+ |
+| NixOS 24.11+ | Yes | Ships 6.11 kernel |
+| Talos Linux 1.8+ | Yes | Ships 6.9 kernel |
 
 ## Architectures
 
@@ -44,10 +58,16 @@ Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
 ## Kernel Feature Matrix
 
-All features require kernel 6.1+. Here is when each eBPF feature became available:
+All features require kernel **6.9+**. Here is when each eBPF feature the agent relies on became available:
 
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|
+| `BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD` | 6.9+ | Container-aware least-privilege delegation (enterprise) |
+| `BPF_MAP_TYPE_ARENA` + `bpf_arena_alloc_pages` | 6.9+ | Zero-copy mmap'd map sharing (roadmap — aya-rs upstream support pending) |
+| `bpf_task_get_cgroup1` kfunc | 6.8+ | Kernel-side cgroup1 inode enrichment for Docker containers |
+| `bpf_xdp_metadata_rx_vlan_tag` kfunc | 6.8+ | Hardware-offloaded 802.1Q VLAN tag read in XDP |
+| `bpf_xdp_get_xfrm_state` kfunc | 6.8+ | IPsec state lookup for XDP firewall rules |
+| `bpf_iter_css_task_*` / `bpf_iter_css_*` kfuncs | 6.7+ | Cgroup task enumeration for per-container audit |
 | `bpf_loop` | 5.17+ | XDP firewall rule iteration, NAT rule scanning |
 | `bpf_strncmp` | 5.17+ | L7 protocol detection |
 | BPF Bloom filter | 5.16+ | TC threat intel IOC pre-check |

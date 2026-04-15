@@ -186,7 +186,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel 6.1+ with BTF. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel **6.9+** with BTF. The 6.9 floor covers BPF token delegation, `BPF_MAP_TYPE_ARENA`, and the 6.7–6.8 kfunc batch (`bpf_task_get_cgroup1`, `bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, `bpf_iter_css_task`). See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 
