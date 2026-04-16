@@ -27,7 +27,7 @@ curl http://localhost:8080/readyz
 ```
 
 ```json
-{"status": "ready", "ebpf_programs_loaded": true}
+{"status": "ready", "ebpf_loaded": true}
 ```
 
 ## Protected Endpoints
@@ -107,7 +107,21 @@ curl http://localhost:8080/api/v1/conntrack/status
 ```
 
 ```json
-{"enabled": true, "connections": 1842}
+{"enabled": true, "connection_count": 1842}
+```
+
+#### GET /api/v1/conntrack/events
+
+Server-Sent Events stream of conntrack lifecycle events (new/update/destroy). Diffs `/proc/net/nf_conntrack` snapshots.
+
+```bash
+curl -N http://localhost:8080/api/v1/conntrack/events
+```
+
+```
+data: {"event_type":"new","protocol":"tcp","src":"10.0.0.1:54321","dst":"10.0.0.2:443"}
+
+data: {"event_type":"destroy","protocol":"tcp","src":"10.0.0.1:54321","dst":"10.0.0.2:443"}
 ```
 
 #### GET /api/v1/conntrack/connections
@@ -527,7 +541,7 @@ curl http://localhost:8080/api/v1/nat/status
 ```
 
 ```json
-{"enabled": true, "snat_rules": 2, "dnat_rules": 3}
+{"enabled": true, "rule_count": 5}
 ```
 
 #### GET /api/v1/nat/rules
@@ -562,8 +576,8 @@ curl http://localhost:8080/api/v1/routing/gateways
 
 ```json
 [
-  {"id": 1, "name": "wan1", "interface": "eth0", "status": "healthy", "priority": 10},
-  {"id": 2, "name": "wan2", "interface": "eth1", "status": "down", "priority": 20}
+  {"id": 1, "name": "wan1", "interface": "eth0", "gateway_ip": "192.168.1.1", "priority": 10, "enabled": true, "status": "healthy"},
+  {"id": 2, "name": "wan2", "interface": "eth1", "gateway_ip": "10.0.0.1", "priority": 20, "enabled": true, "status": "down"}
 ]
 ```
 
@@ -664,7 +678,7 @@ Create a QoS pipe. Requires `admin` role.
 ```bash
 curl -X POST http://localhost:8080/api/v1/qos/pipes \
   -H "Content-Type: application/json" \
-  -d '{"id":1,"bandwidth_bps":10000000,"burst_bytes":65536,"delay_ms":0,"loss_percent":0,"scheduler":"wf2q"}'
+  -d '{"id":"pipe-1","rate_bps":10000000,"burst_bytes":65536}'
 ```
 
 #### DELETE /api/v1/qos/pipes/{id}
@@ -910,6 +924,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
+| GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |
 | POST | `/api/v1/conntrack/flush` | Yes (admin) | Flush connection table |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
 | POST | `/api/v1/firewall/l7-rules` | Yes | Create L7 rule |

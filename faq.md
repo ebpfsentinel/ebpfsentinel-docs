@@ -12,13 +12,13 @@ GNU Affero General Public License v3.0 (AGPL-3.0). All features documented as OS
 
 ### Does it work on macOS / Windows?
 
-No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.6+). It is Linux-only.
+No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.9+). It is Linux-only.
 
 ## Installation & Requirements
 
 ### What kernel version do I need?
 
-Linux kernel **6.6 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist).
+Linux kernel **6.9 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist). Arena maps and BPF token delegation require 6.9+.
 
 ### Does it require kernel modules?
 
@@ -30,7 +30,7 @@ Yes. x86_64 is the primary platform; aarch64/ARM64 is cross-tested.
 
 ### What capabilities does it need?
 
-`CAP_BPF` + `CAP_NET_ADMIN`, or root access. In Docker: `--privileged --network host`.
+`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_PERFMON` + `CAP_SYS_PTRACE` + `CAP_SYS_RESOURCE` on kernel 6.9+, or root access. In Docker: `--network host --pid host` with these capabilities, or `--privileged` as fallback.
 
 ## Performance
 
@@ -73,7 +73,7 @@ Rules are reloaded without dropping traffic. eBPF maps are updated in-place.
 
 ### What L7 protocols are supported?
 
-HTTP, TLS/SNI, gRPC, SMTP, FTP, and SMB.
+HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB, SSH, Redis, MySQL, PostgreSQL, DNS-TCP, IMAP, and POP3.
 
 ## Operations
 

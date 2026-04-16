@@ -81,7 +81,7 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 
 ## eBPF Program Map
 
-Twelve kernel programs cover all enforcement points:
+Fourteen kernel programs cover all enforcement points (12 main entry points + 2 tail-called programs):
 
 | Program | Hook | Features |
 |---------|------|----------|

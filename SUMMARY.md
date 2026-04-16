@@ -80,6 +80,7 @@
 - [Alerting](configuration/alerting.md)
 - [Audit Trail](configuration/audit.md)
 - [Connection Tracking](configuration/conntrack.md)
+- [Container Awareness](configuration/container.md)
 - [NAT](configuration/nat.md)
 - [Policy Routing](configuration/routing.md)
 - [QoS / Traffic Shaping](configuration/qos.md)

@@ -8,7 +8,7 @@
 Error: failed to load eBPF program: kernel version too old
 ```
 
-Check: `uname -r` must be >= 6.1. Upgrade your kernel.
+Check: `uname -r` must be >= 6.9. Upgrade your kernel. Arena maps and BPF token delegation require kernel 6.9+.
 
 ### BTF not available
 

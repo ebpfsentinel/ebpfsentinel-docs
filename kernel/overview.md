@@ -76,7 +76,7 @@ In **auto** mode (default), the kernel tries native first, then falls back to ge
 
 ## Dynamic Program Lifecycle
 
-All 10 eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
+All 14 eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
 
 ## Cross-Cutting: Interface Groups
 
@@ -87,14 +87,14 @@ Six of the 14 eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, 
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:
 
 ```bash
-cargo xtask ebpf-build    # Builds all 12 programs
+cargo xtask ebpf-build    # Builds all 14 programs
 ```
 
 Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both kernel programs and the userspace agent.
 
 ## Kernel Requirements
 
-- **Linux 6.1+** with `CONFIG_DEBUG_INFO_BTF=y`
+- **Linux 6.9+** with `CONFIG_DEBUG_INFO_BTF=y`
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
 - **`CAP_BPF`** + **`CAP_NET_ADMIN`** capabilities (or root)
 

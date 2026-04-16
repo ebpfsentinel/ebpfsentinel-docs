@@ -15,6 +15,9 @@ Isolate database servers with strict firewall rules, IDS monitoring, and DLP for
 agent:
   interfaces: [eth0]
 
+conntrack:
+  enabled: true
+
 firewall:
   default_policy: drop
   rules:
@@ -56,6 +59,16 @@ ids:
       pattern: "(?i)(pg_dump|mysqldump|COPY.*TO\\s+STDOUT)"
       severity: critical
       description: "Database dump attempt"
+
+l7:
+  ports: [5432]
+  rules:
+    - id: block-db-dump
+      priority: 10
+      action: deny
+      protocol: postgres
+      command: "Q"
+      path: "pg_dump"
 
 dlp:
   enabled: true    # OSS built-in patterns detect credit cards, SSN automatically

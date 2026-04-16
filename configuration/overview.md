@@ -44,7 +44,8 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`audit`](audit.md) | No | Audit trail retention |
 | [`auth`](auth.md) | No | Authentication (JWT, OIDC, API keys) |
 | [`tls`](tls.md) | No | TLS certificates for REST/gRPC |
-| [`conntrack`](conntrack.md) | No | Connection tracking timeouts, limits |
+| [`conntrack`](conntrack.md) | No | Connection tracking flood detection thresholds |
+| `container` | No | Container resolver, Docker enricher, Kubernetes enricher |
 | [`nat`](nat.md) | No | SNAT, DNAT, masquerade, NPTv6, hairpin NAT |
 | [`routing`](routing.md) | No | Multi-WAN gateways, health checks, GeoIP routing |
 | [`zones`](zones.md) | No | Network zone segmentation, inter-zone policies |

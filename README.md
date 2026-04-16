@@ -21,7 +21,7 @@ eBPFsentinel provides 14 security domains in a single agent binary:
 | **L7 Firewall** | Application-layer filtering for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB with GeoIP source/destination matching | Userspace |
 | **DNS Intelligence** | Passive DNS capture, domain blocklists, behavioral reputation scoring, encrypted DNS detection (DoH/DoT) | TC classifier |
 | **L4 Load Balancer** | TCP/UDP/TLS passthrough with round-robin, weighted, IP hash, least-connections algorithms | XDP |
-| **Connection Tracking** | TCP/UDP/ICMP state machine, bidirectional tracking, packet + byte counters | TC classifier |
+| **Connection Tracking** | Kernel netfilter CT probe via kfuncs, `nf_conn` field reading at runtime BTF offsets, SSE event stream | TC classifier |
 | **NAT** | SNAT/DNAT/masquerade/1:1/redirect/port-forward, NPTv6 (RFC 6296), hairpin NAT | TC ingress/egress |
 | **Packet Scrubbing** | TTL/hop limit normalization, MSS clamp, DF clear, IP ID random, TCP flag scrub, ECN strip, TOS normalize, TCP timestamp removal | TC classifier |
 
@@ -38,6 +38,8 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 - **MITRE ATT&CK mapping** — every alert tagged with technique + tactic ID
 - **JA4+ TLS fingerprinting** — ClientHello parsing in eBPF, JA4/JA4S computation in userspace
 - **Shared `ebpf-helpers` crate** — deduplicated network helpers, header parsing, metrics macros across all eBPF programs
+- **Arena zero-copy events** — `BPF_MAP_TYPE_ARENA` mmap'd delivery for DLP, IDS, DNS, ratelimit, firewall events (RingBuf fallback)
+- **Netkit container networking** — auto-attach TC programs to Kubernetes pod interfaces (Cilium 1.16+) with hot-plug detection
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
 - **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 65+ endpoints
 - **gRPC streaming** (tonic) for real-time alert subscriptions with severity, component, MITRE filters
@@ -47,7 +49,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 - **OTLP export** — alerts as OpenTelemetry Logs (gRPC or HTTP) to any OTLP-compatible collector
 - **Alert pipeline** with routing to email, webhook, log, and OTLP sinks, concurrent sender dispatch
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 18 domain subcommands + 8 utility commands and table/JSON output
+- **CLI** with 26 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
 - **Helm chart** for Kubernetes DaemonSet deployment with JSON schema validation
 
 ## Who Is This For?

@@ -32,6 +32,8 @@ agent:
 | `metrics_port` | `integer` | No | `9090` | Prometheus metrics port |
 | `ebpf_program_dir` | `Option<string>` | No | `None` | Directory for eBPF binaries. When `None`, the agent uses embedded programs |
 | `event_workers` | `usize` | No | `4` | Number of parallel event dispatcher workers |
+| `attach_mode` | `string` | No | `auto` | TC program attachment mode (see below) |
+| `swagger_ui` | `bool` | No | `false` | Enable Swagger UI at `/swagger-ui/` |
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |
 
@@ -51,6 +53,18 @@ The `xdp_mode` field controls how XDP programs (`xdp-firewall`, `xdp-ratelimit`,
 **Drivers supporting native XDP**: `virtio_net`, `i40e`, `ixgbe`, `mlx4`, `mlx5`, `ice`, `bnxt`, `ena` (AWS), `gve` (GCP), `hv_netvsc` (Azure/Hyper-V), `veth`, `bond`.
 
 > **Tip**: use `ethtool -i eth0 | grep driver` to check your NIC driver, then set `xdp_mode: native` if it appears in the list above.
+
+## TC Attachment Mode
+
+The `attach_mode` field controls how TC programs (tc-ids, tc-conntrack, tc-dns, tc-threatintel, tc-nat-ingress, tc-nat-egress, tc-scrub) are attached to network interfaces.
+
+| Mode | Description |
+|------|-------------|
+| `auto` (default) | Use netkit for netkit interfaces (Kubernetes pods with Cilium 1.16+), fall back to TC clsact for standard interfaces |
+| `tc` | Force TC clsact qdisc attach on all interfaces |
+| `netkit` | Force netkit attach via `BPF_LINK_CREATE` on all interfaces (fails if interface is not a netkit device) |
+
+**Netkit hot-plug**: in `auto` or `netkit` mode, a background watcher polls `/sys/class/net/` every 5 seconds for new netkit devices. When a new device appears (e.g., Kubernetes pod creation), all loaded TC programs are automatically attached without restarting the agent.
 
 ## CLI Overrides
 

@@ -59,7 +59,7 @@ sudo ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 You should see:
 
 ```
-{"timestamp":"...","level":"INFO","message":"agent started","version":"0.1.0"}
+{"timestamp":"...","level":"INFO","message":"agent started","version":"0.0.0-dev"}
 {"timestamp":"...","level":"INFO","message":"eBPF programs loaded","programs":["xdp-firewall","xdp-ratelimit","tc-ids","tc-conntrack"]}
 ```
 

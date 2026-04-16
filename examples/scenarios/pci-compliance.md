@@ -14,6 +14,13 @@ Full PCI-DSS deployment combining firewall segmentation, DLP, IDS/IPS, threat in
 ```yaml
 agent:
   interfaces: [eth0]
+  tls:
+    enabled: true
+    cert_path: /etc/ebpfsentinel/server.crt
+    key_path: /etc/ebpfsentinel/server.key
+
+conntrack:
+  enabled: true
 
 firewall:
   default_policy: drop
@@ -84,6 +91,12 @@ threatintel:
       refresh_interval_secs: 3600
       default_action: block
 
+dns:
+  cache_size: 100000
+  reputation:
+    enabled: true
+    auto_block_threshold: 0.9
+
 audit:
   enabled: true
   retention_days: 90
@@ -105,11 +118,6 @@ alerting:
       min_severity: critical
       event_types: [dlp, ids, ips, threatintel]
       email_to: "pci-compliance@example.com"
-
-tls:
-  enabled: true
-  cert_path: /etc/ebpfsentinel/server.crt
-  key_path: /etc/ebpfsentinel/server.key
 
 auth:
   enabled: true

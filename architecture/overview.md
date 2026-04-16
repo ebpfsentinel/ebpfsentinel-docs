@@ -147,4 +147,4 @@ ebpfsentinel/
 - **JWT/OIDC/API key auth** — role-based access control (Admin, Operator, Viewer)
 - **TLS 1.3** — REST and gRPC secured with rustls + aws_lc_rs
 - **OTLP export** — alerts as OpenTelemetry Logs to any OTLP-compatible collector
-- **CLI** — 13 domain subcommands covering all endpoints
+- **CLI** — 26 subcommands covering all endpoints

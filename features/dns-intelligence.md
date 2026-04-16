@@ -10,7 +10,7 @@ DNS Intelligence provides passive DNS capture, domain-to-IP caching, and domain 
 
 ### Kernel Side (tc-dns)
 
-The TC classifier identifies DNS traffic (UDP and TCP port 53) and emits DNS query/response pairs to userspace via RingBuf. For TCP DNS, the eBPF program parses the variable-length TCP header, skips the 2-byte DNS length prefix, and sets `FLAG_TCP` (0x04) on the event so userspace can distinguish transport.
+The TC classifier identifies DNS traffic (UDP and TCP port 53) and emits DNS query/response pairs to userspace via arena zero-copy (with RingBuf fallback). For TCP DNS, the eBPF program parses the variable-length TCP header, skips the 2-byte DNS length prefix, and sets `FLAG_TCP` (0x04) on the event so userspace can distinguish transport.
 
 ### Userspace Side
 

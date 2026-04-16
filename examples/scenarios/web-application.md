@@ -14,6 +14,10 @@ Protect a web application stack with firewall rules, IDS, L7 filtering, rate lim
 ```yaml
 agent:
   interfaces: [eth0]
+  attach_mode: auto            # netkit for K8s pods, TC for bare metal
+
+conntrack:
+  enabled: true
 
 firewall:
   default_policy: drop
@@ -111,6 +115,9 @@ ebpfsentinel-agent ratelimit list
 curl http://10.0.1.1/ -d "' OR 1=1 --"
 ebpfsentinel-agent alerts list --component ids
 
+# Watch live connections
+ebpfsentinel-agent conntrack watch
+
 # Check metrics
-curl http://localhost:8080/metrics | grep packets_total
+curl http://localhost:9090/metrics | grep packets_total
 ```

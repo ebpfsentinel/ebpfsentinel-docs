@@ -20,7 +20,7 @@ Arrows point toward dependencies. The domain depends on nothing.
 
 - `#![forbid(unsafe_code)]`
 - Minimal external dependencies: `thiserror`, `serde`, `regex`, `ebpf-common`
-- Contains 830+ unit tests
+- Contains 2500+ unit tests
 - Each domain follows the same structure:
 
 ```

@@ -81,7 +81,7 @@ flowchart TD
         SCRUB["tc-scrub"]
         SCRUB_NORM["TTL / MSS / DF / IP ID\nnormalization"]
         SCRUB_TS["TCP timestamp stripping"]
-        CT_BI --> SCRUB --> SCRUB_NORM --> SCRUB_TS
+        CT_RD --> SCRUB --> SCRUB_NORM --> SCRUB_TS
 
         NAT_IN["tc-nat-ingress"]
         NAT_NPTV6["NPTv6 prefix translation\n(stateless)"]

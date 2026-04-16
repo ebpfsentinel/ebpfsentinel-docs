@@ -112,9 +112,9 @@ spec:
 
 | Kernel | Supported path | Notes |
 |--------|----------------|-------|
-| < 5.8 | `privileged: true` fallback | No `CAP_BPF` / `CAP_PERFMON` |
-| 5.8 – 6.0 | Least-privilege (above) | `CAP_BPF` available, no BPF token |
-| 6.1+ | Least-privilege | Full feature set |
+| < 5.8 | Not supported | No `CAP_BPF` / `CAP_PERFMON` |
+| 5.8 – 6.8 | `privileged: true` fallback | `CAP_BPF` available, no BPF token or arena maps |
+| 6.9+ | Least-privilege | Full feature set (BPF token, arena maps, all kfuncs) |
 
 ## ServiceAccount, ClusterRole & ClusterRoleBinding
 

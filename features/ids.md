@@ -15,7 +15,7 @@ The TC classifier program:
 1. **Sampling** — `bpf_get_prandom_u32` selects packets based on the configured sample rate, reducing userspace load
 2. **L7 protocol detection** — `bpf_strncmp` matches protocol signatures (HTTP, TLS, SSH) in the first bytes of the payload
 3. **RingBuf backpressure** — `bpf_ringbuf_query` checks buffer fill level; if >75% full, events are skipped
-4. **Event emission** — matching packets are forwarded to userspace via RingBuf as `PacketEvent` structures
+4. **Event emission** — matching packets are forwarded to userspace via arena zero-copy (with RingBuf fallback) as `PacketEvent` structures
 
 ### Userspace Side
 

@@ -12,7 +12,14 @@ ebpfsentinel-agent [OPTIONS] [COMMAND]
 | `-l, --log-level <LEVEL>` | Override log level: error, warn, info, debug, trace | From config |
 | `--log-format <FORMAT>` | Log format: json or text | From config |
 | `--token <TOKEN>` | Bearer token for authenticated endpoints | `$EBPFSENTINEL_TOKEN` |
-| `-o, --output <FORMAT>` | Output format: table or json | `table` |
+| `-o, --output <FORMAT>` | Output format: table or json (global) | `table` |
+
+### Connection Options
+
+These flags are per-subcommand (placed after the command name):
+
+| Flag | Description | Default |
+|------|-------------|---------|
 | `--host <HOST>` | Remote agent host | `localhost` |
 | `--port <PORT>` | Remote agent port | `8080` |
 
@@ -179,7 +186,7 @@ ebpfsentinel-agent top -o json | jq '.[0]'
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-n, --limit <N>` | Number of entries to display | `20` |
-| `-s, --sort <FIELD>` | Sort by: `bytes` or `packets` | `bytes` |
+| `-s, --sort <FIELD>` | Sort by: `bytes`, `packets`, or `alerts` | `bytes` |
 
 Example output:
 
@@ -296,6 +303,9 @@ ebpfsentinel-agent ips blacklist
 # Change rule mode
 ebpfsentinel-agent ips set-mode rule-001 --mode block
 ebpfsentinel-agent ips set-mode rule-001 --mode alert
+
+# List domain-based IPS blocks (from DNS blocklist or reputation)
+ebpfsentinel-agent ips domain-blocks
 ```
 
 ### ratelimit
@@ -515,6 +525,28 @@ ebpfsentinel-agent nat nptv6 list
 ebpfsentinel-agent nat nptv6 create --id site-a --internal-prefix fd00:1:: --external-prefix 2001:db8:1:: --prefix-len 48
 ebpfsentinel-agent nat nptv6 delete --id site-a
 ```
+
+### conntrack
+
+Connection tracking — live flow events and status.
+
+```bash
+# Watch live conntrack events (SSE stream, refreshes every 2s)
+ebpfsentinel-agent conntrack watch
+ebpfsentinel-agent conntrack watch --interval 5
+
+# List active connections (from /proc/net/nf_conntrack)
+ebpfsentinel-agent conntrack list
+ebpfsentinel-agent conntrack list --limit 50
+
+# Conntrack status and kfunc hit/miss metrics
+ebpfsentinel-agent conntrack status
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--interval <SECS>` | Poll interval for watch mode | `2` |
+| `--limit <N>` | Max connections to list | `100` |
 
 ### dns
 
