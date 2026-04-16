@@ -12,11 +12,13 @@ The most feature-rich program. Processes every incoming packet through a **5-pha
 
 #### Phase 0 — Conntrack Fast-Path (O(1))
 
-ESTABLISHED and RELATED connections bypass all rule evaluation. The conntrack table (`CT_TABLE_V4` / `CT_TABLE_V6`) is a shared [`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map pinned to `/sys/fs/bpf/` (saves ~49 MB vs. per-program copies) and maintained by `tc-conntrack`.
+ESTABLISHED and RELATED connections bypass all rule evaluation. Connection state is queried from **kernel netfilter** directly via the `bpf_xdp_ct_lookup` kfunc — no userspace shadow tables. The kfunc returns a live `nf_conn*`; `nf_conn->status` is read via `bpf_probe_read_kernel` at runtime BTF-resolved offsets (`CT_NF_CONN_OFFSETS` map).
 
-- Lookup by normalized 5-tuple key
+- Lookup via `bpf_xdp_ct_lookup` + `bpf_probe_read_kernel` for `nf_conn->status`
+- IPS_CONFIRMED/IPS_SEEN_REPLY → ESTABLISHED, IPS_EXPECTED → RELATED, IPS_DYING → INVALID
 - If state = ESTABLISHED or RELATED → `XDP_PASS` immediately
 - Overload check via IP set (index 255) — blocked sources are dropped instantly
+- On DROP verdict: `kill_flow_via_xdp_ct` marks the kernel CT entry as DYING
 
 #### Phase 1 — LPM Trie (O(log n))
 
@@ -218,26 +220,20 @@ Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). I
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-conntrack/`
 
-Full stateful connection tracking with a 9-state TCP state machine. Uses a unified state machine for both IPv4 and IPv6, with `ConnValue` / `ConnValueV6` value types (the V6 variant carries 128-bit NAT addresses). Tracks both packet and byte counters per connection.
+Lightweight kernel netfilter conntrack probe. Parses L3/L4 headers (IPv4/IPv6, TCP/UDP/ICMP) and queries **kernel netfilter** directly via `bpf_skb_ct_lookup` kfunc — no userspace shadow tables, no BPF-side state machine.
 
-```
-SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → CLOSE_WAIT → TIME_WAIT → [expired]
-```
-
-| Protocol | States | Behavior |
-|----------|--------|----------|
-| TCP | 9 states | Full state machine with timeout per-state |
-| UDP | 2 states | NEW → ESTABLISHED (after bidirectional traffic seen) |
-| ICMP | 2 states | Request → Reply tracking |
+| Feature | Mechanism |
+|---------|-----------|
+| CT lookup | `bpf_skb_ct_lookup` kfunc (kernel 5.18+) |
+| Field reading | `bpf_probe_read_kernel` at runtime BTF offsets |
+| Fields read | `nf_conn->status`, `nf_conn->mark` |
+| Offset resolution | `CT_NF_CONN_OFFSETS` Array map populated at startup from vmlinux BTF |
 
 Key design decisions:
-- **Unified state machine**: a single TCP state machine implementation handles both IPv4 and IPv6, reducing code duplication and maintenance burden
-- **Byte counters**: each connection tracks both packet count and byte count, enabling volume-based analysis
-- **Normalized keys**: lower IP:port is always "source" — one entry covers both directions
-- **[`LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) map**: automatic eviction when table is full, no GC pauses
-- **Pinned maps**: `CT_TABLE_V4` (262K entries) and `CT_TABLE_V6` (65K entries) are pinned to `/sys/fs/bpf/` and shared across tc-conntrack, xdp-firewall, tc-nat-ingress, and tc-nat-egress — saving ~49 MB vs. per-program copies
-- **[`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/)**: unique per-connection ID for flow correlation
-- **[`bpf_sk_lookup_tcp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_tcp/)** / **[`bpf_sk_lookup_udp`](https://docs.ebpf.io/linux/helper-function/bpf_sk_lookup_udp/)**: socket lookup for process attribution
+- **Kernel netfilter is the sole CT engine** — no shadow `CT_TABLE_V4/V6` maps, no BPF-side TCP state machine. Kernel manages timeouts, state transitions, and eviction.
+- **Runtime BTF offsets**: `nf_conn` field offsets are resolved at agent startup via `bpftool btf dump -j` and pushed to the `CT_NF_CONN_OFFSETS` map. This bypasses aya's lack of CO-RE support.
+- **Userspace coherence**: `/proc/net/nf_conntrack` parsing provides a userspace view of kernel CT state for the REST API and SSE event stream.
+- **Metrics**: `CT_METRIC_KFUNC_LOOKUPS`, `CT_METRIC_KFUNC_HITS`, `CT_METRIC_KFUNC_MISSES` track kfunc probe success rate.
 
 ---
 
@@ -312,6 +308,7 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | L7 detection | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | Match protocol signatures: `GET ` / `POST ` (HTTP), `\x16\x03` (TLS), `SSH-` (SSH) |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
 | Variable-size events | [`bpf_dynptr`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | Reserve only header + actual payload bytes, ~70% ring buffer savings for L7 events |
+| Arena zero-copy | `bpf_arena_alloc_pages` | Full L7 events (>512 B) written to `IDS_ARENA` mmap'd page; RingBuf fallback |
 | SKB linearization | [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | Linearize full SKB (`ctx.len()`) before L7 payload capture — handles jumbo frames and GRO aggregates |
 
 **Jumbo frame support:** before calling `bpf_skb_load_bytes` for L7 payload capture, `bpf_skb_pull_data(ctx.len())` is called to linearize the full SKB. This ensures that payload spread across multiple fragments (jumbo frames with MTU > 1500, GRO-aggregated segments) is accessible in a single contiguous read. The full SKB length (`ctx.len()`) is used instead of the linear buffer size (`data_end - data`) to cover all fragments.
@@ -345,7 +342,7 @@ Passive DNS capture:
 - Identifies UDP and TCP port 53 traffic (queries and responses)
 - Linearizes the SKB via `bpf_skb_pull_data(ctx.len())` before payload read to handle jumbo frames and GRO aggregates
 - Reads DNS payload (up to 512 bytes) via `bpf_skb_load_bytes` with compile-time constant length
-- Forwards raw DNS wire-format packets to userspace via RingBuf
+- Arena zero-copy path (`DNS_ARENA`) tried first; RingBuf fallback for high-volume DNS environments
 - Userspace DNS engine parses, caches domain↔IP mappings, and checks blocklists
 
 ---
@@ -394,7 +391,7 @@ QoS pipes and classifiers carry a `group_mask` field for **interface group filte
 Data Loss Prevention via SSL/TLS interception:
 - Attaches to `SSL_write` and `SSL_read` in OpenSSL/BoringSSL
 - Captures plaintext **before** encryption (write) and **after** decryption (read)
-- Forwards captured content to userspace DLP engine via RingBuf
+- Tiered event emission: small payloads (≤256 B) → `DlpEventSmall` via RingBuf; large payloads → arena zero-copy (`DLP_ARENA`) with RingBuf fallback
 - Userspace engine runs pattern matching (credit card, SSN, API keys, JWT, etc.)
 
 This is the only program that operates at the application layer — all others work at L3/L4.

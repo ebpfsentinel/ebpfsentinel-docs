@@ -1,44 +1,29 @@
 # Connection Tracking
 
-Connection tracking (conntrack) provides stateful packet inspection by maintaining a kernel-side TCP/UDP/ICMP state machine. The `tc-conntrack` eBPF program tracks every connection bidirectionally, allowing the firewall to enforce state-based rules (e.g., allow established connections, drop invalid packets).
+Connection tracking (conntrack) provides stateful packet inspection by querying **kernel netfilter** directly via BPF kfuncs. The `tc-conntrack` eBPF program probes kernel CT entries for every packet, while the `xdp-firewall` uses the same kfuncs for fast-path bypass of established connections.
 
 ## How It Works
 
-1. The `tc-conntrack` TC classifier program intercepts packets and maintains a unified state machine (shared across IPv4 and IPv6) in eBPF maps
-2. Each connection tracks: source/destination IP and port, protocol, state, **packet counters, byte counters**, timestamps
+1. The `tc-conntrack` TC classifier program parses L3/L4 headers and calls `bpf_skb_ct_lookup` to probe kernel netfilter
+2. `nf_conn->status` and `nf_conn->mark` are read via `bpf_probe_read_kernel` at runtime BTF-resolved offsets
 3. The firewall fast-path uses conntrack state to skip full rule evaluation for established connections
-4. Userspace can query and flush the connection table via the REST API
-
-Byte counters are updated on every packet, enabling volume-based analysis and reporting per connection.
+4. Userspace queries kernel CT state via `/proc/net/nf_conntrack` parsing for the REST API and SSE event stream
+5. Kernel netfilter manages all timeouts, state transitions, and eviction — no BPF-side state machine
 
 ## Connection States
 
-| State | Description |
-|-------|-------------|
-| `new` | First packet seen, no response yet |
-| `syn_sent` | TCP SYN sent, awaiting SYN-ACK |
-| `syn_recv` | TCP SYN-ACK received, awaiting final ACK |
-| `established` | Bidirectional traffic confirmed |
-| `related` | Related to an existing connection (e.g., ICMP error) |
-| `fin_wait` | TCP FIN sent, connection closing |
-| `close_wait` | TCP FIN received, waiting for local close |
-| `time_wait` | Connection closed, waiting for stale packets |
-| `invalid` | Packet does not match any known connection state |
+Kernel `nf_conn->status` flags are mapped to domain states:
 
-## Timeouts
-
-All timeouts are configurable per protocol:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `tcp_established_timeout_secs` | 432000 (5 days) | Established TCP connection timeout |
-| `tcp_syn_timeout_secs` | 120 | Half-open TCP connection timeout |
-| `tcp_fin_timeout_secs` | 120 | Closing TCP connection timeout |
-| `udp_timeout_secs` | 30 | Single-packet UDP timeout |
-| `udp_stream_timeout_secs` | 120 | Bidirectional UDP stream timeout |
-| `icmp_timeout_secs` | 30 | ICMP echo/reply timeout |
+| Kernel Flag | Domain State | Description |
+|-------------|-------------|-------------|
+| `IPS_CONFIRMED` or `IPS_SEEN_REPLY` | `established` | Bidirectional traffic confirmed |
+| `IPS_EXPECTED` | `related` | Related to an existing connection (e.g., ICMP error) |
+| `IPS_DYING` | `invalid` | Entry marked for removal |
+| (none of the above) | `new` | First packet seen, no response yet |
 
 ## Connection Limits
+
+Connection limits are enforced in `xdp-firewall` (not tc-conntrack) via per-source counters:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -47,30 +32,23 @@ All timeouts are configurable per protocol:
 | `conn_rate_window_secs` | 5 | Connection rate measurement window |
 | `overload_ttl_secs` | 3600 | Duration to track overloaded sources |
 
-## Flood Detection Thresholds
+## Kernel CT Configuration
 
-The eBPF program raises alerts when anomalous connection patterns are detected:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `half_open_threshold` | 100 | Half-open connections before alerting |
-| `rst_threshold` | 50 | RST packets per window before alerting |
-| `fin_threshold` | 50 | FIN packets per window before alerting |
-| `ack_threshold` | 200 | ACK-only packets per window before alerting |
+The `CT_CONFIG` Array map (shared via BPF pinning) holds conntrack thresholds. The `CT_NF_CONN_OFFSETS` Array map holds runtime-resolved `nf_conn` field offsets populated at agent startup from vmlinux BTF via `bpftool btf dump -j`.
 
 ## Integration
 
-- **Firewall**: Established connections bypass full rule evaluation via conntrack fast-path
+- **Firewall**: Established/related connections bypass full rule evaluation via kfunc-based CT fast-path
 - **DDoS Protection**: Half-open connection counts feed the SYN flood detector
-- **IPS**: Connection state used for blacklist enforcement
-- **NAT**: Conntrack entries paired with NAT mappings for bidirectional translation
+- **IPS**: `kill_flow_via_skb_ct` / `kill_flow_via_xdp_ct` mark CT entries as DYING on DROP verdict
+- **NAT**: `bpf_skb_ct_alloc` + `bpf_ct_set_nat_info` delegate NAT to kernel netfilter
 
 ## REST API
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/conntrack/status` | Enabled status and active connection count |
-| GET | `/api/v1/conntrack/connections` | List active connections (supports `?limit=`) |
-| POST | `/api/v1/conntrack/flush` | Flush all tracked connections (admin) |
+| GET | `/api/v1/conntrack/status` | Enabled status and kfunc hit/miss metrics |
+| GET | `/api/v1/conntrack/connections` | List active connections from `/proc/net/nf_conntrack` |
+| GET | `/api/v1/conntrack/events` | SSE stream of conntrack state changes |
 
 See [REST API Reference](../api-reference/rest-api.md) for details.

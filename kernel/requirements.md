@@ -147,11 +147,11 @@ Replaces embedded `backend_ids: [u32; 16]` with two-level lookup:
 
 Scales from 64 services × 16 backends to 4096 services × 256 backends.
 
-### Conntrack: BPF Filesystem Map Pinning
+### Conntrack: Kernel Netfilter Kfuncs
 
-**Programs:** `tc-conntrack`, `xdp-firewall`, `tc-nat-ingress`, `tc-nat-egress`
+**Programs:** `tc-conntrack`, `xdp-firewall`
 
-Pins `CT_TABLE_V4` (262K entries) and `CT_TABLE_V6` (65K entries) to `/sys/fs/bpf/` so they are shared across programs instead of duplicated. Saves ~49 MB of kernel memory. The `INTERFACE_GROUPS` map (6 programs) is also pinned.
+Connection tracking uses kernel netfilter directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs (kernel 5.18+). No BPF-side shadow tables — kernel manages all CT state. `nf_conn` field offsets are resolved at startup from vmlinux BTF and pushed to the `CT_NF_CONN_OFFSETS` Array map. The `INTERFACE_GROUPS` map (6 programs) is pinned to `/sys/fs/bpf/`.
 
 ### Variable-Size RingBuf Events (`bpf_dynptr`)
 

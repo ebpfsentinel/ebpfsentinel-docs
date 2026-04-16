@@ -32,7 +32,7 @@ This page documents which features are fully supported, partially supported, or 
 | **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **DLP** | :white_check_mark: | :warning: | :warning: | :warning: |
+| **DLP** | :white_check_mark: | :warning: | :white_check_mark:\*\* | :warning: |
 | **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
 | **Docker Enricher** (OSS) | :x: | :white_check_mark: | :white_check_mark: | :x: |
 | **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: |
@@ -43,7 +43,7 @@ This page documents which features are fully supported, partially supported, or 
 | **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
-:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note
+:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = requires `hostPID: true`
 
 ## Detailed Explanations
 
@@ -70,15 +70,17 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 |------|----------|
 | **Bare metal** | Attaches to all host processes using `libssl.so.3`. Full visibility. |
 | **Container** (no `--pid=host`) | Only attaches to processes inside the container. Cannot inspect TLS traffic from host processes or other containers. |
-| **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Cannot inspect TLS traffic from node processes or other pods. |
-| **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility. |
+| **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility with pod-level enrichment (see below). |
+| **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Limited — use `hostPID: true` for production. |
 | **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it uses `libssl.so.3` in the same shared PID namespace. |
+
+**Kubernetes pod enrichment**: DLP events carry `cgroup_id` (via `bpf_get_current_cgroup_id` in the uprobe), which the container resolver maps to the owning pod. Combined with the Kubernetes metadata enricher, every DLP alert includes pod name, namespace, and labels — enabling per-pod DLP policy enforcement. The netkit hot-plug watcher tracks pod network namespace changes for correlation.
 
 **Key constraint (OSS)**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. The OSS uprobe-dlp only hooks OpenSSL's `libssl.so.3`.
 
 **Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still scanned. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
-To enable full DLP coverage in Kubernetes, add `hostPID: true` to the DaemonSet pod spec:
+**Recommended K8s deployment** for full DLP coverage:
 
 ```yaml
 spec:
@@ -87,8 +89,16 @@ spec:
   containers:
     - name: agent
       securityContext:
-        privileged: true
+        capabilities:
+          add:
+            - BPF
+            - NET_ADMIN
+            - PERFMON
+            - SYS_PTRACE
+            - SYS_RESOURCE
 ```
+
+> **Note:** `hostPID: true` is required for full DLP visibility. The least-privilege capability set above replaces `privileged: true` on kernel 5.8+.
 
 ### Multi-WAN Routing
 

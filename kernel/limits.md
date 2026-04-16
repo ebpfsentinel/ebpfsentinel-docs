@@ -58,8 +58,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Per-source state counters | 65,536 | `CT_SRC_COUNTERS` (HashMap, `CT_SRC_COUNTER_MAX`) |
 | Per-rule state counters | 4,096 | `FW_RULE_STATE_COUNT` (Array, `MAX_FIREWALL_RULES`) |
 | Interface groups | 31 | Bits 0–30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |
-| IPv4 conntrack entries (shared) | 262,144 | `CT_TABLE_V4` (LRU Hash, pinned, `CT_MAX_ENTRIES_V4`) |
-| IPv6 conntrack entries (shared) | 65,536 | `CT_TABLE_V6` (LRU Hash, pinned, `CT_MAX_ENTRIES_V6`) |
+| Conntrack entries | Kernel-managed | Kernel netfilter (no BPF shadow tables) |
 | DEVMAP redirect targets | 64 | `DEVMAP` |
 | CPUMAP CPU targets | 64 | `CPUMAP` |
 | Tail-call programs | 4 | `XDP_PROG_ARRAY` (ProgramArray) |
@@ -109,12 +108,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| IPv4 connections | 262,144 | `CT_TABLE_V4` (LRU Hash, pinned, `CT_MAX_ENTRIES_V4`) |
-| IPv6 connections | 65,536 | `CT_TABLE_V6` (LRU Hash, pinned, `CT_MAX_ENTRIES_V6`) |
+| Conntrack entries | Kernel-managed | Kernel netfilter via `bpf_skb_ct_lookup` kfunc |
 | Per-source connection counters | 65,536 | `CT_SRC_COUNTER` (`CT_SRC_COUNTER_MAX`) |
-| TCP states | 9 | `SYN_SENT` through `TIME_WAIT` |
-| UDP states | 2 | `NEW`, `ESTABLISHED` |
-| ICMP states | 2 | `REQUEST`, `REPLY` |
 
 LRU eviction handles overflow — oldest connections are evicted automatically. No RingBuf.
 
@@ -137,8 +132,6 @@ No RingBuf, no rule maps. Single global config.
 | Exact-match NAT entries | 16,384 | `NAT_HASH_DNAT` (HashMap, `MAX_NAT_HASH_EXACT`) |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
 | Hairpin CT entries | 16,384 | `NAT_HAIRPIN_CT` (LRU Hash, `MAX_HAIRPIN_CT`) |
-| IPv4 conntrack entries (shared) | 262,144 | `CT_TABLE_V4` (LRU Hash, pinned) |
-| IPv6 conntrack entries (shared) | 65,536 | `CT_TABLE_V6` (LRU Hash, pinned) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 
 No RingBuf.
@@ -152,8 +145,6 @@ No RingBuf.
 | Exact-match NAT entries | 16,384 | `NAT_HASH_SNAT` (HashMap, `MAX_NAT_HASH_EXACT`) |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
 | Port allocations | 65,536 | `NAT_PORT_ALLOC` (LRU Hash, `MAX_NAT_PORT_ALLOC`) |
-| IPv4 conntrack entries (shared) | 262,144 | `CT_TABLE_V4` (LRU Hash, pinned) |
-| IPv6 conntrack entries (shared) | 65,536 | `CT_TABLE_V6` (LRU Hash, pinned) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 
 No RingBuf.
@@ -236,7 +227,7 @@ Larger RingBuf because DLP events carry L7 payload content.
 | Zones | 256 | `MAX_ZONE_ENTRIES` |
 | Zone policies | 64 | `MAX_ZONE_POLICIES` |
 | Total RingBuf memory | 10.25 MB | Sum of all program RingBuf allocations |
-| Pinned CT table memory | ~17 MB | `CT_TABLE_V4` (262K × 48 B) + `CT_TABLE_V6` (65K × 72 B) |
+| Arena maps memory | 320 KB | 5 arena maps × 4 pages × 16 KiB |
 | Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
 | TC programs per hook | 6 ingress, 2 egress | Ordered by priority in TC classifier chain |
 | eBPF programs total | 14 | 5 XDP + 8 TC + 1 uprobe |

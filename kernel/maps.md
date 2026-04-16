@@ -1,6 +1,6 @@
 # eBPF Map Types
 
-eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 12 distinct map types.
+eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 13 distinct map types.
 
 ## Map Type Reference
 
@@ -45,14 +45,9 @@ Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The L
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
-**Kernel:** 4.10+ | **Used by:** tc-conntrack, tc-threatintel
+**Kernel:** 4.10+ | **Used by:** tc-threatintel, uprobe-dlp
 
 Hash table with built-in **LRU eviction**. Used for:
-
-**Connection tracking table:**
-- Normalized bidirectional 5-tuple keys (lower IP:port always = "source")
-- Automatic eviction of oldest entries when table is full
-- No explicit garbage collection needed for stale entries
 
 **Threat intel IOC maps:**
 - `THREATINTEL_IOCS` and `THREATINTEL_IOCS_V6` use LRU hash for IOC exact-match lookups (post-Bloom filter confirmation)
@@ -204,6 +199,26 @@ Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egres
 
 All RingBuf maps implement 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead.
 
+### Arena Maps
+
+#### [`BPF_MAP_TYPE_ARENA`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARENA/)
+
+**Kernel:** 6.9+ | **Used by:** uprobe-dlp, tc-ids, tc-dns, xdp-ratelimit, xdp-firewall
+
+Shared mmap'd memory region for **zero-copy event delivery**. BPF programs write events directly into arena pages via `bpf_arena_alloc_pages`; userspace reads them via mmap'd pointer without any kernel→user copy.
+
+| Map | Program | Event Type | Event Size | Purpose |
+|-----|---------|------------|------------|---------|
+| `DLP_ARENA` | uprobe-dlp | `DlpEvent` | 4120 B | Full DLP captures |
+| `IDS_ARENA` | tc-ids | `L7EventBuf` | 2144 B | Full L7 payload capture |
+| `DNS_ARENA` | tc-dns | `DnsEventBuf` | 584 B | DNS packet capture |
+| `RL_ARENA` | xdp-ratelimit | `PacketEvent` | 96 B | DDoS burst events |
+| `FW_ARENA` | xdp-firewall | `PacketEvent` | 96 B | Firewall events |
+
+All arena maps are 4 pages (16 KiB). Each event write consists of an `ArenaEventHeader` (24 bytes: sequence counter, timestamp, payload length, event type) followed by the event struct. Programs try the arena path first and fall back to `RingBuf` if allocation fails.
+
+Arena maps are declared via a raw `RawMapDef` struct with `#[link_section = ".maps"]` since aya 0.13 has no native arena support. The `ArenaEventReader` in the adapters crate polls the sequence counter and reads events via mmap.
+
 ### Config Maps
 
 #### [`BPF_MAP_TYPE_USER_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_USER_RINGBUF/)
@@ -297,11 +312,13 @@ Maps are updated atomically per-entry via `bpf_map_update_elem`, or in bulk via 
 
 Several maps are shared across programs via BPF filesystem pinning at `/sys/fs/bpf/`. This avoids duplicating large maps in each program's memory:
 
-| Map | Size | Programs | Savings |
+| Map | Size | Programs | Purpose |
 |-----|------|----------|---------|
-| `CT_TABLE_V4` | 262K entries × 48 B | tc-conntrack (writer), xdp-firewall, tc-nat-* (readers) | ~36 MB (was 4 copies) |
-| `CT_TABLE_V6` | 65K entries × 72 B | tc-conntrack (writer), xdp-firewall, tc-nat-* (readers) | ~13 MB (was 4 copies) |
-| `INTERFACE_GROUPS` | 64 entries × 8 B | 6 programs | Minimal (shared convenience) |
+| `INTERFACE_GROUPS` | 64 entries × 8 B | 6 programs | Interface-to-group bitmask |
+| `CT_CONFIG` | 1 entry × 72 B | tc-conntrack, xdp-firewall | Conntrack config + thresholds |
+| `CT_NF_CONN_OFFSETS` | 1 entry × 16 B | tc-conntrack, xdp-firewall | Runtime BTF offsets for `nf_conn` |
+
+Connection tracking uses **kernel netfilter** directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs — no userspace shadow tables. The `CT_NF_CONN_OFFSETS` map holds runtime-resolved `nf_conn` field offsets (populated at startup from vmlinux BTF via `bpftool`) so BPF programs can read `nf_conn->status` via `bpf_probe_read_kernel`.
 
 Userspace uses `Map::pin()` at startup and `Map::from_pin()` in subsequent program loads.
 

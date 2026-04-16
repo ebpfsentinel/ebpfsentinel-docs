@@ -74,9 +74,9 @@ flowchart TD
 
     subgraph TC["TC Hook (ingress classifier)"]
         CT["tc-conntrack"]
-        CT_SM["TCP/UDP/ICMP state machine"]
-        CT_BI["Bidirectional connection tracking\n(shared CT_TABLE)"]
-        CT --> CT_SM --> CT_BI
+        CT_KF["Kernel netfilter CT probe\n(bpf_skb_ct_lookup kfunc)"]
+        CT_RD["nf_conn->status via bpf_probe_read_kernel"]
+        CT --> CT_KF --> CT_RD
 
         SCRUB["tc-scrub"]
         SCRUB_NORM["TTL / MSS / DF / IP ID\nnormalization"]
@@ -297,7 +297,7 @@ Some eBPF maps are updated from userspace:
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
 | Syncookie secret | Userspace → Kernel | 32-byte FNV-1a secret for SYN cookie generation |
-| Conntrack tables (CT_TABLE_V4/V6) | Kernel ↔ Kernel | Shared via pinning between xdp-firewall and tc-conntrack |
+| CT_NF_CONN_OFFSETS | Userspace → Kernel | Runtime BTF offsets for `nf_conn` field reads |
 | XDP PROG_ARRAY | Userspace → Kernel | Tail-call wiring: firewall → ratelimit/reject/loadbalancer |
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
 | Threat intel LRU hash maps | Userspace → Kernel | IOC exact-match confirmation |

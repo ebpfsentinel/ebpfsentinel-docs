@@ -12,7 +12,7 @@ The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.r
 - **`Drop`-based** (`CtBuilder`, `CtEntry`) — the wrapper owns the kernel reference and releases it in `Drop` if the caller never transitions through `insert()`.
 - **Internal RCU lock** (`task_under_cgroup`) — the wrapper opens its own `bpf_rcu_read_lock` region so callers never have to manage RCU manually.
 
-Host-side stubs maintain `HOST_CT_LIVE` / `HOST_CT_INIT_LIVE` / `HOST_CGROUP_LIVE` counters so unit tests assert acquire/release balance even when running outside a real BPF context.
+Host-side stubs maintain `HOST_CT_LIVE` / `HOST_CT_INIT_LIVE` counters so unit tests assert acquire/release balance even when running outside a real BPF context.
 
 ## KFunc Reference
 
@@ -40,30 +40,6 @@ Safe wrappers: `with_skb_ct_lookup`, `with_xdp_ct_lookup`. The closure body owns
 | `bpf_ct_set_nat_info` | 6.1+ | — | Configure SNAT/DNAT rewrite info on an allocated entry |
 
 Safe wrappers: `CtBuilder` (allocate → configure → insert) and `CtEntry` (live entry mutators). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically. `IPS_DYING` is exposed via `CtEntry::mark_dying()` plus the `kill_flow_via_skb_ct` / `kill_flow_via_xdp_ct` one-shot helpers used by the IDS verdict pipeline to terminate a flow in netfilter from inside the BPF program.
-
-### Cgroup tree (kernel 6.0 / 6.1 / 6.5 / 6.8)
-
-| KFunc | Kernel | Acquire/Release | Purpose |
-|-------|--------|-----------------|---------|
-| `bpf_cgroup_ancestor` | 6.0+ | `KF_ACQUIRE \| KF_RCU \| KF_RET_NULL` | Walk to an ancestor at a given depth |
-| `bpf_cgroup_acquire` | 6.0+ | `KF_ACQUIRE \| KF_RCU` | Bump the refcount on an existing cgroup pointer |
-| `bpf_task_under_cgroup` | 6.1+ | `KF_RCU` | Test whether a task is a descendant of an ancestor cgroup |
-| `bpf_cgroup_release` | 6.5+ | `KF_RELEASE` | Release any cgroup reference acquired via the kfuncs above |
-| `bpf_cgroup_from_id` | 6.5+ | `KF_ACQUIRE \| KF_RET_NULL` | Resolve a 64-bit kernfs cgroup id to a `struct cgroup*` |
-| `bpf_task_get_cgroup1` | 6.8+ | `KF_ACQUIRE \| KF_RCU \| KF_RET_NULL` | Resolve the cgroup1 hierarchy a task belongs to |
-
-Safe wrappers: `with_cgroup_from_id`, `with_cgroup_ancestor`, `with_cgroup_acquired`, `with_task_cgroup1`, `task_under_cgroup`. The cgroup id resolver replaces the userspace `/proc/<pid>/cgroup` round-trip on the hot packet path: a BPF program reads `cgroup_id` from the skb metadata and resolves it to a kernel cgroup pointer in-kernel.
-
-### RCU plumbing & pointer casting (kernel 6.2)
-
-| KFunc | Kernel | Acquire/Release | Purpose |
-|-------|--------|-----------------|---------|
-| `bpf_rcu_read_lock` | 6.2+ | — | Begin a BPF RCU read-side critical section |
-| `bpf_rcu_read_unlock` | 6.2+ | — | End a BPF RCU read-side critical section |
-| `bpf_rdonly_cast` | 6.2+ | — | Re-type an opaque pointer as `PTR_TO_BTF_ID` (read-only) |
-| `bpf_cast_to_kern_ctx` | 6.2+ | — | Cast a program ctx pointer back to its kernel-internal type |
-
-Safe wrappers: `with_rcu_read_lock` (closure-scoped lock/unlock), `rdonly_cast`, `cast_to_kern_ctx` (Option-typed null-safe casts). Required for any program that dereferences RCU-protected kernel fields (`task->cgroups`, `nf_conn->ct_general`, etc.) or hands an opaque program context to a kfunc that expects the kernel-native type.
 
 ### IPsec interface steering (kernel 6.2)
 
@@ -110,14 +86,18 @@ Safe wrappers: `SkbDynptr`, `XdpDynptr` with typed `read::<T>(offset)`, `slice`,
 
 Safe wrappers: `skb_get_fou_encap`, `skb_set_fou_encap`. Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
 
-### Cgroup iteration (kernel 6.7)
+### Arena maps (kernel 6.9)
 
 | KFunc | Kernel | Acquire/Release | Purpose |
 |-------|--------|-----------------|---------|
-| `bpf_iter_css_task_new` / `_next` / `_destroy` | 6.7+ | — | Iterate the tasks attached to a cgroup subsystem state |
-| `bpf_iter_css_new` / `_next` / `_destroy` | 6.7+ | — | Iterate the cgroup tree rooted at a `cgroup_subsys_state` |
+| `bpf_arena_alloc_pages` | 6.9+ | — | Allocate pages from a `BPF_MAP_TYPE_ARENA` map |
+| `bpf_arena_free_pages` | 6.9+ | — | Free previously allocated arena pages |
 
-Used to walk container hierarchies in-kernel for tenant enumeration and policy rebuilds without batching syscalls from userspace.
+Safe wrappers: `arena_alloc_pages`, `arena_free_pages`. Arena maps provide a shared mmap'd memory region between BPF programs and userspace. BPF writes event data directly into the arena page; userspace reads it via mmap'd pointer — zero-copy, no `RingBuf` reserve/submit overhead.
+
+Used by 5 programs for zero-copy event delivery: uprobe-dlp (`DLP_ARENA`), tc-ids (`IDS_ARENA`), tc-dns (`DNS_ARENA`), xdp-ratelimit (`RL_ARENA`), xdp-firewall (`FW_ARENA`). Each program tries the arena path first and falls back to `RingBuf` if `arena_alloc_pages` returns null (arena not loaded or out of pages).
+
+The arena maps are declared via a raw `RawMapDef` struct with `#[link_section = ".maps"]` since aya 0.13 has no native arena map type. See `ebpf-helpers/src/arena_map.rs`.
 
 ## Verification
 

@@ -74,9 +74,10 @@ The "root" XDP program (the one physically attached to the interface) is selecte
 
 eBPF maps are pinned to `/sys/fs/bpf/ebpfsentinel/`. When a program is unloaded and re-loaded, the new instance reuses the existing pinned maps. This preserves:
 
-- Connection tracking state (`CT_TABLE_V4`, `CT_TABLE_V6`)
+- Interface group mappings (`INTERFACE_GROUPS`)
 - Rate limit counters
 - Threat intelligence bloom filter state
+- CT config and BTF offsets (`CT_CONFIG`, `CT_NF_CONN_OFFSETS`)
 
 ## Validation
 
