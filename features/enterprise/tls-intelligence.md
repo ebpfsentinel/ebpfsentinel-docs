@@ -256,14 +256,79 @@ PUT /api/v1/enterprise/tls-intelligence/compliance/policy
 GET /api/v1/enterprise/tls-intelligence/compliance/violations
 ```
 
+## TLS Behavioral Scoring
+
+Advanced behavioral analysis extending the core E13 sub-capabilities with 7 detection engines:
+
+### Cipher Downgrade Detection
+
+Tracks per-destination cipher baselines. When a client that always used TLS 1.3+AES-GCM to a destination suddenly offers TLS 1.2+RC4, an alert fires. Configurable warmup period (default 10 observations) prevents false positives during baseline learning.
+
+### JA4S ServerHello Fingerprinting
+
+Server-side fingerprinting complements client-side JA4. Tracks JA4S per SNI and detects server fingerprint changes (certificate rotation, compromise, MITM). Available as OSS (`compute_ja4s()`) and enterprise (server fingerprint change tracking).
+
+### SNI / Certificate Mismatch Detection
+
+When the TLS proxy intercepts a connection, the upstream server certificate CN/SAN is checked against the ClientHello SNI. Mismatches (e.g., SNI `api.example.com` but cert for `evil.com`) trigger alerts. Supports wildcard matching (`*.example.com`). Requires `x509-parser` for cert parsing.
+
+### Session Resumption Anomaly Tracking
+
+Tracks TLS session ticket reuse across destinations. If the same session ticket hash appears at 3+ different destinations within 1 hour, a lateral movement alert fires. The `session_id` from the ClientHello is hashed for privacy-preserving tracking.
+
+### Beaconing-TLS Bridge
+
+Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, ja4)` — same TLS fingerprint to the same destination at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
+
+### ONNX TLS Feature Extraction
+
+Vectorizes ClientHello into an 8-dimensional feature vector (cipher set hash, extension set hash, groups hash, ALPN hash, TLS version, dst port, cipher count, extension count) and feeds the existing ONNX inference engine. Anomaly scores above the configured threshold generate alerts.
+
+### Peer-Group Rarity (Container-Aware)
+
+Instead of global rarity scoring, clusters fingerprints by peer group (container image + namespace). A binary that deviates from its peer group triggers an alert even if the JA4 is globally common. Requires container resolver integration for `cgroup_id` → pod → image mapping.
+
+### Configuration
+
+```yaml
+enterprise:
+  tls_intelligence:
+    cipher_baseline:
+      enabled: true
+      warmup_observations: 10
+    beaconing_bridge:
+      enabled: true
+    ml:
+      model_path: /etc/ebpfsentinel/tls-anomaly.onnx
+      anomaly_threshold: 0.7
+    peer_group_rarity:
+      enabled: true
+      min_group_observations: 50
+```
+
+### API
+
+```
+GET /api/v1/enterprise/tls-intelligence/cipher-downgrades
+GET /api/v1/enterprise/tls-intelligence/server-fingerprints
+GET /api/v1/enterprise/tls-intelligence/sni-cert-mismatches
+GET /api/v1/enterprise/tls-intelligence/session-anomalies
+GET /api/v1/enterprise/tls-intelligence/ml/status
+GET /api/v1/enterprise/tls-intelligence/peer-groups/status
+```
+
 ## MITRE ATT&CK Coverage
 
-| Story | Technique | Name | Tactic |
-|-------|-----------|------|--------|
+| Capability | Technique | Name | Tactic |
+|-----------|-----------|------|--------|
 | JA4+ Threat DB | T1573.002 | Encrypted Channel: Asymmetric Cryptography | command-and-control |
 | Behavior Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
 | PQC Compliance | T1573.001 | Encrypted Channel: Symmetric Cryptography | command-and-control |
 | Cipher Compliance | T1600.001 | Weaken Encryption: Reduce Key Space | defense-evasion |
+| Cipher Downgrade | T1573.001 | Encrypted Channel: Symmetric Cryptography | command-and-control |
+| SNI/Cert Mismatch | T1557 | Adversary-in-the-Middle | credential-access |
+| Session Resumption | T1550 | Use Alternate Authentication Material | defense-evasion |
+| Peer-Group Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
 
 ## Metrics
 
@@ -279,6 +344,13 @@ GET /api/v1/enterprise/tls-intelligence/compliance/violations
 | `tls_pqc_classical_handshakes` | Counter | -- |
 | `tls_compliance_violations` | Counter | violation_type |
 | `tls_compliance_checks` | Counter | -- |
+| `tls_cipher_downgrade_detected` | Counter | -- |
+| `tls_sni_cert_mismatch` | Counter | -- |
+| `tls_session_resume_anomaly` | Counter | -- |
+| `tls_ml_inference` | Counter | -- |
+| `tls_ml_anomaly` | Counter | -- |
+| `tls_peer_group_anomaly` | Counter | -- |
+| `tls_peer_groups_tracked` | Gauge | -- |
 
 ## REST API
 
@@ -299,6 +371,12 @@ GET /api/v1/enterprise/tls-intelligence/compliance/violations
 | `PUT` | `/api/v1/enterprise/tls-intelligence/compliance/policy` | Update compliance policy |
 | `GET` | `/api/v1/enterprise/tls-intelligence/compliance/violations` | List compliance violations |
 | `GET` | `/api/v1/enterprise/tls-intelligence/status` | Overall TLS intelligence status |
+| `GET` | `/api/v1/enterprise/tls-intelligence/cipher-downgrades` | List cipher downgrade detections |
+| `GET` | `/api/v1/enterprise/tls-intelligence/server-fingerprints` | List server fingerprint changes |
+| `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | List SNI/cert mismatch detections |
+| `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | List session resumption anomalies |
+| `GET` | `/api/v1/enterprise/tls-intelligence/ml/status` | TLS ML inference status |
+| `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | Peer-group rarity status |
 
 ## Configuration
 
@@ -352,6 +430,25 @@ enterprise:
         - md5_rsa
         - sha1_rsa
         - sha1_ecdsa
+
+    # Cipher Downgrade Detection (E20)
+    cipher_baseline:
+      enabled: true
+      warmup_observations: 10
+
+    # Beaconing-TLS Bridge (E20)
+    beaconing_bridge:
+      enabled: true
+
+    # ML Anomaly Detection (E20)
+    ml:
+      model_path: /etc/ebpfsentinel/tls-anomaly.onnx
+      anomaly_threshold: 0.7
+
+    # Peer-Group Rarity (E20)
+    peer_group_rarity:
+      enabled: true
+      min_group_observations: 50
 ```
 
 ## Feature Gating

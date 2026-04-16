@@ -63,7 +63,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 
 eBPFsentinel is open source (AGPL-3.0). All 14 security domains, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4+ fingerprinting are included — no paywall.
 
-An [enterprise edition](features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence, network forensics, and automated response orchestration.
+An [enterprise edition](features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
 
 ## Next Steps
 

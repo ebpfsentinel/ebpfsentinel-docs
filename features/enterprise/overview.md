@@ -27,7 +27,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports | **Shipped** |
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph | **Shipped** |
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy | **Shipped** |
-| [TLS Intelligence](tls-intelligence.md) | JA4+ threat DB, TLS behavior anomaly, PQC compliance, cipher policy enforcement | **Shipped** |
+| [TLS Intelligence](tls-intelligence.md) | JA4+ threat DB, behavior anomaly, PQC compliance, cipher policy, cipher downgrade, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity | **Shipped** |
 | [Network Forensics](network-forensics.md) | Ring buffer capture engine, event-triggered captures, flow timeline reconstruction | **Shipped** |
 | [Automated Response](automated-response.md) | Policy engine, SOAR webhook integration, cooldown tracking, audit trail | **Shipped** |
 
