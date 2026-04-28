@@ -112,6 +112,38 @@ auth:
     jwks_url: "https://auth.example.com/.well-known/jwks.json"
 ```
 
+### EdDSA JWT signed by the dashboard (JWKS)
+
+The agent verifies short-lived per-tenant tokens minted by the dashboard
+by fetching the rotating Ed25519 verification key from a JWKS endpoint.
+
+```yaml
+auth:
+  enabled: true
+  jwt:
+    algorithm: EdDSA
+    jwks_url: https://dashboard.example.com/.well-known/jwks.json
+    jwks_cache_ttl_seconds: 3600
+    jwks_refresh_on_unknown_kid: true
+    issuer: https://dashboard.example.com
+    audience: ebpfsentinel-agent
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `auth.jwt.algorithm` | `RS256` \| `EdDSA` | `RS256` | Signing algorithm. `EdDSA` requires either an Ed25519 PEM at `public_key_path` or `kty=OKP, crv=Ed25519` keys at `jwks_url`. |
+| `auth.jwt.public_key_path` | path | unset | PEM-encoded public key. Mutually exclusive with `jwks_url`. |
+| `auth.jwt.jwks_url` | URL | unset | JWKS endpoint (`https://`). Mutually exclusive with `public_key_path`. |
+| `auth.jwt.jwks_cache_ttl_seconds` | u64 | `3600` | Cache TTL in seconds. The agent refreshes on TTL expiry. |
+| `auth.jwt.jwks_refresh_on_unknown_kid` | bool | `true` | Reserved for the immediate-on-unknown-kid refresh path; the current synchronous middleware caches at startup, the immediate-refresh hook lands with the async middleware in a follow-up story. |
+| `auth.jwt.issuer` | string | unset | Expected `iss` claim. |
+| `auth.jwt.audience` | string | unset | Expected `aud` claim. |
+
+Setting `algorithm: EdDSA` with `public_key_path` works for static keys;
+setting it with `jwks_url` is the recommended path because the dashboard
+rotates its signing key on a schedule and a static PEM would have to be
+redeployed each time.
+
 ## Security Notes
 
 - Config files containing API keys should be `chmod 640` or stricter
