@@ -300,6 +300,57 @@ Mark an alert as false positive.
 curl -X POST http://localhost:8080/api/v1/alerts/alert-001/false-positive
 ```
 
+#### GET /api/v1/alerts/stream
+
+Server-Sent Events live alert feed. Each frame carries `id: <alert-id>`,
+`event: alert`, and `data: <json>` matching the [`Alert`](#) schema returned
+by `GET /api/v1/alerts`. The connection emits a `:keepalive` comment every
+15 seconds so HTTP/1.1 intermediaries do not idle-close the stream.
+
+Server-side filters are applied to every alert before it is forwarded.
+Clients reconnecting with `Last-Event-ID: <last-id>` receive every alert
+emitted after that id from the in-memory replay buffer (≤ 5 000 entries)
+without duplication. If `Last-Event-ID` is unknown to the buffer (the
+client missed too much), the stream resumes live without backfill — the
+client should refetch via `GET /api/v1/alerts`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `severity_min` | string | Minimum severity (`low` \| `medium` \| `high` \| `critical`). |
+| `component` | string | Component to receive (case-insensitive exact match). |
+| `mitre_tactic` | string | MITRE ATT&CK tactic (case-insensitive). |
+
+Response headers:
+
+- `Content-Type: text/event-stream`
+- `Cache-Control: no-cache`
+- `Connection: keep-alive`
+
+```bash
+curl -N -H 'Accept: text/event-stream' \
+    "http://localhost:8080/api/v1/alerts/stream?severity_min=high&component=ids"
+```
+
+```text
+:keepalive
+
+id: 1700000000000-ids-001
+event: alert
+data: {"id":"1700000000000-ids-001","component":"ids","severity":"high",...}
+```
+
+Reconnect with the last id seen by the client:
+
+```bash
+curl -N -H 'Accept: text/event-stream' \
+    -H 'Last-Event-ID: 1700000000000-ids-001' \
+    "http://localhost:8080/api/v1/alerts/stream"
+```
+
+The Prometheus gauge `ebpfsentinel_alerts_sse_subscribers` exposes the
+current subscriber count and is incremented / decremented by the handler
+on connect / disconnect.
+
 ### Audit
 
 #### GET /api/v1/audit/logs
@@ -940,6 +991,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/threatintel/iocs` | Yes | List IOCs |
 | GET | `/api/v1/threatintel/feeds` | Yes | List feeds |
 | GET | `/api/v1/alerts` | Yes | List alerts |
+| GET | `/api/v1/alerts/stream` | Yes | SSE live alert feed (`Last-Event-ID` resume) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Yes | Mark false positive |
 | GET | `/api/v1/audit/logs` | Yes | List audit logs |
 | GET | `/api/v1/audit/rules/{id}/history` | Yes | Rule change history |

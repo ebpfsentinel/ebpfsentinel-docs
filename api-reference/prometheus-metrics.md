@@ -23,6 +23,7 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_alerts_total` | Counter | `component`, `severity` | Total alerts generated |
+| `ebpfsentinel_alerts_sse_subscribers` | Gauge | — | Live SSE alert-stream subscriber count |
 | `ebpfsentinel_threshold_suppressed_total` | Counter | `component`, `rule_id` | Alerts suppressed by threshold |
 | `ebpfsentinel_events_sampled_total` | Counter | `component` | Events skipped by sampling |
 
