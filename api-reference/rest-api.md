@@ -44,6 +44,30 @@ Agent status including version, uptime, and loaded features.
 curl http://localhost:8080/api/v1/agent/status
 ```
 
+#### GET /api/v1/agent/identity
+
+Agent identity metadata. Surfaces the operator-managed flag and the
+optional operator UI deep-link URL configured under the top-level
+`management:` block. Hot-reloadable: a config reload that toggles either
+field is reflected on the next call without restart.
+
+```bash
+curl http://localhost:8080/api/v1/agent/identity
+```
+
+```json
+{
+  "version": "0.1.0",
+  "hostname": "agent-01",
+  "uptime_seconds": 1234,
+  "operator_managed": true,
+  "operator_endpoint": "https://operator.example.com:9443/ui"
+}
+```
+
+`operator_endpoint` is omitted from the JSON when unset. Defaults are
+`operator_managed = false` and `operator_endpoint = null`.
+
 #### GET /api/v1/config
 
 Current configuration (secrets sanitized).
@@ -968,6 +992,7 @@ curl http://localhost:8080/metrics
 | GET | `/readyz` | No | Readiness probe |
 | GET | `/metrics` | Yes | Prometheus metrics |
 | GET | `/api/v1/agent/status` | Yes | Agent status |
+| GET | `/api/v1/agent/identity` | Yes | Operator-managed metadata (hot-reloadable) |
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
 | POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |

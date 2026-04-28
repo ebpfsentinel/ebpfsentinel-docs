@@ -165,3 +165,23 @@ agent:
   log_level: "debug"
   log_format: "text"
 ```
+
+## Management metadata
+
+Top-level `management:` block. Surfaces ownership of the agent's
+configuration to the dashboard via `GET /api/v1/agent/identity`. Both
+fields default to absent / `false` and are hot-reloadable.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `operator_managed` | bool | `false` | When `true`, the dashboard locks its config-edit UI on this agent — the Kubernetes operator (CRD) owns the configuration and writes back from the dashboard would drift. |
+| `operator_endpoint` | string (URL) | unset | Optional absolute `http://` or `https://` URL pointing at the operator's UI. The dashboard deep-links from the "operator-managed" badge. Validated at config load — malformed or non-`http(s)` URLs reject the reload. |
+
+```yaml
+management:
+  operator_managed: true
+  operator_endpoint: https://operator.example.com:9443/ui
+```
+
+A reload that toggles either field is reflected on the next request to
+`GET /api/v1/agent/identity` without restarting the agent.
