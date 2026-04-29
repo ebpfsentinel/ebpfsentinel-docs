@@ -108,6 +108,9 @@ History store. When omitted, the dashboard runs with live data only.
 | `table_prefix` | string | (required) | Used as a prefix on every table the dashboard creates. |
 | `tls_ca_path` | path | unset | Must exist when set. |
 | `retention_days` | u32 | `30` | `1..=3650`. |
+| `batch_size` | usize | `1000` | `1..=100000`. Number of rows accumulated before a batch insert is flushed. |
+| `batch_flush_interval_seconds` | u64 | `5` | `1..=300`. Maximum age of a batch before it is flushed regardless of size. |
+| `purge_hour_utc` | u8 | `2` | `0..=23`. Hour (UTC) at which the nightly retention purge runs. |
 
 ### `observability`
 
@@ -414,6 +417,42 @@ A reload emits one structured log line per category that changed
 (tenants added / removed / modified, JWT key rotation, OIDC identity
 change, ClickHouse retention shift, fleet discovery mode flip) so an
 operator can confirm the new config landed.
+
+## ClickHouse history store
+
+When the `clickhouse:` block is present the dashboard connects at startup,
+runs an idempotent schema migration (CREATE TABLE IF NOT EXISTS), and
+instantiates three `BatchedInserter` instances — one per table (`alerts`,
+`forensic_events`, `flow_aggregates_1h`). Inserts are buffered and flushed
+either when the batch reaches `batch_size` rows or when `batch_flush_interval_seconds`
+elapses, whichever comes first. Shutdown drains the buffer.
+
+A nightly purge job wakes at `purge_hour_utc` and deletes rows older than
+`retention_days` per tenant via `ALTER TABLE … DELETE WHERE`.
+
+When the `clickhouse:` block is omitted (or absent), the dashboard runs
+with a `NoopStore`: inserts succeed silently and query endpoints return
+HTTP 503 with `{"error":"history_disabled","message":"…"}`.
+
+### Prometheus metrics
+
+| Metric | Type | Labels |
+|---|---|---|
+| `ebpfsentinel_dashboard_clickhouse_inserts_total` | counter | `table` |
+| `ebpfsentinel_dashboard_clickhouse_insert_failures_total` | counter | `table` |
+| `ebpfsentinel_dashboard_clickhouse_batch_size` | gauge | `table` |
+| `ebpfsentinel_dashboard_clickhouse_purge_rows_deleted_total` | counter | `tenant` |
+
+### Schema
+
+The migration creates four tables (prefixed with `table_prefix`):
+
+- `_meta` — migration version bookkeeping (ReplacingMergeTree)
+- `alerts` — per-event alert records partitioned by `(tenant_id, toYYYYMM(occurred_at))`
+- `forensic_events` — raw forensic captures, same partitioning
+- `flow_aggregates_1h` — hourly flow buckets partitioned by `(tenant_id, toYYYYMM(bucket_start))`
+
+DDL source files live in `crates/dashboard-server/migrations/`.
 
 ## Worked examples
 
