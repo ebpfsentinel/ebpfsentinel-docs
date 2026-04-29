@@ -120,6 +120,56 @@ History store. When omitted, the dashboard runs with live data only.
   file's mode allows group / world read (mode bits below `0o077`).
   Recommend `chmod 0640` (and `chown root:dashboard`).
 
+## Hot-reload
+
+The dashboard reloads its config without dropping connections on either
+trigger:
+
+- The YAML file at `--config` is modified (a `notify` watcher rooted at
+  the parent directory catches editor saves, kubelet ConfigMap rotations,
+  and `cp -f` replacements). Events are debounced 500 ms.
+- The process receives `SIGHUP` (`kill -HUP <pid>`).
+
+Both paths run the same pipeline: read → parse → validate → diff → swap.
+A failed reload is logged at `error` and the previous snapshot is kept —
+the running server never enters a partially-applied state. In-flight
+requests keep the snapshot they were dispatched against; new requests
+immediately observe the new config.
+
+### Hot-reloadable fields
+
+Every section listed in the schema above is hot-reloadable except the
+fields below, which bind to a kernel resource or to the tracing
+subscriber initialised once at startup. A change to any of them logs a
+warning and is ignored — restart the process to take effect.
+
+| Field | Reason |
+|---|---|
+| `server.bind` | The listening TCP socket is bound at startup. |
+| `observability.log_format` | The tracing subscriber is built once. |
+| `observability.metrics_path` | The metrics route is mounted at startup. |
+
+Notable fields that **are** hot-reloadable:
+
+- `tenants[]` — adding, removing, or modifying tenants takes effect on
+  the next request. Sessions for removed tenants return `404` plus an
+  audit event.
+- `oidc.client_secret_file`, `jwt.active.private_key_path`,
+  `jwt.previous_keys[].*` and `clickhouse.password_file` are re-read
+  from disk on every reload, so secret rotation is just a file replace
+  + reload.
+- `server.tls.cert_path` / `server.tls.key_path` are watched
+  independently. A change rebuilds the rustls `ServerConfig` and swaps
+  the certificate resolver inside the running acceptor — the listening
+  socket stays open.
+- `fleet_discovery.*`, `clickhouse.retention_days`, `i18n.*` apply on
+  the next reload tick.
+
+A reload emits one structured log line per category that changed
+(tenants added / removed / modified, JWT key rotation, OIDC identity
+change, ClickHouse retention shift, fleet discovery mode flip) so an
+operator can confirm the new config landed.
+
 ## Worked examples
 
 See `config/examples/` in the dashboard repo:
