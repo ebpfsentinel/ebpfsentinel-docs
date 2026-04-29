@@ -119,6 +119,7 @@ History store. When omitted, the dashboard runs with live data only.
 | `log_format` | enum | `json` | `json` or `pretty`. |
 | `log_level` | enum | `info` | `trace` / `debug` / `info` / `warn` / `error`. |
 | `metrics_path` | string | `/metrics` | Must start with `/`. |
+| `prometheus_bind` | `host:port` | `0.0.0.0:9100` | Dedicated Prometheus metrics port, separate from main server. |
 
 ### `i18n`
 
@@ -493,6 +494,40 @@ Upstream reconnection uses exponential backoff (1 s → 2 s → 5 s → 15 s →
 |---|---|---|
 | `ebpfsentinel_dashboard_upstream_sse_connected` | gauge | `tenant`, `agent_id`, `stream` |
 | `ebpfsentinel_dashboard_upstream_sse_events_total` | counter | `tenant`, `agent_id`, `stream` |
+
+## Route surface
+
+The server exposes a single Axum router with the following route layout:
+
+| Path | Auth | Handler |
+|---|---|---|
+| `GET /healthz` | none | Liveness probe — always 200. |
+| `GET /readyz` | none | Readiness probe — 200 while running, 503 after SIGTERM (30 s drain). |
+| `GET /.well-known/jwks.json` | none | JWKS endpoint (rate-limited 1 req/s/IP). |
+| `GET /auth/login` | none | OIDC PKCE redirect to IdP. |
+| `GET /auth/callback` | none | OIDC code exchange → session JWT cookie. |
+| `POST /auth/logout` | session | Clear session, redirect to IdP end-session. |
+| `POST /auth/refresh` | session | Refresh session via IdP refresh token. |
+| `GET/POST/PUT/DELETE /api/v1/{tenant}/*` | session | Proxy fan-out to agents for the tenant. |
+| `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
+| `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
+| `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
+| `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
+
+### Middleware stack
+
+Applied in order (outermost first):
+
+1. **Tracing** — structured request/response spans.
+2. **Compression** — gzip response compression.
+3. **CORS** — configurable origin allow-list (`server.cors_allow_origins`). Empty = permissive.
+4. **CSP** — strict `Content-Security-Policy` header on every response. Allows `'self'`, `'wasm-unsafe-eval'` for scripts, `'unsafe-inline'` for styles, `data:` for images. `frame-ancestors 'none'`.
+
+### Graceful shutdown
+
+On SIGINT or SIGTERM the server sets the `shutting_down` flag immediately
+so `/readyz` returns 503. A 30 s grace period follows before Axum begins
+closing connections, giving the load balancer time to drain.
 
 ## Worked examples
 
