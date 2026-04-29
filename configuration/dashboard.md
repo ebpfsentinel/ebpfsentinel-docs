@@ -90,7 +90,10 @@ How the dashboard learns about agents.
 | `static_agents[].name` | string | (required) | Non-empty. |
 | `static_agents[].base_url` | URL | (required) | Must be `https://`. |
 | `static_agents[].api_token_env` | string | (required) | Env var name holding the agent API token. |
-| `poll_interval_seconds` | u64 | `60` | `5..=3600`. |
+| `static_agents[].tls_pin_sha256` | string | unset | Hex-encoded SHA-256 of the agent's TLS `SubjectPublicKeyInfo` DER. Pin mismatches are fatal — the agent is excluded and `ebpfsentinel_dashboard_tls_pin_mismatch_total{tenant}` increments. |
+| `poll_interval_seconds` | u64 | `60` | `5..=3600`. Legacy field — superseded by `refresh_interval_seconds` for the agent pool, kept for downstream consumers that still poll. |
+| `refresh_interval_seconds` | u64 | `60` | `5..=3600`. How often the agent pool re-probes every known agent's `/api/v1/license` + `/api/v1/agent/identity`. |
+| `management_cluster_url` | URL | unset | When set, the dashboard additionally GETs `<url>/api/v1/fleet/agents` on every refresh tick and merges the response into the static-agent list (deduped by `base_url`) before probing. Must be `https://`. |
 
 ### `clickhouse` (optional)
 
@@ -239,6 +242,69 @@ jwt:
 - Private bytes are loaded once per reload, never logged, and dropped
   with the previous keyring on the swap. Mode-loose key files emit a
   `tracing::warn!` line at load time.
+
+## Agent pool
+
+The dashboard maintains a license-gated pool of every reachable agent.
+The pool ticks every `fleet_discovery.refresh_interval_seconds` (default
+60 s) and probes each agent in parallel:
+
+- `GET /api/v1/license` — must answer `200 OK` with a parseable
+  license body whose `expired` flag is false. `404` / `401` /
+  parse failures → silently skipped (assumed OSS or unhealthy).
+- `GET /api/v1/agent/identity` — supplies the `agent_id`,
+  `tenant_id`, `operator_managed` flag, and version.
+
+Outcomes per probe:
+
+| Outcome | Action | Metric label |
+|---|---|---|
+| Healthy | enter the pool | `healthy` |
+| License expired | evict (fail-closed) + audit | `license_expired` |
+| Skipped (404 / 401 / parse) | exclude from pool | `skipped` |
+| Connection error (DNS / TCP / TLS) | exclude from pool | `connect_error` |
+| TLS pin mismatch | exclude + bump dedicated counter | `tls_pin_mismatch` |
+
+### TLS pinning
+
+Each `static_agents[].tls_pin_sha256` is the hex-encoded SHA-256 of
+the agent's TLS certificate `SubjectPublicKeyInfo` DER. The dashboard
+builds a per-agent `reqwest::Client` with a custom rustls
+`ServerCertVerifier` that compares the observed leaf cert's SPKI hash
+against the pin and rejects on mismatch — defence against MITM even
+if the agent's issuing CA is compromised. When no pin is configured,
+the client still enforces standard rustls trust-store validation.
+
+To compute the pin from an agent's cert:
+
+```bash
+openssl x509 -in agent.crt -pubkey -noout \
+  | openssl pkey -pubin -outform DER \
+  | openssl dgst -sha256 -hex \
+  | awk '{print $2}'
+```
+
+### Fleet discovery merge
+
+When `fleet_discovery.management_cluster_url` is set, the dashboard
+additionally GETs `<url>/api/v1/fleet/agents` once per refresh tick
+and merges the response into the static-agent list. Entries are
+deduplicated by `base_url`; the static-config entry wins. The fleet
+endpoint must return JSON with the same shape as
+`fleet_discovery.static_agents[]`.
+
+### Metrics
+
+Three Prometheus families track the pool, all surfaced via
+`<observability.metrics_path>`:
+
+- `ebpfsentinel_dashboard_agents_total{tenant}` — gauge of healthy
+  agents per tenant.
+- `ebpfsentinel_dashboard_agent_probe_failed_total{tenant,reason}` —
+  counter of probe failures, labelled by the table above.
+- `ebpfsentinel_dashboard_tls_pin_mismatch_total{tenant}` — separate
+  counter for the security-critical pin-mismatch case so an alert can
+  fire without grepping `reason`.
 
 ## Hot-reload
 
