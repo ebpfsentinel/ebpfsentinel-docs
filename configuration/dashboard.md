@@ -124,6 +124,15 @@ History store. When omitted, the dashboard runs with live data only.
 | `default_locale` | string | `en` | Must appear in `supported_locales`. |
 | `supported_locales` | list | `[en, fr, de]` | Non-empty. |
 
+### `proxy`
+
+Tunables for the per-tenant proxy fan-out (`/api/v1/{tenant}/...`).
+
+| Field | Type | Default | Validation |
+|---|---|---|---|
+| `max_concurrent_fanout` | u32 | `50` | `1..=200`. Hard cap on the number of agents queried in parallel during a single fan-out call. |
+| `per_agent_timeout_seconds` | u64 | `10` | `1..=60`. Per-agent timeout applied via `tokio::time::timeout` around each upstream call. |
+
 ## Secrets handling
 
 - Every secret-bearing field has a `*_file` suffix and points at a path
@@ -305,6 +314,55 @@ Three Prometheus families track the pool, all surfaced via
 - `ebpfsentinel_dashboard_tls_pin_mismatch_total{tenant}` — separate
   counter for the security-critical pin-mismatch case so an alert can
   fire without grepping `reason`.
+
+## Proxy fan-out
+
+Every dashboard API call is proxied through `/api/v1/{tenant}/{rest}`.
+Three guards run before any agent traffic leaves the box:
+
+1. **Authenticate** — read the `session=…` HttpOnly cookie or the
+   `Authorization: Bearer <session-jwt>` header and verify against the
+   active session signer.
+2. **Tenant scope** — `TenantScope::can_access` rejects any tenant
+   not in the user's session-claim `tenants[]` list. Members of the
+   `admin` role bypass this check; their access is recorded as an
+   `auth.audit` event.
+3. **Resolve** — pull `agents_for_tenant(tenant)` out of the agent
+   pool. An empty set returns `503 Service Unavailable` rather than a
+   silent no-op.
+
+Routing rules:
+
+| Path shape | Behaviour |
+|---|---|
+| `agents/{uuid}/<rest>` | Single-agent forward to the agent identified by `{uuid}` (returns `404` when the agent is not in the tenant pool). |
+| anything else | Fan out across every healthy agent for the tenant. Top-level JSON arrays are concatenated; objects with an `items` array are merged on `items`. Each merged item is tagged with `agent_id` so the UI can colour-code provenance. |
+
+Fan-out semantics:
+
+- Bounded by `proxy.max_concurrent_fanout` (default 50). Excess
+  agents queue.
+- Each per-agent call wrapped in `tokio::time::timeout` with
+  `proxy.per_agent_timeout_seconds` (default 10).
+- Partial failures surface in the response body as
+  `meta.failed_agents = [{agent_id, agent_name, reason}]` and the
+  HTTP response carries `X-Partial-Response: true`.
+
+Every upstream call carries the inbound `X-Request-Id` header (or a
+freshly-minted UUID-v4 when missing). The same id is mirrored onto the
+outbound response so the WASM client can correlate logs end-to-end.
+
+### Metrics
+
+Two more Prometheus families track the proxy:
+
+- `ebpfsentinel_dashboard_proxy_requests_total{tenant,method,outcome}`
+  — counter, with `outcome` ∈ `single_ok / single_error / fanout_ok /
+  fanout_partial / forbidden / no_agents / agent_not_found /
+  method_not_allowed`.
+- `ebpfsentinel_dashboard_proxy_fanout_partials_total{tenant}` —
+  separate counter for the partial-response case so dashboards can
+  alert on per-tenant degradation without grepping `outcome`.
 
 ## Hot-reload
 
