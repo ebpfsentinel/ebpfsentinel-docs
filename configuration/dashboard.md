@@ -40,6 +40,9 @@ fast. Every value is validated below.
 | `scopes` | string list | `[openid, profile, email, groups]` | |
 | `tenant_claim` | string | `tenant` | OIDC claim mapped to the dashboard tenant id. |
 | `role_claim` | string | `groups` | OIDC claim mapped to the dashboard role list. |
+| `post_logout_redirect_uri` | URL | unset | Optional URL the IdP redirects to after `end_session_endpoint`. Must be `http(s)://` when set. |
+| `session_ttl_seconds` | u64 | `43200` | Lifetime of the per-user session JWT (`60..=2592000`). Default 12 h. |
+| `cookie_signing_key_file` | path | (required) | Path to a file holding the HMAC seed used to sign the short-lived `pkce_state` cookie. Same on-disk contract as every other secret (mode ≤ `0640`). An empty file falls back to an ephemeral key — sessions do not survive a restart. |
 
 ### `jwt`
 
@@ -66,6 +69,8 @@ Static tenant catalogue. At least one entry required, all `id`s unique.
 | `id` | string | (required) | Non-empty, unique across the list. |
 | `display_name` | string | (required) | Non-empty. |
 | `agent_pool` | string | (required) | Non-empty pool name keyed by fleet discovery. |
+| `oidc_groups` | string list | `[]` | OIDC `groups` claim values that grant `analyst` access to this tenant. Any match elects the tenant for that user. |
+| `admin_groups` | string list | `[]` | OIDC `groups` claim values that grant `admin` access to this tenant. Membership implies tenant access too. |
 
 ### `fleet_discovery`
 
@@ -119,6 +124,35 @@ History store. When omitted, the dashboard runs with live data only.
 - The dashboard emits a `tracing::warn!` line at startup when a secret
   file's mode allows group / world read (mode bits below `0o077`).
   Recommend `chmod 0640` (and `chown root:dashboard`).
+
+## Authentication flow
+
+The dashboard implements OpenID Connect Authorization Code + PKCE
+end-to-end on the server. Browsers never see an OIDC access or refresh
+token — only the dashboard session JWT (HttpOnly + Secure cookie).
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/auth/login` | GET | Mints PKCE verifier + CSRF state + nonce, sets the signed `pkce_state` cookie (`Path=/auth`, 10 min, HttpOnly, Secure, SameSite=Lax), redirects to the IdP `authorize_url`. Honours `?next=<relative-path>` for post-login redirects (open-redirect-safe). |
+| `/auth/callback` | GET | Validates `state`, exchanges code, verifies `id_token`, fetches userinfo (for the `groups` claim), resolves tenant + role via `tenants[].oidc_groups` / `admin_groups`. On no match → 403 + styled "no tenant assigned" page + `auth.audit` event. On match → mints session JWT, sets `session` cookie (`Path=/`, `oidc.session_ttl_seconds`), redirects to original target. |
+| `/auth/logout` | POST | Reads the session sub, drops the server-side refresh token, clears the `session` cookie, redirects to the IdP `end_session_endpoint` (with `post_logout_redirect_uri` when set) — falls back to `/`. |
+| `/auth/refresh` | POST | Reads the session JWT to find the held refresh token in-memory, swaps it at the IdP, mints a fresh session JWT, replaces the cookie. Returns 204 on success or 401 on invalid / expired session. |
+
+The session JWT is signed with the active EdDSA key from
+`jwt.active.private_key_path`. Verification honours every previous key
+listed in `jwt.previous_keys[]` so a key rotation does not log every
+user out at the swap moment. JWKS publishing + agent JWT mint land in
+the next bootstrap story.
+
+OIDC discovery runs once at startup against `oidc.issuer_url`. A
+discovery failure refuses to start the server with a clear error so
+configuration mistakes never present a half-functional login screen.
+
+Refresh tokens are held server-side in a per-replica DashMap keyed by
+`sub`, wrapped in `secrecy::SecretString` (zeroised on drop). The store
+is per-replica: a refresh succeeds only if the user lands on the same
+replica that minted their session — acceptable for a 12 h window. A
+shared store lands as part of the multi-replica scaling work.
 
 ## Hot-reload
 
