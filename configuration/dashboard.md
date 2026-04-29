@@ -454,6 +454,46 @@ The migration creates four tables (prefixed with `table_prefix`):
 
 DDL source files live in `crates/dashboard-server/migrations/`.
 
+## SSE pass-through and ingest
+
+The dashboard subscribes to each agent's SSE streams (`/api/v1/alerts/stream`
+and `/api/v1/forensics/events/stream`) using per-tenant JWTs minted fresh on
+every connect attempt. Events are published to an internal broadcast channel
+keyed by `(tenant_id, stream_kind)`.
+
+Browser clients connect to `/api/v1/{tenant}/alerts/stream` or
+`/api/v1/{tenant}/forensics/stream`. The endpoint authenticates the
+session JWT, enforces tenant scope, then merges the internal broadcast
+into a single downstream SSE stream. Each event is wrapped with the
+originating `agent_id` so multi-agent tenants can distinguish sources:
+
+```json
+{
+  "agent_id": "550e8400-e29b-41d4-a716-446655440000",
+  "payload": { "severity": "high", "rule_id": "ids-001", "..." : "..." }
+}
+```
+
+If a slow consumer falls behind the broadcast buffer (4096 events), a
+synthetic `lagged` event is emitted with the skipped count so the client
+can show a gap banner.
+
+When the `ClickHouse` history store is active, an `IngestActor` taps the
+same broadcast and batches events per tenant into `HistoryStore::insert_alerts`
+and `HistoryStore::insert_forensic_events`. When the store is `NoopStore`,
+the tap is wired but inserts are no-ops — no performance cost beyond the
+broadcast subscription.
+
+Upstream reconnection uses exponential backoff (1 s → 2 s → 5 s → 15 s →
+60 s cap) with `Last-Event-ID` resume.
+
+### SSE Prometheus metrics
+
+| Metric | Type | Labels |
+|---|---|---|
+| `ebpfsentinel_dashboard_upstream_sse_connected` | gauge | `tenant`, `agent_id`, `stream` |
+| `ebpfsentinel_dashboard_upstream_sse_events_total` | counter | `tenant`, `agent_id`, `stream` |
+
 ## Worked examples
 
 See `config/examples/` in the dashboard repo:
