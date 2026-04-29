@@ -46,19 +46,25 @@ fast. Every value is validated below.
 
 ### `jwt`
 
-Short-lived dashboard session tokens, always EdDSA. JWKS rotation is
-configured here.
+EdDSA session tokens + per-tenant agent JWTs + the published JWKS
+(`/.well-known/jwks.json`) are all driven from this section.
+`signing_keys[]` is a multi-key list — the first non-expired entry is
+the active mint key, every other non-expired entry stays in JWKS for
+the rotation grace window.
 
 | Field | Type | Default | Validation |
 |---|---|---|---|
 | `algorithm` | string | `EdDSA` | Only `EdDSA` is accepted. |
-| `active.kid` | string | (required) | Stable identifier the agent matches against. |
-| `active.private_key_path` | path | (required) | Ed25519 PEM (`PRIVATE KEY`). Warn if mode > `0640`. |
-| `active.public_key_path` | path | unset | Optional companion public key for JWKS publishing. |
-| `previous_keys[]` | list | `[]` | Same shape as `active`; honoured during rotation. |
+| `signing_keys[]` | list | (1 entry required) | Non-empty, all `id`s unique. |
+| `signing_keys[].id` | string | (required) | Stable kid. Surfaces in JWT `kid` header + JWKS entry. |
+| `signing_keys[].private_key_file` | path | one of `private_key_file` / `public_key_path` required | Ed25519 PEM (`PRIVATE KEY`). Mode-warned. |
+| `signing_keys[].public_key_path` | path | unset | Verify-only entry — kept for grace-window verification of tokens minted under a now-private-less kid. |
+| `signing_keys[].not_after` | RFC 3339 timestamp | unset | Rotation deadline. Past `not_after` → key drops out of JWKS and is no longer eligible as the active mint key. |
 | `access_token_ttl_seconds` | u64 | `900` | `1..=86400`. |
 | `refresh_token_ttl_seconds` | u64 | `86400` | `60..=2592000` (30 days). |
-| `jwks_cache_seconds` | u64 | `300` | `1..=86400`. |
+| `jwks_cache_seconds` | u64 | `300` | `1..=86400`. Stamped into the `Cache-Control: max-age=` header on `/.well-known/jwks.json`. |
+| `agent_audience_pattern` | string | `ebpfsentinel-agent-{tenant_id}` | Must contain the `{tenant_id}` placeholder; resolved at agent-JWT mint time. |
+| `agent_token_ttl_seconds` | u64 | `600` | `1..=86400`. Per-tenant agent JWT lifetime. |
 
 ### `tenants[]`
 
@@ -139,10 +145,11 @@ token — only the dashboard session JWT (HttpOnly + Secure cookie).
 | `/auth/refresh` | POST | Reads the session JWT to find the held refresh token in-memory, swaps it at the IdP, mints a fresh session JWT, replaces the cookie. Returns 204 on success or 401 on invalid / expired session. |
 
 The session JWT is signed with the active EdDSA key from
-`jwt.active.private_key_path`. Verification honours every previous key
-listed in `jwt.previous_keys[]` so a key rotation does not log every
-user out at the swap moment. JWKS publishing + agent JWT mint land in
-the next bootstrap story.
+the active entry of `jwt.signing_keys[]` (the first non-expired item).
+Verification honours every other non-expired entry too, so a rotation
+does not log every user out at the swap moment. The same key list backs
+the per-tenant agent-JWT minter and the public JWKS endpoint; see the
+"JWKS endpoint" and "Key rotation runbook" sections below.
 
 OIDC discovery runs once at startup against `oidc.issuer_url`. A
 discovery failure refuses to start the server with a clear error so
@@ -153,6 +160,85 @@ Refresh tokens are held server-side in a per-replica DashMap keyed by
 is per-replica: a refresh succeeds only if the user lands on the same
 replica that minted their session — acceptable for a 12 h window. A
 shared store lands as part of the multi-replica scaling work.
+
+## JWKS endpoint
+
+The dashboard publishes its public signing keys at
+`GET /.well-known/jwks.json` — RFC 7517 / 8037 shape, one entry per
+non-expired key:
+
+```json
+{
+  "keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "use": "sig",
+      "alg": "EdDSA",
+      "kid": "dash-2026-04",
+      "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+    }
+  ]
+}
+```
+
+The endpoint is unauthenticated, rate-limited to 1 request per second
+per peer IP via `tower-governor`, and emits
+`Cache-Control: max-age=<jwt.jwks_cache_seconds>` (default 5 min).
+Agents fetch it on first contact and re-fetch when a token's `kid`
+header is unknown — so a hot-reloaded rotation propagates within the
+cache TTL or immediately on first cache miss.
+
+## Key rotation runbook
+
+The rotation procedure is two steps. Both apply via SIGHUP — no
+restart required.
+
+### Step 1 — overlap
+
+Append the new key at the **top** of `jwt.signing_keys[]`. Keep the old
+entry around with a soon-to-expire `not_after` so existing agent JWTs
+keep verifying during the grace window.
+
+```yaml
+jwt:
+  signing_keys:
+    - id: 2026-02
+      private_key_file: /run/secrets/jwt-2026-02.pem
+      not_after: 2026-12-31T00:00:00Z
+    - id: 2026-01
+      private_key_file: /run/secrets/jwt-2026-01.pem
+      not_after: 2026-02-15T00:00:00Z
+```
+
+`kill -HUP <pid>` (or save the YAML — `notify` picks it up) →
+`/.well-known/jwks.json` now publishes **both** kids → new tokens are
+minted under `2026-02` while in-flight tokens minted under `2026-01`
+keep verifying until their `not_after`.
+
+### Step 2 — drop the old key
+
+Once the longest-lived token minted under the old key has expired,
+remove the old entry. Same SIGHUP-or-edit reload flow.
+
+```yaml
+jwt:
+  signing_keys:
+    - id: 2026-02
+      private_key_file: /run/secrets/jwt-2026-02.pem
+      not_after: 2026-12-31T00:00:00Z
+```
+
+### Field-level guarantees
+
+- The active mint key is *always* the first non-expired entry. Order
+  in YAML matters — top entry is preferred unless its `not_after`
+  is in the past.
+- Verify-only entries (only `public_key_path` set) are accepted.
+  They never mint, but they keep historical tokens verifiable.
+- Private bytes are loaded once per reload, never logged, and dropped
+  with the previous keyring on the swap. Mode-loose key files emit a
+  `tracing::warn!` line at load time.
 
 ## Hot-reload
 
@@ -188,10 +274,11 @@ Notable fields that **are** hot-reloadable:
 - `tenants[]` — adding, removing, or modifying tenants takes effect on
   the next request. Sessions for removed tenants return `404` plus an
   audit event.
-- `oidc.client_secret_file`, `jwt.active.private_key_path`,
-  `jwt.previous_keys[].*` and `clickhouse.password_file` are re-read
-  from disk on every reload, so secret rotation is just a file replace
-  + reload.
+- `oidc.client_secret_file`, every `jwt.signing_keys[].private_key_file`
+  / `public_key_path`, and `clickhouse.password_file` are re-read from
+  disk on every reload, so secret rotation is just a file replace +
+  reload. The signing-key ring rebuilds atomically — old + new entries
+  coexist for the rotation grace window.
 - `server.tls.cert_path` / `server.tls.key_path` are watched
   independently. A change rebuilds the rustls `ServerConfig` and swaps
   the certificate resolver inside the running acceptor — the listening
