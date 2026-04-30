@@ -98,6 +98,60 @@ The agent requires `CAP_BPF` + `CAP_NET_ADMIN` capabilities (or root).
 - **CORS** — exact `localhost` host matching rejects subdomain bypass attempts (e.g., `localhost.attacker.com` is not treated as localhost)
 - gRPC supports TLS when enabled
 
+## Content Security Policy (dashboard)
+
+The dashboard server enforces a strict, nonce-based CSP on every HTTP response:
+
+```text
+default-src 'self';
+script-src  'self' 'nonce-<per-request>' 'strict-dynamic' 'wasm-unsafe-eval';
+style-src   'self' 'nonce-<per-request>';
+img-src     'self' data:;
+font-src    'self';
+connect-src 'self';
+object-src  'none';
+base-uri    'none';
+frame-ancestors 'none';
+form-action 'self';
+upgrade-insecure-requests;
+report-uri  /csp-report
+```
+
+### Nonce generation
+
+A cryptographically random 128-bit nonce is generated per request using the OS CSPRNG, base64-encoded, and injected into:
+
+- The `Content-Security-Policy` HTTP header (`'nonce-…'` in `script-src` and `style-src`)
+- All `<script>` tags in the SPA `index.html` fallback response (`nonce="…"` attribute)
+
+### `'strict-dynamic'`
+
+With `'strict-dynamic'`, scripts loaded by a nonced script inherit trust without needing their own nonce. The Trunk-generated WASM bootstrap script carries the nonce; all dynamically loaded modules (including the WASM binary) propagate from it.
+
+### WASM and `'wasm-unsafe-eval'`
+
+The Leptos client compiles to WebAssembly. Browsers require an explicit CSP directive to allow WASM execution:
+
+- **`'wasm-eval'`** — the standard directive (CSP Level 3), but not yet shipped in Chrome, Firefox, or Safari as of 2026-04.
+- **`'wasm-unsafe-eval'`** — the interim directive supported by all major browsers. Despite the name, it only permits WASM compilation and does not allow arbitrary `eval()`.
+
+The dashboard uses `'wasm-unsafe-eval'` until `'wasm-eval'` reaches baseline support. The `scripts/csp-audit.sh` CI script validates that no CSP violations occur across all dashboard routes.
+
+### CSP violation reporting
+
+Browsers send violation reports as `POST /csp-report` (Content-Type `application/csp-report`). The dashboard server logs each violation at `warn` level and increments the Prometheus counter `ebpfsentinel_dashboard_csp_violations_total{directive}`.
+
+### Additional security headers
+
+Every response also carries:
+
+| Header | Value |
+|--------|-------|
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `geolocation=(), camera=(), microphone=()` |
+
 ## Error Handling
 
 - `thiserror` for typed, matchable domain errors
