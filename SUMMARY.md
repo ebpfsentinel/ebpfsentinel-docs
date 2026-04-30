@@ -134,6 +134,7 @@
 - [Performance Tuning](operations/performance-tuning.md)
 - [Upgrading](operations/upgrading.md)
 - [Compatibility](operations/compatibility.md)
+- [Dashboard Accessibility](operations/dashboard-accessibility.md)
 
 # Development
 
