@@ -108,7 +108,7 @@ script-src  'self' 'nonce-<per-request>' 'strict-dynamic' 'wasm-unsafe-eval';
 style-src   'self' 'nonce-<per-request>';
 img-src     'self' data:;
 font-src    'self';
-connect-src 'self';
+connect-src 'self' <oidc-issuer-origins>;
 object-src  'none';
 base-uri    'none';
 frame-ancestors 'none';
@@ -123,6 +123,12 @@ A cryptographically random 128-bit nonce is generated per request using the OS C
 
 - The `Content-Security-Policy` HTTP header (`'nonce-…'` in `script-src` and `style-src`)
 - All `<script>` tags in the SPA `index.html` fallback response (`nonce="…"` attribute)
+
+### `connect-src` allowlist
+
+`connect-src` is locked to `'self'` plus the explicit OIDC issuer origin(s). The dashboard derives the origin (`scheme://host[:port]`) from the configured `oidc.issuer_url` at startup, plus every entry in `oidc.additional_issuers` for federated-discovery (multi-IdP) deployments. No wildcard, no `*`. A compromised dependency cannot exfiltrate via `fetch` / `EventSource` / `WebSocket` to an arbitrary host because the browser refuses any `connect-src` target outside that allowlist; CSP violations are reported via `/csp-report` and counted by `ebpfsentinel_dashboard_csp_violations_total{directive="connect-src"}`.
+
+`'strict-dynamic'` and `'wasm-unsafe-eval'` stay in `script-src`: the former is required for nonce-trust propagation through the Trunk-generated bootstrap, the latter is the only baseline-supported directive that allows the Leptos WASM client to compile (see the WASM section below).
 
 ### `'strict-dynamic'`
 
