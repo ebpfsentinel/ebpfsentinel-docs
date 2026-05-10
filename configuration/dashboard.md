@@ -538,3 +538,66 @@ See `config/examples/` in the dashboard repo:
   store.
 - `dashboard-mssp.yaml` — multi-tenant MSSP with rotating EdDSA keys
   and ClickHouse history (90-day retention).
+
+## Demo mode
+
+The overview wallboard pulls live numbers from registered agents (and,
+for `analytics/alerts-by-country`, from the optional ClickHouse store).
+A fresh deployment with zero registered agents — or an air-gapped lab
+running before the first agent is enrolled — therefore renders empty
+tiles and blank charts. For demo recordings, charter screenshots, and
+new-operator onboarding, the dashboard exposes a deterministic
+synthetic dataset behind a single environment variable.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `EBPFSENTINEL_DEMO_DATA` | unset / `false` | Live data only. Empty agent pool returns `503` and empty tiles render zeros. |
+| `EBPFSENTINEL_DEMO_DATA=true` | — | When the proxied agent (or history store) yields empty for an overview endpoint, the dashboard returns a deterministic charter-aligned dataset instead. |
+
+Accepted truthy values: `true`, `1`, `yes`, `on` (case-insensitive).
+Anything else — including the variable being unset — leaves the flag
+off.
+
+### What the fallback covers
+
+The fallback only fires for the six endpoints that back the overview
+wallboard:
+
+- `/api/v1/{tenant}/analytics/overview-stats`
+- `/api/v1/{tenant}/analytics/top-regions`
+- `/api/v1/{tenant}/analytics/compliance-scores`
+- `/api/v1/{tenant}/analytics/incidents-per-hour`
+- `/api/v1/{tenant}/analytics/detections-vs-resolutions`
+- `/api/v1/{tenant}/analytics/alerts-by-country`
+
+Every other route — alerts, fleet, threat-intel, audit export, SOAR,
+SSE streams — is unaffected. Demo mode does not fabricate alerts; it
+only fills the overview tiles when there is genuinely nothing to show.
+
+### Reproducibility
+
+Synthetic payloads are seeded by the tenant id, so two requests for
+`acme` produce byte-identical responses while `globex` produces a
+different — but equally stable — curve. The charter baseline is
+fixed:
+
+- `hosts_protected = 142`
+- `events_per_sec = 2_400_000`
+- `open_incidents = 14`
+- `mttd_seconds = 48`
+- 24-hour spike pattern with a midday peak
+- 8 top regions, 4 compliance frameworks (SOC 2, ISO 27001, PCI DSS,
+  GDPR)
+
+### Audit trail
+
+Every fallback emission records a structured `auth.audit` event with
+`event=synthetic_overview_data_served`, plus an entry in the audit
+store consumable through `/api/v1/audit/export`. The action field
+encodes the endpoint, e.g. `synthetic_overview_data_served:overview-stats`.
+
+### Disabling demo mode
+
+Unset the variable (or set it to `false` / `0`) and restart the
+process. There is no hot-reload knob — the flag is read once at
+startup so the audit trail is unambiguous.
