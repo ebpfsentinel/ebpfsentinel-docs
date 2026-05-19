@@ -177,8 +177,46 @@ Per-CPU metrics are collected via a `MetricsReader` on the `LB_METRICS` PerCpuAr
 
 Full dual-stack support: both IPv4 and IPv6 packets are load-balanced with correct L4 checksum updates. IPv6 DNAT updates the TCP/UDP pseudo-header checksum incrementally (8 × u16 words for the 128-bit address diff + port diff).
 
+## L2 VIP announcer
+
+For a virtual IP (VIP) to be reachable on a flat L2 segment, some node
+must answer ARP "who-has" requests for it. The L2 VIP announcer makes the
+elected node claim ownership of one or more VIPs by answering ARP, and
+re-announces ownership on failover with gratuitous ARP.
+
+### How it works
+
+- A small, **bounded** XDP path (fixed 28-byte ARP rewrite, no loop)
+  runs as a separate tail-call target from the LB hot path. The
+  `xdp-firewall` entry point dispatches ARP frames to it.
+- When an ARP request targets an owned VIP **and** this node is the
+  elected speaker, it forges an ARP reply (`sha` = this node's NIC MAC)
+  and `XDP_TX`s it back out the receiving interface.
+- The node's NIC MAC per interface is resolved in userspace and pushed
+  into an `IFACE_MAC` map.
+- On speaker takeover the userspace agent emits one **gratuitous ARP**
+  per owned VIP via a raw socket — a rare event, never done in eBPF.
+
+### Single-speaker election (split-brain safe)
+
+Election is **config-driven**: each node is explicitly `primary`
+(speaker) or `standby`. The userspace agent populates the kernel
+`VIP_SET` **only** while this node is the elected speaker; a `standby`
+or `disabled` node always leaves `VIP_SET` empty, so it never answers
+ARP and never emits gratuitous ARP. There is no gossip layer. A
+Kubernetes `Lease`-based election is a documented seam but is not
+implemented.
+
+> Only IPv4 VIPs are announced (ARP is IPv4-only). IPv6 VIPs configured
+> here are ignored by the announcer (Neighbor Discovery is out of scope).
+
+See [Load Balancer configuration](../configuration/loadbalancer.md#l2-vip-announcer)
+for the `announce` block.
+
 ## Metrics
 
 - `ebpfsentinel_rules_loaded{domain="loadbalancer"}` — number of loaded services
 - `ebpfsentinel_packets_total{domain="loadbalancer", action="forward"}` — packets forwarded to backends
 - `ebpfsentinel_packets_total{domain="loadbalancer", action="no_backend"}` — packets with no available backend
+- `ebpfsentinel_lb_vip_arp_replies_total{vip}` — forged ARP replies per VIP (speaker only)
+- `ebpfsentinel_lb_vip_takeovers_total{vip}` — gratuitous-ARP takeovers per VIP

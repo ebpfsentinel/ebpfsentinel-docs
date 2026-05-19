@@ -244,3 +244,39 @@ loadbalancer:
           port: 80
           weight: 1
 ```
+
+## L2 VIP announcer
+
+The optional `loadbalancer.announce` block makes this node claim one or
+more virtual IPs (VIPs) on a flat L2 segment by answering ARP, and emit
+gratuitous ARP on failover. See the
+[L2 VIP announcer feature page](../features/loadbalancer.md#l2-vip-announcer)
+for the design and split-brain guarantees.
+
+```yaml
+loadbalancer:
+  enabled: true
+  services: []
+  announce:
+    role: primary          # primary | standby | disabled (default: disabled)
+    interface: eth0        # NIC whose MAC answers ARP for the VIPs
+    vips:
+      - name: web-vip      # label used in metrics ({vip="web-vip"})
+        addr: "10.0.6.100" # IPv4 VIP to claim while elected speaker
+      - name: api-vip
+        addr: "10.0.6.101"
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `role` | string | `disabled` | `primary` = elected speaker (answers ARP, emits gratuitous ARP). `standby` = silent until promoted. `disabled` = announcer off. Aliases: `speaker`/`active`, `passive`/`backup`, `off`/`none`. |
+| `interface` | string | — | Interface whose NIC MAC is used as the ARP `sha`. Required unless `role: disabled`. |
+| `vips` | list | `[]` | VIPs to announce. Required unless `role: disabled`. |
+| `vips[].name` | string | — | Unique label, surfaced as the `{vip}` metric label. |
+| `vips[].addr` | string | — | Unique IPv4 address. IPv6 entries are ignored (ARP is IPv4-only). |
+
+Only the node with `role: primary` ever populates the kernel `VIP_SET`;
+`standby` and `disabled` nodes stay completely silent, so a misconfigured
+pair cannot both answer ARP. Promotion is config-driven — change `role`
+to `primary` on the surviving node and reload. A Kubernetes `Lease`-based
+election is a documented seam, not yet implemented.

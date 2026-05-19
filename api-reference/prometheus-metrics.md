@@ -78,6 +78,8 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_packets_total` | Counter | `domain="loadbalancer"`, `action` | LB packets (forward, no_backend) |
+| `ebpfsentinel_lb_vip_arp_replies_total` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
+| `ebpfsentinel_lb_vip_takeovers_total` | Counter | `vip` | Gratuitous-ARP takeovers per VIP (L2 VIP announcer) |
 
 ### GeoIP
 
