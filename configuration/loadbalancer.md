@@ -12,7 +12,7 @@ loadbalancer:
       name: "human-readable-name"        # Display name
       protocol: "tcp"                    # tcp, udp, or tls_passthrough
       listen_port: 443                   # Frontend port
-      algorithm: "round_robin"           # round_robin, weighted, ip_hash, least_conn
+      algorithm: "round_robin"           # round_robin, weighted, ip_hash, least_conn, maglev
       enabled: true                      # Administrative enable flag
       backends:
         - id: "backend-id"               # Unique backend identifier within service
@@ -46,7 +46,7 @@ loadbalancer:
 | `name` | `string` | Yes | Human-readable service name |
 | `protocol` | `string` | Yes | `tcp`, `udp`, or `tls_passthrough` |
 | `listen_port` | `integer` | Yes | Frontend port to listen on (1-65535) |
-| `algorithm` | `string` | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn` |
+| `algorithm` | `string` | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn`, `maglev` |
 | `enabled` | `bool` | No | Enable/disable this service (default: `true`) |
 | `backends` | `[LbBackend]` | Yes | At least one backend required |
 | `health_check` | `LbHealthCheck` | No | Optional backend health probe |

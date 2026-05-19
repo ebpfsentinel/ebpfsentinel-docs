@@ -4,7 +4,7 @@
 
 ## Overview
 
-eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthrough traffic. Incoming connections are distributed across backend pools using XDP for wire-speed packet redirection. Four balancing algorithms are supported, with per-backend health checks and weighted traffic distribution.
+eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthrough traffic. Incoming connections are distributed across backend pools using XDP for wire-speed packet redirection. Five balancing algorithms are supported, with per-backend health checks and weighted traffic distribution.
 
 ## How It Works
 
@@ -29,6 +29,7 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 | **Weighted** | Cumulative weight distribution — higher weight = more traffic |
 | **IP Hash** | FNV-1a hash of client address for sticky sessions |
 | **Least Connections** | Selects the healthy backend with the fewest active connections |
+| **Maglev** | Consistent hashing via a precomputed permutation ring (prime size 65537). O(1) lookup with no per-packet state; only ~1/N flows are remapped when the backend set changes. Deterministic across nodes — required for L2 DSR / multi-node ECMP. |
 
 ### Backend Health Checks
 
