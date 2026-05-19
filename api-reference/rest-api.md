@@ -541,6 +541,48 @@ Delete a load balancer service by ID. Requires `admin` role.
 curl -X DELETE http://localhost:8080/api/v1/lb/services/lb-api
 ```
 
+#### GET /api/v1/lb/vips
+
+Return the L2 VIP announcer status (active role, bound interface, configured VIPs, and per-VIP gratuitous-ARP / ARP-reply counters). Returns `404` when the announcer is not enabled in the agent configuration.
+
+```bash
+curl http://localhost:8080/api/v1/lb/vips
+```
+
+Response shape:
+
+```json
+{
+  "role": "primary",
+  "interface": "eth0",
+  "is_speaker": true,
+  "bindings_count": 2,
+  "vips": [
+    { "name": "web", "addr": "192.0.2.10", "arp_replies": 42, "self_announced": true }
+  ]
+}
+```
+
+#### POST /api/v1/lb/vips
+
+Apply a VIP announce configuration (role, interface, VIP list). Requires `admin` role. The agent validates the config (interface MTU, VIP uniqueness, role compatibility with `l2dsr` same-segment backends) and reconciles kernel maps + gratuitous ARP under the announcer reload lock.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/lb/vips \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "role": "primary",
+    "interface": "eth0",
+    "vips": [{ "name": "web", "addr": "192.0.2.10" }]
+  }'
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `role` | string | No | `disabled`, `primary`, or `standby`. Defaults to `disabled`. |
+| `interface` | string | Yes | NIC the announcer binds (must match an enabled XDP iface). |
+| `vips` | array | Yes | List of `{ name, addr }`. `addr` must be an IPv4 or IPv6 literal. |
+
 ### DNS Intelligence
 
 #### GET /api/v1/dns/cache
@@ -1031,6 +1073,8 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/lb/services/{id}` | Yes | LB service detail |
 | POST | `/api/v1/lb/services` | Yes (admin) | Create LB service |
 | DELETE | `/api/v1/lb/services/{id}` | Yes (admin) | Delete LB service |
+| GET | `/api/v1/lb/vips` | Yes | L2 VIP announcer status |
+| POST | `/api/v1/lb/vips` | Yes (admin) | Apply VIP announce config |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
 | DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |
 | GET | `/api/v1/dns/stats` | Yes | DNS statistics |

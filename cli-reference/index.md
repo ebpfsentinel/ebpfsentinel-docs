@@ -466,6 +466,16 @@ ebpfsentinel-agent lb add --json '{
 
 # Delete a service
 ebpfsentinel-agent lb delete lb-api
+
+# Show L2 VIP announcer status (role, interface, per-VIP ARP counters)
+ebpfsentinel-agent lb vips
+
+# Apply a VIP announce config (role, interface, VIP list)
+ebpfsentinel-agent lb announce --json '{
+  "role": "primary",
+  "interface": "eth0",
+  "vips": [{ "name": "web", "addr": "192.0.2.10" }]
+}'
 ```
 
 ### qos

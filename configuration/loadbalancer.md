@@ -280,3 +280,13 @@ Only the node with `role: primary` ever populates the kernel `VIP_SET`;
 pair cannot both answer ARP. Promotion is config-driven — change `role`
 to `primary` on the surviving node and reload. A Kubernetes `Lease`-based
 election is a documented seam, not yet implemented.
+
+### Runtime control surface
+
+Both the REST API and the CLI expose live read/write access to this block;
+applied changes go through the same validation + hot-reload path as a YAML
+reload (Maglev tables are re-generated and bindings re-registered under
+the per-domain reload lock).
+
+- REST: [`GET /api/v1/lb/vips`, `POST /api/v1/lb/vips`](../api-reference/rest-api.md#get-apiv1lbvips)
+- CLI: [`ebpfsentinel-agent lb vips`, `lb announce --json`](../cli-reference/index.md#lb)
