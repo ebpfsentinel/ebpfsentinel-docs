@@ -10,7 +10,7 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 
 ### Two-Layer Architecture
 
-1. **Kernel-side (eBPF)** — An XDP program performs fast-path packet rewriting: destination IP/port is replaced with the selected backend, source/destination MAC addresses are swapped for correct L2 routing, and checksums are updated inline. This happens before the kernel allocates an SKB, achieving maximum throughput.
+1. **Kernel-side (eBPF)** — An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the destination MAC is rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
 2. **Userspace (LB Engine)** — Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
 
 ### Protocols
@@ -30,6 +30,21 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 | **IP Hash** | FNV-1a hash of client address for sticky sessions |
 | **Least Connections** | Selects the healthy backend with the fewest active connections |
 | **Maglev** | Consistent hashing via a precomputed permutation ring (prime size 65537). O(1) lookup with no per-packet state; only ~1/N flows are remapped when the backend set changes. Deterministic across nodes — required for L2 DSR / multi-node ECMP. |
+
+### Forwarding Modes
+
+The selected backend is reached using one of two forwarding modes, set per service via the `mode` field. The forwarding mode is orthogonal to the balancing algorithm — backend selection is identical in both modes; only the L2/L3 rewrite differs.
+
+| Mode | Value | Behavior |
+|------|-------|----------|
+| **DNAT** | `dnat` (default) | Destination IP/port are rewritten to the selected backend and L3/L4 checksums are recomputed inline. Works across L3 boundaries. This is the default and is unchanged from prior releases. |
+| **L2 DSR** | `l2dsr` | Direct Server Return (LVS-DR style). Only the destination MAC is rewritten to the backend's resolved MAC; the destination IP stays the VIP and **no L3/L4 checksum recompute** occurs. The backend (with the VIP bound on loopback) replies directly to the client, bypassing the load balancer on the return path. |
+
+L2 DSR requirements:
+
+- Every backend in an `l2dsr` service must be on the **same L2 segment** as the load balancer and flagged with `same_segment: true`. Configuration is rejected with a clear error otherwise.
+- Backend MACs are resolved by userspace (neighbor / ARP for IPv4, ND for IPv6) and pushed into the `LB_BACKEND_MAC` eBPF map. If a backend MAC cannot be resolved, that packet **falls back to the DNAT path** automatically — no traffic is dropped due to an unresolved MAC.
+- The backend must have the VIP configured (typically on a loopback alias) and must suppress ARP for the VIP.
 
 ### Backend Health Checks
 
@@ -66,6 +81,7 @@ loadbalancer:
       protocol: tls_passthrough
       listen_port: 443
       algorithm: round_robin
+      mode: dnat                # dnat (default) or l2dsr
       enabled: true
       backends:
         - id: web-1
@@ -73,6 +89,7 @@ loadbalancer:
           port: 443
           weight: 1
           enabled: true
+          same_segment: false   # must be true for every backend of an l2dsr service
         - id: web-2
           addr: "10.0.1.11"
           port: 443

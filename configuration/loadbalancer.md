@@ -13,6 +13,7 @@ loadbalancer:
       protocol: "tcp"                    # tcp, udp, or tls_passthrough
       listen_port: 443                   # Frontend port
       algorithm: "round_robin"           # round_robin, weighted, ip_hash, least_conn, maglev
+      mode: "dnat"                       # dnat (default) or l2dsr
       enabled: true                      # Administrative enable flag
       backends:
         - id: "backend-id"               # Unique backend identifier within service
@@ -20,6 +21,7 @@ loadbalancer:
           port: 443                      # Backend port
           weight: 1                      # Traffic weight (higher = more traffic)
           enabled: true                  # Administrative enable flag
+          same_segment: false            # required true for every backend of an l2dsr service
       health_check:                      # Optional health probe
         target: "10.0.1.10"              # Probe target address
         protocol: "tcp"                  # tcp or icmp
@@ -47,6 +49,7 @@ loadbalancer:
 | `protocol` | `string` | Yes | `tcp`, `udp`, or `tls_passthrough` |
 | `listen_port` | `integer` | Yes | Frontend port to listen on (1-65535) |
 | `algorithm` | `string` | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn`, `maglev` |
+| `mode` | `string` | No | Forwarding mode: `dnat` (default) or `l2dsr`. Aliases for `l2dsr`: `l2_dsr`, `dsr`. With `l2dsr`, every backend must set `same_segment: true` or config is rejected. |
 | `enabled` | `bool` | No | Enable/disable this service (default: `true`) |
 | `backends` | `[LbBackend]` | Yes | At least one backend required |
 | `health_check` | `LbHealthCheck` | No | Optional backend health probe |
@@ -60,6 +63,7 @@ loadbalancer:
 | `port` | `integer` | Yes | Backend port (1-65535) |
 | `weight` | `integer` | No | Traffic weight, must be > 0 (default: `1`) |
 | `enabled` | `bool` | No | Enable/disable this backend (default: `true`) |
+| `same_segment` | `bool` | No | Backend is on the same L2 segment as the load balancer (default: `false`). Must be `true` for every backend of an `l2dsr` service. Ignored in `dnat` mode. |
 
 ### LbHealthCheck
 
@@ -79,6 +83,14 @@ loadbalancer:
 - Service and backend IDs: max **64 characters**, must not be empty
 - Backend weight must be **> 0**
 - Listen port must be **> 0**
+- An `l2dsr` service requires **every backend** to set `same_segment: true`
+
+## Forwarding mode
+
+`mode` selects how the selected backend is reached. It is independent of the balancing algorithm.
+
+- **`dnat`** (default) — destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Unchanged from prior releases.
+- **`l2dsr`** — Direct Server Return: only the destination MAC is rewritten to the backend's resolved MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
 
 ## Examples
 
@@ -186,6 +198,29 @@ loadbalancer:
         - id: app-2
           addr: "10.0.4.11"
           port: 8080
+```
+
+### L2 Direct Server Return
+
+```yaml
+loadbalancer:
+  enabled: true
+  services:
+    - id: lb-dsr
+      name: web-dsr
+      protocol: tcp
+      listen_port: 80
+      algorithm: maglev
+      mode: l2dsr
+      backends:
+        - id: web-1
+          addr: "10.0.6.10"
+          port: 80
+          same_segment: true
+        - id: web-2
+          addr: "10.0.6.11"
+          port: 80
+          same_segment: true
 ```
 
 ### Weighted traffic split
