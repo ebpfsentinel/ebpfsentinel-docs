@@ -194,6 +194,12 @@ re-announces ownership on failover with gratuitous ARP.
   and `XDP_TX`s it back out the receiving interface.
 - The node's NIC MAC per interface is resolved in userspace and pushed
   into an `IFACE_MAC` map.
+- While speaker, the agent also maintains a per-VIP **self-owned
+  binding** (`VIP → MAC`) in a `SELF_OWNED_BINDINGS` map. The responder
+  prefers this per-VIP MAC when forging the reply `sha` (multi-homed
+  VIPs answer with the right MAC), falling back to `IFACE_MAC` when no
+  binding is present. Every binding is removed on speaker loss, so a
+  standby node owns nothing — split-brain safe.
 - On speaker takeover the userspace agent emits one **gratuitous ARP**
   per owned VIP via a raw socket — a rare event, never done in eBPF.
 
