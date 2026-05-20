@@ -931,11 +931,37 @@ curl http://localhost:8080/api/v1/mitre/coverage
 
 #### GET /api/v1/fingerprints/summary
 
-JA4+ TLS fingerprint cache summary.
+JA4 client TLS fingerprint cache summary. Returns the current cached entry count, maximum size, TTL, and whether the cache is backed by a persistent store (see [L7 configuration](../configuration/l7.md#fingerprint-persistence)).
 
 ```bash
 curl http://localhost:8080/api/v1/fingerprints/summary
 ```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cached_count` | integer | Current number of cached JA4 entries |
+| `max_size` | integer | Maximum cache size before LRU eviction |
+| `ttl_seconds` | integer | Entry TTL in seconds |
+| `persistent` | boolean | `true` when `l7.fingerprints.persistence_path` is set |
+
+#### GET /api/v1/fingerprints/ja4s
+
+JA4S server TLS fingerprint cache summary. Populated as the agent observes `ServerHello` bytes on monitored interfaces and computes a per-flow JA4S hash.
+
+```bash
+curl http://localhost:8080/api/v1/fingerprints/ja4s
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cached_count` | integer | Current number of cached JA4S entries |
+| `max_size` | integer | Maximum cache size before LRU eviction |
+| `ttl_seconds` | integer | Entry TTL in seconds |
+| `persistent` | boolean | `true` when `l7.fingerprints.persistence_path` is set |
 
 ### Responses
 
@@ -1110,7 +1136,8 @@ curl http://localhost:8080/metrics
 | POST | `/api/v1/nat/nptv6` | Yes | Create NPTv6 rule |
 | DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
 | GET | `/api/v1/mitre/coverage` | Yes | MITRE ATT&CK technique coverage map |
-| GET | `/api/v1/fingerprints/summary` | Yes | JA4+ fingerprint cache summary |
+| GET | `/api/v1/fingerprints/summary` | Yes | JA4 client fingerprint cache summary |
+| GET | `/api/v1/fingerprints/ja4s` | Yes | JA4S server fingerprint cache summary |
 | GET | `/api/v1/responses` | Yes | List active auto-response actions |
 | POST | `/api/v1/responses/manual` | Yes (admin) | Create manual response action (block/throttle) |
 | DELETE | `/api/v1/responses/{id}` | Yes (admin) | Revoke a response action |
