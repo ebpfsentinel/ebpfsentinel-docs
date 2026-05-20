@@ -80,6 +80,7 @@ Each rule field is optional — omitted fields act as wildcards:
   - **IPv6 + UDP**: sends an ICMPv6 Destination Unreachable (type 1, code 4 — port unreachable)
   - Falls back to silent `XDP_DROP` if response packet construction fails (e.g., insufficient headroom)
   - Config value: `action: reject` (alias: `reset`)
+  - Wire conformance: an integration suite exercises this path on a real network, asserting that the forged RST/ICMP carries valid checksums, has src/dst swapped vs the original SYN, and is suppressed for whitelisted sources.
 - **log** — `XDP_PASS` + emit event to RingBuf for userspace logging
 
 ### Stateful Inspection (Connection Tracking)
