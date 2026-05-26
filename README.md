@@ -1,6 +1,6 @@
 # eBPFsentinel
 
-Kernel-native **Network & Security platform** for Linux. One Rust binary replaces your firewall, IDS/IPS, DDoS mitigation, DLP, and 10+ other network security tools — all running inside the Linux kernel via eBPF at wire speed. Not an endpoint agent — a **network agent** that runs where your traffic flows.
+A unified, kernel-native **Network & Security platform** for Linux — one Rust binary that replaces your firewall, IDS/IPS, DDoS mitigation, DLP, and 10+ more tools, all running in-kernel via eBPF at wire speed. Not an endpoint agent — it enforces security inline, right where your traffic flows.
 
 eBPFsentinel attaches 14 eBPF programs at XDP, TC, and uprobe hook points to inspect, filter, and react to network traffic with no kernel modules and no packet copies to userspace for the fast path. Written entirely in Rust — kernel programs and userspace — using the [Aya](https://aya-rs.dev/) framework.
 

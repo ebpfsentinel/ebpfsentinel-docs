@@ -152,7 +152,7 @@ Rate limit rules carry a `group_mask` field for **interface group filtering** vi
 
 | Protection | Mechanism |
 |-----------|-----------|
-| **SYN flood** | SYN cookie forging — forges SYN+ACK with FNV-1a cookie via `XDP_TX`, validates ACK with dual-window check |
+| **SYN flood** | SYN cookie forging — forges SYN+ACK with SipHash-2-4 keyed cookie via `XDP_TX`, validates ACK with dual-window check |
 | **ICMP flood** | Rate limiting + oversized payload detection (potential tunneling indicator) |
 | **UDP amplification** | Per-source-per-port rate limiting on amplification ports (DNS/53, NTP/123, SSDP/1900, etc.) |
 | **TCP connection floods** | Half-open connection monitoring, RST/FIN/ACK flood detection |
@@ -161,12 +161,12 @@ Rate limit rules carry a `group_mask` field for **interface group filtering** vi
 
 When SYN protection is active, incoming SYN packets are answered with a forged SYN+ACK transmitted back via `XDP_TX` instead of being dropped:
 
-1. **Cookie generation**: FNV-1a hash over the 4-tuple (src IP, dst IP, src port, dst port), a minute-granularity time counter, and a 32-byte secret from the `SYNCOOKIE_SECRET` Array map. MSS is encoded as a 3-bit index (8 standard MSS values) in the cookie.
+1. **Cookie generation**: SipHash-2-4 keyed PRF over the 4-tuple (src IP, dst IP, src port, dst port) and a minute-granularity time counter, keyed by the 256-bit secret in the `SYNCOOKIE_SECRET` Array map. A keyed PRF (not a plain hash) keeps cookies unforgeable even when an attacker observes them. MSS is encoded as a 3-bit index (8 standard MSS values) in the cookie.
 2. **SYN+ACK forging**: The original SYN packet is rewritten in-place — Ethernet MACs swapped, IP src/dst swapped, TCP ports swapped, SYN+ACK flags set, `seq_num` set to the cookie value. [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) is used to trim any payload. Checksums are recomputed.
 3. **ACK validation**: When a completing ACK arrives, `ack_no - 1` is checked against cookies computed for both the current and previous minute windows (handles clock boundary). Valid ACKs pass through; invalid ones are dropped.
 4. **Fallback**: If forging fails, the packet is silently dropped (`XDP_DROP`).
 
-The `SYNCOOKIE_SECRET` map is a 1-entry Array map holding a 32-byte random secret generated at agent startup.
+The `SYNCOOKIE_SECRET` map is a 1-entry Array map holding a 256-bit secret read from the kernel CSPRNG (`/dev/urandom`) at agent startup.
 
 #### Per-Country Rate Limit Tiers (LPM)
 

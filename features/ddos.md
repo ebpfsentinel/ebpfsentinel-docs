@@ -17,7 +17,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 | Attack Type | Detection | eBPF Protection |
 |-------------|-----------|-----------------|
-| **SYN Flood** | SYN rate exceeds threshold | SYN cookie forging (SYN+ACK via XDP_TX with FNV-1a cookie) |
+| **SYN Flood** | SYN rate exceeds threshold | SYN cookie forging (SYN+ACK via XDP_TX with SipHash-2-4 keyed cookie) |
 | **UDP Amplification** | Per-source-per-port rate spike | Per-port rate limiting for known amplification ports (DNS, NTP, etc.) |
 | **ICMP Flood** | ICMP packet rate exceeds threshold | Rate limiting + oversized payload detection |
 | **RST Flood** | RST packet rate exceeds threshold | Connection tracking with RST rate threshold |
@@ -29,7 +29,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 Four independent protection subsystems run in XDP:
 
-**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses with cryptographic SYN cookies directly at XDP speed via `XDP_TX`. The cookie is computed using FNV-1a over the 4-tuple (source/destination IP and port), a minute-granularity time counter, and a 32-byte random secret generated at startup. MSS is preserved using a 3-bit index encoding 8 standard MSS values in the cookie. When the ACK completing the handshake arrives, the cookie is validated by checking `ack_no - 1` against both the current and previous minute windows — this allows for clock skew at the minute boundary. If cookie validation succeeds, the connection proceeds normally. If forging the SYN+ACK fails (e.g., insufficient headroom), the program falls back to `XDP_DROP`.
+**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses with cryptographic SYN cookies directly at XDP speed via `XDP_TX`. The cookie is computed with SipHash-2-4, a keyed pseudo-random function, over the 4-tuple (source/destination IP and port) and a minute-granularity time counter, keyed by a 256-bit secret read from the kernel CSPRNG (`/dev/urandom`) at startup. Using a keyed PRF rather than a plain hash means an attacker who observes forged cookies cannot recover the secret or forge cookies for spoofed connections. MSS is preserved using a 3-bit index encoding 8 standard MSS values in the cookie. When the ACK completing the handshake arrives, the cookie is validated by checking `ack_no - 1` against both the current and previous minute windows — this allows for clock skew at the minute boundary. If cookie validation succeeds, the connection proceeds normally. If forging the SYN+ACK fails (e.g., insufficient headroom), the program falls back to `XDP_DROP`.
 
 **ICMP Protection** — Enforces a maximum ICMP packet rate and detects oversized ICMP payloads (potential tunneling or amplification).
 
