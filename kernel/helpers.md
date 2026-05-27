@@ -34,7 +34,7 @@ eBPFsentinel uses 25+ kernel helper functions across its 14 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/) | 4.2+ | xdp-firewall, xdp-ratelimit | Chain XDP programs via `ProgramArray.tail_call()`: firewall → ratelimit → loadbalancer, firewall → reject, ratelimit → syncookie |
 
-### Event Emission (RingBuf + Arena)
+### Event Emission (RingBuf)
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
@@ -42,7 +42,7 @@ eBPFsentinel uses 25+ kernel helper functions across its 14 programs. This page 
 | [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | All programs with events | Submit a reserved ring buffer entry to userspace |
 | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | All programs with events | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
 
-Five programs also use **arena zero-copy** (`bpf_arena_alloc_pages` kfunc) as the primary event path, with RingBuf as fallback. See [KFuncs: Arena Maps](kfuncs.md#arena-maps-kernel-69).
+`RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target — see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
 
 ### Timing & Randomness
 
@@ -91,8 +91,7 @@ if bpf_ringbuf_query(BPF_RB_AVAIL_DATA) > capacity * 0.75 {
     metrics.events_dropped += 1;
     return TC_ACT_OK;
 }
-// Normal path: try arena first, RingBuf fallback
-if try_emit_arena(...) { return; }
+// Normal path: reserve / fill / submit via RingBuf
 let entry = bpf_ringbuf_reserve(sizeof(PacketEvent));
 // ... fill fields ...
 bpf_ringbuf_submit(entry);

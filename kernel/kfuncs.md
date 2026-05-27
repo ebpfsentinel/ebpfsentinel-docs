@@ -86,18 +86,24 @@ Safe wrappers: `SkbDynptr`, `XdpDynptr` with typed `read::<T>(offset)`, `slice`,
 
 Safe wrappers: `skb_get_fou_encap`, `skb_set_fou_encap`. Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
 
-### Arena maps (kernel 6.9)
+### Arena maps (kernel 6.9) — evaluated, not used
 
-| KFunc | Kernel | Acquire/Release | Purpose |
-|-------|--------|-----------------|---------|
-| `bpf_arena_alloc_pages` | 6.9+ | — | Allocate pages from a `BPF_MAP_TYPE_ARENA` map |
-| `bpf_arena_free_pages` | 6.9+ | — | Free previously allocated arena pages |
+The `bpf_arena_alloc_pages` / `bpf_arena_free_pages` kfuncs and
+`BPF_MAP_TYPE_ARENA` exist on kernel 6.9+, but eBPFsentinel does **not**
+use them. Every program delivers events through `RingBuf` exclusively.
 
-Safe wrappers: `arena_alloc_pages`, `arena_free_pages`. Arena maps provide a shared mmap'd memory region between BPF programs and userspace. BPF writes event data directly into the arena page; userspace reads it via mmap'd pointer — zero-copy, no `RingBuf` reserve/submit overhead.
+An arena map would give BPF and userspace a shared mmap'd region for
+zero-copy event delivery, but the approach is not viable on the Rust
+`bpfel` target:
 
-Used by 5 programs for zero-copy event delivery: uprobe-dlp (`DLP_ARENA`), tc-ids (`IDS_ARENA`), tc-dns (`DNS_ARENA`), xdp-ratelimit (`RL_ARENA`), xdp-firewall (`FW_ARENA`). Each program tries the arena path first and falls back to `RingBuf` if `arena_alloc_pages` returns null (arena not loaded or out of pages).
+- `bpf_arena_alloc_pages` returns an **untyped scalar** on `bpfel` (no
+  `addr_space_cast`), so the verifier rejects any write through the
+  returned pointer.
+- The alloc kfunc is **sleepable-only**; XDP and TC programs are not
+  sleepable, so it is unavailable in the datapath hooks.
 
-The arena maps are declared via a raw `RawMapDef` struct with `#[link_section = ".maps"]` since aya 0.13 has no native arena map type. See `ebpf-helpers/src/arena_map.rs`.
+`RingBuf` is therefore the sole event transport. See
+[Program Limits](limits.md) for per-program ring buffer sizes.
 
 ## Verification
 

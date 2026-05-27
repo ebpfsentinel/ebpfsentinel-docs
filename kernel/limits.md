@@ -227,7 +227,6 @@ Larger RingBuf because DLP events carry L7 payload content.
 | Zones | 256 | `MAX_ZONE_ENTRIES` |
 | Zone policies | 64 | `MAX_ZONE_POLICIES` |
 | Total RingBuf memory | 10.25 MB | Sum of all program RingBuf allocations |
-| Arena maps memory | 320 KB | 5 arena maps × 4 pages × 16 KiB |
 | Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
 | TC programs per hook | 6 ingress, 2 egress | Ordered by priority in TC classifier chain |
 | eBPF programs total | 14 | 5 XDP + 8 TC + 1 uprobe |

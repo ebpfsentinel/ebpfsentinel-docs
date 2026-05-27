@@ -199,25 +199,14 @@ Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egres
 
 All RingBuf maps implement 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead.
 
-### Arena Maps
+### Arena maps — not used
 
-#### [`BPF_MAP_TYPE_ARENA`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARENA/)
-
-**Kernel:** 6.9+ | **Used by:** uprobe-dlp, tc-ids, tc-dns, xdp-ratelimit, xdp-firewall
-
-Shared mmap'd memory region for **zero-copy event delivery**. BPF programs write events directly into arena pages via `bpf_arena_alloc_pages`; userspace reads them via mmap'd pointer without any kernel→user copy.
-
-| Map | Program | Event Type | Event Size | Purpose |
-|-----|---------|------------|------------|---------|
-| `DLP_ARENA` | uprobe-dlp | `DlpEvent` | 4120 B | Full DLP captures |
-| `IDS_ARENA` | tc-ids | `L7EventBuf` | 2144 B | Full L7 payload capture |
-| `DNS_ARENA` | tc-dns | `DnsEventBuf` | 584 B | DNS packet capture |
-| `RL_ARENA` | xdp-ratelimit | `PacketEvent` | 96 B | DDoS burst events |
-| `FW_ARENA` | xdp-firewall | `PacketEvent` | 96 B | Firewall events |
-
-All arena maps are 4 pages (16 KiB). Each event write consists of an `ArenaEventHeader` (24 bytes: sequence counter, timestamp, payload length, event type) followed by the event struct. Programs try the arena path first and fall back to `RingBuf` if allocation fails.
-
-Arena maps are declared via a raw `RawMapDef` struct with `#[link_section = ".maps"]` since aya 0.13 has no native arena support. The `ArenaEventReader` in the adapters crate polls the sequence counter and reads events via mmap.
+`BPF_MAP_TYPE_ARENA` (kernel 6.9+) was evaluated for zero-copy event
+delivery but is **not used**. All programs emit events through `RingBuf`
+exclusively. The arena alloc kfunc returns an untyped scalar on the Rust
+`bpfel` target (the verifier rejects writes through it) and is
+sleepable-only (unavailable in XDP/TC hooks). See
+[KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
 
 ### Config Maps
 

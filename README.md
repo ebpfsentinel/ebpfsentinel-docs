@@ -38,7 +38,6 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 - **MITRE ATT&CK mapping** — every alert tagged with technique + tactic ID
 - **JA4+ TLS fingerprinting** — ClientHello parsing in eBPF, JA4/JA4S computation in userspace
 - **Shared `ebpf-helpers` crate** — deduplicated network helpers, header parsing, metrics macros across all eBPF programs
-- **Arena zero-copy events** — `BPF_MAP_TYPE_ARENA` mmap'd delivery for DLP, IDS, DNS, ratelimit, firewall events (RingBuf fallback)
 - **Netkit container networking** — auto-attach TC programs to Kubernetes pod interfaces (Cilium 1.16+) with hot-plug detection
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
 - **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 65+ endpoints

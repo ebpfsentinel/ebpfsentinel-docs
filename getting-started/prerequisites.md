@@ -9,7 +9,6 @@ eBPFsentinel requires **Linux kernel 6.9+** with BTF (BPF Type Format) support.
 The 6.9 floor is driven by:
 
 - **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`) — container-aware least-privilege mode
-- **`BPF_MAP_TYPE_ARENA`** — mmap'd zero-copy maps
 - Kfuncs `bpf_task_get_cgroup1` (6.8), `bpf_xdp_metadata_rx_vlan_tag` (6.8), `bpf_xdp_get_xfrm_state` (6.8), `bpf_iter_css_task` (6.7)
 
 Verify your system:

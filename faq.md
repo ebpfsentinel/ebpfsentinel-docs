@@ -18,7 +18,7 @@ No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.9+). It is Linux-on
 
 ### What kernel version do I need?
 
-Linux kernel **6.9 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist). Arena maps and BPF token delegation require 6.9+.
+Linux kernel **6.9 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist). BPF token delegation requires 6.9+.
 
 ### Does it require kernel modules?
 

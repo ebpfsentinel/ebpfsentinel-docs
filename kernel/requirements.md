@@ -8,7 +8,7 @@
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Capabilities | `CAP_BPF` + `CAP_NET_ADMIN` (or root) |
 
-The 6.9 floor is enforced at agent startup before any BPF program is loaded — there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation and BPF arena maps.
+The 6.9 floor is enforced at agent startup before any BPF program is loaded — there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation.
 
 Verify on your system:
 
@@ -109,7 +109,6 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs` since aya 
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
 | BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
-| BPF arena maps | 6.9+ | Shared kernel/userspace data regions |
 
 ## Kernel 6.1+ Optimizations
 

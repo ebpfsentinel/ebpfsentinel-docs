@@ -6,13 +6,11 @@
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
-The 6.9 floor is driven by three hard kernel dependencies:
+The 6.9 floor is driven by two hard kernel dependencies:
 
 - **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) — required
   for delegating eBPF load capabilities to unprivileged containers
   without `CAP_BPF`
-- **`BPF_MAP_TYPE_ARENA`** (kernel 6.9) — required for zero-copy
-  mmap'd map sharing between kernel programs and userspace readers
 - **`bpf_task_get_cgroup1`**, **`bpf_xdp_metadata_rx_vlan_tag`**,
   **`bpf_xdp_get_xfrm_state`**, **`bpf_iter_css_task`** kfuncs
   (kernel 6.7–6.8) — required for in-kernel container id enrichment,
@@ -63,7 +61,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|
 | `BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD` | 6.9+ | Container-aware least-privilege delegation (enterprise) |
-| `BPF_MAP_TYPE_ARENA` + `bpf_arena_alloc_pages` | 6.9+ | Zero-copy mmap'd map sharing (roadmap — aya-rs upstream support pending) |
+| `BPF_MAP_TYPE_ARENA` + `bpf_arena_alloc_pages` | 6.9+ | Not used — evaluated for zero-copy delivery, unusable on the `bpfel` target (verifier rejects the untyped arena pointer; alloc kfunc is sleepable-only) |
 | `bpf_task_get_cgroup1` kfunc | 6.8+ | Kernel-side cgroup1 inode enrichment for Docker containers |
 | `bpf_xdp_metadata_rx_vlan_tag` kfunc | 6.8+ | Hardware-offloaded 802.1Q VLAN tag read in XDP |
 | `bpf_xdp_get_xfrm_state` kfunc | 6.8+ | IPsec state lookup for XDP firewall rules |
