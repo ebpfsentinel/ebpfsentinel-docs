@@ -51,6 +51,7 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_firewall_rejected_total` | Counter | — | Packets rejected with TCP RST or ICMP unreachable via XDP_TX |
+| `ebpfsentinel_firewall_reject_throttled_total` | Counter | — | Reject replies suppressed (dropped, not forged) by the per-source reflection rate limit |
 
 ### Scrub
 
