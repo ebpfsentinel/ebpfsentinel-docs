@@ -13,8 +13,8 @@ This page documents which features are fully supported, partially supported, or 
 | Mode | Description | Network Namespace | Process Namespace |
 |------|-------------|-------------------|-------------------|
 | **Bare metal / VM** | Agent binary runs directly on the host | Host | Host |
-| **Container** | `docker run --network host --cap-add …` (least-privilege on kernel 5.8+, `--privileged` fallback) | Host (shared) | Container (isolated) |
-| **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true` and a minimal `capabilities.add` list | Host (shared) | Pod (isolated unless `hostPID: true`) |
+| **Container** | `docker run --network host` with a BPF token (only `CAP_NET_RAW`); capability/`--privileged` fallback | Host (shared) | Container (isolated) |
+| **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true`, a BPF-token init container, and a `CAP_NET_RAW` agent container | Host (shared) | Pod (isolated unless `hostPID: true`) |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
 ## Compatibility Matrix
@@ -54,7 +54,7 @@ These programs attach to **host network interfaces** (e.g., `eth0`). They requir
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
 
-**Requirements**: least-privilege capability set (`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_PERFMON` + `CAP_SYS_PTRACE` + `CAP_SYS_RESOURCE`) on kernel 5.8+, or `--privileged` on older kernels; `--network host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: kernel 6.9+ with a BPF token (agent process needs only `CAP_NET_RAW`; a privileged helper mounts the delegated bpffs), or the capability fallback (`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_SYS_ADMIN` + `CAP_NET_RAW`); `--network host` (container), `hostNetwork: true` (Kubernetes).
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 
@@ -81,32 +81,34 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 
 **Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still scanned. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
-**Recommended K8s deployment** for full DLP coverage:
+**Recommended K8s deployment** for full DLP coverage (BPF token, default):
 
 ```yaml
 spec:
   hostPID: true
   hostNetwork: true
+  initContainers:
+    - name: bpf-token-setup      # mounts the delegated bpffs (privileged)
+      securityContext:
+        privileged: true
   containers:
     - name: agent
       securityContext:
         capabilities:
+          drop: [ALL]
           add:
-            - BPF
-            - NET_ADMIN
-            - PERFMON
-            - SYS_PTRACE
-            - SYS_RESOURCE
+            - NET_RAW            # pcap capture only; eBPF loads via the BPF token
 ```
 
-> **Note:** `hostPID: true` is required for full DLP visibility. The least-privilege capability set above replaces `privileged: true` on kernel 5.8+.
+> **Note:** `hostPID: true` is required for full DLP visibility. With the
+> BPF token (default) the agent container needs only `CAP_NET_RAW`.
 
 ### Multi-WAN Routing
 
 Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes). It requires access to the **host routing table** to apply policy routing decisions.
 
 - **Bare metal / Container** (`--network host`, `CAP_NET_ADMIN`): full support. The container shares the host network namespace and has direct access to `ip route` / `ip rule`.
-- **K8s DaemonSet** (`hostNetwork: true`, `privileged: true`): **full support** — the pod shares the host network namespace, same as Docker host mode. Gateway health checks and policy routing (`ip rule add`) work correctly.
+- **K8s DaemonSet** (`hostNetwork: true`): **full support** — the pod shares the host network namespace, same as Docker host mode. Gateway health checks and policy routing (`ip rule add`) work correctly. The BPF token covers only eBPF syscalls, so this feature additionally needs `CAP_NET_ADMIN` on the agent container (it manipulates the host routing table via netlink) — add it to the token deployment's `capabilities.add` when Multi-WAN is enabled.
 
   > **CNI compatibility note**: eBPFsentinel adds policy routes (`ip rule`) to the host routing table. Most CNIs are unaffected because they use separate routing tables or eBPF-based routing:
   > - **Flannel, Calico (iptables mode), kube-router**: compatible — these use standard routing tables that don't conflict with policy routing rules.
@@ -135,29 +137,33 @@ independently after the packet pipeline.
 
 See the full reference at [Container Awareness](container-awareness.md).
 
-## Least-Privilege Mode
+## Loading mode: BPF token (default)
 
-On kernel 5.8+ eBPFsentinel runs with a minimal Linux capability set
-instead of `privileged: true`. The full list is:
+The agent requires **kernel 6.9+**, so it loads eBPF through
+[**BPF token delegation**](../operations/deployment/bpf-token.md) by
+default (`agent.bpf_token.enabled: true`). A privileged helper
+(systemd `ExecStartPre` / K8s init container) mounts a delegated bpffs;
+the agent process then creates a `BPF_TOKEN_CREATE` fd and loads every
+program through it, so it runs with **no `CAP_BPF` / `CAP_NET_ADMIN` /
+`CAP_SYS_ADMIN`** — only `CAP_NET_RAW` for `libpcap` packet capture
+(`POST /api/v1/captures/manual`). This is what the systemd unit
+(`dist/ebpfsentinel.service`) and the Helm chart ship.
+
+### Capability fallback
+
+If the bpffs cannot be delegated, set
+`agent.bpf_token.fallback_allow_capabilities: true` and grant the scoped
+capability set instead (drop `ALL`, then add):
 
 | Capability | Used for |
 |------------|----------|
 | `CAP_BPF` | Loading eBPF programs and creating BPF maps |
-| `CAP_NET_ADMIN` | XDP / TC attach |
-| `CAP_PERFMON` | Perf / uprobe events |
-| `CAP_SYS_PTRACE` | Reading `/proc/{pid}` and attaching uprobes to other processes |
-| `CAP_SYS_RESOURCE` | Raising `RLIMIT_MEMLOCK` for BPF maps |
+| `CAP_NET_ADMIN` | XDP / TC attach (also covers Multi-WAN `ip rule` updates) |
+| `CAP_SYS_ADMIN` | perf/uprobe events and eBPF ops not split into `CAP_BPF`/`CAP_PERFMON` across the full program set |
+| `CAP_NET_RAW` | `libpcap` packet capture |
 
-Additional capabilities are only needed for specific features:
-
-| Feature | Extra capabilities |
-|---------|-------------------|
-| Raw socket tooling / `libpcap` | `CAP_NET_RAW` |
-| Multi-WAN routing table updates | already covered by `CAP_NET_ADMIN` |
-
-Pre-5.8 kernels (RHEL 8 initial release, some embedded distros) lack
-`CAP_BPF` and `CAP_PERFMON`; on those systems fall back to
-`privileged: true` / `--privileged`. See the
+`CAP_SYS_ADMIN` is broad, which is the reason the token path is the
+default. See the
 [Kubernetes deployment guide](../operations/deployment/kubernetes.md#kernel-version-matrix)
 for the kernel-version matrix.
 
@@ -166,8 +172,8 @@ for the kernel-version matrix.
 | Deployment Goal | Recommended Mode |
 |----------------|-----------------|
 | Full host/VM protection (all features) | Bare metal binary |
-| Containerized with full coverage | Container with least-privilege capabilities + `--network host --pid host` |
-| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, granular `capabilities.add` |
+| Containerized with full coverage | Container with a BPF token (`CAP_NET_RAW`) + `--network host --pid host` |
+| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, BPF-token init container |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
 For production Kubernetes deployments, use the **DaemonSet** pattern with `hostPID: true` for full feature coverage including DLP, and enable the Kubernetes metadata enricher for workload-aware alerts. See the [Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the complete manifest.

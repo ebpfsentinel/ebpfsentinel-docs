@@ -1,8 +1,11 @@
 # BPF Token Delegation
 
-> **Kernel 6.9+ required.** Zero-capability eBPF loading on hosts
-> where `CAP_BPF` / `CAP_NET_ADMIN` cannot be granted to the agent
-> process.
+> **The default loading path.** The agent already requires kernel 6.9+,
+> so BPF token delegation is enabled by default (`agent.bpf_token.enabled:
+> true`) and is the standard way the agent loads eBPF — the systemd unit
+> and Helm chart ship it out of the box. The process runs with **no
+> `CAP_BPF` / `CAP_NET_ADMIN` / `CAP_SYS_ADMIN`**, only `CAP_NET_RAW` for
+> pcap capture.
 
 ## What is BPF token delegation?
 
@@ -22,15 +25,30 @@ For eBPFsentinel this means:
   only `CAP_NET_RAW` for pcap-based manual captures
 - systemd services strip `AmbientCapabilities` down to `CAP_NET_RAW`
 
+> **Scope:** the token authorizes only **eBPF syscalls** (program load,
+> map create, attach). Features that mutate host state through other
+> privileged syscalls still need their own capability — notably
+> **Multi-WAN routing** and **conntrack-based kill** (`ip rule` / netlink,
+> `conntrack -D`) require `CAP_NET_ADMIN` in addition to the token. Add it
+> to `capabilities.add` (or the systemd `AmbientCapabilities`) only when
+> those features are enabled.
+
 ## Loading modes
 
-The agent probes the kernel at startup and picks one of three modes:
+The agent probes the kernel at startup and selects a loading mode.
+`token` is the default and expected mode; the other two are fallbacks
+that only apply when token creation is unavailable or
+`fallback_allow_capabilities` is left on:
 
 | Mode | Requirements | Metric value |
 |------|--------------|-------------:|
-| **`token`** | Kernel 6.9+, `agent.bpf_token.enabled: true`, delegated bpffs mount, `BPF_TOKEN_CREATE` succeeds | `2` |
-| **`capabilities`** | Kernel 5.8+, `CAP_BPF + CAP_NET_ADMIN + CAP_PERFMON` in the process | `1` |
-| **`privileged`** | Kernel < 5.8 or no fine-grained caps, falls back to root/privileged container | `0` |
+| **`token`** (default) | Kernel 6.9+, `agent.bpf_token.enabled: true` (default), delegated bpffs mount, `BPF_TOKEN_CREATE` succeeds | `2` |
+| **`capabilities`** (fallback) | `fallback_allow_capabilities: true` and `CAP_BPF + CAP_NET_ADMIN + CAP_SYS_ADMIN` in the process | `1` |
+| **`privileged`** (fallback) | Root / `privileged: true` container | `0` |
+
+Set `fallback_allow_capabilities: false` to make `token` the *only*
+acceptable mode — the agent then refuses to start rather than silently
+loading with capabilities.
 
 The Prometheus gauge `ebpfsentinel_bpf_token_used{mode=...}` reports
 the currently selected mode so operators can alert on unexpected
@@ -74,30 +92,32 @@ agent:
 
 ## systemd deployment
 
-A drop-in override lives at `dist/ebpfsentinel-token.service.d/override.conf`:
+The shipped unit (`dist/ebpfsentinel.service`, installed by
+`dist/install.sh`) is already token-native — no override needed. It:
+
+- Runs `ebpfsentinel-token-setup.sh` via a privileged `ExecStartPre`
+  (the `+` prefix runs it outside the service sandbox to mount the bpffs)
+- Sets `AmbientCapabilities` / `CapabilityBoundingSet` to `CAP_NET_RAW`
+  only — no `CAP_BPF` / `CAP_NET_ADMIN` / `CAP_SYS_ADMIN`
+- Enables `PrivateDevices`, `ProtectKernelTunables`,
+  `ProtectControlGroups`, `LockPersonality`, and makes
+  `/sys/fs/bpf/ebpfsentinel` read-only
 
 ```bash
-sudo mkdir -p /etc/systemd/system/ebpfsentinel.service.d
-sudo cp dist/ebpfsentinel-token.service.d/override.conf \
-        /etc/systemd/system/ebpfsentinel.service.d/bpf-token.conf
-sudo systemctl daemon-reload
-sudo systemctl restart ebpfsentinel
+sudo bash dist/install.sh         # installs binary, token-setup helper + unit
+sudo systemctl enable --now ebpfsentinel
+systemctl status ebpfsentinel
+curl -s localhost:9090/metrics | grep bpf_token_used   # expect mode="token"
 ```
-
-The override:
-
-- Runs `ebpfsentinel-token-setup.sh` via `ExecStartPre`
-- Strips `AmbientCapabilities` down to `CAP_NET_RAW`
-- Enables `PrivateDevices`, `ProtectKernelTunables`,
-  `ProtectControlGroups`, `LockPersonality`
-- Makes `/sys/fs/bpf/ebpfsentinel` read-only inside the sandbox
-  (the token fd is held by the process, no further writes needed)
 
 ## Kubernetes deployment
 
-The `dist/kubernetes/bpf-token-daemonset.yaml` manifest ships an
-init container that runs the token setup script against the host's
-bpffs, then launches the agent with no `CAP_BPF` / `CAP_NET_ADMIN`:
+In the Helm chart, BPF token delegation is on by default
+(`agent.bpfToken.enabled: true`) — the chart renders the init container
+and drops the agent container to `CAP_NET_RAW` automatically. For a raw
+manifest, `dist/kubernetes/bpf-token-daemonset.yaml` ships an init
+container that runs the token setup script against the host's bpffs,
+then launches the agent with no `CAP_BPF` / `CAP_NET_ADMIN`:
 
 ```yaml
 initContainers:

@@ -1,17 +1,22 @@
 # Kubernetes Deployment
 
-> DaemonSet mode supports all features. Runs with **granular capabilities**
-> instead of `privileged: true` on kernel 5.8+. See the
+> DaemonSet mode supports all features. The agent requires kernel 6.9+
+> and loads eBPF through **BPF token delegation** by default — the agent
+> container runs unprivileged with only `CAP_NET_RAW`. See the
 > [deployment compatibility matrix](../../features/deployment-matrix.md)
 > for details.
 
 Deploy eBPFsentinel as a DaemonSet — one agent per node.
 
-## Least-Privilege DaemonSet
+## BPF Token DaemonSet (default)
 
-The manifest below runs the agent **without `privileged: true`**. Linux
-capabilities are dropped to the minimum set required for eBPF program
-loading, network attachment, and (optionally) container awareness.
+The agent requires kernel 6.9+, so the standard deployment loads eBPF
+through **[BPF token delegation](bpf-token.md)**: a privileged init
+container mounts a delegated bpffs, and the agent container then runs
+**without `privileged: true`** and with only `CAP_NET_RAW` (pcap
+capture) — no `CAP_BPF` / `CAP_NET_ADMIN` / `CAP_SYS_ADMIN`. The agent
+config must set `agent.bpf_token.enabled: true` (the default) — see the
+[ConfigMap](#configmap) below.
 
 ```yaml
 apiVersion: apps/v1
@@ -37,6 +42,17 @@ spec:
       hostNetwork: true
       hostPID: true                  # needed for uprobe DLP visibility
       dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+        - name: bpf-token-setup      # mounts the delegated bpffs (privileged)
+          image: ebpfsentinel:latest
+          command: ["/usr/local/bin/ebpfsentinel-token-setup.sh"]
+          args: ["/sys/fs/bpf/ebpfsentinel"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: bpf
+              mountPath: /sys/fs/bpf
+              mountPropagation: Bidirectional
       containers:
         - name: agent
           image: ebpfsentinel:latest
@@ -46,11 +62,7 @@ spec:
             capabilities:
               drop: [ALL]
               add:
-                - BPF               # program loading (kernel 5.8+)
-                - NET_ADMIN         # XDP/TC attach
-                - SYS_PTRACE        # /proc inspection, uprobe attach
-                - PERFMON           # perf/uprobe events
-                - SYS_RESOURCE      # RLIMIT_MEMLOCK
+                - NET_RAW           # libpcap packet capture only; eBPF loads via the BPF token
           env:
             - name: EBPFSENTINEL_NODE_NAME
               valueFrom:
@@ -112,9 +124,14 @@ spec:
 
 | Kernel | Supported path | Notes |
 |--------|----------------|-------|
-| < 5.8 | Not supported | No `CAP_BPF` / `CAP_PERFMON` |
-| 5.8 – 6.8 | `privileged: true` fallback | `CAP_BPF` available, no BPF token delegation |
-| 6.9+ | Least-privilege | Full feature set (BPF token, all kfuncs) |
+| < 6.9 | **Not supported** | The agent requires 6.9+ (BPF token, ARENA maps, kfuncs) |
+| 6.9+ | BPF token (default) | Agent container needs only `CAP_NET_RAW`; eBPF loads via the token |
+
+> Set `agent.bpf_token.fallback_allow_capabilities: false` to require the
+> token. With it left `true`, a token failure falls back to the scoped
+> capability set (`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_SYS_ADMIN` +
+> `CAP_NET_RAW`) — which then must be granted in the container's
+> `securityContext`.
 
 ## ServiceAccount, ClusterRole & ClusterRoleBinding
 
@@ -168,6 +185,10 @@ data:
     agent:
       interfaces: [eth0]
       bind_address: "0.0.0.0"
+      bpf_token:
+        enabled: true                  # default; eBPF loads via the BPF token
+        bpffs_path: /sys/fs/bpf/ebpfsentinel
+        fallback_allow_capabilities: false   # require the token (no silent cap fallback)
     container:
       resolver:
         enabled: true
@@ -261,21 +282,29 @@ agent:
   swaggerUi: false
   xdpMode: auto
   eventWorkers: 4
+  # BPF token delegation (default). Renders the token-setup init container
+  # and drops the agent container to CAP_NET_RAW. Set enabled=false to use
+  # the scoped capability set in daemonset.securityContext instead.
+  bpfToken:
+    enabled: true
+    bpffsPath: /sys/fs/bpf/ebpfsentinel
+    fallbackAllowCapabilities: false
 
 # -- DaemonSet security context & scheduling
 daemonset:
-  # Least-privilege mode (kernel 5.8+). Set to `true` only for kernels <5.8.
-  privileged: false
-  # Capability set added to the container. The chart drops ALL by default
-  # and adds only the entries below.
-  capabilities:
-    - BPF
-    - NET_ADMIN
-    - SYS_PTRACE
-    - PERFMON
-    - SYS_RESOURCE
-  # Required for uprobe DLP to see processes outside the pod
-  hostPID: true
+  # Required for uprobe DLP to see processes outside the pod (default: false)
+  hostPID: false
+  # Fallback capability set, used only when agent.bpfToken.enabled=false.
+  # The chart drops ALL and adds only these.
+  securityContext:
+    capabilities:
+      drop: [ALL]
+      add:
+        - BPF
+        - NET_ADMIN
+        - SYS_ADMIN
+        - NET_RAW
+    # privileged: true
   # Extra volumes & mounts for container awareness (see below)
   volumes:
     proc: true               # mounts /proc → /host/proc (read-only)
@@ -404,25 +433,27 @@ spec:
 
 ## Requirements
 
+- Kernel 6.9+ with BTF — the agent's minimum (BPF token, ARENA maps, kfuncs)
 - `hostNetwork: true` — XDP/TC programs attach to host interfaces
 - `hostPID: true` — uprobe DLP visibility across the node
-- `CAP_BPF`, `CAP_NET_ADMIN`, `CAP_PERFMON`, `CAP_SYS_PTRACE`,
-  `CAP_SYS_RESOURCE` — least-privilege capability set (kernel 5.8+)
-- `/sys/fs/bpf` hostPath mount — BPF filesystem
+- A privileged `bpf-token-setup` init container — mounts the delegated
+  bpffs; the agent container then needs only `CAP_NET_RAW` (pcap capture)
+- `/sys/fs/bpf` hostPath mount (`mountPropagation: Bidirectional` on the
+  init container) — BPF filesystem + delegated token mount
 - `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) — required
   by the container resolver when running inside a pod
-- `LimitMEMLOCK=infinity` equivalent (automatic with `CAP_SYS_RESOURCE`)
-- Kernel 5.8+ for least-privilege mode, 6.6+ recommended
 - Helm 3.x
 
-### Privileged fallback (kernel <5.8)
+### Capability fallback (token unavailable)
 
-If you must run on an old kernel, swap `securityContext` for:
+To run without the BPF token (e.g. a host where the bpffs cannot be
+delegated), set `agent.bpf_token.fallback_allow_capabilities: true` (or
+`agent.bpfToken.enabled: false` in the chart), drop the init container,
+and grant the scoped capability set on the agent container instead:
 
 ```yaml
 securityContext:
-  privileged: true
+  capabilities:
+    drop: [ALL]
+    add: [BPF, NET_ADMIN, SYS_ADMIN, NET_RAW]
 ```
-
-and drop the `capabilities` block. Everything else in the manifest is
-unchanged.
