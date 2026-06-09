@@ -10,6 +10,7 @@ container:
     enabled: true
     cache_size: 4096
     proc_path: /proc
+    cgroup_root: /sys/fs/cgroup
   docker:
     enabled: false
     socket: /var/run/docker.sock
@@ -23,13 +24,16 @@ container:
 
 ## Container Resolver
 
-Resolves `cgroup_id` from eBPF events to container identity via `/proc/{pid}/cgroup` scanning. Always available, no external dependencies.
+Resolves `cgroup_id` from eBPF events to container identity. Process-context events (uprobe DLP) resolve via `/proc/{pid}/cgroup`; ingress datapath events carry no pid, so they resolve by matching the `cgroup_id` against the cgroup v2 hierarchy under `cgroup_root`. Always available, no external dependencies.
+
+To attribute ingress traffic, the resolver attaches lightweight `cgroup/connect4` and `cgroup/connect6` hooks at `cgroup_root` that record each connecting socket's cgroup; the TC ingress path recovers it via the socket cookie. The hooks only observe — they never block a connection.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `resolver.enabled` | bool | `true` | Enable cgroup-based container resolution |
 | `resolver.cache_size` | usize | `4096` | Max cached cgroup → container mappings |
 | `resolver.proc_path` | string | `/proc` | Path to procfs (use `/host/proc` when containerized with bind mount) |
+| `resolver.cgroup_root` | string | `/sys/fs/cgroup` | cgroup v2 mount used for connect-hook attach and `cgroup_id` → path lookup (use the host mount when containerized) |
 
 ## Docker Enricher
 
