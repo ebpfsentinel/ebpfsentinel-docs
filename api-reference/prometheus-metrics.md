@@ -86,7 +86,7 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_geoip_lookups_total` | Counter | — | Total GeoIP lookups performed |
+| `ebpfsentinel_geoip_lookups_total` | Counter | `result` (`hit`/`miss`) | Total GeoIP database lookups, by resolution outcome |
 | `ebpfsentinel_geoip_ready` | Gauge | — | Database readiness (1=loaded, 0=not) |
 
 ### DNS
