@@ -29,6 +29,7 @@ ids:
 |-------|------|---------|-------------|
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (requires IPS) |
 | `sampling` | `Sampling` | — | Sampling configuration (see below) |
+| `inspect_egress` | `bool` | `false` | Also run the classifier on the egress hook. Enables cgroup/container attribution of locally-originated (e.g. container outbound) traffic, since on egress the originating socket is bound to the packet |
 | `rules` | `[Rule]` | `[]` | Detection rules |
 
 ### Sampling

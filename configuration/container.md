@@ -24,16 +24,16 @@ container:
 
 ## Container Resolver
 
-Resolves `cgroup_id` from eBPF events to container identity. Process-context events (uprobe DLP) resolve via `/proc/{pid}/cgroup`; ingress datapath events carry no pid, so they resolve by matching the `cgroup_id` against the cgroup v2 hierarchy under `cgroup_root`. Always available, no external dependencies.
+Resolves `cgroup_id` from eBPF events to container identity. Process-context events (uprobe DLP) resolve via `/proc/{pid}/cgroup`; datapath events carry no pid, so they resolve by matching the `cgroup_id` against the cgroup v2 hierarchy under `cgroup_root`. Always available, no external dependencies.
 
-To attribute ingress traffic, the resolver attaches lightweight `cgroup/connect4` and `cgroup/connect6` hooks at `cgroup_root` that record each connecting socket's cgroup; the TC ingress path recovers it via the socket cookie. The hooks only observe — they never block a connection.
+Attributing locally-originated traffic (for example a container's outbound connections) requires the IDS classifier to observe the egress hook, where the kernel has bound the originating socket to the packet — enable [`ids.inspect_egress`](ids.md). On ingress the originating socket is not yet attached, so cgroup attribution is unavailable there.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `resolver.enabled` | bool | `true` | Enable cgroup-based container resolution |
 | `resolver.cache_size` | usize | `4096` | Max cached cgroup → container mappings |
 | `resolver.proc_path` | string | `/proc` | Path to procfs (use `/host/proc` when containerized with bind mount) |
-| `resolver.cgroup_root` | string | `/sys/fs/cgroup` | cgroup v2 mount used for connect-hook attach and `cgroup_id` → path lookup (use the host mount when containerized) |
+| `resolver.cgroup_root` | string | `/sys/fs/cgroup` | cgroup v2 mount used for `cgroup_id` → path lookup (use the host mount when containerized) |
 
 ## Docker Enricher
 
