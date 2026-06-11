@@ -77,10 +77,10 @@ ExecStart=/usr/local/bin/ebpfsentinel-token-launch \
     /usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
-`install.sh` builds the launcher from `dist/ebpfsentinel-token-launch.c` with
-`cc` (or installs a prebuilt binary). The service runs as root only long enough
-for the launcher to set up delegation; the agent it execs holds no host
-capabilities.
+The launcher ships as a cargo-built binary alongside the agent
+(`cargo build --release --bin ebpfsentinel-token-launch`), installed by
+`install.sh`. The service runs as root only long enough for the launcher to set
+up delegation; the agent it execs holds no host capabilities.
 
 ```bash
 sudo bash dist/install.sh            # binary, launcher, eBPF programs, unit
