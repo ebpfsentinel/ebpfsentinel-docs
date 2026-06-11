@@ -63,15 +63,11 @@ sudo systemctl status ebpfsentinel
 sudo systemctl reload ebpfsentinel
 ```
 
-**Note:** `LimitMEMLOCK=infinity` is required for eBPF map allocation. The service must run as root or with `CAP_BPF` + `CAP_NET_ADMIN` capabilities.
+**Note:** `LimitMEMLOCK=infinity` is required for eBPF map allocation. eBPF loads **only** through a BPF token — the agent never needs `CAP_BPF`. A privileged `ExecStartPre` (installed by `dist/install.sh`) mounts the delegated bpffs before the agent starts.
 
-## Capabilities (Non-Root)
+## Rootless operation (BPF token)
 
-```bash
-sudo setcap cap_bpf,cap_net_admin+ep /usr/local/bin/ebpfsentinel-agent
-```
-
-Then remove `User=root` and the agent can run as a non-root user. However, some eBPF features may require additional capabilities depending on your kernel version.
+The shipped unit already runs the agent rootless: a privileged `ExecStartPre` mounts the delegated bpffs, the agent runs as `User=ebpfsentinel`, and only the feature-scoped capabilities `CAP_NET_RAW` (pcap capture) and `CAP_NET_ADMIN` (conntrack flow-kill + Multi-WAN) are granted — **no `CAP_BPF`, no `CAP_SYS_ADMIN`**. There is no capability-based loading path. See the [BPF token guide](bpf-token.md) for the full capability matrix.
 
 ## Directories
 

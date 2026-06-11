@@ -33,13 +33,23 @@ docker build -t ebpfsentinel .
 
 ### Run
 
-eBPF requires `--privileged` and `--network host`:
+eBPF loads only through a BPF token (kernel 6.9+) — the agent runs rootless,
+never `--privileged`. Mount the delegated bpffs once (the only privileged step),
+then run with `CAP_BPF` dropped:
 
 ```bash
-docker run --privileged --network host \
+sudo ./dist/ebpfsentinel-token-setup.sh /sys/fs/bpf/ebpfsentinel
+
+docker run --network host \
+  --cap-drop ALL --cap-add NET_RAW --cap-add NET_ADMIN \
+  --security-opt no-new-privileges:true \
   -v ./config:/etc/ebpfsentinel \
+  -v /sys/fs/bpf:/sys/fs/bpf \
   ebpfsentinel
 ```
+
+`docker compose up -d` wires the privileged bpffs-mount init service
+automatically — see [Docker deployment](../operations/deployment/docker.md).
 
 ### Docker Compose
 
@@ -74,16 +84,23 @@ spec:
         app: ebpfsentinel
     spec:
       hostNetwork: true
+      # A privileged bpf-token-setup init container mounts the delegated bpffs;
+      # the agent container then runs rootless (no CAP_BPF / privileged). See the
+      # full manifest for the init container + mount-propagation wiring.
       containers:
         - name: agent
           image: ebpfsentinel:latest
           securityContext:
-            privileged: true
+            privileged: false
+            capabilities:
+              drop: [ALL]
+              add: [NET_RAW, NET_ADMIN]   # feature-scoped; drop if unused
           volumeMounts:
             - name: config
               mountPath: /etc/ebpfsentinel
             - name: bpf
               mountPath: /sys/fs/bpf
+              mountPropagation: HostToContainer
       volumes:
         - name: config
           configMap:
@@ -93,7 +110,7 @@ spec:
             path: /sys/fs/bpf
 ```
 
-See [Kubernetes Deployment](../operations/deployment/kubernetes.md) for full manifests including RBAC, ConfigMap, and service definitions.
+See [Kubernetes Deployment](../operations/deployment/kubernetes.md) and the [BPF token guide](../operations/deployment/bpf-token.md) for full manifests (init container, RBAC, ConfigMap, services).
 
 ## Post-Installation
 

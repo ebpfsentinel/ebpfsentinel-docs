@@ -13,7 +13,7 @@ This page documents which features are fully supported, partially supported, or 
 | Mode | Description | Network Namespace | Process Namespace |
 |------|-------------|-------------------|-------------------|
 | **Bare metal / VM** | Agent binary runs directly on the host | Host | Host |
-| **Container** | `docker run --network host` with a BPF token (only `CAP_NET_RAW`); capability/`--privileged` fallback | Host (shared) | Container (isolated) |
+| **Container** | `docker run --network host`, rootless via a BPF token (no `CAP_BPF` / `--privileged`); a privileged init service mounts the delegated bpffs | Host (shared) | Container (isolated) |
 | **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true`, a BPF-token init container, and a `CAP_NET_RAW` agent container | Host (shared) | Pod (isolated unless `hostPID: true`) |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
@@ -54,7 +54,7 @@ These programs attach to **host network interfaces** (e.g., `eth0`). They requir
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
 
-**Requirements**: kernel 6.9+ with a BPF token (agent process needs only `CAP_NET_RAW`; a privileged helper mounts the delegated bpffs), or the capability fallback (`CAP_BPF` + `CAP_NET_ADMIN` + `CAP_SYS_ADMIN` + `CAP_NET_RAW`); `--network host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: kernel 6.9+ with a BPF token (the only loading path; a privileged helper mounts the delegated bpffs, the agent process then needs no `CAP_BPF` — only feature-scoped `CAP_NET_RAW` for pcap capture and `CAP_NET_ADMIN` for conntrack flow-kill / Multi-WAN); `--network host` (container), `hostNetwork: true` (Kubernetes).
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 
@@ -139,14 +139,14 @@ See the full reference at [Container Awareness](container-awareness.md).
 
 ## Loading mode: BPF token (default)
 
-The agent requires **kernel 6.9+**, so it loads eBPF through
-[**BPF token delegation**](../operations/deployment/bpf-token.md) by
-default (`agent.bpf_token.enabled: true`). A privileged helper
-(systemd `ExecStartPre` / K8s init container) mounts a delegated bpffs;
-the agent process then creates a `BPF_TOKEN_CREATE` fd and loads every
-program through it, so it runs with **no `CAP_BPF` / `CAP_NET_ADMIN` /
-`CAP_SYS_ADMIN`** — only `CAP_NET_RAW` for `libpcap` packet capture
-(`POST /api/v1/captures/manual`). This is what the systemd unit
+The agent requires **kernel 6.9+** and loads eBPF **exclusively** through
+[**BPF token delegation**](../operations/deployment/bpf-token.md) — there
+is no capability-based loading path. A privileged helper (systemd
+`ExecStartPre` / K8s init container) mounts a delegated bpffs; the agent
+process then creates a `BPF_TOKEN_CREATE` fd and loads every program
+through it, so it runs with **no `CAP_BPF` / `CAP_SYS_ADMIN`** — only
+feature-scoped `CAP_NET_RAW` (`libpcap` capture, `POST /api/v1/captures/manual`)
+and `CAP_NET_ADMIN` (conntrack flow-kill, Multi-WAN). This is what the systemd unit
 (`dist/ebpfsentinel.service`) and the Helm chart ship.
 
 ### Capability fallback

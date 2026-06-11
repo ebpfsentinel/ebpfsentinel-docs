@@ -1,178 +1,144 @@
 # BPF Token Delegation
 
-> **The default loading path.** The agent already requires kernel 6.9+,
-> so BPF token delegation is enabled by default (`agent.bpf_token.enabled:
-> true`) and is the standard way the agent loads eBPF — the systemd unit
-> and Helm chart ship it out of the box. The process runs with **no
-> `CAP_BPF` / `CAP_NET_ADMIN` / `CAP_SYS_ADMIN`**, only `CAP_NET_RAW` for
-> pcap capture.
+> **The only loading path.** eBPFsentinel loads eBPF **exclusively** through a
+> BPF token (kernel 6.9+); the agent never loads programs with `CAP_BPF`, and
+> there is no capability-based fallback. Because BPF tokens are a
+> **user-namespace** feature, the agent is started by a small privileged
+> launcher (`ebpfsentinel-token-launch`) that sets up the delegated bpffs in a
+> child user namespace and execs the agent there. The long-running agent runs
+> **rootless** — no capabilities over the host.
 
 ## What is BPF token delegation?
 
-Kernel 6.9 introduced `BPF_TOKEN_CREATE` (`bpf(2)` command #36) and
-the `BPF_F_TOKEN_FD` flag. A token is created by a privileged
-process against a delegated bpffs mount. The mount's options scope
-which BPF commands, map types, program types, and attach types the
-token-bearer is allowed to use. Any subsequent `bpf()` syscall by a
-process that holds the token fd is authorised by the token instead
-of by the calling process's `CAP_BPF` capability.
+Kernel 6.9 introduced `BPF_TOKEN_CREATE` (`bpf(2)` command #36) and the
+`BPF_F_TOKEN_FD` flag. A token is created against a delegated bpffs mount whose
+options scope which BPF commands, map types, program types, and attach types the
+token-bearer may use. Any subsequent `bpf()` syscall by a process holding the
+token fd is authorised by the token instead of by `CAP_BPF`.
 
-For eBPFsentinel this means:
+Crucially, `BPF_TOKEN_CREATE` is **only valid inside a user namespace** that owns
+the delegated bpffs — in the initial (host) user namespace it returns
+`EOPNOTSUPP`. So a token-only agent **cannot** run directly under systemd or a
+plain container in the host user namespace; it must run inside a child user
+namespace. eBPFsentinel handles this with the launcher.
 
-- The agent can run with **zero `CAP_BPF`, zero `CAP_NET_ADMIN`**
-  once the token fd is obtained
-- Kubernetes DaemonSets drop `privileged: true` entirely, keeping
-  only `CAP_NET_RAW` for pcap-based manual captures
-- systemd services strip `AmbientCapabilities` down to `CAP_NET_RAW`
+## The launcher
 
-> **Scope:** the token authorizes only **eBPF syscalls** (program load,
-> map create, attach). Features that mutate host state through other
-> privileged syscalls still need their own capability — notably
-> **Multi-WAN routing** and **conntrack-based kill** (`ip rule` / netlink,
-> `conntrack -D`) require `CAP_NET_ADMIN` in addition to the token. Add it
-> to `capabilities.add` (or the systemd `AmbientCapabilities`) only when
-> those features are enabled.
+`ebpfsentinel-token-launch` is a minimal privileged bootstrap. As root it:
 
-## Loading modes
+1. Enumerates every loaded kernel module's BTF object and inherits an fd for
+   each (advertised to the agent via `EBPF_MODULE_BTF_FDS`), so module kfuncs
+   (`nf_conntrack`, `fou`) resolve without `CAP_SYS_ADMIN` in the agent.
+2. Sets up a delegated bpffs via the kernel fd-passing dance: a child process
+   unshares a user namespace and `fsopen("bpf")` (the superblock is owned by the
+   child userns); the privileged parent applies `delegate_*=any` +
+   `FSCONFIG_CMD_CREATE`; the child `fsmount`s + `move_mount`s it at the bpffs
+   path.
+3. Execs the agent inside that user namespace. The agent finds the delegated
+   bpffs, creates a BPF token, and loads/attaches every program through it with
+   no host capabilities.
 
-The agent probes the kernel at startup and selects a loading mode.
-`token` is the default and expected mode; the other two are fallbacks
-that only apply when token creation is unavailable or
-`fallback_allow_capabilities` is left on:
-
-| Mode | Requirements | Metric value |
-|------|--------------|-------------:|
-| **`token`** (default) | Kernel 6.9+, `agent.bpf_token.enabled: true` (default), delegated bpffs mount, `BPF_TOKEN_CREATE` succeeds | `2` |
-| **`capabilities`** (fallback) | `fallback_allow_capabilities: true` and `CAP_BPF + CAP_NET_ADMIN + CAP_SYS_ADMIN` in the process | `1` |
-| **`privileged`** (fallback) | Root / `privileged: true` container | `0` |
-
-Set `fallback_allow_capabilities: false` to make `token` the *only*
-acceptable mode — the agent then refuses to start rather than silently
-loading with capabilities.
-
-The Prometheus gauge `ebpfsentinel_bpf_token_used{mode=...}` reports
-the currently selected mode so operators can alert on unexpected
-fallbacks.
-
-## Host preparation
-
-Run the `ebpfsentinel-token-setup.sh` helper as root. It mounts a
-bpffs instance at `/sys/fs/bpf/ebpfsentinel` (override with a
-positional argument) with the `delegate_cmds` / `delegate_maps` /
-`delegate_progs` / `delegate_attachs` options required by the 14
-eBPF programs the agent ships.
-
-```bash
-sudo /usr/local/bin/ebpfsentinel-token-setup.sh
+```text
+ebpfsentinel-token-launch [--bpffs <path>] <agent-binary> [agent-args...]
 ```
 
-Verify:
+`--bpffs` (default `/sys/fs/bpf/ebpfsentinel`) must match the agent's
+`agent.bpf_token.bpffs_path`.
 
-```bash
-findmnt -T /sys/fs/bpf/ebpfsentinel -o OPTIONS
-# rw,nosuid,nodev,noexec,relatime,delegate_cmds=map_create,prog_load,obj_get_info_by_fd,btf_load,delegate_maps=any,delegate_progs=any,delegate_attachs=any
-```
+## Capability matrix
 
-The script is idempotent: re-running it detects an existing mount
-and exits cleanly.
+The agent runs in a child user namespace, so it has **no capabilities over
+host-owned resources** — including the host network namespace it shares. The
+token covers all eBPF; nothing else is available to the agent:
 
-## Agent configuration
+| Operation | Path | Works rootless? |
+|-----------|------|-----------------|
+| All eBPF load/attach (firewall, IDS, IPS, DLP, DNS, DDoS, NAT, QoS, LB) | BPF token | ✅ |
+| IPS active flow-kill | eBPF `bpf_ct_change_status` IPS_DYING (tc-ids) | ✅ |
+| Load-balancer VIP ARP | eBPF `xdp-vip-announcer` (XDP_TX replies) | ✅ |
+| pcap manual/auto capture | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
+| `conntrack -D` retroactive teardown on a new deny rule | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable |
+| Gratuitous ARP on VIP takeover | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
 
-```yaml
-agent:
-  interfaces: [eth0]
-  bpf_token:
-    enabled: true
-    bpffs_path: /sys/fs/bpf/ebpfsentinel
-    # When false, token creation failures abort startup instead of
-    # falling back to capability-based loading. Recommended in
-    # production once the deployment is known to be on kernel 6.9+.
-    fallback_allow_capabilities: true
-```
+The unavailable items **degrade gracefully** — the agent logs a warning and
+continues — and their eBPF equivalents (IPS_DYING flow-kill, xdp-vip-announcer)
+keep working. If you require pcap capture or the netlink-based teardown, the
+rootless token-only model is not compatible with them; that is an inherent
+consequence of the user-namespace requirement, not a configuration choice.
 
 ## systemd deployment
 
-The shipped unit (`dist/ebpfsentinel.service`, installed by
-`dist/install.sh`) is already token-native — no override needed. It:
+The shipped unit (`dist/ebpfsentinel.service`, installed by `dist/install.sh`)
+runs the launcher, which execs the agent rootless:
 
-- Runs `ebpfsentinel-token-setup.sh` via a privileged `ExecStartPre`
-  (the `+` prefix runs it outside the service sandbox to mount the bpffs)
-- Sets `AmbientCapabilities` / `CapabilityBoundingSet` to `CAP_NET_RAW`
-  only — no `CAP_BPF` / `CAP_NET_ADMIN` / `CAP_SYS_ADMIN`
-- Enables `PrivateDevices`, `ProtectKernelTunables`,
-  `ProtectControlGroups`, `LockPersonality`, and makes
-  `/sys/fs/bpf/ebpfsentinel` read-only
+```ini
+ExecStart=/usr/local/bin/ebpfsentinel-token-launch \
+    --bpffs /sys/fs/bpf/ebpfsentinel \
+    /usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
+```
+
+`install.sh` builds the launcher from `dist/ebpfsentinel-token-launch.c` with
+`cc` (or installs a prebuilt binary). The service runs as root only long enough
+for the launcher to set up delegation; the agent it execs holds no host
+capabilities.
 
 ```bash
-sudo bash dist/install.sh         # installs binary, token-setup helper + unit
+sudo bash dist/install.sh            # binary, launcher, eBPF programs, unit
 sudo systemctl enable --now ebpfsentinel
-systemctl status ebpfsentinel
-curl -s localhost:9090/metrics | grep bpf_token_used   # expect mode="token"
+curl -s localhost:9090/metrics | grep bpf_token_used   # expect value 1
 ```
+
+## Docker deployment
+
+The image entrypoint is the launcher. The container needs `CAP_SYS_ADMIN`
+(bpffs delegation + module BTF fds) and the ability to create a user namespace;
+`docker compose up` wires this. By hand:
+
+```bash
+docker run --network host \
+  --cap-add SYS_ADMIN \
+  --security-opt apparmor=unconfined \
+  -v ./config:/etc/ebpfsentinel \
+  ghcr.io/ebpfsentinel/ebpfsentinel:latest
+```
+
+The launcher drops into the user namespace before exec'ing the agent, so the
+long-running agent is unprivileged even though the container grants
+`CAP_SYS_ADMIN` for the bootstrap.
 
 ## Kubernetes deployment
 
-In the Helm chart, BPF token delegation is on by default
-(`agent.bpfToken.enabled: true`) — the chart renders the init container
-and drops the agent container to `CAP_NET_RAW` automatically. For a raw
-manifest, `dist/kubernetes/bpf-token-daemonset.yaml` ships an init
-container that runs the token setup script against the host's bpffs,
-then launches the agent with no `CAP_BPF` / `CAP_NET_ADMIN`:
+The Helm chart runs the agent container through the launcher entrypoint with
+`securityContext.capabilities.add: [SYS_ADMIN]`. There is no init container —
+the launcher does the bpffs setup in-process.
 
 ```yaml
-initContainers:
-  - name: bpf-token-setup
-    image: ebpfsentinel-agent:latest
-    command: ["/usr/local/bin/ebpfsentinel-token-setup.sh"]
-    args: ["/host/sys/fs/bpf/ebpfsentinel"]
-    securityContext:
-      privileged: true
-    volumeMounts:
-      - name: host-bpf
-        mountPath: /host/sys/fs/bpf
-        mountPropagation: Bidirectional
-containers:
-  - name: agent
-    image: ebpfsentinel-agent:latest
-    securityContext:
-      privileged: false
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: [ALL]
-        add: [NET_RAW]
-      readOnlyRootFilesystem: true
+securityContext:
+  capabilities:
+    drop: [ALL]
+    add: [SYS_ADMIN]
+  allowPrivilegeEscalation: true
 ```
 
-## Docker Compose deployment
-
-A compose override at `dist/docker-compose.bpf-token.yml` mounts the
-delegated bpffs via a one-shot `bpf-token-setup` service and runs
-the agent with `cap_drop: [ALL]` + `cap_add: [NET_RAW]`:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.bpf-token.yml up -d
-```
+> **Note:** nested user namespaces + bpffs delegation inside a pod can require
+> cluster-specific runtime configuration (the node must allow unprivileged user
+> namespaces; some Pod Security Admission levels or runtimes block
+> `CAP_SYS_ADMIN`). Validate on your cluster before rolling out fleet-wide.
 
 ## Troubleshooting
 
-**Metric reports `mode="capabilities"` even though token is
-enabled.**
-The kernel is below 6.9, the bpffs mount is missing, or the
-`delegate_*` options are absent. Check the agent logs for a line
-like `BPF loading mode selected ... reason="token creation failed"`
-and run `findmnt -T /sys/fs/bpf/ebpfsentinel -o OPTIONS` to verify
-the mount options.
+**Metric `ebpfsentinel_bpf_token_used` reads `0` / log says "BPF token
+unavailable — running in API-only mode".**
+The agent could not create a token (no eBPF attached). On a kernel ≥ 6.9 the
+usual cause is that the agent was started **without** the launcher (directly,
+in the host user namespace) — `BPF_TOKEN_CREATE` is `EOPNOTSUPP` there. Always
+launch via `ebpfsentinel-token-launch`.
 
-**Agent exits with `BPF token creation failed and fallback
-disabled`.**
-Expected behaviour when `fallback_allow_capabilities: false` is
-set and token creation fails. Either re-enable fallback or fix the
-host setup (kernel upgrade, mount options, permissions on the
-bpffs path).
+**Launcher fails with `fsopen` / `unshare USER` errors.**
+The host disallows unprivileged user namespaces or the container lacks
+`CAP_SYS_ADMIN`. Enable user namespaces (`kernel.unprivileged_userns_clone=1`
+where applicable) and grant `CAP_SYS_ADMIN` to the launcher (not the agent).
 
-**aya does not yet expose native token support.**
-The agent wraps `BPF_TOKEN_CREATE` via the raw `bpf(2)` syscall
-because aya-rs upstream is still merging support in
-[aya PR #1515](https://github.com/aya-rs/aya/pull/1515). The token
-fd is kept alive by the agent process so any program loaded through
-a future token-aware aya release will pick it up automatically.
+**A pcap capture or `conntrack -D` teardown does nothing.**
+Expected: these need host-network-namespace capabilities a user-namespace agent
+cannot hold. The eBPF datapath (including IPS_DYING flow-kill) is unaffected.

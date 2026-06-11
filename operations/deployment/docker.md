@@ -1,10 +1,11 @@
 # Docker Deployment
 
-> Runs with granular capabilities on kernel 5.8+ — `--privileged` is only
-> needed as a fallback for older kernels. DLP requires `--pid=host` for
-> full process visibility. See the
-> [deployment compatibility matrix](../../features/deployment-matrix.md)
-> for details.
+> Kernel 6.9+ only. eBPF loads **exclusively** through a BPF token — the agent
+> container runs rootless with **no `CAP_BPF` and no `--privileged`**. A
+> one-shot privileged init service mounts the delegated bpffs. DLP requires
+> `--pid=host` for full process visibility. See the
+> [BPF token guide](bpf-token.md) and the
+> [deployment compatibility matrix](../../features/deployment-matrix.md).
 
 ## Build
 
@@ -12,23 +13,22 @@
 docker build -t ebpfsentinel .
 ```
 
-## Run (least-privilege)
+## Run (rootless, token-only)
 
-eBPF needs elevated capabilities and `--network host`. On kernels 5.8+
-(with `CAP_BPF`), use fine-grained capabilities instead of
-`--privileged`, and mount `/proc`, `/sys/fs/cgroup`, and the Docker
-socket read-only so the container resolver and Docker enricher can
-attach workload metadata to every alert:
+eBPF is loaded only through a BPF token, so a privileged step must mount the
+delegated bpffs first; the agent itself then runs with `CAP_BPF` dropped. Mount
+`/proc`, `/sys/fs/cgroup`, and the Docker socket read-only so the container
+resolver and Docker enricher can attach workload metadata to every alert:
 
 ```bash
+# Privileged, one-time: mount the delegated bpffs (the only CAP_SYS_ADMIN step).
+sudo ./dist/ebpfsentinel-token-setup.sh /sys/fs/bpf/ebpfsentinel
+
 docker run --network host --pid host \
   --cap-drop ALL \
-  --cap-add CAP_BPF \
-  --cap-add CAP_NET_ADMIN \
+  --cap-add NET_RAW \
+  --cap-add NET_ADMIN \
   --cap-add CAP_SYS_PTRACE \
-  --cap-add CAP_PERFMON \
-  --cap-add CAP_SYS_RESOURCE \
-  --cap-add CAP_NET_RAW \
   --security-opt no-new-privileges:true \
   -v ./config:/etc/ebpfsentinel \
   -v /sys/fs/bpf:/sys/fs/bpf \
@@ -38,42 +38,43 @@ docker run --network host --pid host \
   ebpfsentinel
 ```
 
-`--pid host` is only needed if you want uprobe DLP to attach to host
-processes. Drop it when only container workloads need protection.
-
-### Privileged fallback (kernel <5.8)
-
-On older kernels without `CAP_BPF`, fall back to `--privileged`:
-
-```bash
-docker run --privileged --network host --pid host \
-  -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf \
-  -v /proc:/host/proc:ro \
-  -v /sys/fs/cgroup:/host/sys/fs/cgroup:ro \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  ebpfsentinel
-```
+The agent holds **no `CAP_BPF`** — the token authorizes every eBPF syscall.
+`CAP_NET_RAW` is needed only for pcap capture, `CAP_NET_ADMIN` only for conntrack
+flow-kill + Multi-WAN, and `CAP_SYS_PTRACE` only for host-process uprobe DLP;
+drop any you do not use. `--pid host` is only needed for uprobe DLP against host
+processes.
 
 ## Docker Compose
 
-The default `docker-compose.yml` uses fine-grained capabilities:
+The default `docker-compose.yml` wires this automatically: a privileged,
+run-once `bpf-token-setup` service mounts the delegated bpffs, then the agent
+service runs rootless with `cap_drop: [ALL]` and only feature-scoped caps:
 
 ```yaml
 services:
-  ebpfsentinel:
+  bpf-token-setup:                # privileged, run-once — mounts the bpffs
+    image: ebpfsentinel
+    entrypoint:
+      - /usr/local/bin/ebpfsentinel-token-setup.sh
+      - /sys/fs/bpf/ebpfsentinel
+    privileged: true
+    network_mode: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf:rshared
+    restart: "no"
+
+  agent:
     image: ebpfsentinel
     network_mode: host
     pid: host
+    depends_on:
+      bpf-token-setup:
+        condition: service_completed_successfully
     cap_drop:
       - ALL
     cap_add:
-      - CAP_BPF
-      - CAP_NET_ADMIN
-      - CAP_SYS_PTRACE
-      - CAP_PERFMON
-      - CAP_SYS_RESOURCE
-      - CAP_NET_RAW
+      - NET_RAW                   # pcap capture
+      - NET_ADMIN                 # conntrack flow-kill + Multi-WAN
     security_opt:
       - no-new-privileges:true
     volumes:
@@ -83,9 +84,6 @@ services:
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
-
-If your kernel does not support `CAP_BPF` (pre-5.8), replace `cap_drop`
-+ `cap_add` with `privileged: true`.
 
 When the Docker enricher is enabled (`container.docker.enabled=true` in
 your agent config), the daemon socket mount lets the agent call
