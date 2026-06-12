@@ -76,10 +76,19 @@ spec:
             # module BTF fds + userns creation); the agent it execs is
             # unprivileged. There is no capability-based eBPF loading path.
             allowPrivilegeEscalation: true
+            # Unconfined: the launcher does mount/move_mount (bpffs delegation)
+            # and writes /proc/self/uid_map after unshare(CLONE_NEWUSER). On
+            # AppArmor nodes (e.g. Ubuntu) the default container profile blocks
+            # these; the default seccomp profile must not filter mount either.
+            appArmorProfile:
+              type: Unconfined
+            seccompProfile:
+              type: Unconfined
             capabilities:
               drop: [ALL]
               add:
                 - SYS_ADMIN         # launcher bootstrap only; eBPF loads via the BPF token
+                - NET_RAW           # launcher pre-opens the AF_PACKET pcap pool; drop if you never capture
           env:
             - name: EBPFSENTINEL_NODE_NAME
               valueFrom:
@@ -129,7 +138,14 @@ spec:
         - name: config
           configMap:
             name: ebpfsentinel-config
+            # The agent rejects a world-readable config; configMap volumes
+            # default to 0644, so pin a stricter mode.
+            defaultMode: 0640
         - name: bpf
+          # Real node: the host bpffs is writable, so bind it in. On nested
+          # runtimes (kind, minikube) the node's own /sys/fs/bpf may be
+          # read-only — use an in-pod tmpfs instead:
+          #   emptyDir: { medium: Memory }
           hostPath:
             path: /sys/fs/bpf
         - name: proc
@@ -318,8 +334,14 @@ daemonset:
   securityContext:
     capabilities:
       drop: [ALL]
-      add: [SYS_ADMIN]
+      add: [SYS_ADMIN, NET_RAW]   # NET_RAW: launcher pre-opens the pcap pool
     allowPrivilegeEscalation: true
+    # Launcher does mount/move_mount + uid_map write; the default container
+    # AppArmor/seccomp profile blocks these on hardened (e.g. Ubuntu) nodes.
+    appArmorProfile:
+      type: Unconfined
+    seccompProfile:
+      type: Unconfined
   # Extra volumes & mounts for container awareness (see below)
   volumes:
     proc: true               # mounts /proc → /host/proc (read-only)
@@ -454,12 +476,20 @@ spec:
 - `CAP_SYS_ADMIN` + `allowPrivilegeEscalation: true` on the agent
   container — consumed by the launcher entrypoint for bpffs delegation;
   the agent it execs is unprivileged. **No init container.**
+- `CAP_NET_RAW` (optional) — lets the launcher pre-open the `AF_PACKET`
+  pcap socket pool; drop it if you never run packet capture
+- `appArmorProfile.type: Unconfined` + `seccompProfile.type: Unconfined` —
+  the launcher issues `mount`/`move_mount` and writes `/proc/self/uid_map`,
+  which the default container AppArmor/seccomp profile blocks on hardened
+  nodes (e.g. Ubuntu)
 - The node must **allow unprivileged user namespaces** — the launcher
   creates the token inside a child userns (`BPF_TOKEN_CREATE` is
   `EOPNOTSUPP` otherwise)
 - `/sys/fs/bpf` hostPath mount (`mountPropagation: HostToContainer` on the
-  agent container) — the launcher mounts the delegated bpffs over this path
-  inside its own private mount namespace
+  agent container) — a container's `/sys` is read-only, so the launcher needs
+  this writable host bpffs to create the delegated mountpoint. On nested
+  runtimes (kind, minikube) whose `/sys/fs/bpf` is itself read-only, use an
+  in-pod `emptyDir: { medium: Memory }` instead
 - `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) — required
   by the container resolver when running inside a pod
 - Helm 3.x

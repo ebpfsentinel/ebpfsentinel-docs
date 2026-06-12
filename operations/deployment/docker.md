@@ -73,6 +73,11 @@ them without any capability of its own); drop it if you never capture.
 `--pid host` is only needed for uprobe DLP against host processes.
 `apparmor=unconfined` is required because the default Docker AppArmor profile
 blocks the `mount`/`move_mount` syscalls the launcher uses for bpffs delegation.
+The `-v /sys/fs/bpf:/sys/fs/bpf` mount is **mandatory**: a container's `/sys` is
+read-only, so without a writable `/sys/fs/bpf` the launcher cannot create the
+delegated bpffs mountpoint and the agent falls back to API-only mode. The host
+bpffs is writable; bind it in (or use `--tmpfs /sys/fs/bpf` if the host has no
+bpffs mounted).
 
 > **conntrack flow-kill, Multi-WAN and VIP gratuitous-ARP** stay unavailable to
 > the userns agent and `--cap-add NET_ADMIN` does **not** restore them (netlink

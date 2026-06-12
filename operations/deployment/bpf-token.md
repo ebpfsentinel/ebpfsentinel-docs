@@ -129,14 +129,21 @@ The image entrypoint is the launcher. The container needs `CAP_SYS_ADMIN`
 ```bash
 docker run --network host \
   --cap-add SYS_ADMIN \
+  --cap-add NET_RAW \
   --security-opt apparmor=unconfined \
   -v ./config:/etc/ebpfsentinel \
+  -v /sys/fs/bpf:/sys/fs/bpf \
   ghcr.io/ebpfsentinel/ebpfsentinel:latest
 ```
 
 The launcher drops into the user namespace before exec'ing the agent, so the
 long-running agent is unprivileged even though the container grants
-`CAP_SYS_ADMIN` for the bootstrap.
+`CAP_SYS_ADMIN` for the bootstrap. The `/sys/fs/bpf` bind-mount is **required**:
+a container's `/sys` is read-only, so the launcher cannot create the bpffs
+mountpoint without a writable `/sys/fs/bpf` — bind in the host bpffs (or, on a
+host with no bpffs mounted, `--tmpfs /sys/fs/bpf`). `CAP_NET_RAW` lets the
+launcher pre-open the `AF_PACKET` pcap pool; drop it if you never capture. See
+the [full Docker guide](docker.md) for the container-awareness mounts.
 
 ## Kubernetes deployment
 
@@ -148,14 +155,26 @@ the launcher does the bpffs setup in-process.
 securityContext:
   capabilities:
     drop: [ALL]
-    add: [SYS_ADMIN]
+    add: [SYS_ADMIN, NET_RAW]   # NET_RAW: launcher pre-opens the pcap pool
   allowPrivilegeEscalation: true
+  appArmorProfile:
+    type: Unconfined            # launcher does mount/move_mount + uid_map write
+  seccompProfile:
+    type: Unconfined
 ```
+
+The pod also needs a writable `/sys/fs/bpf` (a container's `/sys` is read-only)
+— mount the host bpffs as a `hostPath` with `mountPropagation: HostToContainer`.
+See the [full Kubernetes guide](kubernetes.md) for the complete DaemonSet.
 
 > **Note:** nested user namespaces + bpffs delegation inside a pod can require
 > cluster-specific runtime configuration (the node must allow unprivileged user
 > namespaces; some Pod Security Admission levels or runtimes block
-> `CAP_SYS_ADMIN`). Validate on your cluster before rolling out fleet-wide.
+> `CAP_SYS_ADMIN`). On nested runtimes such as **kind** or **minikube** the node
+> is itself a container — its `/sys/fs/bpf` may be read-only (use an in-pod
+> `emptyDir: { medium: Memory }` instead of the host `hostPath`), and the extra
+> user-namespace layer can require `privileged: true` for the `uid_map` write.
+> Validate on your cluster before rolling out fleet-wide.
 
 ## Troubleshooting
 
@@ -170,6 +189,23 @@ launch via `ebpfsentinel-token-launch`.
 The host disallows unprivileged user namespaces or the container lacks
 `CAP_SYS_ADMIN`. Enable user namespaces (`kernel.unprivileged_userns_clone=1`
 where applicable) and grant `CAP_SYS_ADMIN` to the launcher (not the agent).
+
+**Launcher fails with `move_mount: No such file or directory`, or the agent
+logs "bpffs path `/sys/fs/bpf/ebpfsentinel` does not exist" (container only).**
+A container's `/sys` is mounted read-only, so the launcher cannot create the
+bpffs mountpoint there. Give the container a **writable `/sys/fs/bpf`**: bind in
+the host bpffs (`-v /sys/fs/bpf:/sys/fs/bpf` / a `hostPath` volume), or — on a
+host or nested runtime whose `/sys/fs/bpf` is itself read-only — mount a tmpfs
+(`--tmpfs /sys/fs/bpf` / an `emptyDir: { medium: Memory }`).
+
+**Launcher fails with `failed to write uid/gid map` (`mount`/`move_mount`
+denied, or `uid_map: Operation not permitted`).**
+The container's AppArmor or seccomp profile is blocking the launcher's mount and
+user-namespace setup. Run it unconfined — `--security-opt apparmor=unconfined`
+(Docker) or `securityContext.appArmorProfile.type: Unconfined` +
+`seccompProfile.type: Unconfined` (Kubernetes). On deeply nested runtimes (kind,
+minikube) the extra user-namespace layer can still reject the `uid_map` write
+under a reduced capability set — `privileged: true` resolves it there.
 
 **A pcap capture logs "no AF_PACKET socket provisioned by the launcher".**
 The agent was started without the launcher, or the launcher could not open the
