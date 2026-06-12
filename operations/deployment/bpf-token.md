@@ -59,6 +59,7 @@ host-netns socket, the launcher hands the agent a **pre-opened fd**:
 | Load-balancer VIP ARP | eBPF `xdp-vip-announcer` (XDP_TX replies) | ✅ |
 | pcap manual/auto capture | `AF_PACKET` fd pre-opened by the launcher (`EBPFSENTINEL_PCAP_FDS`) | ✅ |
 | `conntrack -D` retroactive teardown on a new deny rule | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable |
+| Multi-WAN policy routing (`ip rule` / `ip route` apply) | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable (probes still run) |
 | Gratuitous ARP on VIP takeover | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
 
 pcap capture works because `CAP_NET_RAW` on an `AF_PACKET` socket is checked

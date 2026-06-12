@@ -18,17 +18,24 @@ Error: BTF not found at /sys/kernel/btf/vmlinux
 
 Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled kernel for your distribution.
 
-### Insufficient capabilities
+### eBPF fails to load / "BPF token unavailable — API-only mode"
 
 ```
 Error: permission denied loading eBPF program
 ```
 
-Run as root or set capabilities:
+eBPF loads only through a BPF token, which requires a user namespace. Start the
+agent via the launcher (not directly) so the token is created:
 
 ```bash
-sudo setcap cap_bpf,cap_net_admin+ep ./ebpfsentinel-agent
+sudo ebpfsentinel-token-launch \
+  --bpffs /sys/fs/bpf/ebpfsentinel \
+  ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 ```
+
+If it still fails, the host likely disallows unprivileged user namespaces or the
+launcher lacks `CAP_SYS_ADMIN`. There is no `setcap cap_bpf` fallback. See the
+[BPF token guide](deployment/bpf-token.md#troubleshooting).
 
 ### Interface not found
 

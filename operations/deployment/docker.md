@@ -1,9 +1,12 @@
 # Docker Deployment
 
-> Kernel 6.9+ only. eBPF loads **exclusively** through a BPF token — the agent
-> container runs rootless with **no `CAP_BPF` and no `--privileged`**. A
-> one-shot privileged init service mounts the delegated bpffs. DLP requires
-> `--pid=host` for full process visibility. See the
+> Kernel 6.9+ only. eBPF loads **exclusively** through a BPF token, and there is
+> **no capability-based fallback**. The image entrypoint is the privileged
+> launcher (`ebpfsentinel-token-launch`); it sets up the delegated bpffs and
+> creates the token **inside a child user namespace**, then execs the agent
+> there — so the long-running agent runs unprivileged even though the container
+> is granted `CAP_SYS_ADMIN` for the bootstrap. There is no separate init
+> service. DLP requires `--pid=host` for full process visibility. See the
 > [BPF token guide](bpf-token.md) and the
 > [deployment compatibility matrix](../../features/deployment-matrix.md).
 
@@ -13,77 +16,100 @@
 docker build -t ebpfsentinel .
 ```
 
-## Run (rootless, token-only)
+## The BPF token creation phase
 
-eBPF is loaded only through a BPF token, so a privileged step must mount the
-delegated bpffs first; the agent itself then runs with `CAP_BPF` dropped. Mount
-`/proc`, `/sys/fs/cgroup`, and the Docker socket read-only so the container
-resolver and Docker enricher can attach workload metadata to every alert:
+There is no separate setup step or init service — token creation happens
+**in-process**, in the launcher, every time the container starts. The image
+entrypoint is `ebpfsentinel-token-launch`, and the sequence is:
+
+1. The launcher starts as container root (with `CAP_SYS_ADMIN`). It inherits an
+   fd for every loaded kernel module's BTF object so module kfuncs resolve
+   without `CAP_SYS_ADMIN` in the agent.
+2. A child process unshares a **user namespace** and `fsopen("bpf")`; the
+   privileged launcher applies `delegate_*=any` + `FSCONFIG_CMD_CREATE`, then the
+   child `fsmount`s + `move_mount`s the delegated bpffs at
+   `/sys/fs/bpf/ebpfsentinel`. (`BPF_TOKEN_CREATE` is `EOPNOTSUPP` outside a user
+   namespace, which is why the launcher exists.)
+3. The launcher pre-opens the `AF_PACKET` capture socket pool (so pcap works
+   without `CAP_NET_RAW` in the agent) and execs the agent **inside that user
+   namespace**.
+4. The agent finds the delegated bpffs, calls `BPF_TOKEN_CREATE`, and
+   loads/attaches every eBPF program through the token — holding no host
+   capabilities.
+
+Confirm the token was created (not an API-only fallback):
 
 ```bash
-# Privileged, one-time: mount the delegated bpffs (the only CAP_SYS_ADMIN step).
-sudo ./dist/ebpfsentinel-token-setup.sh /sys/fs/bpf/ebpfsentinel
+docker exec ebpfsentinel sh -c 'curl -s localhost:9090/metrics | grep bpf_token_used'
+# expect: ebpfsentinel_bpf_token_used 1
+```
 
+## Run (rootless agent, privileged launcher)
+
+The container needs `CAP_SYS_ADMIN` (bpffs delegation + module BTF fds) and the
+ability to create a user namespace; the launcher drops into the userns before
+exec'ing the agent, so the long-running agent is unprivileged. Mount `/proc`,
+`/sys/fs/cgroup`, and the Docker socket read-only so the container resolver and
+Docker enricher can attach workload metadata to every alert:
+
+```bash
 docker run --network host --pid host \
-  --cap-drop ALL \
+  --cap-add SYS_ADMIN \
   --cap-add NET_RAW \
-  --cap-add NET_ADMIN \
-  --cap-add CAP_SYS_PTRACE \
-  --security-opt no-new-privileges:true \
+  --security-opt apparmor=unconfined \
   -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf \
+  -v /sys/fs/bpf:/sys/fs/bpf:rshared \
   -v /proc:/host/proc:ro \
   -v /sys/fs/cgroup:/host/sys/fs/cgroup:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   ebpfsentinel
 ```
 
-The agent holds **no `CAP_BPF`** — the token authorizes every eBPF syscall.
-`CAP_NET_RAW` is needed only for pcap capture, `CAP_NET_ADMIN` only for conntrack
-flow-kill + Multi-WAN, and `CAP_SYS_PTRACE` only for host-process uprobe DLP;
-drop any you do not use. `--pid host` is only needed for uprobe DLP against host
-processes.
+`CAP_SYS_ADMIN` is consumed by the **launcher** for bpffs delegation; the agent
+it execs holds no host capabilities (the token authorizes every eBPF syscall).
+`CAP_NET_RAW` lets the launcher open the `AF_PACKET` capture sockets it hands to
+the agent (the cap is checked only at `socket()` time, so the userns agent reads
+them without any capability of its own); drop it if you never capture.
+`--pid host` is only needed for uprobe DLP against host processes.
+`apparmor=unconfined` is required because the default Docker AppArmor profile
+blocks the `mount`/`move_mount` syscalls the launcher uses for bpffs delegation.
+
+> **conntrack flow-kill, Multi-WAN and VIP gratuitous-ARP** stay unavailable to
+> the userns agent and `--cap-add NET_ADMIN` does **not** restore them (netlink
+> re-checks the cap against the userns sender). The in-kernel equivalents
+> (eBPF `IPS_DYING` flow-kill, `xdp-vip-announcer`) keep working. See the
+> [BPF token guide](bpf-token.md#capability-matrix).
 
 ## Docker Compose
 
-The default `docker-compose.yml` wires this automatically: a privileged,
-run-once `bpf-token-setup` service mounts the delegated bpffs, then the agent
-service runs rootless with `cap_drop: [ALL]` and only feature-scoped caps:
+The default `docker-compose.yml` wires this automatically. There is a single
+service: the image entrypoint (`ebpfsentinel-token-launch`) creates the token in
+its child user namespace and execs the unprivileged agent — no separate setup
+service:
 
 ```yaml
 services:
-  bpf-token-setup:                # privileged, run-once — mounts the bpffs
-    image: ebpfsentinel
-    entrypoint:
-      - /usr/local/bin/ebpfsentinel-token-setup.sh
-      - /sys/fs/bpf/ebpfsentinel
-    privileged: true
-    network_mode: host
-    volumes:
-      - /sys/fs/bpf:/sys/fs/bpf:rshared
-    restart: "no"
-
   agent:
     image: ebpfsentinel
+    # entrypoint is ebpfsentinel-token-launch (baked into the image); it sets up
+    # the delegated bpffs + token in a child userns, then execs the agent there.
     network_mode: host
     pid: host
-    depends_on:
-      bpf-token-setup:
-        condition: service_completed_successfully
-    cap_drop:
-      - ALL
     cap_add:
-      - NET_RAW                   # pcap capture
-      - NET_ADMIN                 # conntrack flow-kill + Multi-WAN
+      - SYS_ADMIN                 # launcher: bpffs delegation + module BTF fds
+      - NET_RAW                   # launcher: pre-open AF_PACKET capture sockets
     security_opt:
-      - no-new-privileges:true
+      - apparmor=unconfined       # allow mount/move_mount for bpffs delegation
     volumes:
       - ./config:/etc/ebpfsentinel
-      - /sys/fs/bpf:/sys/fs/bpf
+      - /sys/fs/bpf:/sys/fs/bpf:rshared
       - /proc:/host/proc:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
+
+Set `EBPFSENTINEL_PCAP_POOL` (default 2) in the service `environment` to size
+the capture-socket pool if you run many concurrent captures.
 
 When the Docker enricher is enabled (`container.docker.enabled=true` in
 your agent config), the daemon socket mount lets the agent call
@@ -144,15 +170,16 @@ hosts even though the container uses host networking.
 
 | Requirement | Reason |
 |-------------|--------|
-| `CAP_BPF`, `CAP_NET_ADMIN`, `CAP_PERFMON`, `CAP_SYS_PTRACE`, `CAP_SYS_RESOURCE`, `CAP_NET_RAW` | eBPF program loading, uprobe attach, network hooks (kernel 5.8+) |
-| `--privileged` (fallback) | Required on kernels without `CAP_BPF` (<5.8) |
+| `CAP_SYS_ADMIN` (launcher only) | bpffs delegation + module BTF fds + user-namespace creation during bootstrap; the agent it execs holds no host caps |
+| `CAP_NET_RAW` (launcher only, optional) | pre-open the `AF_PACKET` pcap capture sockets passed to the agent |
+| `apparmor=unconfined` | the default Docker profile blocks `mount`/`move_mount` used for bpffs delegation |
+| unprivileged user namespaces enabled on the host | `BPF_TOKEN_CREATE` is only valid inside a user namespace |
 | `--network host` | XDP/TC programs attach to host interfaces |
 | `--pid host` | Uprobe DLP visibility across host processes |
 | `/sys/fs/bpf` mount | BPF filesystem for map persistence |
 | `/proc` mount (read-only) | Container resolver reads `cgroup` per pid |
 | `/sys/fs/cgroup` mount (read-only) | Cgroup introspection |
 | `/var/run/docker.sock` mount (read-only, optional) | Docker enricher metadata lookups |
-| `no-new-privileges:true` | Prevents privilege escalation inside the container |
 
 ## Volumes
 

@@ -28,16 +28,22 @@ BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmli
 
 ### Capabilities
 
-The agent requires `CAP_BPF` + `CAP_NET_ADMIN` capabilities, or root access:
+eBPF loads **exclusively** through a BPF token — there is no `CAP_BPF`/`setcap`
+loading path. The agent is started via the privileged launcher
+(`ebpfsentinel-token-launch`), which creates the token in a child user namespace
+and execs the agent unprivileged. The launcher needs `CAP_SYS_ADMIN` (i.e. root,
+or `CAP_SYS_ADMIN` granted) **and** the host must allow unprivileged user
+namespaces:
 
 ```bash
-# Run as root
-sudo ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
-
-# Or with capabilities
-sudo setcap cap_bpf,cap_net_admin+ep ./ebpfsentinel-agent
-./ebpfsentinel-agent --config config/ebpfsentinel.yaml
+sudo ebpfsentinel-token-launch \
+  --bpffs /sys/fs/bpf/ebpfsentinel \
+  ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 ```
+
+Running the agent binary directly would fail `BPF_TOKEN_CREATE` (`EOPNOTSUPP`
+outside a user namespace) and fall back to API-only mode. See the
+[BPF token guide](../operations/deployment/bpf-token.md).
 
 ### Supported Distributions
 

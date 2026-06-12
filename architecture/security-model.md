@@ -79,7 +79,12 @@ eBPF programs are verified by the kernel verifier before loading:
 - **No arbitrary kernel memory access** — only approved helper functions
 - **Type safety** — BTF provides type information for CO-RE (Compile Once, Run Everywhere)
 
-The agent requires `CAP_BPF` + `CAP_NET_ADMIN` capabilities (or root).
+eBPF loads **exclusively** through a BPF token (kernel 6.9+) — there is no
+capability-based loading path. The privileged launcher
+(`ebpfsentinel-token-launch`) creates the token in a child user namespace and
+execs the agent there, so the long-running agent holds **no host capabilities**.
+The launcher itself consumes `CAP_SYS_ADMIN` only for the bootstrap. See the
+[BPF token guide](../operations/deployment/bpf-token.md).
 
 ## Authentication Security
 

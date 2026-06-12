@@ -6,7 +6,7 @@
 |-------------|-------|
 | Linux kernel | **6.9+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
-| Capabilities | `CAP_BPF` + `CAP_NET_ADMIN` (or root) |
+| Privileges | Launcher needs `CAP_SYS_ADMIN` + unprivileged user namespaces enabled (creates the BPF token); the agent it execs runs unprivileged. No `CAP_BPF`/`setcap` path. |
 
 The 6.9 floor is enforced at agent startup before any BPF program is loaded — there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation.
 

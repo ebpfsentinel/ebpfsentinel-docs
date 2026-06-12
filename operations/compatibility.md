@@ -44,15 +44,20 @@ The 6.9 floor is driven by two hard kernel dependencies:
 
 | Runtime | Requirements |
 |---------|-------------|
-| Docker | `--privileged --network host` |
-| Podman | `--privileged --network host` |
+| Docker | `--network host --cap-add SYS_ADMIN --security-opt apparmor=unconfined` (launcher entrypoint; no `--privileged`) |
+| Podman | `--network host --cap-add SYS_ADMIN` (launcher entrypoint) |
+
+The container is **not** run `--privileged`: the launcher entrypoint needs
+`CAP_SYS_ADMIN` and unprivileged user namespaces only to create the BPF token,
+then execs the agent unprivileged. See the
+[BPF token guide](deployment/bpf-token.md).
 
 ## Orchestrators
 
 | Orchestrator | Deployment |
 |-------------|-----------|
-| Kubernetes | DaemonSet with `privileged: true`, `hostNetwork: true` |
-| Nomad | Privileged Docker task |
+| Kubernetes | DaemonSet with `hostNetwork: true`; agent container `CAP_SYS_ADMIN` + `allowPrivilegeEscalation` (launcher bootstrap, no init container) |
+| Nomad | Docker task with `cap_add = ["SYS_ADMIN"]` + host networking |
 
 ## Kernel Feature Matrix
 

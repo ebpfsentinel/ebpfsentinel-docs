@@ -33,23 +33,22 @@ docker build -t ebpfsentinel .
 
 ### Run
 
-eBPF loads only through a BPF token (kernel 6.9+) — the agent runs rootless,
-never `--privileged`. Mount the delegated bpffs once (the only privileged step),
-then run with `CAP_BPF` dropped:
+eBPF loads only through a BPF token (kernel 6.9+). The image entrypoint is the
+launcher (`ebpfsentinel-token-launch`); it creates the token in a child user
+namespace and execs the agent unprivileged, so the container only needs
+`CAP_SYS_ADMIN` for that bootstrap — no separate setup step:
 
 ```bash
-sudo ./dist/ebpfsentinel-token-setup.sh /sys/fs/bpf/ebpfsentinel
-
 docker run --network host \
-  --cap-drop ALL --cap-add NET_RAW --cap-add NET_ADMIN \
-  --security-opt no-new-privileges:true \
+  --cap-add SYS_ADMIN --cap-add NET_RAW \
+  --security-opt apparmor=unconfined \
   -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf \
+  -v /sys/fs/bpf:/sys/fs/bpf:rshared \
   ebpfsentinel
 ```
 
-`docker compose up -d` wires the privileged bpffs-mount init service
-automatically — see [Docker deployment](../operations/deployment/docker.md).
+`docker compose up -d` wires the same single service automatically — see
+[Docker deployment](../operations/deployment/docker.md).
 
 ### Docker Compose
 
@@ -84,23 +83,24 @@ spec:
         app: ebpfsentinel
     spec:
       hostNetwork: true
-      # A privileged bpf-token-setup init container mounts the delegated bpffs;
-      # the agent container then runs rootless (no CAP_BPF / privileged). See the
-      # full manifest for the init container + mount-propagation wiring.
+      # No init container — the image entrypoint (ebpfsentinel-token-launch)
+      # sets up the delegated bpffs + token in a child userns, then execs the
+      # agent there. CAP_SYS_ADMIN is for that bootstrap; the agent is rootless.
       containers:
         - name: agent
           image: ebpfsentinel:latest
+          args: ["--config", "/etc/ebpfsentinel/config.yaml"]
           securityContext:
-            privileged: false
+            allowPrivilegeEscalation: true
             capabilities:
               drop: [ALL]
-              add: [NET_RAW, NET_ADMIN]   # feature-scoped; drop if unused
+              add: [SYS_ADMIN]            # launcher bootstrap only
           volumeMounts:
             - name: config
               mountPath: /etc/ebpfsentinel
             - name: bpf
               mountPath: /sys/fs/bpf
-              mountPropagation: HostToContainer
+              mountPropagation: Bidirectional
       volumes:
         - name: config
           configMap:
@@ -110,7 +110,7 @@ spec:
             path: /sys/fs/bpf
 ```
 
-See [Kubernetes Deployment](../operations/deployment/kubernetes.md) and the [BPF token guide](../operations/deployment/bpf-token.md) for full manifests (init container, RBAC, ConfigMap, services).
+See [Kubernetes Deployment](../operations/deployment/kubernetes.md) and the [BPF token guide](../operations/deployment/bpf-token.md) for full manifests (RBAC, ConfigMap, services, the launcher token phase).
 
 ## Post-Installation
 
