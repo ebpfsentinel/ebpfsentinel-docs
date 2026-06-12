@@ -43,7 +43,7 @@ docker run --network host \
   --cap-add SYS_ADMIN --cap-add NET_RAW \
   --security-opt apparmor=unconfined \
   -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf:rshared \
+  -v /sys/fs/bpf:/sys/fs/bpf \
   ebpfsentinel
 ```
 
@@ -100,7 +100,7 @@ spec:
               mountPath: /etc/ebpfsentinel
             - name: bpf
               mountPath: /sys/fs/bpf
-              mountPropagation: Bidirectional
+              mountPropagation: HostToContainer
       volumes:
         - name: config
           configMap:

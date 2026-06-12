@@ -58,7 +58,7 @@ docker run --network host --pid host \
   --cap-add NET_RAW \
   --security-opt apparmor=unconfined \
   -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf:rshared \
+  -v /sys/fs/bpf:/sys/fs/bpf \
   -v /proc:/host/proc:ro \
   -v /sys/fs/cgroup:/host/sys/fs/cgroup:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
@@ -102,7 +102,7 @@ services:
       - apparmor=unconfined       # allow mount/move_mount for bpffs delegation
     volumes:
       - ./config:/etc/ebpfsentinel
-      - /sys/fs/bpf:/sys/fs/bpf:rshared
+      - /sys/fs/bpf:/sys/fs/bpf
       - /proc:/host/proc:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

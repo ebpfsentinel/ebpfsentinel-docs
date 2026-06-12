@@ -109,8 +109,9 @@ spec:
               mountPath: /etc/ebpfsentinel
             - name: bpf
               mountPath: /sys/fs/bpf
-              # launcher mounts the delegated bpffs here; propagate to the host
-              mountPropagation: Bidirectional
+              # the launcher mounts the delegated bpffs in its own private mount
+              # namespace; the container only needs to see the host bpffs
+              mountPropagation: HostToContainer
             - name: proc
               mountPath: /host/proc
               readOnly: true
@@ -456,8 +457,9 @@ spec:
 - The node must **allow unprivileged user namespaces** — the launcher
   creates the token inside a child userns (`BPF_TOKEN_CREATE` is
   `EOPNOTSUPP` otherwise)
-- `/sys/fs/bpf` hostPath mount (`mountPropagation: Bidirectional` on the
-  agent container) — the launcher mounts the delegated bpffs here
+- `/sys/fs/bpf` hostPath mount (`mountPropagation: HostToContainer` on the
+  agent container) — the launcher mounts the delegated bpffs over this path
+  inside its own private mount namespace
 - `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) — required
   by the container resolver when running inside a pod
 - Helm 3.x
