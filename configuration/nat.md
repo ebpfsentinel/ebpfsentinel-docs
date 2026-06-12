@@ -9,16 +9,16 @@ nat:
   enabled: false
   snat_rules:
     - id: masq-lan
-      nat_type: masquerade
+      type: masquerade
       interface: eth0
       match_src: "192.168.1.0/24"
       match_protocol: tcp
 
   dnat_rules:
     - id: web-forward
-      nat_type: port_forward
+      type: port_forward
       ext_port: { start: 80, end: 80 }
-      int_addr: "10.0.1.10"
+      internal_addr: "10.0.1.10"
       int_port: { start: 8080, end: 8080 }
       match_protocol: tcp
 ```
@@ -32,6 +32,8 @@ nat:
 | `enabled` | bool | `false` | Enable NAT |
 | `snat_rules` | list | `[]` | Source NAT rules (applied on egress) |
 | `dnat_rules` | list | `[]` | Destination NAT rules (applied on ingress) |
+| `nptv6_rules` | list | `[]` | NPTv6 (RFC 6296) stateless IPv6 prefix translation rules |
+| `hairpin` | object | — | Hairpin NAT (NAT reflection) settings |
 
 Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 
@@ -42,7 +44,7 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 | `id` | string | — | Unique rule identifier |
 | `enabled` | bool | `true` | Enable/disable without deleting |
 | `priority` | u32 | `100` | Lower values match first |
-| `nat_type` | string | — | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
+| `type` | string | — | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
 
 ### NAT Type Parameters
 
@@ -85,7 +87,7 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 | Field | Type | Description |
 |-------|------|-------------|
 | `ext_port` | object | External `{ start, end }` port range |
-| `int_addr` | string | Internal destination IP |
+| `internal_addr` | string | Internal destination IP |
 | `int_port` | object | Internal `{ start, end }` port range |
 
 ### Match Criteria
@@ -101,6 +103,52 @@ All match fields are optional. If omitted, the rule matches all traffic.
 | `match_src_alias` | string | Reference an [alias](../features/aliases.md) for source matching |
 | `match_dst_alias` | string | Reference an alias for destination matching |
 
+### Hairpin NAT (NAT reflection)
+
+Lets internal clients reach internal services via the external IP. The firewall
+applies DNAT + SNAT so return traffic routes back through `tc-nat-ingress` instead
+of being short-circuited (which would break the connection via asymmetric routing).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable hairpin NAT |
+| `internal_subnet` | string | — | Internal client subnet (CIDR) eligible for reflection |
+| `hairpin_snat_ip` | string | — | Source IP applied to hairpinned traffic |
+
+```yaml
+nat:
+  enabled: true
+  hairpin:
+    enabled: true
+    internal_subnet: "192.168.1.0/24"
+    hairpin_snat_ip: "192.168.1.1"
+```
+
+### NPTv6 (RFC 6296)
+
+Stateless, bidirectional IPv6-to-IPv6 prefix translation — no conntrack. Egress
+rewrites the source prefix (internal → external); ingress rewrites the destination
+prefix (external → internal), adjusting one IID word for checksum neutrality.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | — | Unique rule identifier |
+| `enabled` | bool | `true` | Enable/disable without deleting |
+| `internal_prefix` | string | — | Site-local IPv6 prefix (e.g. ULA `fd00:1::`) |
+| `external_prefix` | string | — | Provider-assigned / globally-routable prefix |
+| `prefix_len` | u8 | — | Prefix length in bits (1–64) |
+| `interfaces` | list | `[]` | Restrict the rule to specific interfaces or groups |
+
+```yaml
+nat:
+  enabled: true
+  nptv6_rules:
+    - id: nptv6-site1
+      internal_prefix: "fd00:1::"
+      external_prefix: "2001:db8:1::"
+      prefix_len: 48
+```
+
 ## Examples
 
 ### Masquerade LAN to WAN
@@ -110,7 +158,7 @@ nat:
   enabled: true
   snat_rules:
     - id: masq-all
-      nat_type: masquerade
+      type: masquerade
       interface: eth0
       match_src: "192.168.0.0/16"
 ```
@@ -122,9 +170,9 @@ nat:
   enabled: true
   dnat_rules:
     - id: forward-web
-      nat_type: port_forward
+      type: port_forward
       ext_port: { start: 443, end: 443 }
-      int_addr: "10.0.1.10"
+      internal_addr: "10.0.1.10"
       int_port: { start: 8443, end: 8443 }
       match_src_alias: trusted_networks
       match_protocol: tcp
@@ -137,7 +185,7 @@ nat:
   enabled: true
   snat_rules:
     - id: nat-server1
-      nat_type: one_to_one
+      type: one_to_one
       external_addr: "203.0.113.10"
       internal_addr: "10.0.1.10"
 ```

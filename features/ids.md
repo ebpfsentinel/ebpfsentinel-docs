@@ -78,8 +78,9 @@ rules:
 ```yaml
 ids:
   mode: alert           # alert or block (block requires IPS)
-  sample_rate: 100      # Sample 1-in-100 packets (0 = no sampling)
-  sample_mode: random   # random or hash
+  sampling:
+    mode: random        # none, random, hash, or country_based
+    rate: 0.01          # fraction sampled, 0.0–1.0 (0.01 = 1-in-100)
   rules:
     - id: detect-sql-injection
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"

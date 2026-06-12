@@ -19,7 +19,7 @@ Each NAT rule specifies:
 
 - **id**: Unique rule identifier
 - **priority**: Lower values match first (default: 100)
-- **nat_type**: One of the 6 types above
+- **type**: One of the 6 types above
 - **match_src / match_dst**: CIDR-based source/destination matching
 - **match_dst_port**: Destination port or range to match
 - **match_protocol**: Protocol filter (`tcp`, `udp`, or both)

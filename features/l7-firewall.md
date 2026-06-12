@@ -89,13 +89,14 @@ l7:
       priority: 30
       action: allow
       protocol: grpc
-      method: "grpc.health.v1.Health/Check"
-    - id: block-smb-share
+      service: "grpc.health.v1.Health"
+      grpc_method: "Check"
+    - id: block-legacy-smb1
       priority: 40
       action: deny
       protocol: smb
-      share: "C$"
-      description: "Block admin share access"
+      is_smb2: false
+      description: "Block legacy SMBv1 traffic"
     - id: restrict-tls-sni
       priority: 50
       action: deny

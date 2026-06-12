@@ -6,13 +6,18 @@ The `ids` section configures intrusion detection rules, sampling, and threshold 
 
 ```yaml
 ids:
+  enabled: true                       # enable/disable IDS (default: true)
   mode: alert                         # alert or block
-  sample_rate: 0                      # 1-in-N packet sampling (0 = disabled)
-  sample_mode: random                 # random or hash
+  inspect_egress: false               # also classify on the egress hook
+  sampling:                           # optional packet sampling
+    mode: none                        # none, random, hash, or country_based
+    rate: 1.0                         # sample rate 0.0–1.0 (random/hash modes)
   rules:
     - id: "rule-id"
-      pattern: "regex-pattern"
       severity: high                  # critical, high, medium, low, info
+      protocol: any                   # any, tcp, udp, icmp (default: any)
+      dst_port: 22                    # optional destination port
+      pattern: "regex-pattern"        # optional payload regex
       description: "Rule description"
       threshold:                      # Optional threshold detection
         type: threshold               # limit, threshold, or both
@@ -27,6 +32,7 @@ ids:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `enabled` | `bool` | `true` | Enable or disable the IDS module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (requires IPS) |
 | `sampling` | `Sampling` | — | Sampling configuration (see below) |
 | `inspect_egress` | `bool` | `false` | Also run the classifier on the egress hook. Enables cgroup/container attribution of locally-originated (e.g. container outbound) traffic, since on egress the originating socket is bound to the packet |
@@ -47,11 +53,19 @@ ids:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique identifier |
-| `pattern` | `string` | Yes | Regex pattern to match against packet payload |
 | `severity` | `string` | Yes | `critical`, `high`, `medium`, `low`, `info` |
+| `protocol` | `string` | No | `any` (default), `tcp`, `udp`, `icmp` |
+| `dst_port` | `integer` | No | Destination port to match |
+| `src_port` | `integer` | No | Source port to match |
+| `pattern` | `string` | No | Regex pattern to match against packet payload |
+| `mode` | `string` | No | Per-rule mode override (`alert` or `block`); inherits the section `mode` |
 | `description` | `string` | No | Human-readable description |
+| `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
 | `threshold` | `Threshold` | No | Threshold detection settings |
+| `domain_pattern` | `string` | No | Match against the SNI/DNS domain (requires `domain_match_mode`) |
+| `domain_match_mode` | `string` | No | `exact`, `wildcard`, or `regex` (required when `domain_pattern` is set) |
 | `country_thresholds` | `map<string, Threshold>` | No | Per-country threshold overrides (ISO 3166-1 alpha-2 → Threshold). Overrides the rule's `threshold` for traffic from listed countries |
+| `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
 
 ### Threshold
 

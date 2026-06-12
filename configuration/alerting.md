@@ -47,7 +47,7 @@ alerting:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | Yes | Unique route name |
-| `destination` | `string` | Yes | Delivery type: `log`, `email`, or `webhook` |
+| `destination` | `string` | Yes | Delivery type: `log`, `email`, `webhook`, or `otlp` |
 | `min_severity` | `string` | Yes | Minimum severity: `low`, `medium`, `high`, `critical` |
 | `event_types` | `[string]` | No | Components to match (omit = all) |
 | `webhook_url` | `string` | Webhook only | Webhook URL (required when `destination: webhook`) |

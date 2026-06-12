@@ -8,8 +8,8 @@ The `audit` section configures rule change auditing and retention.
 audit:
   enabled: true
   retention_days: 90
-  buffer_size: 10000
-  storage_path: "/var/lib/ebpfsentinel/audit"
+  buffer_size: 100000
+  storage_path: "/var/lib/ebpfsentinel/audit.redb"
 ```
 
 ## Fields
@@ -18,8 +18,8 @@ audit:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable audit trail |
 | `retention_days` | `integer` | `90` | Days to retain audit entries |
-| `buffer_size` | `integer` | `10000` | In-memory buffer size before flush |
-| `storage_path` | `string` | `/var/lib/ebpfsentinel/audit` | On-disk storage path |
+| `buffer_size` | `integer` | `100000` | In-memory buffer size before flush |
+| `storage_path` | `string` | `data/audit.redb` | Path to the redb database file (relative to the working directory by default; set an absolute path in production) |
 
 ## Compliance Notes
 

@@ -61,7 +61,7 @@ Each rule field is optional — omitted fields act as wildcards:
 | `src_mac` | Omit to match any | Exact source MAC address |
 | `dst_mac` | Omit to match any | Exact destination MAC address |
 | `dscp_match` | Omit to match any | DSCP value (0-63) |
-| `ct_states` | Omit to match any | Conntrack states (`new`, `established`, `related`, `invalid`) |
+| `state` | Omit to match any | Conntrack states (`new`, `established`, `related`, `invalid`) |
 | `src_alias` | Omit to match any | Named IP alias (resolved to IP set) |
 | `dst_alias` | Omit to match any | Named IP alias |
 | `negate_source` | `false` | Invert source IP match (match if NOT in CIDR) |
@@ -91,13 +91,13 @@ When conntrack is enabled, the firewall maintains a connection state table:
 - **UDP**: Bidirectional detection (NEW → ESTABLISHED after reply seen)
 - **ICMP**: Simple request/reply state
 
-Rules can match on conntrack state using `ct_states`:
+Rules can match on conntrack state using `state`:
 
 ```yaml
 - id: allow-established
   priority: 1
   action: allow
-  ct_states: [established, related]
+  state: [established, related]
 ```
 
 ### Connection Limits & Overload Protection
@@ -144,7 +144,7 @@ Source and destination IP matching can be inverted with `negate_source` and `neg
   action: deny
   src_ip: "10.0.0.0/8"
   negate_source: true    # Match everything EXCEPT 10.0.0.0/8
-  scope: "interface:eth0"
+  scope: eth0
 ```
 
 ### MAC Address Filtering (L2)
@@ -292,19 +292,16 @@ firewall:
     scrub_tcp_flags: true
     strip_ecn: false
     normalize_tos: true
-    normalize_tos_value: 0
+    tos_value: 0
     strip_tcp_timestamps: true
 ```
 
 ### Policy Routing
 
-Rules can include routing actions for multi-WAN and traffic engineering:
-
-| Action | Description |
-|--------|-------------|
-| `route_to` | Force packet to a specific egress interface |
-| `reply_to` | Store ingress interface for stateful return routing |
-| `dup_to` | Mirror packet to another interface for inspection |
+Multi-WAN and traffic engineering are handled by the dedicated [`routing`](routing.md)
+section — gateway selection, health checks, and GeoIP preference. Firewall rules
+do not carry per-rule routing actions; the firewall filters and the policy router
+picks the egress gateway independently.
 
 ```yaml
 routing:
@@ -363,7 +360,7 @@ firewall:
     - id: allow-established
       priority: 1
       action: allow
-      ct_states: [established, related]
+      state: [established, related]
     - id: allow-web
       priority: 10
       action: allow
@@ -377,7 +374,7 @@ firewall:
       protocol: tcp
       src_ip: "192.168.0.0/16"
       dst_port: 22
-      scope: "interface:eth0"
+      scope: eth0
     - id: allow-dns
       priority: 30
       action: allow

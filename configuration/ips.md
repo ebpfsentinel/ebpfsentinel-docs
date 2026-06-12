@@ -6,11 +6,15 @@ The `ips` section configures intrusion prevention — automatic IP blacklisting 
 
 ```yaml
 ips:
-  mode: block                  # alert or block
-  blacklist_ttl: 3600          # Auto-removal after N seconds (0 = permanent)
-  whitelist:                   # IPs/CIDRs that are never blacklisted
+  mode: block                       # alert or block (default: alert)
+  max_blacklist_duration_secs: 3600 # Auto-removal after N seconds (0 = permanent)
+  auto_blacklist_threshold: 3       # Detections before an IP is auto-blacklisted
+  max_blacklist_size: 10000         # Max entries in the blacklist
+  whitelist:                        # IPs/CIDRs that are never blacklisted
     - "10.0.0.0/8"
     - "192.168.1.1"
+  whitelist_aliases:                # Named IP-set aliases that are never blacklisted
+    - "corp-ranges"
   rules:
     - id: "rule-id"
       pattern: "regex-pattern"
@@ -28,11 +32,15 @@ ips:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `mode` | `string` | `block` | Default mode for rules without per-rule override |
-| `blacklist_ttl` | `integer` | `3600` | Seconds before auto-removal (0 = permanent) |
+| `mode` | `string` | `alert` | Default mode for rules without per-rule override (`alert` or `block`) |
+| `max_blacklist_duration_secs` | `integer` | `3600` | Seconds before auto-removal (0 = permanent) |
+| `auto_blacklist_threshold` | `integer` | `3` | Detections from an IP before it is auto-blacklisted |
+| `max_blacklist_size` | `integer` | `10000` | Maximum number of entries in the blacklist |
 | `whitelist` | `[string]` | `[]` | IPs/CIDRs that are never blacklisted |
+| `whitelist_aliases` | `[string]` | `[]` | Named IP-set aliases that are never blacklisted |
+| `sampling` | `Sampling` | — | Optional sampling configuration (same schema as IDS) |
 | `country_thresholds` | `map<string, integer>` | `{}` | Per-country auto-blacklist thresholds (ISO 3166-1 alpha-2 → count). IPs from listed countries are blacklisted after fewer detections. When blacklisted, the source /24 (v4) or /48 (v6) subnet is also injected into the firewall LPM maps |
-| `rules` | `[Rule]` | `[]` | IPS rules (same schema as IDS rules + `mode` field) |
+| `rules` | `[Rule]` | `[]` | IPS rules (`id`, `severity`, `protocol`, `dst_port`, `pattern`, `mode`, `threshold`, `enabled`) |
 
 ## Examples
 
@@ -41,7 +49,7 @@ ips:
 ```yaml
 ips:
   mode: block
-  blacklist_ttl: 7200
+  max_blacklist_duration_secs: 7200
   whitelist:
     - "10.0.0.0/8"
     - "172.16.0.0/12"

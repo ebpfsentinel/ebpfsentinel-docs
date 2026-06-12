@@ -63,7 +63,7 @@ Load databases from local `.mmdb` files. No network access required.
 - `maxmind_account` mode: `account_id`, `license_key`, and `edition_ids` must not be empty
 - `url` mode: `city_url` must not be empty
 - `file` mode: `city_path` must not be empty
-- `license_key` is masked in sanitized config output (`****`)
+- `license_key` is masked in sanitized config output (`***`)
 
 ## Examples
 

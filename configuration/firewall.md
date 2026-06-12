@@ -23,14 +23,14 @@ firewall:
   rules:
     - id: "rule-id"                     # Unique rule identifier
       priority: 10                      # Lower number = higher precedence
-      action: allow                     # allow, deny, or log
+      action: allow                     # allow, deny, log, or reject
       protocol: tcp                     # tcp, udp, icmp, or any
       src_ip: "10.0.0.0/8"              # Source CIDR (optional — omit to match any)
       dst_ip: "192.168.1.0/24"          # Destination CIDR (optional)
       src_port: "1024-65535"            # Source port or range (optional)
       dst_port: "80-443"                # Destination port or range (optional)
       vlan_id: 100                      # 802.1Q VLAN ID (optional — omit to match any)
-      scope: global                     # global, interface:<name>, namespace:<name>
+      scope: global                     # global, a bare interface name (eth0), or a map (optional)
       flags: "S/SA"                     # TCP flags match/mask notation (optional)
       icmp_type: 8                      # ICMP type number or name (optional)
       icmp_code: 0                      # ICMP code number (optional)
@@ -40,15 +40,13 @@ firewall:
       dst_mac: "00:11:22:33:44:55"      # Destination MAC address (optional)
       dscp_match: 46                    # Match DSCP value 0-63 (optional)
       dscp_mark: 46                     # Set DSCP value on matched packets (optional)
-      ct_states: [established, related] # Conntrack state filter (optional)
+      state: [established, related]     # Conntrack state filter (optional)
       src_alias: trusted-networks       # Named IP alias for source (optional)
       dst_alias: servers                # Named IP alias for destination (optional)
       dst_port_alias: web-ports         # Named port alias for destination (optional)
       schedule: business_hours          # Time-based schedule name (optional)
       max_states: 1000                  # Per-rule connection state limit (optional)
-      route_to:                         # Policy routing action (optional)
-        gateway: "203.0.113.1"
-        interface: "eth1"
+      interfaces: ["eth0"]              # Restrict rule to interfaces/groups (optional)
 ```
 
 ## Fields
@@ -70,14 +68,15 @@ firewall:
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique identifier |
 | `priority` | `integer` | Yes | Evaluation order (lowest = first) |
-| `action` | `string` | Yes | `allow`/`pass`, `deny`/`drop`/`block`, or `log` |
-| `protocol` | `string` | No | `tcp`, `udp`, `icmp`, or `any` |
+| `action` | `string` | Yes | `allow`/`pass`, `deny`/`drop`/`block`, `log`, or `reject`/`reset` (forge TCP RST / ICMP unreachable) |
+| `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
+| `protocol` | `string` | No | `tcp`, `udp`, `icmp`, or `any` (default: `any`) |
 | `src_ip` | `string` | No | Source CIDR (`10.0.0.0/8`, `2001:db8::/32`) |
 | `dst_ip` | `string` | No | Destination CIDR |
 | `src_port` | `string` | No | Source port or range (`80`, `1024-65535`) |
 | `dst_port` | `string` | No | Destination port or range |
 | `vlan_id` | `integer` | No | 802.1Q VLAN ID (0 = any) |
-| `scope` | `string` | No | `global`, `interface:<name>`, or `namespace:<name>` |
+| `scope` | `string` or `map` | No | `global`, a bare interface name (`eth0`), or a map `{ interface: <name> }` / `{ namespace: <name> }` |
 | `flags` | `string` | No | TCP flags in `match/mask` notation (`S/SA`, `A/A`, `F/F`, `R/R`) |
 | `icmp_type` | `integer` or `string` | No | ICMP type number or name (`echo-request`, `8`) |
 | `icmp_code` | `integer` | No | ICMP code number |
@@ -87,21 +86,24 @@ firewall:
 | `dst_mac` | `string` | No | Destination MAC address |
 | `dscp_match` | `integer` | No | Match DSCP value (0-63, omit = any) |
 | `dscp_mark` | `integer` | No | Set DSCP value on matched packets (0-63) |
-| `ct_states` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid`, `syn_sent`, `syn_recv`, `fin_wait`, `close_wait`, `time_wait` |
+| `state` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid`, `syn_sent`, `syn_recv`, `fin_wait`, `close_wait`, `time_wait` |
 | `src_alias` | `string` | No | Named IP alias for source (resolved to IP set) |
 | `dst_alias` | `string` | No | Named IP alias for destination |
+| `src_port_alias` | `string` | No | Named port alias for source |
 | `dst_port_alias` | `string` | No | Named port alias for destination |
+| `src_mac_alias` | `string` | No | Named MAC alias for source |
+| `dst_mac_alias` | `string` | No | Named MAC alias for destination |
 | `schedule` | `string` | No | Time-based schedule name |
 | `max_states` | `integer` | No | Per-rule concurrent connection state limit |
-| `route_to` | `object` | No | Force packet to a specific egress gateway |
+| `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
 
 ### Anti-Lockout
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable anti-lockout protection |
-| `interfaces` | `[string]` | `[]` | Management interfaces (e.g., `["eth0"]`) |
-| `ports` | `[integer]` | `[]` | Management ports (e.g., `[22, 8080, 50051]`) |
+| `interfaces` | `[string]` | `[]` | Management interfaces (e.g., `["eth0"]`); empty = all interfaces |
+| `ports` | `[integer]` | `[22, 8080, 50051]` | Management ports kept reachable |
 
 Anti-lockout rules are injected at priority 0 (highest precedence) and marked as `system: true`. They cannot be deleted via the API.
 
@@ -147,7 +149,7 @@ firewall:
     - id: allow-established
       priority: 1
       action: allow
-      ct_states: [established, related]
+      state: [established, related]
     - id: allow-web
       priority: 10
       action: allow
@@ -228,7 +230,7 @@ firewall:
       action: deny
       src_ip: "10.0.0.0/8"
       negate_source: true
-      scope: "interface:eth0"
+      scope: eth0
 ```
 
 ### DSCP / QoS marking
@@ -268,12 +270,12 @@ firewall:
 
 ```yaml
 aliases:
-  - id: trusted-networks
-    type: ip
-    entries: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
-  - id: web-ports
-    type: port
-    entries: ["80", "443", "8080"]
+  trusted-networks:
+    type: ip_set
+    values: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  web-ports:
+    type: port_set
+    values: ["80", "443", "8080"]
 
 firewall:
   rules:
@@ -304,6 +306,11 @@ firewall:
 
 ### Policy routing (multi-WAN)
 
+Multi-WAN gateway selection is configured in the dedicated [`routing`](routing.md)
+section (gateways, health checks, and GeoIP preference) — there is no per-firewall-rule
+`route_to` field. The firewall and the policy router are independent: the firewall
+filters, the router picks the egress gateway.
+
 ```yaml
 routing:
   enabled: true
@@ -321,16 +328,7 @@ routing:
       interface: eth2
       gateway_ip: "198.51.100.1"
       priority: 20
-
-firewall:
-  rules:
-    - id: wan2-outbound
-      priority: 10
-      action: allow
-      src_ip: "10.0.2.0/24"
-      route_to:
-        gateway: "203.0.113.1"
-        interface: "eth1"
+      preferred_for_countries: [US, CA]
 ```
 
 ### Packet normalization

@@ -39,9 +39,14 @@ ratelimit:
 | `id` | `string` | Yes | — | Unique identifier |
 | `rate` | `integer` | Yes | — | Packets per second |
 | `burst` | `integer` | Yes | — | Burst capacity |
-| `algorithm` | `string` | Yes | — | See algorithms below |
-| `scope` | `string` | No | `per_ip` | `per_ip` or `global` |
+| `algorithm` | `string` | No | `token_bucket` | See algorithms below |
+| `action` | `string` | No | `drop` | Action when the limit is exceeded: `drop` or `pass` |
+| `scope` | `string` | No | `source_ip` | `source_ip` (aliases: `src_ip`, `per_ip`) or `global` |
 | `src_ip` | `string` | No | — | Source CIDR filter (only apply to matching IPs) |
+| `src_ip_alias` | `string` | No | — | Named IP-set alias as the source filter (alternative to `src_ip`) |
+| `country_codes` | `[string]` | No | — | Restrict the rule to source countries (ISO 3166-1 alpha-2) |
+| `interfaces` | `[string]` | No | — | Restrict the rule to specific interfaces or interface groups |
+| `enabled` | `bool` | No | `true` | Enable or disable this rule |
 
 ### CountryTier
 

@@ -42,7 +42,7 @@ When an IP from a country listed in `country_thresholds` is blacklisted, the IPS
 ```yaml
 ips:
   mode: block
-  blacklist_ttl: 3600          # Seconds before auto-removal (0 = permanent)
+  max_blacklist_duration_secs: 3600  # Seconds before auto-removal (0 = permanent)
   whitelist:
     - "10.0.0.0/8"             # Management network
     - "192.168.1.1"            # Monitoring server

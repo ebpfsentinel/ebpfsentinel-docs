@@ -22,13 +22,12 @@ loadbalancer:
           weight: 1                      # Traffic weight (higher = more traffic)
           enabled: true                  # Administrative enable flag
           same_segment: false            # required true for every backend of an l2dsr service
-      health_check:                      # Optional health probe
-        target: "10.0.1.10"              # Probe target address
-        protocol: "tcp"                  # tcp or icmp
+      health_check:                      # Optional health probe (probes each backend's addr:port)
+        protocol: "tcp"                  # tcp or http
         interval_secs: 10                # Probe interval
         timeout_secs: 5                  # Probe timeout
-        failure_threshold: 3             # Failures before marking unhealthy
-        recovery_threshold: 2            # Successes before marking healthy
+        unhealthy_threshold: 3           # Failures before marking unhealthy (alias: failure_threshold)
+        healthy_threshold: 3             # Successes before marking healthy (alias: recovery_threshold)
 ```
 
 ## Fields
@@ -46,9 +45,9 @@ loadbalancer:
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique service identifier (max 64 characters) |
 | `name` | `string` | Yes | Human-readable service name |
-| `protocol` | `string` | Yes | `tcp`, `udp`, or `tls_passthrough` |
+| `protocol` | `string` | No | `tcp` (default), `udp`, or `tls_passthrough` |
 | `listen_port` | `integer` | Yes | Frontend port to listen on (1-65535) |
-| `algorithm` | `string` | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn`, `maglev` |
+| `algorithm` | `string` | No | `round_robin` (default), `weighted`, `ip_hash`, `least_conn`, `maglev` |
 | `mode` | `string` | No | Forwarding mode: `dnat` (default) or `l2dsr`. Aliases for `l2dsr`: `l2_dsr`, `dsr`. With `l2dsr`, every backend must set `same_segment: true` or config is rejected. |
 | `enabled` | `bool` | No | Enable/disable this service (default: `true`) |
 | `backends` | `[LbBackend]` | Yes | At least one backend required |
@@ -67,14 +66,15 @@ loadbalancer:
 
 ### LbHealthCheck
 
+The probe targets each backend's own `addr:port` — there is no separate target field.
+
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `target` | `string` | Required | Probe target address |
-| `protocol` | `string` | `tcp` | `tcp` or `icmp` |
+| `protocol` | `string` | `tcp` | `tcp` or `http` |
 | `interval_secs` | `integer` | `10` | Seconds between probes |
 | `timeout_secs` | `integer` | `5` | Seconds before probe timeout |
-| `failure_threshold` | `integer` | `3` | Consecutive failures before marking unhealthy |
-| `recovery_threshold` | `integer` | `2` | Consecutive successes before marking healthy |
+| `unhealthy_threshold` | `integer` | `3` | Consecutive failures before marking unhealthy (alias: `failure_threshold`) |
+| `healthy_threshold` | `integer` | `3` | Consecutive successes before marking healthy (alias: `recovery_threshold`) |
 
 ## Limits
 
@@ -119,12 +119,11 @@ loadbalancer:
           port: 443
           weight: 2
       health_check:
-        target: "10.0.1.10"
         protocol: tcp
         interval_secs: 10
         timeout_secs: 5
-        failure_threshold: 3
-        recovery_threshold: 2
+        unhealthy_threshold: 3
+        healthy_threshold: 3
 ```
 
 ### DNS cluster — UDP round-robin
@@ -172,12 +171,11 @@ loadbalancer:
           port: 5432
           weight: 1
       health_check:
-        target: "10.0.3.10"
         protocol: tcp
         interval_secs: 5
         timeout_secs: 3
-        failure_threshold: 2
-        recovery_threshold: 2
+        unhealthy_threshold: 2
+        healthy_threshold: 2
 ```
 
 ### Sticky sessions — IP hash

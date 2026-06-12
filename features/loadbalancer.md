@@ -96,12 +96,11 @@ loadbalancer:
           weight: 1
           enabled: true
       health_check:
-        target: "10.0.1.10"
-        protocol: tcp
+        protocol: tcp           # tcp or http; probes each backend's addr:port
         interval_secs: 10
         timeout_secs: 5
-        failure_threshold: 3
-        recovery_threshold: 2
+        failure_threshold: 3    # alias of unhealthy_threshold
+        recovery_threshold: 2   # alias of healthy_threshold
 ```
 
 See [Configuration: Load Balancer](../configuration/loadbalancer.md) for the full reference.

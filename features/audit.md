@@ -30,8 +30,8 @@ Audit data supports compliance requirements for PCI-DSS (Requirement 10), HIPAA 
 audit:
   enabled: true
   retention_days: 90           # How long to keep audit entries
-  buffer_size: 10000           # In-memory buffer before flush
-  storage_path: "/var/lib/ebpfsentinel/audit"
+  buffer_size: 100000          # In-memory buffer before flush
+  storage_path: "/var/lib/ebpfsentinel/audit.redb"
 ```
 
 See [Configuration: Audit Trail](../configuration/audit.md) for the full reference.

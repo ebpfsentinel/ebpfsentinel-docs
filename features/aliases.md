@@ -98,7 +98,7 @@ firewall:
 nat:
   dnat_rules:
     - id: forward-to-dmz
-      nat_type: dnat
+      type: dnat
       match_src_alias: external_blocklist
       translated_addr: "10.0.3.10"
 ```

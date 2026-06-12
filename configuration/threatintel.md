@@ -199,11 +199,13 @@ When a domain in the DNS blocklist resolves to an IP, that IP is **automatically
 ```yaml
 dns:
   blocklist:
-    - domain: "*.malware-cdn.com"
-      action: block
-      # When *.malware-cdn.com resolves to 198.51.100.42,
-      # that IP is auto-injected into THREATINTEL_IOCS.
-      # Removed when DNS TTL expires (+grace period).
+    domains:
+      - "*.malware-cdn.com"
+    action: block
+    inject_target: threatintel
+    # When *.malware-cdn.com resolves to 198.51.100.42,
+    # that IP is auto-injected into THREATINTEL_IOCS.
+    # Removed when DNS TTL expires (+grace period).
 ```
 
 ### Threat Intel → Domain Reputation

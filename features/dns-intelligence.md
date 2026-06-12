@@ -44,24 +44,24 @@ dns:
 
 ```yaml
 dns:
-  cache_size: 100000         # Maximum cache entries
-  cache_ttl: 3600            # Default TTL in seconds
+  cache:
+    max_entries: 100000        # Maximum cache entries
+    min_ttl_secs: 60           # Floor applied to record TTLs
   blocklist:
-    - domain: "malware.example.com"
-      action: block
-    - domain: "*.ad-network.com"
-      action: block
-    - domain: "*.tracking.com"
-      action: log
-  feeds:
-    - name: abuse-ch-domains
-      url: "https://urlhaus.abuse.ch/downloads/hostfile/"
-      format: plaintext
-      refresh_interval_secs: 3600
+    domains:
+      - "malware.example.com"
+      - "*.ad-network.com"
+    action: block              # block, alert, or log (section-wide)
+    inject_target: threatintel # threatintel, firewall, or ips
+    feeds:
+      - name: abuse-ch-domains
+        url: "https://urlhaus.abuse.ch/downloads/hostfile/"
+        format: hosts
+        refresh_interval_secs: 3600
   reputation:
     enabled: true
-    auto_block_threshold: 0.8    # Block domains scoring above this
-    decay_rate: 0.01             # Score decay per hour
+    auto_block_threshold: 0.8       # Block domains scoring above this
+    decay_half_life_hours: 24       # Exponential decay half-life
 ```
 
 See [Configuration: DNS Intelligence](../configuration/dns.md) for the full reference.

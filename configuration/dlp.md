@@ -54,13 +54,13 @@ The OSS edition ships with 9 built-in patterns that are always loaded:
 |----|------|----------|----------|
 | `dlp-pci-visa` | Visa Card Number | PCI | Critical |
 | `dlp-pci-mastercard` | Mastercard Number | PCI | Critical |
-| `dlp-pci-amex` | Amex Card Number | PCI | Critical |
-| `dlp-pii-ssn` | US Social Security Number | PII | Critical |
+| `dlp-pci-amex` | American Express Number | PCI | Critical |
 | `dlp-pii-email` | Email Address | PII | Medium |
-| `dlp-pii-phone` | Phone Number | PII | Medium |
-| `dlp-cred-aws` | AWS Access Key ID | Credentials | Critical |
-| `dlp-cred-apikey` | API Key | Credentials | High |
-| `dlp-cred-jwt` | JWT Token | Credentials | High |
+| `dlp-pii-ssn` | US Social Security Number | PII | Critical |
+| `dlp-cred-aws-key` | AWS Access Key | Credentials | Critical |
+| `dlp-cred-github-token` | GitHub Personal Access Token | Credentials | Critical |
+| `dlp-cred-password` | Generic Password | Credentials | High |
+| `dlp-cred-bearer` | Bearer Token | Credentials | High |
 
 ## Examples
 

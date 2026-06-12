@@ -41,10 +41,11 @@ firewall:
       dst_port: 53                # No interfaces = floating (all interfaces)
 
 nat:
-  rules:
+  snat_rules:
     - id: masquerade-wan
-      nat_type: masquerade
-      interfaces: [wan]           # SNAT only on WAN egress
+      type: masquerade
+      interface: wan              # SNAT using the WAN interface IP
+      interfaces: [wan]           # Scope the rule to the WAN interface group
 
 ratelimit:
   rules:
