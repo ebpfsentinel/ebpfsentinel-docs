@@ -193,15 +193,15 @@ The tenant registry uses **ArcSwap** for lock-free reads on the hot path — ten
 
 ### Self-Service Policy
 
-Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits:
+Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits. Self-service is a property of the tenant object set through the tenant management API (`POST`/`PUT /api/v1/enterprise/tenants`) — it is **not** part of the static `enterprise.tenants` YAML, which always starts a config-defined tenant with self-service disabled.
 
-```yaml
-self_service:
-  enabled: true
-  allowed_operations:
-    - manage_firewall_rules
-    - manage_ids_rules
-    - manage_dlp_patterns
+```json
+{
+  "self_service": {
+    "enabled": true,
+    "allowed_operations": ["manage_firewall_rules", "manage_ids_rules", "manage_dlp_patterns"]
+  }
+}
 ```
 
 | Operation | Description |

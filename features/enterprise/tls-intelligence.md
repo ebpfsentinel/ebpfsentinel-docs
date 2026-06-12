@@ -31,13 +31,10 @@ Each entry contains:
 
 | Field | Description |
 |-------|-------------|
-| `id` | Unique threat identifier |
-| `ja4_hash` | JA4+ fingerprint hash |
-| `name` | Human-readable threat name |
+| `ja4_hash` | JA4+ fingerprint hash (identity of the entry) |
+| `threat_name` | Human-readable threat name |
 | `category` | Threat category (c2, rat, loader, implant, tunneling) |
-| `severity` | Alert severity (critical, high, medium, low) |
-| `description` | Contextual description of the threat |
-| `mitre_technique` | Associated MITRE ATT&CK technique ID |
+| `confidence` | Match confidence 0-100 (default 80) |
 
 ### Custom Threat Entries
 
@@ -48,13 +45,10 @@ enterprise:
   tls_intelligence:
     threat_db:
       custom_entries:
-        - id: custom-c2-001
-          ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
-          name: Internal Red Team Implant
-          category: c2
-          severity: high
-          description: Custom C2 used by internal red team
-          mitre_technique: T1573.002
+        - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
+          threat_name: Internal Red Team Implant
+          category: c2                # c2 | rat | loader | implant | tunneling
+          confidence: 90              # 0-100 (default 80)
 ```
 
 ### Allowlist
@@ -65,11 +59,9 @@ Suppress false positives for known-good fingerprints:
 enterprise:
   tls_intelligence:
     threat_db:
-      allowlist:
-        - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
-          reason: "Internal monitoring tool"
-        - ja4_hash: "t13d1517h2_a]b3c4d5e6f7_1234567890ab"
-          reason: "Vendor health-check agent"
+      allowlist:                      # plain list of JA4 hashes to exempt
+        - "t13d1516h2_8daaf6152771_e5627efa2ab1"
+        - "t13d1517h2_ab3c4d5e6f7a_1234567890ab"
 ```
 
 Allowlisted fingerprints are skipped during threat matching. The allowlist is evaluated before the threat database.
@@ -109,19 +101,15 @@ Fingerprints with a rarity score above the configured threshold generate anomaly
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `rarity_threshold` | `0.01` | Minimum rarity score to trigger an alert |
-| `window_days` | `7` | Sliding window duration in days |
-| `min_total_handshakes` | `1000` | Minimum handshakes before scoring activates |
+| `rarity_threshold` | `0.01` | Minimum rarity score (must be in `(0, 1)`) to trigger an alert |
 
-Setting `rarity_threshold` to `0.001` reduces noise in high-traffic environments. Setting it to `0.1` is more aggressive and catches moderately uncommon fingerprints.
+`rarity_threshold` is the only tunable; the sliding window (7 days) and garbage-collection cadence are fixed internally. Setting `rarity_threshold` to `0.001` reduces noise in high-traffic environments. Setting it to `0.1` is more aggressive and catches moderately uncommon fingerprints.
 
 ```yaml
 enterprise:
   tls_intelligence:
-    behavior_anomaly:
+    anomaly:
       rarity_threshold: 0.01
-      window_days: 7
-      min_total_handshakes: 1000
 ```
 
 ### API
@@ -167,13 +155,13 @@ The compliance ratio enables tracking PQC migration progress:
 - **0.0**: no PQC support observed
 - **0.0 < ratio < 1.0**: mixed deployment (e.g., partial rollout or client diversity)
 
+PQC compliance tracking is a single toggle; the per-destination breakdown, ratios and reporting thresholds are computed internally.
+
 ```yaml
 enterprise:
   tls_intelligence:
-    pqc_compliance:
+    pqc:
       enabled: true
-      report_classical_only: true    # alert on destinations with ratio 0.0
-      min_handshakes: 100            # minimum handshakes before reporting
 ```
 
 ### API
@@ -199,15 +187,15 @@ Default weak cipher list (blocked unless overridden):
 | 3DES | TLS_RSA_WITH_3DES_EDE_CBC_SHA |
 | Export | TLS_RSA_EXPORT_WITH_RC4_40_MD5, TLS_RSA_EXPORT_WITH_DES40_CBC_SHA |
 
-Custom blocked ciphers can be added. The blocked list is matched against the negotiated cipher suite in the ServerHello.
+The policy ships with a default blocked list (the categories above) and is matched against the negotiated cipher suite in the ServerHello. Additional ciphers are blocked by their numeric IANA cipher-suite ID (`blocked_ciphers`), not by name.
 
 ### Minimum TLS Version
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `min_tls_version` | `tls_1_2` | Minimum acceptable TLS version |
+| `min_tls_version` | `771` (`0x0303`, TLS 1.2) | Minimum acceptable TLS version, as the protocol code point |
 
-Connections negotiating a version below the minimum generate a compliance violation alert. Supported values: `tls_1_0`, `tls_1_1`, `tls_1_2`, `tls_1_3`.
+Connections negotiating a version below the minimum generate a compliance violation alert. `min_tls_version` is the numeric TLS protocol code point: `769` (`0x0301`, TLS 1.0), `770` (`0x0302`, TLS 1.1), `771` (`0x0303`, TLS 1.2), `772` (`0x0304`, TLS 1.3). Values outside `769`-`772` are rejected at load.
 
 ### Blocked Signature Algorithms
 
@@ -216,11 +204,11 @@ Block specific signature algorithms in the handshake:
 ```yaml
 enterprise:
   tls_intelligence:
-    cipher_compliance:
-      blocked_signature_algorithms:
-        - md5_rsa
-        - sha1_rsa
-        - sha1_ecdsa
+    crypto_policy:
+      blocked_signature_algs:         # numeric SignatureScheme code points
+        - 257                         # 0x0101 rsa_pkcs1_md5
+        - 513                         # 0x0201 rsa_pkcs1_sha1
+        - 515                         # 0x0203 ecdsa_sha1
 ```
 
 ### Full Configuration
@@ -228,24 +216,15 @@ enterprise:
 ```yaml
 enterprise:
   tls_intelligence:
-    cipher_compliance:
-      min_tls_version: tls_1_2
-      blocked_ciphers:
-        - TLS_RSA_WITH_RC4_128_SHA
-        - TLS_RSA_WITH_3DES_EDE_CBC_SHA
-      blocked_cipher_categories:
-        - "null"
-        - rc4
-        - des
-        - 3des
-        - export
-      blocked_signature_algorithms:
-        - md5_rsa
-        - sha1_rsa
-      custom_blocked_ciphers:
-        - cipher_id: 0x002F
-          name: TLS_RSA_WITH_AES_128_CBC_SHA
-          reason: "No forward secrecy"
+    crypto_policy:
+      min_tls_version: 771            # 0x0303 = TLS 1.2 (range 769-772)
+      blocked_ciphers:                # numeric IANA cipher-suite IDs (extends the default weak list)
+        - 5                           # 0x0005 TLS_RSA_WITH_RC4_128_SHA
+        - 10                          # 0x000A TLS_RSA_WITH_3DES_EDE_CBC_SHA
+        - 47                          # 0x002F TLS_RSA_WITH_AES_128_CBC_SHA (no forward secrecy)
+      blocked_signature_algs:         # numeric SignatureScheme code points
+        - 257                         # 0x0101 rsa_pkcs1_md5
+        - 513                         # 0x0201 rsa_pkcs1_sha1
 ```
 
 ### API
@@ -390,46 +369,30 @@ enterprise:
     # JA4+ Threat Database
     threat_db:
       custom_entries:
-        - id: custom-c2-001
-          ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
-          name: Internal Red Team Implant
-          category: c2
-          severity: high
-          description: Custom C2 framework fingerprint
-          mitre_technique: T1573.002
-      allowlist:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
-          reason: "Known monitoring tool"
+          threat_name: Internal Red Team Implant
+          category: c2
+          confidence: 90
+      allowlist:
+        - "t13d1516h2_8daaf6152771_e5627efa2ab1"
 
     # TLS Behavior Anomaly
-    behavior_anomaly:
-      rarity_threshold: 0.01
-      window_days: 7
-      min_total_handshakes: 1000
+    anomaly:
+      rarity_threshold: 0.01          # must be in (0, 1)
 
     # PQC Compliance Detection
-    pqc_compliance:
+    pqc:
       enabled: true
-      report_classical_only: true
-      min_handshakes: 100
 
     # Cipher/Protocol Compliance
-    cipher_compliance:
-      min_tls_version: tls_1_2
-      blocked_cipher_categories:
-        - "null"
-        - rc4
-        - des
-        - 3des
-        - export
-      custom_blocked_ciphers:
-        - cipher_id: 0x002F
-          name: TLS_RSA_WITH_AES_128_CBC_SHA
-          reason: "No forward secrecy"
-      blocked_signature_algorithms:
-        - md5_rsa
-        - sha1_rsa
-        - sha1_ecdsa
+    crypto_policy:
+      min_tls_version: 771            # 0x0303 = TLS 1.2
+      blocked_ciphers:                # numeric IANA cipher-suite IDs
+        - 5                           # 0x0005 TLS_RSA_WITH_RC4_128_SHA
+        - 47                          # 0x002F TLS_RSA_WITH_AES_128_CBC_SHA
+      blocked_signature_algs:         # numeric SignatureScheme code points
+        - 257                         # 0x0101 rsa_pkcs1_md5
+        - 513                         # 0x0201 rsa_pkcs1_sha1
 
     # Cipher Downgrade Detection (E20)
     cipher_baseline:

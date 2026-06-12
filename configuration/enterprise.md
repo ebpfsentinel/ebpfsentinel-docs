@@ -121,36 +121,115 @@ enterprise:
   # ── Compliance Reporting ────────────────────────────────────────
   compliance:
     enabled: true
-    frameworks: [pci-dss, hipaa, gdpr, soc2]
-    schedule: weekly               # daily | weekly | monthly
+    # pci_dss_4 | hipaa | gdpr_art_32 | soc_2 | nis2 | dora | secnumcloud | hds
+    frameworks: [pci_dss_4, hipaa, gdpr_art_32, soc_2]
+    schedule:                      # object, not a scalar
+      frequency: weekly            # daily | weekly | monthly
     retention_days: 90
     output_dir: /var/lib/ebpfsentinel/reports
 
   # ── High Availability ───────────────────────────────────────────
   ha:
     enabled: true
-    peers:
-      - 10.0.0.2:8445
-      - 10.0.0.3:8445
+    peers:                         # other nodes' listen_addr (peer gRPC, default :9443)
+      - 10.0.0.2:9443
+      - 10.0.0.3:9443
     heartbeat_ms: 1000
     failure_threshold: 3
-    max_replication_bandwidth: 10485760  # 10 MB/s
+    max_replication_bandwidth: 10485760  # bytes/s (optional)
+    replication_interval_ms: 200
+    split_brain_policy: prefer_active    # prefer_active | prefer_standby | fence
+    listen_addr: "0.0.0.0:9443"
+    data_dir: /var/lib/ebpfsentinel/ha
+    mode: active-passive           # active-passive | active-active
+    # interface_assignments required only in active-active mode:
+    # interface_assignments:
+    #   - { node_id: node-a, interfaces: [eth0] }
+    #   - { node_id: node-b, interfaces: [eth1] }
+    degradation_policy: continue   # continue | read-only | fail-closed
 
   # ── Multi-Cluster ───────────────────────────────────────────────
   multi_cluster:
     enabled: false
-    is_management: false
-    management_endpoint: https://mgmt.example.com:8446
+    is_management: false                # true on the management cluster
+    management_endpoint: https://mgmt.example.com:8444  # set on member clusters
     ca_cert: /etc/ebpfsentinel/cluster-ca.crt
+    heartbeat_interval_secs: 30
+    degraded_threshold_secs: 90
+    offline_threshold_secs: 180
+    data_dir: /var/lib/ebpfsentinel/federation
 
-  # ── Air-Gap Mode ────────────────────────────────────────────────
-  air_gap: false
-
-  # ── Fleet Management ──────────────────────────────────────────
-  fleet:
+  # ── Advanced RBAC ───────────────────────────────────────────────
+  advanced_rbac:
     enabled: true
+    custom_roles:
+      - id: soc-analyst
+        name: SOC Analyst
+        grants: ["firewall:read", "ids:read", "alerts:read"]  # "domain:permission"
+      - id: soc-lead
+        name: SOC Lead
+        parent: soc-analyst             # inherit grants from a parent role
+        grants: ["firewall:write"]
+
+  # ── Analytics ───────────────────────────────────────────────────
+  analytics:
+    enabled: true
+    retention_days: 30
+    data_dir: /var/lib/ebpfsentinel/analytics
+
+  # ── AI / LLM security ───────────────────────────────────────────
+  ai_security:
+    enabled: true
+    shadow_ai:
+      mode: monitor                     # monitor | block | allow_list
+      exempt_sources: ["10.0.0.5"]
+    exfiltration:
+      per_request_threshold_bytes: 10485760           # 10 MiB
+      aggregate_threshold_bytes_per_hour: 104857600   # 100 MiB
+      burst_requests_per_minute: 60
+
+  # ── TLS intelligence ────────────────────────────────────────────
+  tls_intelligence:
+    enabled: true
+    anomaly:
+      rarity_threshold: 0.01            # must be in (0, 1)
+    crypto_policy:
+      min_tls_version: 771              # 0x0303 = TLS 1.2 (range 769-772)
+    pqc:
+      enabled: true
+
+  # ── Network forensics ───────────────────────────────────────────
+  forensics:
+    enabled: true
+    ring_buffer_max_events: 10000
+    ring_buffer_max_age_secs: 300
+    retention_days: 7
+    trigger:
+      components: [ids, threatintel, ddos, dlp]
+      min_severity: high                # low | medium | high | critical
+
+  # ── Automated response ──────────────────────────────────────────
+  response:
+    enabled: true
+    audit_max_entries: 10000
+
+  # ── Air-gap feed bundles ────────────────────────────────────────
+  air_gap:                              # object, NOT a bool
+    enabled: false
+    bundle_dir: /var/lib/ebpfsentinel/bundles
+    max_age_days: 7
+    auto_import: true
+
+  # ── Fleet management ──────────────────────────────────────────
+  fleet:
+    enabled: false
     data_dir: /var/lib/ebpfsentinel/fleet
 ```
+
+> A full annotated reference covering every block (including DNS entropy, TLS
+> clustering, beaconing, extended TLS probes and the Random Cut Forest detector)
+> ships at `../ebpfsentinel-enterprise/config/examples/enterprise.yaml`, with
+> focused single-feature examples alongside it under `config/examples/`.
 
 ## Field Reference
 

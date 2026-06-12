@@ -153,14 +153,12 @@ Standard HA is active-passive: one leader runs eBPF, followers are standby. Acti
 ```yaml
 enterprise:
   ha:
-    mode: active_active
-    interface_assignments:
-      node-a-uuid:
-        - eth0
-        - eth1
-      node-b-uuid:
-        - eth2
-        - eth3
+    mode: active-active
+    interface_assignments:          # a list, one entry per node
+      - node_id: node-a
+        interfaces: [eth0, eth1]
+      - node_id: node-b
+        interfaces: [eth2, eth3]
     takeover_on_failure: true
 ```
 
@@ -170,7 +168,7 @@ enterprise:
 - The leader still coordinates state replication and elections; both nodes process traffic independently on their interfaces
 - **Peer failure** with `takeover_on_failure: true`: the surviving node activates eBPF on the failed node's interfaces in addition to its own
 - **Peer recovery**: the recovered node reclaims its assigned interfaces; the surviving node releases the taken-over interfaces and detaches their eBPF programs
-- In `ActivePassive` mode (default), `interface_assignments` is ignored and behavior matches existing leader-only eBPF attachment
+- In `active-passive` mode (default), `interface_assignments` is ignored and behavior matches existing leader-only eBPF attachment
 
 ## Graceful Degradation
 
@@ -205,7 +203,7 @@ Controls agent behavior when it loses contact with its peer and enters a degrade
 ```yaml
 enterprise:
   ha:
-    degradation_policy: continue   # continue | read_only | fail_closed
+    degradation_policy: continue   # continue | read-only | fail-closed
 ```
 
 ## Failover Events
@@ -239,26 +237,24 @@ enterprise:
 enterprise:
   ha:
     enabled: true
-    mode: active_passive                    # active_passive | active_active
+    mode: active-passive                    # active-passive | active-active
     peers:
       - 10.0.0.2:9443
       - 10.0.0.3:9443
     heartbeat_ms: 1000
     failure_threshold: 3
-    max_replication_bandwidth: 104857600    # 100 MB/s (optional)
+    max_replication_bandwidth: 104857600    # bytes/s (optional)
     replication_interval_ms: 200
     split_brain_policy: prefer_active       # prefer_active | prefer_standby | fence
     listen_addr: 0.0.0.0:9443
     data_dir: /var/lib/ebpfsentinel/ha
-    interface_assignments:                  # active_active mode only
-      node-a-uuid:
-        - eth0
-        - eth1
-      node-b-uuid:
-        - eth2
-        - eth3
-    takeover_on_failure: true               # active_active: take over peer interfaces on failure
-    degradation_policy: continue            # continue | read_only | fail_closed
+    interface_assignments:                  # active-active mode only (list, one entry per node)
+      - node_id: node-a
+        interfaces: [eth0, eth1]
+      - node_id: node-b
+        interfaces: [eth2, eth3]
+    takeover_on_failure: true               # active-active: take over peer interfaces on failure
+    degradation_policy: continue            # continue | read-only | fail-closed
 ```
 
 | Field | Type | Default | Description |
@@ -272,12 +268,12 @@ enterprise:
 | `split_brain_policy` | enum | `prefer_active` | Split-brain resolution policy |
 | `listen_addr` | string | `0.0.0.0:9443` | gRPC listen address |
 | `data_dir` | string | `/var/lib/ebpfsentinel/ha` | Persistent state directory |
-| `mode` | enum | `active_passive` | HA mode: `active_passive` or `active_active` |
-| `interface_assignments` | map | `{}` | Per-node interface list (active_active mode only) |
-| `takeover_on_failure` | bool | `true` | Take over peer interfaces on failure (active_active mode only) |
-| `degradation_policy` | enum | `continue` | Behavior when peer is lost: `continue`, `read_only`, `fail_closed` |
+| `mode` | enum | `active-passive` | HA mode: `active-passive` or `active-active` |
+| `interface_assignments` | list | `[]` | Per-node `{node_id, interfaces}` entries (active-active mode only) |
+| `takeover_on_failure` | bool | `false` | Take over peer interfaces on failure (active-active mode only) |
+| `degradation_policy` | enum | `continue` | Behavior when peer is lost: `continue`, `read-only`, `fail-closed` |
 
-Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty. When `mode` is `active_active`, `interface_assignments` must be non-empty.
+Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty. When `mode` is `active-active`, `interface_assignments` must be non-empty.
 
 ## REST API
 
