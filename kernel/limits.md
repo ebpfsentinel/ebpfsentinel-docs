@@ -229,4 +229,4 @@ Larger RingBuf because DLP events carry L7 payload content.
 | Total RingBuf memory | 10.25 MB | Sum of all program RingBuf allocations |
 | Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
 | TC programs per hook | 6 ingress, 2 egress | Ordered by priority in TC classifier chain |
-| eBPF programs total | 14 | 5 XDP + 8 TC + 1 uprobe |
+| eBPF programs total | 16 | 7 XDP + 8 TC + 1 uprobe (`xdp-pass` is test-only) |

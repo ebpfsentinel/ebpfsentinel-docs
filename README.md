@@ -2,7 +2,7 @@
 
 A unified, kernel-native **Network & Security platform** for Linux — one Rust binary that replaces your firewall, IDS/IPS, DDoS mitigation, DLP, and 10+ more tools, all running in-kernel via eBPF at wire speed. Not an endpoint agent — it enforces security inline, right where your traffic flows.
 
-eBPFsentinel attaches 14 eBPF programs at XDP, TC, and uprobe hook points to inspect, filter, and react to network traffic with no kernel modules and no packet copies to userspace for the fast path. Written entirely in Rust — kernel programs and userspace — using the [Aya](https://aya-rs.dev/) framework.
+eBPFsentinel attaches eBPF programs at XDP, TC, and uprobe hook points to inspect, filter, and react to network traffic with no kernel modules and no packet copies to userspace for the fast path. Written entirely in Rust — kernel programs and userspace — using the [Aya](https://aya-rs.dev/) framework.
 
 ## What It Does
 
@@ -29,8 +29,8 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 
 ## Key Capabilities
 
-- **IPv4/IPv6 dual-stack** across all 14 eBPF programs and userspace engines, with IPv6 extension header parsing and QinQ 802.1ad support
-- **14 eBPF programs** — 5 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 1 uprobe (dlp)
+- **IPv4/IPv6 dual-stack** across every IP-path eBPF program and userspace engine, with IPv6 extension header parsing and QinQ 802.1ad support
+- **16 eBPF programs** — 7 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer, vip-announcer, pass), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 1 uprobe (dlp). `xdp-vip-announcer` answers ARP for load-balancer VIPs; `xdp-pass` is a test-only veth helper
 - **Multi-NIC support** — attach to multiple interfaces, bond masters, VLAN trunks. [Interface groups](features/interface-groups.md) for per-interface rule scoping (up to 31 groups)
 - **XDP tail-call chaining** — firewall → reject, firewall → ratelimit, ratelimit → syncookie in single attach points
 - **XDP_TX packet forging** — firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation

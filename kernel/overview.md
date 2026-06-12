@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel runs 14 eBPF programs in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 16 eBPF programs that run in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. Fifteen make up the production datapath; the sixteenth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -76,18 +76,18 @@ In **auto** mode (default), the kernel tries native first, then falls back to ge
 
 ## Dynamic Program Lifecycle
 
-All 14 eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
+All datapath eBPF programs support hot loading and unloading at runtime. When a feature is enabled or disabled in the configuration, the agent dynamically attaches or detaches the corresponding program from the kernel without restarting. Maps are pinned to `/sys/fs/bpf/ebpfsentinel/` so kernel state (connection tracking tables, rate limit counters) is preserved across reloads. The XDP tail-call chain is automatically rewired when programs are added or removed. See [Hot Reload](../operations/hot-reload.md) for details.
 
 ## Cross-Cutting: Interface Groups
 
-Six of the 14 eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share an `INTERFACE_GROUPS` HashMap map that maps ifindex to a u32 bitmask. Each rule struct in these programs carries a `group_mask` field. When `group_mask == 0`, the rule is a **floating rule** and applies everywhere. Otherwise, the program performs a single AND + compare against the current interface's group bitmask to decide whether the rule applies. Bit 31 acts as an inversion flag. Up to 31 groups are supported. See [Interface Groups](../features/interface-groups.md).
+Six eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share an `INTERFACE_GROUPS` HashMap map that maps ifindex to a u32 bitmask. Each rule struct in these programs carries a `group_mask` field. When `group_mask == 0`, the rule is a **floating rule** and applies everywhere. Otherwise, the program performs a single AND + compare against the current interface's group bitmask to decide whether the rule applies. Bit 31 acts as an inversion flag. Up to 31 groups are supported. See [Interface Groups](../features/interface-groups.md).
 
 ## Compilation
 
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:
 
 ```bash
-cargo xtask ebpf-build    # Builds all 14 programs
+cargo xtask ebpf-build    # Builds all 16 programs
 ```
 
 Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both kernel programs and the userspace agent.

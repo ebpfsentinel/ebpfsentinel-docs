@@ -2,12 +2,12 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** — 14 eBPF programs attached at XDP, TC, and uprobe hook points
+1. **Kernel-space** — 16 eBPF programs attached at XDP, TC, and uprobe hook points
 2. **Userspace** — Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
 flowchart TB
-    subgraph kernel["Linux Kernel (14 eBPF programs)"]
+    subgraph kernel["Linux Kernel (16 eBPF programs)"]
         direction TB
         subgraph xdp["XDP — wire-speed packet processing"]
             fw["xdp-firewall\n(stateful L3/L4)"]
@@ -15,6 +15,8 @@ flowchart TB
             rl["xdp-ratelimit\n(DDoS / rate limit)"]
             rl_sc["xdp-ratelimit-syncookie\n(SYN cookie forge)"]
             lb["xdp-loadbalancer\n(L4 DNAT)"]
+            vip["xdp-vip-announcer\n(VIP ARP reply)"]
+            pass["xdp-pass\n(veth peer · test rig)"]
         end
         subgraph tc["TC — deep packet inspection & rewriting"]
             ct[tc-conntrack]
@@ -34,11 +36,13 @@ flowchart TB
     fw -- "PASS → slot 0" --> rl
     fw -- "REJECT → slot 1" --> fw_rej
     fw -- "PASS (no RL) → slot 2" --> lb
+    fw -- "ARP VIP → slot 3" --> vip
     rl -- "SYN flood → slot 0" --> rl_sc
     rl -- "PASS → slot 1" --> lb
     fw_rej -- "XDP_TX" --> packets
     rl_sc -- "XDP_TX" --> packets
     lb -- "XDP_TX / REDIRECT" --> packets
+    vip -- "XDP_TX" --> packets
 
     fw -- "XDP_PASS" --> tc
     tc --- uprobe

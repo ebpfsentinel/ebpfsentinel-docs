@@ -82,10 +82,10 @@ pub struct PacketEvent {
 ## Building
 
 ```bash
-cargo xtask ebpf-build    # All 14 programs
+cargo xtask ebpf-build    # All 16 programs
 ```
 
-The `xtask` crate builds all 14 programs with the nightly toolchain targeting `bpfel-unknown-none`.
+The `xtask` crate builds all 16 programs with the nightly toolchain targeting `bpfel-unknown-none`.
 
 ## Map Types Used
 

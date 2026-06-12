@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 14 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain.
+eBPFsentinel includes 16 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Fifteen form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -11,6 +11,8 @@ eBPFsentinel includes 14 eBPF kernel programs, all written in Rust using the [Ay
 | `xdp-firewall` | XDP | `crates/ebpf-programs/xdp-firewall/` | L3/L4 stateful packet filtering + reject (XDP_TX) |
 | `xdp-ratelimit` | XDP | `crates/ebpf-programs/xdp-ratelimit/` | DDoS protection + per-country rate limit tiers (LPM) |
 | `xdp-loadbalancer` | XDP | `crates/ebpf-programs/xdp-loadbalancer/` | L4 load balancing (TCP/UDP/TLS passthrough) |
+| `xdp-vip-announcer` | XDP (tail-call) | `crates/ebpf-programs/xdp-vip-announcer/` | L2 VIP ARP responder for the load balancer (forged ARP reply, XDP_TX) |
+| `xdp-pass` | XDP | `crates/ebpf-programs/xdp-pass/` | Minimal XDP_PASS attached to a veth peer (test rig only; never in production) |
 | `xdp-firewall-reject` | XDP (tail-call) | `crates/ebpf-programs/xdp-firewall-reject/` | TCP RST / ICMP Unreachable forging for REJECT action |
 | `xdp-ratelimit-syncookie` | XDP (tail-call) | `crates/ebpf-programs/xdp-ratelimit-syncookie/` | SYN cookie SYN+ACK forging for DDoS protection |
 | `tc-conntrack` | TC classifier | `crates/ebpf-programs/tc-conntrack/` | Connection tracking (TCP/UDP/ICMP state machine) |
@@ -54,7 +56,7 @@ The most feature-rich eBPF program. Processes packets through a 5-phase pipeline
 Key eBPF features:
 
 - **LPM Trie** maps for O(log n) CIDR matching (4 tries: src/dst × IPv4/IPv6)
-- **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`
+- **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`, slot 3 → `xdp-vip-announcer` (ARP frames targeting an owned VIP)
 - **DEVMAP** for packet mirroring to monitoring interfaces
 - **CPUMAP** for NUMA-aware CPU steering
 - **bpf_fib_lookup** for FIB routing enrichment and policy routing
@@ -101,6 +103,15 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **LB_METRICS PerCpuArray**: per-CPU forwarding counters read by `MetricsReader`
 - Health-aware: unhealthy backends are skipped in selection
 - **Tail-call integration**: when firewall and/or ratelimit are active on the same interface, the LB runs as a tail-call target (FW slot 2, RL slot 1) instead of attaching directly. Standalone mode when no other XDP program is present.
+
+## XDP VIP Announcer (xdp-vip-announcer)
+
+- **Tail-call target**: `xdp-firewall` dispatches ARP frames to it via `XDP_PROG_ARRAY` slot 3; the LB hot path is never touched
+- **Forged ARP reply**: for an ARP "who-has" targeting an owned VIP, rewrites a fixed 28 bytes (`sha` = this node's NIC MAC) and `XDP_TX`s the reply out the receiving interface — bounded, no loop, no SKB
+- **Speaker election**: userspace populates the `VIP_SET` map **only** while this node is the elected speaker; a standby node keeps it empty and never answers (split-brain safe)
+- **Gratuitous ARP on takeover**: emitted by userspace over a raw `AF_PACKET` socket (not eBPF), so upstream switches relearn the MAC immediately
+- **Metrics**: `ebpfsentinel_lb_vip_arp_replies_total`, `ebpfsentinel_lb_vip_takeovers_total`
+- Configured via `loadbalancer.announce`; see [Load balancer → L2 VIP announcer](../features/loadbalancer.md#l2-vip-announcer)
 
 ## TC IDS (tc-ids)
 
@@ -191,7 +202,7 @@ All features require Linux kernel **6.9+** with BTF. The 6.9 floor covers BPF to
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 14 programs with nightly
+cargo xtask ebpf-build    # Builds all 16 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

@@ -1,6 +1,6 @@
 # eBPF Helper Functions
 
-eBPFsentinel uses 25+ kernel helper functions across its 14 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required.
+eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required.
 
 ## Helper Reference
 

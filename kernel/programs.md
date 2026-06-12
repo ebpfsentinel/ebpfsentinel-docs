@@ -1,6 +1,8 @@
 # Program Details
 
-Detailed documentation for each of the 14 eBPF kernel programs.
+Detailed documentation for each of the 16 eBPF kernel programs (the
+tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
+described inline under their parent programs).
 
 ## XDP Programs
 
@@ -105,6 +107,7 @@ The firewall entry point dispatches via `XDP_PROG_ARRAY`:
 | 0 | `xdp-ratelimit` | On `XDP_PASS` (first attempt) |
 | 1 | `xdp-firewall-reject` | On `ACTION_REJECT` sentinel |
 | 2 | `xdp-loadbalancer` | On `XDP_PASS` if ratelimit slot is empty |
+| 3 | `xdp-vip-announcer` | On an ARP frame targeting an owned VIP |
 
 When ratelimit is loaded, it handles the loadbalancer chain itself (RL slot 1 → LB). The firewall's slot 2 is a fallback for when ratelimit is disabled but loadbalancer is enabled.
 
@@ -211,6 +214,30 @@ Supports TCP, UDP, and TLS passthrough (TLS is forwarded without termination). I
 
 - **IPv4**: L3 IP header checksum + L4 TCP/UDP checksum (incremental update for address + port diff)
 - **IPv6**: L4 pseudo-header checksum only (8 × u16 words for 128-bit address diff + port diff, no IP header checksum in IPv6)
+
+---
+
+### xdp-vip-announcer
+
+**Hook:** [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | **Path:** `crates/ebpf-programs/xdp-vip-announcer/`
+
+A bounded XDP ARP responder for load-balancer virtual IPs (VIPs). It is kept off the load-balancer hot path: `xdp-firewall` tail-calls it via `XDP_PROG_ARRAY` slot 3 **only for ARP frames**. When an ARP "who-has" targets an owned VIP and this node is the elected speaker, it forges an ARP reply (`sha` = this node's NIC MAC), rewrites a fixed 28 bytes, and `XDP_TX`s it back out the receiving interface — no loops, no SKB allocation.
+
+| Aspect | Description |
+|--------|-------------|
+| **Speaker election** | Userspace populates `VIP_SET` **only** while this node is the elected speaker; a standby node keeps an empty set and never answers, so two nodes never claim the same VIP (split-brain safe) |
+| **Gratuitous ARP** | On takeover, userspace broadcasts a gratuitous ARP per VIP (raw `AF_PACKET`, not eBPF) so upstream switches relearn the MAC immediately |
+| **Metrics** | `ebpfsentinel_lb_vip_arp_replies_total` (forged replies per VIP) and `ebpfsentinel_lb_vip_takeovers_total` |
+
+Configured via the `loadbalancer.announce` block. See [Load balancer → L2 VIP announcer](../features/loadbalancer.md#l2-vip-announcer).
+
+---
+
+### xdp-pass
+
+**Hook:** [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | **Path:** `crates/ebpf-programs/xdp-pass/`
+
+A minimal program that returns `XDP_PASS` for every frame. **Test-rig only — never attached in production.** The kernel arms a veth's receive-side XDP path (and so delivers `XDP_TX`'d frames from the peer) only when that end has an XDP program loaded; the integration harness attaches `xdp-pass` on the netns-side veth so the agent's native `XDP_TX` reflections (forged ARP replies, TCP RSTs) reach the probing namespace. On a physical NIC no such helper is needed.
 
 ---
 
