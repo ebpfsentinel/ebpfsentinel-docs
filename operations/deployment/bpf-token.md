@@ -47,24 +47,55 @@ ebpfsentinel-token-launch [--bpffs <path>] <agent-binary> [agent-args...]
 
 ## Capability matrix
 
-The agent runs in a child user namespace, so it has **no capabilities over
-host-owned resources** — including the host network namespace it shares. The
-token covers all eBPF; nothing else is available to the agent:
+The agent runs in a child user namespace, so it cannot itself acquire
+capabilities over host-owned resources — including the host network namespace it
+shares. The token covers all eBPF; for the few userspace features that need a
+host-netns socket, the launcher hands the agent a **pre-opened fd**:
 
 | Operation | Path | Works rootless? |
 |-----------|------|-----------------|
 | All eBPF load/attach (firewall, IDS, IPS, DLP, DNS, DDoS, NAT, QoS, LB) | BPF token | ✅ |
 | IPS active flow-kill | eBPF `bpf_ct_change_status` IPS_DYING (tc-ids) | ✅ |
 | Load-balancer VIP ARP | eBPF `xdp-vip-announcer` (XDP_TX replies) | ✅ |
-| pcap manual/auto capture | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
+| pcap manual/auto capture | `AF_PACKET` fd pre-opened by the launcher (`EBPFSENTINEL_PCAP_FDS`) | ✅ |
 | `conntrack -D` retroactive teardown on a new deny rule | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable |
 | Gratuitous ARP on VIP takeover | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
 
-The unavailable items **degrade gracefully** — the agent logs a warning and
-continues — and their eBPF equivalents (IPS_DYING flow-kill, xdp-vip-announcer)
-keep working. If you require pcap capture or the netlink-based teardown, the
-rootless token-only model is not compatible with them; that is an inherent
-consequence of the user-namespace requirement, not a configuration choice.
+pcap capture works because `CAP_NET_RAW` on an `AF_PACKET` socket is checked
+**only at `socket()`** — which the launcher does while still global root. It
+pre-opens a small pool (`EBPFSENTINEL_PCAP_POOL`, default 2) and passes the fds;
+the agent binds, filters and reads on them with no capability of its own.
+
+The same fd-passing trick does **not** work for `conntrack -D`: netlink
+re-checks `CAP_NET_ADMIN` against the *sending* task on every message
+(`__netlink_ns_capable`), so the user-namespace agent is rejected regardless of
+who opened the socket. Gratuitous ARP is the same `AF_PACKET` mechanism as pcap
+and could be provisioned the same way, but is not today. The unavailable items
+**degrade gracefully** — the agent logs a warning and continues — and their eBPF
+equivalents (IPS_DYING flow-kill, xdp-vip-announcer) keep working.
+
+### Does running the agent as root help (for the remaining `❌` items)?
+
+No — and neither does `cap_add`/`securityContext.capabilities`. The blocker is
+the user namespace, not the user ID, and the two requirements are mutually
+exclusive:
+
+- **Root inside the child user namespace** (where the agent runs): capabilities
+  only apply to resources owned by that namespace. The host network namespace is
+  owned by the **initial** user namespace, and a descendant namespace is never
+  privileged over an ancestor — so `CAP_NET_ADMIN` is present but unusable
+  against the host netns.
+- **Root in the initial (host) user namespace**: those caps would work, but
+  `BPF_TOKEN_CREATE` returns `EOPNOTSUPP` outside a user namespace, so the agent
+  would fail to load **any** eBPF and fall back to API-only mode.
+
+This is why pcap is solved by **fd-passing** instead — the launcher opens the
+`AF_PACKET` socket while it is still global root and hands the agent the fd, and
+`CAP_NET_RAW` is never re-checked afterwards. `conntrack -D` cannot use the same
+trick because netlink re-checks the cap of the *sending* task on every message,
+not just at socket creation; the user-namespace agent fails that check no matter
+who opened the fd. Rely on the in-kernel equivalents (IPS_DYING flow-kill, VIP
+announcement) for those paths.
 
 ## systemd deployment
 
@@ -139,6 +170,13 @@ The host disallows unprivileged user namespaces or the container lacks
 `CAP_SYS_ADMIN`. Enable user namespaces (`kernel.unprivileged_userns_clone=1`
 where applicable) and grant `CAP_SYS_ADMIN` to the launcher (not the agent).
 
-**A pcap capture or `conntrack -D` teardown does nothing.**
-Expected: these need host-network-namespace capabilities a user-namespace agent
-cannot hold. The eBPF datapath (including IPS_DYING flow-kill) is unaffected.
+**A pcap capture logs "no AF_PACKET socket provisioned by the launcher".**
+The agent was started without the launcher, or the launcher could not open the
+capture sockets (no `CAP_NET_RAW` during bootstrap). Launch via
+`ebpfsentinel-token-launch`; bump the pool with `EBPFSENTINEL_PCAP_POOL` if you
+run many concurrent captures.
+
+**A `conntrack -D` teardown does nothing.**
+Expected: it needs `CAP_NET_ADMIN` re-checked per netlink message against the
+user-namespace agent, which fails — and unlike pcap it cannot be solved by
+fd-passing. The eBPF datapath (including IPS_DYING flow-kill) is unaffected.
