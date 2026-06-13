@@ -17,6 +17,12 @@ This page documents which features are fully supported, partially supported, or 
 | **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true`; the launcher-entrypoint agent container is granted `CAP_SYS_ADMIN` + `allowPrivilegeEscalation` for the token bootstrap (no init container) | Host (shared) | Pod (isolated unless `hostPID: true`) |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
+> **Split-broker variant (Container / DaemonSet):** the privileged bpffs
+> delegation can run in a separate small `broker` container so the long-running
+> agent container runs **non-root + `cap-drop: ALL` + no `CAP_SYS_ADMIN`**. Same
+> feature support as the modes above; only the privilege placement changes. See
+> the [BPF token guide](../operations/deployment/bpf-token.md#split-broker-deployment-rootless-agent).
+
 ## Compatibility Matrix
 
 | Feature | Bare Metal / VM | Container | K8s DaemonSet | Sidecar |

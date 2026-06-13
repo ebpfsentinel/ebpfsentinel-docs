@@ -12,6 +12,12 @@
 
 Deploy eBPFsentinel as a DaemonSet — one agent per node.
 
+> **Rootless agent option:** to keep the agent container itself off `CAP_SYS_ADMIN`
+> (non-root + `cap-drop: ALL`), use the **split-broker** layout
+> (`dist/kubernetes/bpf-token-broker-daemonset.yaml`, or Helm
+> `daemonset.brokerSidecar.enabled=true`). See the
+> [BPF token guide](bpf-token.md#split-broker-deployment-rootless-agent).
+
 ## BPF token creation phase
 
 The agent requires kernel 6.9+ and loads eBPF only through a

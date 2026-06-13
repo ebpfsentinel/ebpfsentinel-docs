@@ -176,6 +176,72 @@ See the [full Kubernetes guide](kubernetes.md) for the complete DaemonSet.
 > user-namespace layer can require `privileged: true` for the `uid_map` write.
 > Validate on your cluster before rolling out fleet-wide.
 
+## Split-broker deployment (rootless agent)
+
+In the deployments above the launcher is the container entrypoint, so the
+**agent container's** spec is granted `CAP_SYS_ADMIN` + `allowPrivilegeEscalation`
+— even though the long-running agent drops that privilege at runtime, an auditor
+reading the manifest sees a full-access workload.
+
+The **split-broker** layout moves the privileged step into a separate, small
+`broker` container so the agent container runs **non-root + `cap-drop: ALL` + no
+`CAP_SYS_ADMIN` / `CAP_NET_RAW`**:
+
+```text
+broker  (CAP_SYS_ADMIN + NET_RAW)   agent  (runAsUser 65534, cap-drop ALL)
+  opens module-BTF + AF_PACKET         shim: own userns → fsopen(bpf)
+  listens on a unix socket  ◄───────── hands its bpffs fd to the broker
+  delegate_* + FSCONFIG_CMD_CREATE     mounts the delegated bpffs
+  returns BTF + pcap fds (SCM_RIGHTS) ─► creates the token, loads every program
+```
+
+Both containers run the same image; only the entrypoint differs:
+
+```text
+broker : ebpfsentinel-token-launch --broker-serve   <sock>
+agent  : ebpfsentinel-token-launch --broker-connect <sock> --bpffs <path> \
+         ebpfsentinel-agent --config <file>
+```
+
+The `delegate_*` mount options still require `CAP_SYS_ADMIN` in the initial user
+namespace, so that privilege is **relocated**, not removed — concentrated in the
+~250-line broker an auditor can reason about in seconds. The agent container
+still needs `allowPrivilegeEscalation: true` (the shim creates its own user
+namespace and writes `uid_map`) and a seccomp/AppArmor profile permitting the
+userns + mount syscalls — but a **narrow profile** (the runtime default plus
+`unshare`/`mount`/`move_mount`/`fsopen`/`fsmount`/`fsconfig`/`bpf`) replaces
+`Unconfined`; ship `dist/seccomp/ebpfsentinel-agent.json`.
+
+Ready-to-use assets:
+
+- **Docker Compose:** `dist/docker-compose.broker.yml` (a `broker` + an `agent`
+  service sharing the broker socket; the agent runs as uid 65534, `cap-drop:
+  ALL`, with the narrow seccomp profile).
+- **Kubernetes:** `dist/kubernetes/bpf-token-broker-daemonset.yaml` (a two-
+  container DaemonSet; the agent container holds no `CAP_SYS_ADMIN`).
+- **Helm:** set `daemonset.brokerSidecar.enabled=true` to render the split layout.
+
+```bash
+helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
+  --namespace ebpfsentinel --create-namespace \
+  --set agent.interfaces='{eth0}' \
+  --set daemonset.brokerSidecar.enabled=true
+```
+
+Trade-offs vs the single-container launcher:
+
+- The agent container runs **non-root** (`runAsUser: 65534`): the single-uid
+  `uid_map` self-map is rejected for a cap-dropped root container. Mount config
+  (`0640`, group-readable via `fsGroup`/ownership) and data accordingly.
+- A container's `/sys` is read-only, so the agent container mounts a writable
+  `/sys/fs/bpf` (an in-pod `emptyDir: { medium: Memory }`, or `--tmpfs
+  /sys/fs/bpf:mode=1777` under Compose) for the delegated bpffs + pinned maps.
+- One extra container per node, kept running so it can re-serve on agent restart.
+
+Module kfuncs (conntrack, fou) and rootless pcap keep working: the broker holds
+the module-BTF and `AF_PACKET` fds and passes them to the agent over the socket,
+so the agent needs neither `CAP_SYS_ADMIN` nor `CAP_NET_RAW`.
+
 ## Troubleshooting
 
 **Metric `ebpfsentinel_bpf_token_used` reads `0` / log says "BPF token

@@ -85,6 +85,13 @@ bpffs mounted).
 > (eBPF `IPS_DYING` flow-kill, `xdp-vip-announcer`) keep working. See the
 > [BPF token guide](bpf-token.md#capability-matrix).
 
+## Split-broker Compose (rootless agent)
+
+To keep the agent container off `CAP_SYS_ADMIN` (non-root + `cap-drop: ALL`), run
+the privileged bpffs delegation in a separate `broker` service:
+`dist/docker-compose.broker.yml`. See the
+[BPF token guide](bpf-token.md#split-broker-deployment-rootless-agent).
+
 ## Docker Compose
 
 The default `docker-compose.yml` wires this automatically. There is a single
