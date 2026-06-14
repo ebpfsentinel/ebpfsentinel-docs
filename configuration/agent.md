@@ -17,6 +17,10 @@ agent:
   event_workers: 4                      # Parallel event dispatcher workers. Default: 4
   log_level: "info"                     # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"                    # Log format: json or text. Default: json
+  api_rate_limit:                       # Write-API rate limit (see below). Optional.
+    write_per_second: 1                 # Sustained write rate per IP. Default: 1
+    write_burst: 60                     # Write burst per IP. Default: 60
+    exempt_loopback: true               # Don't rate-limit loopback clients. Default: true
 ```
 
 ## Fields
@@ -36,6 +40,28 @@ agent:
 | `swagger_ui` | `bool` | No | `false` | Enable Swagger UI at `/swagger-ui/` |
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |
+| `api_rate_limit` | `object` | No | see below | Rate limit for the mutating control-plane API (see below) |
+
+## Write-API rate limit
+
+The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/v1/`) are rate-limited per client IP with a GCRA token bucket, so a leaked token or a runaway client cannot rewrite the firewall, IPS blacklist, NAT, or rate-limit state at high speed. Read endpoints keep a separate, looser limit.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `write_per_second` | `integer` | No | `1` | Sustained refill rate of the write bucket, requests/second/IP. Must be ≥ 1 |
+| `write_burst` | `integer` | No | `60` | Burst capacity of the write bucket, requests/IP. Must be ≥ 1 |
+| `exempt_loopback` | `bool` | No | `true` | Exempt loopback clients (`127.0.0.0/8`, `::1`) from the write limit |
+
+With the defaults, a non-loopback client gets a 60-request burst that refills at 1/s (60/minute); once exhausted, further writes return `429 Too Many Requests` with a `Retry-After` header. **Loopback is exempt by default**, so local CLI tooling and same-host bulk reconfiguration are never throttled. Raise `write_burst` / `write_per_second` if you drive bulk reconfiguration through the API from a remote host, or set `exempt_loopback: false` to rate-limit local clients too. Bulk rule/IOC sets are normally loaded from the YAML config at startup rather than the write API.
+
+```yaml
+agent:
+  interfaces: [eth0]
+  api_rate_limit:
+    write_per_second: 5      # allow 5 writes/s sustained
+    write_burst: 300         # with a 300-request burst
+    exempt_loopback: true
+```
 
 ## XDP Attachment Mode
 
