@@ -117,6 +117,11 @@ enterprise:
       api_key: base64-api-key
       index_pattern: "ebpfsentinel-{yyyy.MM.dd}"
       ilm_policy: hot-warm-delete
+    otlp:
+      endpoint: http://otel-collector:4318   # OTLP/HTTP; events POSTed to {endpoint}/v1/logs
+      timeout_ms: 5000
+      max_retries: 3
+      initial_backoff_ms: 500                # doubles each retry
 
   # ── Compliance Reporting ────────────────────────────────────────
   compliance:
@@ -232,6 +237,27 @@ enterprise:
 > focused single-feature examples alongside it under `config/examples/`.
 
 ## Field Reference
+
+### SIEM exporters
+
+The `siem` block fans events out to one or more destinations (Splunk, Elastic,
+OpenSearch, QRadar, Microsoft Sentinel, Wazuh, ClickHouse, S3, syslog, OTLP, …),
+each behind a shared **durable buffer + circuit breaker** with at-least-once
+delivery.
+
+The **OTLP SIEM exporter** (`siem.otlp`) is distinct from the OSS OTLP alert
+sink ([alerting.otlp](alerting.md)): it posts OTLP/HTTP **JSON** to
+`{endpoint}/v1/logs`, carries the full enriched `SiemEvent` (not just the raw
+alert), and adds per-batch retry with exponential backoff feeding the circuit
+breaker. Use it when you need reliable SIEM delivery; use the OSS alert OTLP for
+a lightweight, best-effort collector feed.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `otlp.endpoint` | string | Required | OTLP/HTTP collector base URL (events POSTed to `/v1/logs`) |
+| `otlp.timeout_ms` | u64 | `5000` | Per-request timeout |
+| `otlp.max_retries` | u32 | `3` | Retries per batch before tripping the circuit breaker |
+| `otlp.initial_backoff_ms` | u64 | `500` | Initial backoff, doubled each retry |
 
 ### License
 

@@ -70,8 +70,17 @@ alerting:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `endpoint` | `string` | Required | OpenTelemetry collector endpoint (e.g. `http://otel-collector:4317`) |
-| `protocol` | `string` | `grpc` | Export protocol: `grpc` or `http` |
+| `protocol` | `string` | `grpc` | Export protocol: `grpc` (OTLP/gRPC) or `http` (OTLP/HTTP-protobuf) |
 | `timeout_ms` | `u64` | `5000` | Export timeout in milliseconds |
+
+Each alert is exported as one OTLP **Logs** record (this is not a traces or
+metrics pipeline) carrying severity plus `mitre.technique.id`, `alert.component`
+and `alert.rule_id` attributes. Delivery is **fire-and-forget**: the record is
+handed to the OpenTelemetry SDK batch exporter — no retry, no delivery
+confirmation. Each successful hand-off increments
+`ebpfsentinel_alerts_exported_total{destination="otlp"}`. For at-least-once
+delivery (durable buffer, circuit breaker, retry/backoff), use the Enterprise
+OTLP SIEM exporter — see [Enterprise configuration](enterprise.md).
 
 ## Examples
 

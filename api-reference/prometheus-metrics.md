@@ -8,9 +8,9 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_packets_total` | Counter | `interface`, `verdict` | Packets processed (pass, drop, log, rate_limited) |
+| `ebpfsentinel_packets_total` | Counter | `interface`, `action` | Packets processed (pass, drop, log, rate_limited) |
 | `ebpfsentinel_bytes_processed_total` | Counter | `interface`, `direction` | Bytes processed per interface |
-| `ebpfsentinel_processing_duration_seconds` | Histogram | `domain` | Engine processing latency |
+| `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Per-program packet processing latency |
 
 ### Rules
 
@@ -23,6 +23,9 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_alerts_total` | Counter | `component`, `severity` | Total alerts generated |
+| `ebpfsentinel_alerts_dropped_total` | Counter | `reason` | Alerts dropped before delivery (dedup, throttle, backpressure) |
+| `ebpfsentinel_alerts_exported_total` | Counter | `destination` | Alerts handed off to an external sender (e.g. `otlp`) |
+| `ebpfsentinel_alert_sender_circuit_state` | Gauge | `destination` | Alert sender circuit breaker state (0=closed, 1=half-open, 2=open) |
 | `ebpfsentinel_alerts_sse_subscribers` | Gauge | — | Live SSE alert-stream subscriber count |
 | `ebpfsentinel_threshold_suppressed_total` | Counter | `component`, `rule_id` | Alerts suppressed by threshold |
 | `ebpfsentinel_events_sampled_total` | Counter | `component` | Events skipped by sampling |
@@ -93,7 +96,9 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_dns_cache_size` | Gauge | — | Current DNS cache entry count |
+| `ebpfsentinel_dns_cache_entries` | Gauge | — | Current DNS cache entry count |
+| `ebpfsentinel_dns_cache_hits_total` | Counter | — | DNS cache hits |
+| `ebpfsentinel_dns_cache_evictions_total` | Counter | — | DNS cache entries evicted |
 | `ebpfsentinel_dns_queries_total` | Counter | — | DNS queries observed |
 | `ebpfsentinel_dns_blocked_total` | Counter | — | Domains blocked by blocklist |
 | `ebpfsentinel_domain_reputation_tracked` | Gauge | — | Domains with reputation scores |
@@ -150,11 +155,11 @@ scrape_configs:
 
 Import Prometheus metrics into Grafana for visualization. Key panels:
 
-- **Traffic overview** — `rate(ebpfsentinel_packets_total[5m])` by verdict
+- **Traffic overview** — `rate(ebpfsentinel_packets_total[5m])` by action
 - **Alert rate** — `rate(ebpfsentinel_alerts_total[5m])` by component and severity
-- **Engine latency** — `histogram_quantile(0.99, ebpfsentinel_processing_duration_seconds)`
+- **Engine latency** — `histogram_quantile(0.99, rate(ebpfsentinel_packet_processing_duration_seconds_bucket[5m]))`
 - **DDoS attacks** — `ebpfsentinel_ddos_attacks_active` and `rate(ebpfsentinel_ddos_attacks_total[5m])`
 - **Blacklist size** — `ebpfsentinel_ips_blacklist_size`
-- **DNS cache** — `ebpfsentinel_dns_cache_size`
+- **DNS cache** — `ebpfsentinel_dns_cache_entries`
 - **QoS shaping** — `rate(ebpfsentinel_qos_shaped_total[5m])` vs `rate(ebpfsentinel_qos_dropped_queue_total[5m])`
 - **System health** — memory, CPU, eBPF program status
