@@ -59,6 +59,7 @@ host-netns socket, the launcher hands the agent a **pre-opened fd**:
 | Load-balancer VIP ARP | eBPF `xdp-vip-announcer` (XDP_TX replies) | ✅ |
 | pcap manual/auto capture | `AF_PACKET` fd pre-opened by the launcher (`EBPFSENTINEL_PCAP_FDS`) | ✅ |
 | `conntrack -D` retroactive teardown on a new deny rule | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable |
+| Conntrack table snapshot / event poller (read `/proc/net/nf_conntrack`) | proc file `0440 root:root` (host netns) | ✅ in split-broker mode (broker proxies the read); ❌ single-container non-root (warns once) |
 | Multi-WAN policy routing (`ip rule` / `ip route` apply) | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable (probes still run) |
 | Gratuitous ARP on VIP takeover | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
 
@@ -70,10 +71,22 @@ the agent binds, filters and reads on them with no capability of its own.
 The same fd-passing trick does **not** work for `conntrack -D`: netlink
 re-checks `CAP_NET_ADMIN` against the *sending* task on every message
 (`__netlink_ns_capable`), so the user-namespace agent is rejected regardless of
-who opened the socket. Gratuitous ARP is the same `AF_PACKET` mechanism as pcap
-and could be provisioned the same way, but is not today. The unavailable items
-**degrade gracefully** — the agent logs a warning and continues — and their eBPF
-equivalents (IPS_DYING flow-kill, xdp-vip-announcer) keep working.
+who opened the socket. Reading `/proc/net/nf_conntrack` is rejected for a related
+reason: the proc file is `0440 root:root`, so a non-root reader is denied by
+DAC, and the agent's `CAP_DAC_OVERRIDE` lives in its child user namespace —
+unusable against a file owned by the unmapped host root. In **split-broker mode** this is solved: the
+privileged broker stays in the host user namespace, reads `/proc/net/nf_conntrack`
+itself, and returns the bytes to the agent over its socket (the agent connects,
+sends a one-byte conntrack request, and reads a length-prefixed snapshot). So the
+snapshot reader and the event poller work for the non-root broker-mode agent. In
+**single-container non-root mode** there is no broker, so the read stays
+unavailable (the eBPF conntrack datapath still runs); the poller logs the
+`Permission denied` once and suppresses the identical follow-ups until it
+recovers, rather than warning on every poll. Gratuitous ARP
+is the same `AF_PACKET` mechanism as pcap and could be provisioned the same way,
+but is not today. The unavailable items **degrade gracefully** — the agent logs
+a warning and continues — and their eBPF equivalents (IPS_DYING flow-kill,
+xdp-vip-announcer) keep working.
 
 ### Does running the agent as root help (for the remaining `❌` items)?
 
