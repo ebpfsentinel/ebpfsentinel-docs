@@ -1,12 +1,12 @@
-# BPF Token Delegation
+# BPF token delegation
 
 > **The only loading path.** eBPFsentinel loads eBPF **exclusively** through a
 > BPF token (kernel 6.9+); the agent never loads programs with `CAP_BPF`, and
-> there is no capability-based fallback. Because BPF tokens are a
-> **user-namespace** feature, the agent is started by a small privileged
-> launcher (`ebpfsentinel-token-launch`) that sets up the delegated bpffs in a
-> child user namespace and execs the agent there. The long-running agent runs
-> **rootless** — no capabilities over the host.
+> there is no capability-based fallback. The deployment is two components: a
+> small privileged **warden** broker and the **rootless agent**. The agent
+> self-unshares a user namespace, has the warden delegate a bpffs over a shared
+> socket, and creates the token there — holding **no** capabilities over the
+> host.
 
 ## What is BPF token delegation?
 
@@ -16,283 +16,249 @@ options scope which BPF commands, map types, program types, and attach types the
 token-bearer may use. Any subsequent `bpf()` syscall by a process holding the
 token fd is authorised by the token instead of by `CAP_BPF`.
 
-Crucially, `BPF_TOKEN_CREATE` is **only valid inside a user namespace** that owns
-the delegated bpffs — in the initial (host) user namespace it returns
-`EOPNOTSUPP`. So a token-only agent **cannot** run directly under systemd or a
-plain container in the host user namespace; it must run inside a child user
-namespace. eBPFsentinel handles this with the launcher.
+`BPF_TOKEN_CREATE` succeeds only when **two** conditions hold for the target
+bpffs:
 
-## The launcher
+1. its superblock is **owned by a user namespace the caller is in**, and
+2. it was created with the `delegate_cmds` / `delegate_maps` / `delegate_progs` /
+   `delegate_attachs` mount options.
 
-`ebpfsentinel-token-launch` is a minimal privileged bootstrap. As root it:
+These two conditions fall on opposite sides of the capability boundary, which is
+why eBPFsentinel splits the bpffs setup between the agent and the warden.
 
-1. Enumerates every loaded kernel module's BTF object and inherits an fd for
-   each (advertised to the agent via `EBPF_MODULE_BTF_FDS`), so module kfuncs
-   (`nf_conntrack`, `fou`) resolve without `CAP_SYS_ADMIN` in the agent.
-2. Sets up a delegated bpffs via the kernel fd-passing dance: a child process
-   unshares a user namespace and `fsopen("bpf")` (the superblock is owned by the
-   child userns); the privileged parent applies `delegate_*=any` +
-   `FSCONFIG_CMD_CREATE`; the child `fsmount`s + `move_mount`s it at the bpffs
-   path.
-3. Execs the agent inside that user namespace. The agent finds the delegated
-   bpffs, creates a BPF token, and loads/attaches every program through it with
-   no host capabilities.
+## The trampoline: how the agent creates a token without host privilege
+
+At startup the agent runs a single-threaded **trampoline** (before any async
+runtime), then re-execs itself to continue normally. The trampoline and the
+warden split the bpffs setup precisely along the capability boundary:
 
 ```text
-ebpfsentinel-token-launch [--bpffs <path>] <agent-binary> [agent-args...]
+AGENT (rootless)                          WARDEN (CAP_SYS_ADMIN in init_user_ns)
+─────────────────                         ─────────────────────────────────────
+1. unshare(CLONE_NEWUSER | CLONE_NEWNS)
+   → root *inside its own* userns
+     (full caps there, none on the host)
+2. fsopen("bpf")
+   → superblock owned by that userns   ──fs_fd (SCM_RIGHTS)──▶
+                                           3. fsconfig delegate_*=any
+                                              + FSCONFIG_CMD_CREATE
+                                              (requires ns_capable(&init_user_ns,
+                                               CAP_SYS_ADMIN) — only the warden)
+                          ◀── Delegated{btf_names, pcap_count} + fds (SCM_RIGHTS) ──
+4. fsmount + move_mount the delegated bpffs
+5. setenv(EBPF_MODULE_BTF_FDS, EBPFSENTINEL_PCAP_FDS,
+   EBPFSENTINEL_USERNS_READY=1) → execv self
+   ── second pass ──
+6. BPF_TOKEN_CREATE against the bpffs
+   ✓ succeeds: the caller is capable in the
+     userns that owns the superblock (1+2),
+     and the bpffs carries delegate_* (3)
+7. BPF_MAP_CREATE / PROG_LOAD with BPF_F_TOKEN_FD
+   ✓ authorised by the token — never CAP_BPF
 ```
 
-`--bpffs` (default `/sys/fs/bpf/ebpfsentinel`) must match the agent's
-`agent.bpf_token.bpffs_path`.
+**Why the warden is required.** Applying the `delegate_*` mount options and
+creating the superblock (`FSCONFIG_CMD_CREATE`) is gated on `CAP_SYS_ADMIN` in
+the **initial** user namespace. The agent, in a descendant user namespace, holds
+`CAP_SYS_ADMIN` only over *its own* namespace — never over the host — so it
+fails that one step. It passes the `fs_fd` to the warden over `SCM_RIGHTS`, the
+warden stamps the delegation, and the agent resumes. Token creation and every
+later `bpf()` then happen entirely in the agent's own user namespace.
+
+The trampoline is a no-op when no warden socket is configured
+(`EBPFSENTINEL_WARDEN_SOCK` unset) or on the post-`execv` second pass
+(`EBPFSENTINEL_USERNS_READY` set).
+
+## The warden broker
+
+The warden is a small privileged binary (`warden serve <socket> --uid <n>`) that
+loads no eBPF and holds no maps. It runs in the **initial network namespace**
+with `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW`, and answers only a
+narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
+
+- **bpffs delegation** + handing back the module-BTF fds (so module kfuncs like
+  `nf_conntrack` / `fou` resolve in the agent) and the pre-opened `AF_PACKET`
+  pcap fds.
+- **conntrack** table read, single-flow teardown, and flush.
+- **route** programming (multi-WAN failover).
+- **gratuitous ARP** on VIP takeover.
+- on-demand **pcap** capture sockets.
+
+`--uid` is the only uid served, checked via `SO_PEERCRED`: on bare-metal the
+agent runs as root and maps namespace-0 to real root, so it presents `0`; in a
+container it drops to `65534` and presents that.
 
 ## Capability matrix
 
-The agent runs in a child user namespace, so it cannot itself acquire
-capabilities over host-owned resources — including the host network namespace it
-shares. The token covers all eBPF; for the few userspace features that need a
-host-netns socket, the launcher hands the agent a **pre-opened fd**:
+The agent holds **no** host capabilities. Everything it cannot do from its user
+namespace is either an in-kernel eBPF path or brokered to the warden, which holds
+the capabilities in the init network namespace:
 
-| Operation | Path | Works rootless? |
-|-----------|------|-----------------|
-| All eBPF load/attach (firewall, IDS, IPS, DLP, DNS, DDoS, NAT, QoS, LB) | BPF token | ✅ |
-| IPS active flow-kill | eBPF `bpf_ct_change_status` IPS_DYING (tc-ids) | ✅ |
-| Load-balancer VIP ARP | eBPF `xdp-vip-announcer` (XDP_TX replies) | ✅ |
-| pcap manual/auto capture | `AF_PACKET` fd pre-opened by the launcher (`EBPFSENTINEL_PCAP_FDS`) | ✅ |
-| `conntrack -D` retroactive teardown on a new deny rule | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable |
-| Conntrack table snapshot / event poller (read `/proc/net/nf_conntrack`) | proc file `0440 root:root` (host netns) | ✅ in split-broker mode (broker proxies the read); ❌ single-container non-root (warns once) |
-| Multi-WAN policy routing (`ip rule` / `ip route` apply) | netlink (host netns, `CAP_NET_ADMIN`) | ❌ unavailable (probes still run) |
-| Gratuitous ARP on VIP takeover | `AF_PACKET` (host netns, `CAP_NET_RAW`) | ❌ unavailable |
+| Operation | Path | Held by |
+|-----------|------|---------|
+| All eBPF load/attach (firewall, IDS, IPS, DLP, DNS, DDoS, NAT, QoS, LB) | BPF token | agent (token) |
+| IPS active flow-kill | eBPF `bpf_ct_change_status` IPS_DYING (tc-ids) | agent (token) |
+| Load-balancer VIP reply | eBPF `xdp-vip-announcer` (XDP_TX) | agent (token) |
+| pcap manual/auto capture | `AF_PACKET` fd opened by the warden, passed to the agent | warden (`CAP_NET_RAW`) |
+| Conntrack snapshot / event poller | warden reads `/proc/net/nf_conntrack` | warden (init netns) |
+| `conntrack -D` retroactive teardown on a new deny rule | warden netlink | warden (`CAP_NET_ADMIN`) |
+| Multi-WAN policy routing (`ip rule` / `ip route`) | warden netlink | warden (`CAP_NET_ADMIN`) |
+| Gratuitous ARP on VIP takeover | warden `AF_PACKET` | warden (`CAP_NET_RAW`) |
 
-pcap capture works because `CAP_NET_RAW` on an `AF_PACKET` socket is checked
-**only at `socket()`** — which the launcher does while still global root. It
-pre-opens a small pool (`EBPFSENTINEL_PCAP_POOL`, default 2) and passes the fds;
-the agent binds, filters and reads on them with no capability of its own.
+Because the warden runs in the init network namespace, the host-netns operations
+that a userns agent cannot perform (conntrack teardown, route programming,
+gratuitous ARP, packet capture) **all work** — they are brokered, not dropped.
 
-The same fd-passing trick does **not** work for `conntrack -D`: netlink
-re-checks `CAP_NET_ADMIN` against the *sending* task on every message
-(`__netlink_ns_capable`), so the user-namespace agent is rejected regardless of
-who opened the socket. Reading `/proc/net/nf_conntrack` is rejected for a related
-reason: the proc file is `0440 root:root`, so a non-root reader is denied by
-DAC, and the agent's `CAP_DAC_OVERRIDE` lives in its child user namespace —
-unusable against a file owned by the unmapped host root. In **split-broker mode** this is solved: the
-privileged broker stays in the host user namespace, reads `/proc/net/nf_conntrack`
-itself, and returns the bytes to the agent over its socket (the agent connects,
-sends a one-byte conntrack request, and reads a length-prefixed snapshot). So the
-snapshot reader and the event poller work for the non-root broker-mode agent. In
-**single-container non-root mode** there is no broker, so the read stays
-unavailable (the eBPF conntrack datapath still runs); the poller logs the
-`Permission denied` once and suppresses the identical follow-ups until it
-recovers, rather than warning on every poll. Gratuitous ARP
-is the same `AF_PACKET` mechanism as pcap and could be provisioned the same way,
-but is not today. The unavailable items **degrade gracefully** — the agent logs
-a warning and continues — and their eBPF equivalents (IPS_DYING flow-kill,
-xdp-vip-announcer) keep working.
+### Why not just run the agent as root?
 
-### Does running the agent as root help (for the remaining `❌` items)?
+The blocker is the user namespace, not the user ID, and the two requirements are
+mutually exclusive:
 
-No — and neither does `cap_add`/`securityContext.capabilities`. The blocker is
-the user namespace, not the user ID, and the two requirements are mutually
-exclusive:
-
-- **Root inside the child user namespace** (where the agent runs): capabilities
-  only apply to resources owned by that namespace. The host network namespace is
-  owned by the **initial** user namespace, and a descendant namespace is never
-  privileged over an ancestor — so `CAP_NET_ADMIN` is present but unusable
-  against the host netns.
-- **Root in the initial (host) user namespace**: those caps would work, but
+- **Root inside the agent's user namespace**: capabilities apply only to
+  resources owned by that namespace. The host network namespace is owned by the
+  *initial* user namespace, and a descendant is never privileged over an
+  ancestor — so the agent's `CAP_NET_ADMIN` is unusable against the host netns.
+  This is exactly why those operations are brokered to the warden.
+- **Root in the initial user namespace**: those caps would work, but
   `BPF_TOKEN_CREATE` returns `EOPNOTSUPP` outside a user namespace, so the agent
-  would fail to load **any** eBPF and fall back to API-only mode.
+  could not load **any** eBPF.
 
-This is why pcap is solved by **fd-passing** instead — the launcher opens the
-`AF_PACKET` socket while it is still global root and hands the agent the fd, and
-`CAP_NET_RAW` is never re-checked afterwards. `conntrack -D` cannot use the same
-trick because netlink re-checks the cap of the *sending* task on every message,
-not just at socket creation; the user-namespace agent fails that check no matter
-who opened the fd. Rely on the in-kernel equivalents (IPS_DYING flow-kill, VIP
-announcement) for those paths.
+The split resolves the contradiction: the agent gets its token inside its own
+userns, and the warden — which genuinely lives in the init namespace — performs
+the host-netns operations on its behalf.
 
 ## systemd deployment
 
-The shipped unit (`dist/ebpfsentinel.service`, installed by `dist/install.sh`)
-runs the launcher, which execs the agent rootless:
+`dist/install.sh` installs both binaries and two units: `ebpfsentinel-warden.service`
+(the broker) and `ebpfsentinel.service` (the agent, which `Wants` the warden and
+waits for its socket before starting).
 
 ```ini
-ExecStart=/usr/local/bin/ebpfsentinel-token-launch \
-    --bpffs /sys/fs/bpf/ebpfsentinel \
-    /usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
+# ebpfsentinel-warden.service
+ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --uid 0
+
+# ebpfsentinel.service
+Environment=EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock
+ExecStartPre=/bin/sh -c 'for _ in $(seq 1 100); do [ -S /run/ebpfsentinel/warden.sock ] && exit 0; sleep 0.1; done; exit 1'
+ExecStart=/usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
-The launcher ships as a cargo-built binary alongside the agent
-(`cargo build --release --bin ebpfsentinel-token-launch`), installed by
-`install.sh`. The service runs as root only long enough for the launcher to set
-up delegation; the agent it execs holds no host capabilities.
+On bare-metal the agent runs as root (it maps namespace-0 to real root to create
+the bpffs mountpoint under `/sys/fs/bpf`), so the warden serves `--uid 0`. Do not
+set `NoNewPrivileges` on either unit — it would block the user-namespace setup.
 
 ```bash
-sudo bash dist/install.sh            # binary, launcher, eBPF programs, unit
-sudo systemctl enable --now ebpfsentinel
+sudo bash dist/install.sh                       # agent, warden, eBPF programs, units
+sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel
 curl -s localhost:9090/metrics | grep bpf_token_used   # expect value 1
 ```
 
 ## Docker deployment
 
-The image entrypoint is the launcher. The container needs `CAP_SYS_ADMIN`
-(bpffs delegation + module BTF fds) and the ability to create a user namespace;
-`docker compose up` wires this. By hand:
+`docker compose up` runs two containers — the `warden` broker (image
+`ebpfsentinel-warden`, holding the capabilities) and the rootless `agent` (image
+`ebpfsentinel`, uid 65534, `cap_drop: ALL`) — sharing the control-socket volume.
 
 ```bash
-docker run --network host \
-  --cap-add SYS_ADMIN \
-  --cap-add NET_RAW \
-  --security-opt apparmor=unconfined \
-  -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf \
-  ghcr.io/ebpfsentinel/ebpfsentinel:latest
+# The agent runs as uid 65534 and rejects a world-readable config:
+sudo chown 65534:65534 config/ebpfsentinel.yaml && sudo chmod 640 config/ebpfsentinel.yaml
+docker compose up -d
+docker compose logs -f
 ```
 
-The launcher drops into the user namespace before exec'ing the agent, so the
-long-running agent is unprivileged even though the container grants
-`CAP_SYS_ADMIN` for the bootstrap. The `/sys/fs/bpf` bind-mount is **required**:
-a container's `/sys` is read-only, so the launcher cannot create the bpffs
-mountpoint without a writable `/sys/fs/bpf` — bind in the host bpffs (or, on a
-host with no bpffs mounted, `--tmpfs /sys/fs/bpf`). `CAP_NET_RAW` lets the
-launcher pre-open the `AF_PACKET` pcap pool; drop it if you never capture. See
-the [full Docker guide](docker.md) for the container-awareness mounts.
+The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` with
+`apparmor=unconfined` + `seccomp=unconfined` (it does `fsconfig` + netlink +
+`AF_PACKET`). The agent container holds **no** capabilities but still runs
+`apparmor=unconfined` + `seccomp=unconfined`: it self-unshares a user namespace
+and issues `mount` / `fsopen` / `bpf` syscalls, and without `CAP_SYS_ADMIN` the
+default seccomp profile (which gates those on `CAP_SYS_ADMIN`) would block them.
+A container's `/sys` is read-only, so the agent backs its bpffs mountpoint with a
+`tmpfs` at `/sys/fs/bpf`. See the [full Docker guide](docker.md) for the
+container-awareness mounts.
 
 ## Kubernetes deployment
 
-The Helm chart runs the agent container through the launcher entrypoint with
-`securityContext.capabilities.add: [SYS_ADMIN]`. There is no init container —
-the launcher does the bpffs setup in-process.
+The Helm chart runs the warden as a **native sidecar** (an init container with
+`restartPolicy: Always`) plus the agent as the main container, sharing an
+`emptyDir` socket volume.
 
 ```yaml
-securityContext:
-  capabilities:
-    drop: [ALL]
-    add: [SYS_ADMIN, NET_RAW]   # NET_RAW: launcher pre-opens the pcap pool
-  allowPrivilegeEscalation: true
-  appArmorProfile:
-    type: Unconfined            # launcher does mount/move_mount + uid_map write
-  seccompProfile:
-    type: Unconfined
+# values.yaml — the warden sidecar holds the capabilities …
+daemonset:
+  warden:
+    securityContext:
+      runAsUser: 0
+      capabilities:
+        add: [SYS_ADMIN, NET_ADMIN, NET_RAW]
+        drop: [ALL]
+      appArmorProfile: { type: Unconfined }
+      seccompProfile: { type: Unconfined }
+  # … the agent holds none
+  securityContext:
+    runAsUser: 65534
+    runAsGroup: 65534
+    capabilities:
+      drop: [ALL]
+    allowPrivilegeEscalation: true
+    appArmorProfile: { type: Unconfined }
+    seccompProfile: { type: Unconfined }
 ```
 
-The pod also needs a writable `/sys/fs/bpf` (a container's `/sys` is read-only)
-— mount the host bpffs as a `hostPath` with `mountPropagation: HostToContainer`.
+`daemonset.bpfToken.bpffsPath` drives both the agent's `EBPFSENTINEL_BPFFS` mount
+target and its `agent.bpf_token.bpffs_path` config. The pod needs a writable
+`/sys/fs/bpf` (host `hostPath` with `mountPropagation: HostToContainer`, or
+`daemonset.bpfToken.bpffsEmptyDir=true` for an in-pod tmpfs on nested runtimes).
 See the [full Kubernetes guide](kubernetes.md) for the complete DaemonSet.
+
+```bash
+helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
+  --namespace ebpfsentinel --create-namespace \
+  --set agent.interfaces='{eth0}'
+```
 
 > **Note:** nested user namespaces + bpffs delegation inside a pod can require
 > cluster-specific runtime configuration (the node must allow unprivileged user
 > namespaces; some Pod Security Admission levels or runtimes block
 > `CAP_SYS_ADMIN`). On nested runtimes such as **kind** or **minikube** the node
-> is itself a container — its `/sys/fs/bpf` may be read-only (use an in-pod
-> `emptyDir: { medium: Memory }` instead of the host `hostPath`), and the extra
-> user-namespace layer can require `privileged: true` for the `uid_map` write.
-> Validate on your cluster before rolling out fleet-wide.
-
-## Split-broker deployment (rootless agent)
-
-In the deployments above the launcher is the container entrypoint, so the
-**agent container's** spec is granted `CAP_SYS_ADMIN` + `allowPrivilegeEscalation`
-— even though the long-running agent drops that privilege at runtime, an auditor
-reading the manifest sees a full-access workload.
-
-The **split-broker** layout moves the privileged step into a separate, small
-`broker` container so the agent container runs **non-root + `cap-drop: ALL` + no
-`CAP_SYS_ADMIN` / `CAP_NET_RAW`**:
-
-```text
-broker  (CAP_SYS_ADMIN + NET_RAW)   agent  (runAsUser 65534, cap-drop ALL)
-  opens module-BTF + AF_PACKET         shim: own userns → fsopen(bpf)
-  listens on a unix socket  ◄───────── hands its bpffs fd to the broker
-  delegate_* + FSCONFIG_CMD_CREATE     mounts the delegated bpffs
-  returns BTF + pcap fds (SCM_RIGHTS) ─► creates the token, loads every program
-```
-
-Both containers run the same image; only the entrypoint differs:
-
-```text
-broker : ebpfsentinel-token-launch --broker-serve   <sock>
-agent  : ebpfsentinel-token-launch --broker-connect <sock> --bpffs <path> \
-         ebpfsentinel-agent --config <file>
-```
-
-The `delegate_*` mount options still require `CAP_SYS_ADMIN` in the initial user
-namespace, so that privilege is **relocated**, not removed — concentrated in the
-~250-line broker an auditor can reason about in seconds. The agent container
-still needs `allowPrivilegeEscalation: true` (the shim creates its own user
-namespace and writes `uid_map`) and a seccomp/AppArmor profile permitting the
-userns + mount syscalls — but a **narrow profile** (the runtime default plus
-`unshare`/`mount`/`move_mount`/`fsopen`/`fsmount`/`fsconfig`/`bpf`) replaces
-`Unconfined`; ship `dist/seccomp/ebpfsentinel-agent.json`.
-
-Ready-to-use assets:
-
-- **Docker Compose:** `dist/docker-compose.broker.yml` (a `broker` + an `agent`
-  service sharing the broker socket; the agent runs as uid 65534, `cap-drop:
-  ALL`, with the narrow seccomp profile).
-- **Kubernetes:** `dist/kubernetes/bpf-token-broker-daemonset.yaml` (a two-
-  container DaemonSet; the agent container holds no `CAP_SYS_ADMIN`).
-- **Helm:** set `daemonset.brokerSidecar.enabled=true` to render the split layout.
-
-```bash
-helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
-  --namespace ebpfsentinel --create-namespace \
-  --set agent.interfaces='{eth0}' \
-  --set daemonset.brokerSidecar.enabled=true
-```
-
-Trade-offs vs the single-container launcher:
-
-- The agent container runs **non-root** (`runAsUser: 65534`): the single-uid
-  `uid_map` self-map is rejected for a cap-dropped root container. Mount config
-  (`0640`, group-readable via `fsGroup`/ownership) and data accordingly.
-- A container's `/sys` is read-only, so the agent container mounts a writable
-  `/sys/fs/bpf` (an in-pod `emptyDir: { medium: Memory }`, or `--tmpfs
-  /sys/fs/bpf:mode=1777` under Compose) for the delegated bpffs + pinned maps.
-- One extra container per node, kept running so it can re-serve on agent restart.
-
-Module kfuncs (conntrack, fou) and rootless pcap keep working: the broker holds
-the module-BTF and `AF_PACKET` fds and passes them to the agent over the socket,
-so the agent needs neither `CAP_SYS_ADMIN` nor `CAP_NET_RAW`.
+> is itself a container — set `daemonset.bpfToken.bpffsEmptyDir=true`, and the
+> extra user-namespace layer can require relaxed runtime settings. Validate on
+> your cluster before rolling out fleet-wide.
 
 ## Troubleshooting
 
 **Metric `ebpfsentinel_bpf_token_used` reads `0` / log says "BPF token
 unavailable — running in API-only mode".**
-The agent could not create a token (no eBPF attached). On a kernel ≥ 6.9 the
-usual cause is that the agent was started **without** the launcher (directly,
-in the host user namespace) — `BPF_TOKEN_CREATE` is `EOPNOTSUPP` there. Always
-launch via `ebpfsentinel-token-launch`.
+The agent could not create a token (no eBPF attached). The usual cause is that
+the warden was unreachable at startup (`EBPFSENTINEL_WARDEN_SOCK` unset, or the
+broker not yet listening). Confirm the warden is running and the socket exists
+before the agent starts.
 
-**Launcher fails with `fsopen` / `unshare USER` errors.**
-The host disallows unprivileged user namespaces or the container lacks
+**Agent logs `warden self-bootstrap failed` / `fsopen` / `unshare USER` errors.**
+The host disallows unprivileged user namespaces, or (the warden) lacks
 `CAP_SYS_ADMIN`. Enable user namespaces (`kernel.unprivileged_userns_clone=1`
-where applicable) and grant `CAP_SYS_ADMIN` to the launcher (not the agent).
+where applicable; `kernel.apparmor_restrict_unprivileged_userns=0` on AppArmor
+hosts) and grant the warden `CAP_SYS_ADMIN`.
 
-**Launcher fails with `move_mount: No such file or directory`, or the agent
-logs "bpffs path `/sys/fs/bpf/ebpfsentinel` does not exist" (container only).**
-A container's `/sys` is mounted read-only, so the launcher cannot create the
-bpffs mountpoint there. Give the container a **writable `/sys/fs/bpf`**: bind in
-the host bpffs (`-v /sys/fs/bpf:/sys/fs/bpf` / a `hostPath` volume), or — on a
-host or nested runtime whose `/sys/fs/bpf` is itself read-only — mount a tmpfs
+**Agent logs `move_mount: No such file or directory` or "bpffs path does not
+exist" (container only).**
+A container's `/sys` is mounted read-only, so the agent cannot create the bpffs
+mountpoint there. Give the agent a **writable `/sys/fs/bpf`**: bind in the host
+bpffs (`-v /sys/fs/bpf:/sys/fs/bpf` / a `hostPath` volume), or mount a tmpfs
 (`--tmpfs /sys/fs/bpf` / an `emptyDir: { medium: Memory }`).
 
-**Launcher fails with `failed to write uid/gid map` (`mount`/`move_mount`
-denied, or `uid_map: Operation not permitted`).**
-The container's AppArmor or seccomp profile is blocking the launcher's mount and
-user-namespace setup. Run it unconfined — `--security-opt apparmor=unconfined`
-(Docker) or `securityContext.appArmorProfile.type: Unconfined` +
-`seccompProfile.type: Unconfined` (Kubernetes). On deeply nested runtimes (kind,
-minikube) the extra user-namespace layer can still reject the `uid_map` write
-under a reduced capability set — `privileged: true` resolves it there.
+**Agent logs `mount`/`move_mount` denied, or `uid_map: Operation not permitted`.**
+The container's AppArmor or seccomp profile is blocking the agent's mount and
+user-namespace setup. Run it unconfined — `--security-opt apparmor=unconfined
+--security-opt seccomp=unconfined` (Docker) or `appArmorProfile.type: Unconfined`
++ `seccompProfile.type: Unconfined` (Kubernetes).
 
-**A pcap capture logs "no AF_PACKET socket provisioned by the launcher".**
-The agent was started without the launcher, or the launcher could not open the
-capture sockets (no `CAP_NET_RAW` during bootstrap). Launch via
-`ebpfsentinel-token-launch`; bump the pool with `EBPFSENTINEL_PCAP_POOL` if you
-run many concurrent captures.
+**The warden rejects the agent (`rejecting peer uid …`).**
+The warden's `--uid` must match the uid the agent presents over `SO_PEERCRED`:
+`0` on a bare-metal root host (the agent maps namespace-0 to real root), `65534`
+in a container (the agent drops to nobody before unsharing).
 
-**A `conntrack -D` teardown does nothing.**
-Expected: it needs `CAP_NET_ADMIN` re-checked per netlink message against the
-user-namespace agent, which fails — and unlike pcap it cannot be solved by
-fd-passing. The eBPF datapath (including IPS_DYING flow-kill) is unaffected.
+**A `conntrack -D` teardown, route change, or VIP ARP does nothing.**
+Confirm the warden is reachable — these are brokered to it. If the agent runs
+without a warden (`EBPFSENTINEL_WARDEN_SOCK` unset), they are unavailable while
+the eBPF datapath (including IPS_DYING flow-kill and `xdp-vip-announcer`) keeps
+working.
