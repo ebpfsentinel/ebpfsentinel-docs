@@ -32,29 +32,22 @@ At startup the agent runs a single-threaded **trampoline** (before any async
 runtime), then re-execs itself to continue normally. The trampoline and the
 warden split the bpffs setup precisely along the capability boundary:
 
-```text
-AGENT (rootless)                          WARDEN (CAP_SYS_ADMIN in init_user_ns)
-─────────────────                         ─────────────────────────────────────
-1. unshare(CLONE_NEWUSER | CLONE_NEWNS)
-   → root *inside its own* userns
-     (full caps there, none on the host)
-2. fsopen("bpf")
-   → superblock owned by that userns   ──fs_fd (SCM_RIGHTS)──▶
-                                           3. fsconfig delegate_*=any
-                                              + FSCONFIG_CMD_CREATE
-                                              (requires ns_capable(&init_user_ns,
-                                               CAP_SYS_ADMIN) — only the warden)
-                          ◀── Delegated{btf_names, pcap_count} + fds (SCM_RIGHTS) ──
-4. fsmount + move_mount the delegated bpffs
-5. setenv(EBPF_MODULE_BTF_FDS, EBPFSENTINEL_PCAP_FDS,
-   EBPFSENTINEL_USERNS_READY=1) → execv self
-   ── second pass ──
-6. BPF_TOKEN_CREATE against the bpffs
-   ✓ succeeds: the caller is capable in the
-     userns that owns the superblock (1+2),
-     and the bpffs carries delegate_* (3)
-7. BPF_MAP_CREATE / PROG_LOAD with BPF_F_TOKEN_FD
-   ✓ authorised by the token — never CAP_BPF
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Agent (rootless)
+    participant W as Warden (CAP_SYS_ADMIN in init_user_ns)
+
+    Note over A: unshare(CLONE_NEWUSER + CLONE_NEWNS)<br/>→ root inside its OWN userns (no host caps)
+    A->>A: fsopen("bpf") — superblock owned by the agent's userns
+    A->>W: Command::Delegate + fs_fd (SCM_RIGHTS)
+    Note over W: fsconfig delegate_*=any + FSCONFIG_CMD_CREATE<br/>(requires CAP_SYS_ADMIN in init_user_ns — only the warden)
+    W-->>A: Delegated{btf_names, pcap_count} + BTF/pcap fds (SCM_RIGHTS)
+    A->>A: fsmount + move_mount the delegated bpffs
+    A->>A: setenv(EBPF_MODULE_BTF_FDS, EBPFSENTINEL_PCAP_FDS,<br/>EBPFSENTINEL_USERNS_READY=1) → execv self
+    Note over A: second pass (EBPFSENTINEL_USERNS_READY set)
+    A->>A: BPF_TOKEN_CREATE ✓<br/>caller capable in the userns owning the bpffs + delegate_* present
+    A->>A: BPF_MAP_CREATE / PROG_LOAD with BPF_F_TOKEN_FD<br/>✓ authorised by the token — never CAP_BPF
 ```
 
 **Why the warden is required.** Applying the `delegate_*` mount options and
