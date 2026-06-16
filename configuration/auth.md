@@ -41,6 +41,7 @@ auth:
 | `name` | `string` | Yes | Key identifier (for audit/logging) |
 | `key` | `string` | Yes | Secret key value |
 | `role` | `string` | Yes | RBAC role: `admin`, `operator`, `viewer` |
+| `namespaces` | `[string]` | No | Namespaces this key may access when `role: operator` (see [Namespace Scoping](#namespace-scoping)). Empty or omitted means **deny-all** for operators — it does not grant unrestricted access. Ignored for `admin`/`viewer` |
 
 ### JwtConfig
 
