@@ -45,6 +45,7 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 | `enabled` | bool | `true` | Enable/disable without deleting |
 | `priority` | u32 | `100` | Lower values match first |
 | `type` | string | — | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
+| `interfaces` | list | `[]` | Restrict the rule to specific interfaces or interface groups. Empty = all interfaces |
 
 ### NAT Type Parameters
 
