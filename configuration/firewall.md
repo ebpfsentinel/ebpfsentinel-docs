@@ -122,6 +122,7 @@ Anti-lockout rules are injected at priority 0 (highest precedence) and marked as
 | `normalize_tos` | `bool` | `false` | Force TOS/DSCP to a configured value |
 | `tos_value` | `integer` | `0` | TOS/DSCP value to set (0-255, used with `normalize_tos`) |
 | `strip_tcp_timestamps` | `bool` | `false` | Remove TCP timestamp option (kind=8) for anti-fingerprinting |
+| `drop_fragments` | `bool` | `false` | Drop IPv4 fragments (MF flag set or non-zero fragment offset). Closes a classic inspection-evasion vector at the cost of breaking legitimate fragmented traffic |
 
 Scrub runs as a TC program (`tc-scrub`) after XDP processing. IPv4 uses `bpf_l3_csum_replace` for header checksum updates; IPv6 has no header checksum so hop limit changes require no checksum update.
 
