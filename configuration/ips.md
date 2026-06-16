@@ -6,6 +6,7 @@ The `ips` section configures intrusion prevention — automatic IP blacklisting 
 
 ```yaml
 ips:
+  enabled: true                     # Enable/disable the IPS module (default: true)
   mode: block                       # alert or block (default: alert)
   max_blacklist_duration_secs: 3600 # Auto-removal after N seconds (0 = permanent)
   auto_blacklist_threshold: 3       # Detections before an IP is auto-blacklisted
@@ -32,6 +33,7 @@ ips:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `enabled` | `bool` | `true` | Enable or disable the IPS module |
 | `mode` | `string` | `alert` | Default mode for rules without per-rule override (`alert` or `block`) |
 | `max_blacklist_duration_secs` | `integer` | `3600` | Seconds before auto-removal (0 = permanent) |
 | `auto_blacklist_threshold` | `integer` | `3` | Detections from an IP before it is auto-blacklisted |
