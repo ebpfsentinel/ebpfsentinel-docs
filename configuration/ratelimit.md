@@ -1,6 +1,6 @@
 # Rate Limiting Configuration
 
-The `ratelimit` section configures DDoS protection rules with five available algorithms.
+The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) — it is configured under `ddos`, not as a rate-limit algorithm.
 
 ## Reference
 
@@ -69,7 +69,8 @@ Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then
 | Fixed Window | `fixed_window` | Counter resets at fixed intervals |
 | Sliding Window | `sliding_window` | Weighted average of current and previous windows |
 | Leaky Bucket | `leaky_bucket` | Packets drain at fixed rate |
-| SYN Cookie | `syn_cookie` | Custom FNV-1a SYN cookie forging via `XDP_TX` for SYN flood mitigation |
+
+> SYN-cookie forging (FNV-1a SYN cookies via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. `algorithm: syn_cookie` is rejected at config load.
 
 ## Examples
 
@@ -86,11 +87,6 @@ ratelimit:
       rate: 10000
       burst: 20000
       algorithm: token_bucket
-      scope: per_ip
-    - id: syn-protection
-      rate: 100
-      burst: 200
-      algorithm: syn_cookie
       scope: per_ip
     - id: api-ratelimit
       rate: 1000
