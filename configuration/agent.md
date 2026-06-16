@@ -9,6 +9,7 @@ agent:
   interfaces: [eth0]                    # Required. Network interfaces to attach eBPF programs to.
   xdp_mode: auto                        # XDP attachment mode: auto, native, generic, offloaded. Default: auto
   bind_address: "127.0.0.1"             # REST API listen address. Default: 127.0.0.1
+  allow_unauthenticated_api: false      # Safety override for non-loopback bind with auth disabled. Default: false
   http_port: 8080                       # REST API port. Default: 8080
   grpc_port: 50051                      # gRPC port. Default: 50051
   grpc_reflection: false                # gRPC reflection. Default: false (disabled for security)
@@ -30,6 +31,7 @@ agent:
 | `interfaces` | `[string]` | Yes | — | Network interfaces to monitor |
 | `xdp_mode` | `string` | No | `auto` | XDP attachment mode (see below) |
 | `bind_address` | `string` | No | `127.0.0.1` | REST API listen address |
+| `allow_unauthenticated_api` | `bool` | No | `false` | Safety override. With `auth.enabled: false` the agent **refuses to start** when `bind_address` is non-loopback, because that would expose the control plane (firewall, IPS, NAT, config reload) to anyone who can reach the port. Set `true` only when the API is fenced off by other means (network policy, mTLS-terminating proxy). Leaving auth enabled, or binding to `127.0.0.1`/`::1`, is the safe default. |
 | `http_port` | `integer` | No | `8080` | REST API port |
 | `grpc_port` | `integer` | No | `50051` | gRPC streaming port |
 | `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security — exposes service definitions |
