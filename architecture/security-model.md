@@ -86,6 +86,31 @@ execs the agent there, so the long-running agent holds **no host capabilities**.
 The launcher itself consumes `CAP_SYS_ADMIN` only for the bootstrap. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
+## Container DLP and host PID visibility
+
+TLS data-loss prevention is a uprobe on `SSL_write`/`SSL_read` inside each
+workload's own `libssl` — the only place TLS plaintext exists. To inspect every
+container on a node (not just the agent's own process), the agent resolves each
+workload's library through the host `/proc` and attaches a uprobe per library.
+
+This requires two privilege expansions, both isolated away from the agent:
+
+- **Host PID namespace** (`hostPID: true` / `pid: host`) and a read-only
+  `/host/proc` mount. The agent reads `/host/proc/<pid>/maps` to find each
+  workload's `libssl`. **Security note:** sharing the host PID namespace lets the
+  pod see *every* process on the node — command lines, environment via
+  `/proc/<pid>`, and so on. This is the irreducible cost of node-wide DLP. With
+  `hostPID` disabled, DLP still works but covers only the libraries the agent
+  itself maps (its own container).
+- **Tracing capabilities on the warden only.** Reading a neighbouring
+  container's `/proc/<pid>/root` (`CAP_SYS_PTRACE`) and creating the uprobe link
+  (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which
+  returns the link descriptor over the control socket. The agent itself stays
+  `cap-drop: ALL` — it never holds a tracing capability.
+
+Statically-linked TLS runtimes (Go `crypto/tls`, Rust rustls, Java JSSE) export
+no `libssl` symbol to probe and are not covered by the OSS agent.
+
 ## Authentication Security
 
 - **JWT validation** — RS256 signature, issuer, audience, expiration checks
