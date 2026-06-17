@@ -8,6 +8,25 @@ In **OSS** mode, built-in patterns are loaded automatically. Only `enabled` can 
 
 In **Enterprise** mode, all fields are available including custom patterns and block mode.
 
+## Cross-container coverage
+
+DLP inspects TLS across every container on the host by attaching a uprobe to each
+workload's own `libssl` / BoringSSL. This is configured at the **deployment**
+level, not in the `dlp` config block:
+
+| Setting | Where | Purpose |
+|---------|-------|---------|
+| `hostPID: true` / `pid: host` | Helm `daemonset.hostPID`, compose | Lets the agent see every node process to resolve their libraries |
+| `/host/proc` (read-only) | Helm + compose volume mount | Host `/proc` the agent reads (the warden reads the same path) |
+| `EBPFSENTINEL_HOST_PROC` | Agent env (set to `/host/proc`) | Points DLP discovery at the mounted host proc; defaults to `/proc` |
+
+The bundled Helm chart and `docker-compose.yml` set these for you. On bare metal
+(systemd) the agent already shares the host PID namespace, so `EBPFSENTINEL_HOST_PROC`
+keeps its `/proc` default and no mount is needed. Coverage is **dynamically-linked
+OpenSSL / BoringSSL only**; statically-linked TLS (Go, Rust, Java) is Enterprise
+scope. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
+for the `hostPID` trust trade-off.
+
 ## Reference
 
 ```yaml

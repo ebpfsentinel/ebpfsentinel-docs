@@ -8,12 +8,34 @@ DLP scans decrypted network traffic for sensitive data patterns — credit card 
 
 ## How It Works
 
-1. **uprobe attachment** — the `uprobe-dlp` program hooks into `SSL_write` / `SSL_read` functions in OpenSSL or BoringSSL
-2. **Plaintext capture** — decrypted payload bytes are emitted via RingBuf to userspace
-3. **Pattern matching** — the DLP engine evaluates the payload against configured regex patterns
-4. **Alert generation** — matches produce alerts with the pattern ID, severity, and redacted context
+1. **Per-container discovery** — TLS plaintext only exists inside a userspace
+   `libssl` / BoringSSL, and a uprobe fires only for processes mapping that exact
+   inode. So the agent parses `/proc/<pid>/maps` for every process on the host,
+   finds each SSL library, and deduplicates by `(device, inode)` — pods of the
+   same image share one overlayfs lower layer, so a single probe covers them all.
+2. **uprobe attachment** — the `uprobe-dlp` program is attached to `SSL_write` /
+   `SSL_read` (entry + return) once per unique library inode, so the agent sees
+   **every container's** TLS, not only its own.
+3. **Lifecycle tracking** — a watcher re-scans periodically, attaching to
+   libraries newly mapped by appearing containers and detaching a library's
+   probes once no process maps it any more.
+4. **Plaintext capture** — decrypted payload bytes are emitted via RingBuf to
+   userspace.
+5. **Pattern matching** — the DLP engine evaluates the payload against the
+   configured regex patterns.
+6. **Source attribution** — the captured event's `cgroup_id` is resolved to the
+   originating container / pod, so the alert names the workload that leaked.
+7. **Alert generation** — matches produce alerts with the pattern ID, severity,
+   redacted context, and container provenance.
 
 DLP is **userspace-only** for pattern matching — there is no eBPF map synchronization needed (unlike IDS/IPS where rules are pushed to kernel maps).
+
+In the rootless deployment the agent runs `cap-drop: ALL`, so the privileged
+uprobe attach (reading a neighbouring container's `/proc/<pid>/root` and creating
+the BPF link) is brokered to the **warden** sidecar, which returns the link
+descriptor over the control socket. See the
+[security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
+for the `hostPID` / `/host/proc` requirements this entails.
 
 All regex patterns (built-in and enterprise custom) are **pre-compiled at config load** with safety limits to prevent ReDoS:
 
@@ -60,12 +82,17 @@ See [Enterprise DLP](enterprise/dlp.md) for details.
 
 ## Container-Aware DLP
 
+The agent inspects TLS across **every container on the host**, not only its own
+process. It resolves each workload's `libssl` / BoringSSL through the host
+`/proc`, attaches a uprobe per unique library inode (deduplicated so same-image
+pods share one probe set), and tracks containers as they appear and disappear.
+
 When the container resolver is enabled (see
 [Container Awareness](container-awareness.md)), every DLP alert is
 automatically enriched with the workload that produced the leak:
 
 - `container` — runtime (`docker`/`containerd`/`crio`/`podman`) and
-  canonical container id resolved from `/proc/{pid}/cgroup`
+  canonical container id resolved from the event's `cgroup_id`
 - `container_metadata` — Docker image + labels (Docker enricher) or
   pod name, namespace, labels, service account, and owner reference
   (Kubernetes enricher)
@@ -75,19 +102,21 @@ namespace that leaked the data — no manual IP-to-workload correlation
 required downstream. SIEM exports, the gRPC alert stream, the REST API,
 and the audit trail all carry the enrichment.
 
-### Extended TLS library coverage (Enterprise)
+### Coverage and limits
 
-The OSS uprobe-dlp program hooks OpenSSL's `libssl.so.3` only.
-Applications that manage TLS internally — Go's `crypto/tls`, Java's
-JSSE, Envoy / sidecar proxies linking BoringSSL statically, kTLS kernel
-offload, GnuTLS — are invisible to the OSS DLP. Enterprise ships a
-full discovery pipeline: a `/proc` scanner walks every process,
-detects the TLS library, resolves symbol offsets, and publishes an
-attachment plan via the `/api/v1/enterprise/tls-probes/*` admin API
-plus six Prometheus metrics. Kernel-side uprobe attach for the new
-Go/kTLS probes is blocked on upstream aya support for uprobe-by-offset
-attachment. See
-[Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
+The OSS agent covers **dynamically-linked OpenSSL and BoringSSL** (`libssl.so`,
+`libboringssl.so`) across all containers. The deployment must share the host PID
+namespace and mount the host `/proc` so the agent can resolve neighbouring
+containers' libraries — see the
+[security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility).
+
+Out of scope for OSS:
+
+- **Statically-linked TLS runtimes** — Go (`crypto/tls`), Rust (rustls), Java
+  (JSSE), or proxies that link BoringSSL statically — export no `libssl` symbol
+  to probe. Per-runtime symbol resolution is an **Enterprise** extension.
+- **kTLS kernel-offloaded sockets** — plaintext lives kernel-side, a separate
+  hook path.
 
 ## Configuration
 
