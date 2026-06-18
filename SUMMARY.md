@@ -128,6 +128,7 @@
 - [Binary Deployment](operations/deployment/binary.md)
 - [Docker Deployment](operations/deployment/docker.md)
 - [Kubernetes Deployment](operations/deployment/kubernetes.md)
+- [Enterprise Deployment (rootless split)](operations/deployment/enterprise.md)
 - [Hot Reload](operations/hot-reload.md)
 - [Monitoring](operations/monitoring.md)
 - [Troubleshooting](operations/troubleshooting.md)
