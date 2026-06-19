@@ -8,16 +8,11 @@ The enterprise license system gates feature activation at runtime using Ed25519 
 
 ## License Key Format
 
-License keys are two-line (v1) or three-line (v2) files:
+License keys are post-quantum dual-signed (v2) three-line files. Both the
+Ed25519 and ML-DSA-65 signatures must verify — legacy Ed25519-only keys are
+not accepted.
 
-- **v1 (Ed25519-only):** backward-compatible, two lines
-- **v2 (Ed25519 + ML-DSA-65):** post-quantum dual-signed, three lines
-
-**v1 format:**
-- **Line 1:** Base64-encoded JSON payload (`LicenseInfo`)
-- **Line 2:** Base64-encoded Ed25519 signature
-
-**v2 format:**
+**v2 format (Ed25519 + ML-DSA-65):**
 - **Line 1:** Base64-encoded JSON payload (`LicenseInfo`)
 - **Line 2:** Base64-encoded Ed25519 signature
 - **Line 3:** Base64-encoded ML-DSA-65 signature
@@ -84,7 +79,7 @@ ebpfsentinel-license keygen \
   --pq-public-key license-signing-pq.pub
 ```
 
-This generates both an Ed25519 keypair and an ML-DSA-65 keypair. The `--pq-private-key` and `--pq-public-key` flags are optional; omit them to generate Ed25519-only keys for v1 license workflows.
+This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are required: licenses are post-quantum dual-signed and verified against both public keys.
 
 ### Generate License
 
@@ -101,7 +96,7 @@ ebpfsentinel-license generate \
   --output license.key
 ```
 
-Without `--pq-signing-key`, a v1 (Ed25519-only) license is generated for backward compatibility.
+Both `--signing-key` and `--pq-signing-key` are required — every license is post-quantum dual-signed.
 
 ### Inspect License
 
@@ -145,12 +140,12 @@ For environments without internet access:
 
 ## Post-Quantum License Signing
 
-ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license keys. When a v2 license is issued, both an Ed25519 signature and an ML-DSA-65 signature are computed over the same JSON payload.
+ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license keys. Both an Ed25519 signature and an ML-DSA-65 signature are computed over the same JSON payload.
 
 **Verification behavior:**
 
-- **v2 licenses:** both Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature rejects the license.
-- **v1 licenses:** remain fully valid and are verified with Ed25519 only. No ML-DSA-65 key is required. This ensures backward compatibility with existing deployments.
+- Both the Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature — or a missing ML-DSA-65 signature — rejects the license.
+- Legacy Ed25519-only (v1) keys are no longer accepted.
 
 **Key storage:**
 
@@ -158,7 +153,7 @@ ML-DSA-65 keys are stored as 32-byte seed files. The full keypair is determinist
 
 **HKDF key derivation:**
 
-The License-as-Computation-Parameter mechanism (AES-256-GCM encryption of enterprise assets) continues to derive keys from the Ed25519 signature bytes via HKDF. The ML-DSA-65 signature is not used for key derivation, preserving compatibility between v1 and v2 licenses for asset decryption.
+The License-as-Computation-Parameter mechanism (AES-256-GCM encryption of enterprise assets) derives keys from the Ed25519 signature bytes via HKDF. The ML-DSA-65 signature is not used for key derivation.
 
 ## Anti-Tamper Protections
 
