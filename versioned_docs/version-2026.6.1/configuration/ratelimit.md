@@ -1,0 +1,120 @@
+# Rate Limiting Configuration
+
+The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) — it is configured under `ddos`, not as a rate-limit algorithm.
+
+## Reference
+
+```yaml
+ratelimit:
+  enabled: false                         # Enable/disable rate limiting (default: false)
+  default_rate: 1000                     # Default PPS for unmatched IPs
+  default_burst: 2000                    # Default burst capacity for unmatched IPs
+  default_algorithm: token_bucket        # Default algorithm for unmatched IPs
+  rules:
+    - id: "rule-id"
+      rate: 10000                        # Packets per second
+      burst: 20000                       # Burst capacity
+      algorithm: token_bucket            # Algorithm choice
+      scope: per_ip                      # per_ip or global
+      src_ip: "10.0.0.0/8"               # Source CIDR filter (optional)
+```
+
+## Fields
+
+### Top-Level
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Enable/disable rate limiting |
+| `default_rate` | `integer` | `1000` | Default packets per second for unmatched source IPs |
+| `default_burst` | `integer` | `2000` | Default burst capacity for unmatched source IPs |
+| `default_algorithm` | `string` | `token_bucket` | Default algorithm for unmatched source IPs |
+| `country_tiers` | `[CountryTier]` | `[]` | Per-country rate limit tiers enforced via kernel LPM maps |
+| `rules` | `[Rule]` | `[]` | Rate limit rules (max 10,240) |
+
+### Rule
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `id` | `string` | Yes | — | Unique identifier |
+| `rate` | `integer` | Yes | — | Packets per second |
+| `burst` | `integer` | Yes | — | Burst capacity |
+| `algorithm` | `string` | No | `token_bucket` | See algorithms below |
+| `action` | `string` | No | `drop` | Action when the limit is exceeded: `drop` or `pass` |
+| `scope` | `string` | No | `source_ip` | `source_ip` (aliases: `src_ip`, `per_ip`) or `global` |
+| `src_ip` | `string` | No | — | Source CIDR filter (only apply to matching IPs) |
+| `src_ip_alias` | `string` | No | — | Named IP-set alias as the source filter (alternative to `src_ip`) |
+| `country_codes` | `[string]` | No | — | Restrict the rule to source countries (ISO 3166-1 alpha-2) |
+| `interfaces` | `[string]` | No | — | Restrict the rule to specific interfaces or interface groups |
+| `enabled` | `bool` | No | `true` | Enable or disable this rule |
+
+### CountryTier
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tier_id` | `integer` | Yes | Tier identifier (1–15) |
+| `country_codes` | `[string]` | Yes | ISO 3166-1 alpha-2 country codes assigned to this tier |
+| `rate` | `integer` | Yes | Packets per second for this tier |
+| `burst` | `integer` | Yes | Burst capacity for this tier |
+| `algorithm` | `string` | No | Algorithm (default: `token_bucket`) |
+| `action` | `string` | No | `drop` or `pass` (default: `drop`) |
+
+Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then loaded into dedicated kernel LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). The LPM lookup runs before per-IP rule matching.
+
+## Algorithms
+
+| Algorithm | Value | Description |
+|-----------|-------|-------------|
+| Token Bucket | `token_bucket` | Tokens refill at fixed rate; each packet consumes one |
+| Fixed Window | `fixed_window` | Counter resets at fixed intervals |
+| Sliding Window | `sliding_window` | Weighted average of current and previous windows |
+| Leaky Bucket | `leaky_bucket` | Packets drain at fixed rate |
+
+> SYN-cookie forging (FNV-1a SYN cookies via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. `algorithm: syn_cookie` is rejected at config load.
+
+## Examples
+
+### Multi-algorithm setup with defaults
+
+```yaml
+ratelimit:
+  enabled: true
+  default_rate: 1000
+  default_burst: 2000
+  default_algorithm: token_bucket
+  rules:
+    - id: global-limit
+      rate: 10000
+      burst: 20000
+      algorithm: token_bucket
+      scope: per_ip
+    - id: api-ratelimit
+      rate: 1000
+      burst: 2000
+      algorithm: sliding_window
+      scope: per_ip
+```
+
+### Country-based tiers
+
+```yaml
+ratelimit:
+  enabled: true
+  default_rate: 1000
+  default_burst: 2000
+  country_tiers:
+    - tier_id: 1
+      country_codes: [RU, CN]
+      rate: 200
+      burst: 400
+      algorithm: token_bucket
+      action: drop
+    - tier_id: 2
+      country_codes: [KP, IR, SY]
+      rate: 50
+      burst: 100
+    - tier_id: 3
+      country_codes: [US, CA, GB, DE, FR]
+      rate: 5000
+      burst: 10000
+```

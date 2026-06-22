@@ -1,0 +1,132 @@
+# IDS Configuration
+
+The `ids` section configures intrusion detection rules, sampling, and threshold detection.
+
+## Reference
+
+```yaml
+ids:
+  enabled: true                       # enable/disable IDS (default: true)
+  mode: alert                         # alert or block
+  inspect_egress: false               # also classify on the egress hook
+  sampling:                           # optional packet sampling
+    mode: none                        # none, random, hash, or country_based
+    rate: 1.0                         # sample rate 0.0–1.0 (random/hash modes)
+  rules:
+    - id: "rule-id"
+      severity: high                  # critical, high, medium, low, info
+      protocol: any                   # any, tcp, udp, icmp (default: any)
+      dst_port: 22                    # optional destination port
+      pattern: "regex-pattern"        # optional payload regex
+      description: "Rule description"
+      threshold:                      # Optional threshold detection
+        type: threshold               # limit, threshold, or both
+        count: 5
+        window_secs: 60               # Seconds
+        track_by: src_ip              # src_ip, dst_ip, or both
+```
+
+## Fields
+
+### Top-Level
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `true` | Enable or disable the IDS module |
+| `mode` | `string` | `alert` | `alert` (detect only) or `block` (requires IPS) |
+| `sampling` | `Sampling` | — | Sampling configuration (see below) |
+| `inspect_egress` | `bool` | `false` | Also run the classifier on the egress hook. Enables cgroup/container attribution of locally-originated (e.g. container outbound) traffic, since on egress the originating socket is bound to the packet |
+| `rules` | `[Rule]` | `[]` | Detection rules |
+
+### Sampling
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | `string` | `none` | `none`, `random`, `hash`, or `country_based` |
+| `rate` | `float` | `1.0` | Sample rate 0.0–1.0 (for `random`/`hash` modes) |
+| `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 codes for full inspection (`country_based` mode). Max 250 codes |
+| `high_risk_rate` | `float` | `1.0` | Sample rate for high-risk countries (default: 100%) |
+| `default_rate` | `float` | `0.1` | Sample rate for all other countries |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Unique identifier |
+| `severity` | `string` | Yes | `critical`, `high`, `medium`, `low`, `info` |
+| `protocol` | `string` | No | `any` (default), `tcp`, `udp`, `icmp` |
+| `dst_port` | `integer` | No | Destination port to match |
+| `src_port` | `integer` | No | Source port to match |
+| `pattern` | `string` | No | Regex pattern to match against packet payload |
+| `mode` | `string` | No | Per-rule mode override (`alert` or `block`); inherits the section `mode` |
+| `description` | `string` | No | Human-readable description |
+| `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
+| `threshold` | `Threshold` | No | Threshold detection settings |
+| `domain_pattern` | `string` | No | Match against the SNI/DNS domain (requires `domain_match_mode`) |
+| `domain_match_mode` | `string` | No | `exact`, `wildcard`, or `regex` (required when `domain_pattern` is set) |
+| `country_thresholds` | `map<string, Threshold>` | No | Per-country threshold overrides (ISO 3166-1 alpha-2 → Threshold). Overrides the rule's `threshold` for traffic from listed countries |
+| `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+
+### Threshold
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `string` | Yes | `limit`, `threshold`, or `both` |
+| `count` | `integer` | Yes | Match count for the mode |
+| `window_secs` | `integer` | Yes | Time window in seconds |
+| `track_by` | `string` | No | Tracking key: `src_ip` (default), `dst_ip`, or `both` |
+
+## Threshold Modes
+
+| Mode | Behavior |
+|------|----------|
+| `limit` | Alert on first N matches, then suppress until window resets |
+| `threshold` | Alert only after N matches within the window |
+| `both` | Alert after N matches, then suppress until window resets |
+
+## Examples
+
+### SQL injection and XSS detection
+
+```yaml
+ids:
+  mode: alert
+  rules:
+    - id: sql-injection
+      pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
+      severity: high
+      description: "SQL injection attempt"
+    - id: xss
+      pattern: "(?i)(<script|javascript:|on\\w+\\s*=)"
+      severity: high
+      description: "Cross-site scripting attempt"
+```
+
+### Country-based sampling with per-country thresholds
+
+```yaml
+ids:
+  mode: alert
+  sampling:
+    mode: country_based
+    rate: 1.0
+    high_risk_countries: [RU, CN, KP, IR]
+    high_risk_rate: 1.0                   # 100% inspection for high-risk countries
+    default_rate: 0.1                     # 10% for all others
+  rules:
+    - id: ssh-bruteforce
+      protocol: tcp
+      dst_port: 22
+      severity: high
+      threshold:
+        type: threshold
+        count: 5
+        window_secs: 60
+        track_by: src_ip
+      country_thresholds:
+        RU:
+          type: threshold
+          count: 2                        # Only 2 attempts from Russia
+          window_secs: 60
+          track_by: src_ip
+```

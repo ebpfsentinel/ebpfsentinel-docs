@@ -1,0 +1,218 @@
+{
+  "docs": [
+    "intro",
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "collapsed": false,
+      "items": [
+        "getting-started/prerequisites",
+        "getting-started/installation",
+        "getting-started/quickstart",
+        "getting-started/concepts"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Features",
+      "items": [
+        "features/overview",
+        "features/firewall",
+        "features/ids",
+        "features/ips",
+        "features/dlp",
+        "features/ratelimit",
+        "features/ddos",
+        "features/loadbalancer",
+        "features/threatintel",
+        "features/l7-firewall",
+        "features/dns-intelligence",
+        "features/alerting",
+        "features/audit",
+        "features/authentication",
+        "features/ipv6",
+        "features/geoip",
+        "features/vlan",
+        "features/conntrack",
+        "features/nat",
+        "features/routing",
+        "features/zones",
+        "features/qos",
+        "features/interface-groups",
+        "features/aliases",
+        "features/mitre-attack",
+        "features/ja4-fingerprinting",
+        "features/pq-tls",
+        "features/capture",
+        "features/response",
+        "features/operational-essentials",
+        "features/container-awareness",
+        "features/deployment-matrix",
+        {
+          "type": "category",
+          "label": "Enterprise Features",
+          "items": [
+            "features/enterprise/overview",
+            "features/enterprise/license",
+            "features/enterprise/dlp",
+            "features/enterprise/dashboard",
+            "features/enterprise/kubernetes-operator",
+            "features/enterprise/high-availability",
+            "features/enterprise/multicluster",
+            "features/enterprise/multitenancy",
+            "features/enterprise/ml-detection",
+            "features/enterprise/siem-integration",
+            "features/enterprise/compliance-reports",
+            "features/enterprise/airgap",
+            "features/enterprise/analytics",
+            "features/enterprise/advanced-rbac",
+            "features/enterprise/fleet-management",
+            "features/enterprise/ai-security",
+            "features/enterprise/tls-intelligence",
+            "features/enterprise/automated-response",
+            "features/enterprise/network-forensics",
+            "features/enterprise/l7-deep-inspection",
+            "features/enterprise/l7-per-protocol-policies",
+            "features/enterprise/l7-alert-enrichment"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Configuration",
+      "items": [
+        "configuration/overview",
+        "configuration/agent",
+        "configuration/firewall",
+        "configuration/ids",
+        "configuration/ips",
+        "configuration/dlp",
+        "configuration/l7",
+        "configuration/ratelimit",
+        "configuration/ddos",
+        "configuration/loadbalancer",
+        "configuration/threatintel",
+        "configuration/dns",
+        "configuration/alerting",
+        "configuration/audit",
+        "configuration/conntrack",
+        "configuration/container",
+        "configuration/nat",
+        "configuration/routing",
+        "configuration/qos",
+        "configuration/aliases",
+        "configuration/auto-response",
+        "configuration/auto-capture",
+        "configuration/interface-groups",
+        "configuration/zones",
+        "configuration/geoip",
+        "configuration/auth",
+        "configuration/tls",
+        "configuration/dashboard",
+        "configuration/enterprise"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        "api-reference/rest-api",
+        "api-reference/grpc-api",
+        "api-reference/openapi",
+        {
+          "type": "link",
+          "label": "API Explorer (Redoc)",
+          "href": "/api-reference/api-explorer/"
+        },
+        "api-reference/prometheus-metrics"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "CLI Reference",
+      "items": [
+        "cli-reference/index"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Architecture",
+      "items": [
+        "architecture/overview",
+        "architecture/hexagonal-ddd",
+        "architecture/ebpf-programs",
+        "architecture/data-flow",
+        "architecture/security-model"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Kernel Reference",
+      "items": [
+        "kernel/overview",
+        "kernel/pipeline",
+        "kernel/programs",
+        "kernel/helpers",
+        "kernel/maps",
+        "kernel/kfuncs",
+        "kernel/limits",
+        "kernel/requirements"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Operations",
+      "items": [
+        "operations/deployment/binary",
+        "operations/deployment/docker",
+        "operations/deployment/kubernetes",
+        "operations/deployment/bpf-token",
+        "operations/deployment/enterprise",
+        "operations/hot-reload",
+        "operations/monitoring",
+        "operations/troubleshooting",
+        "operations/performance-tuning",
+        "operations/upgrading",
+        "operations/compatibility",
+        "operations/dashboard-accessibility",
+        "operations/dashboard-desktop"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        "development/contributing",
+        "development/building",
+        "development/testing",
+        "development/adding-a-domain",
+        "development/ebpf-development",
+        "development/ci-cd"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Compliance",
+      "items": [
+        "compliance/pci-dss",
+        "compliance/hipaa",
+        "compliance/gdpr",
+        "compliance/soc2"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Examples",
+      "items": [
+        "examples/index",
+        "examples/scenarios/web-application",
+        "examples/scenarios/database-isolation",
+        "examples/scenarios/pci-compliance",
+        "examples/scenarios/threat-hunting",
+        "examples/scenarios/kubernetes-ddos"
+      ]
+    },
+    "faq"
+  ]
+}

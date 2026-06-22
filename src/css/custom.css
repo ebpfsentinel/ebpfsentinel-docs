@@ -1,0 +1,58 @@
+/* eBPFsentinel docs theme — maps the product design tokens (ebpfsentinel-ui/UI_pages/tokens.css)
+ * onto Infima so the docs site tracks the dashboard brand. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* electric violet accent → Infima primary palette */
+  --ifm-color-primary: #6240ff;
+  --ifm-color-primary-dark: #4f2bf5;
+  --ifm-color-primary-darker: #4624e8;
+  --ifm-color-primary-darkest: #3a1dc0;
+  --ifm-color-primary-light: #7c5cff;
+  --ifm-color-primary-lighter: #8f73ff;
+  --ifm-color-primary-lightest: #a78bff;
+
+  --ifm-font-family-base: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --ifm-background-color: #f6f5fb;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-toc-border-color: #e5e3f0;
+  --ifm-code-font-size: 92%;
+  --ifm-code-background: #efeef7;
+  --docusaurus-highlighted-code-line-bg: rgba(124, 92, 255, 0.12);
+
+  /* admonition accents from the token severity scale */
+  --ifm-color-info: #0369a1;
+  --ifm-color-warning: #b45309;
+  --ifm-color-danger: #b3261e;
+  --ifm-color-success: #4d7c0f;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #a78bfa;
+  --ifm-color-primary-dark: #9472f8;
+  --ifm-color-primary-darker: #8a66f7;
+  --ifm-color-primary-darkest: #6f44f4;
+  --ifm-color-primary-light: #bda6fc;
+  --ifm-color-primary-lighter: #c8b4fd;
+  --ifm-color-primary-lightest: #ddd0fe;
+
+  --ifm-background-color: #0b0d1a;
+  --ifm-background-surface-color: #161936;
+  --ifm-navbar-background-color: #11132a;
+  --ifm-toc-border-color: #262a55;
+  --ifm-code-background: #1d2147;
+  --docusaurus-highlighted-code-line-bg: rgba(167, 139, 250, 0.18);
+
+  --ifm-color-info: #6ec1ff;
+  --ifm-color-warning: #f6c453;
+  --ifm-color-danger: #ff6a5c;
+  --ifm-color-success: #98e07b;
+}
+
+.navbar__logo {
+  height: 1.9rem;
+}

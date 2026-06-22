@@ -1,3 +1,10 @@
+---
+id: intro
+slug: /
+sidebar_position: 0
+title: Introduction
+---
+
 # eBPFsentinel
 
 A unified, kernel-native **Network & Security platform** for Linux — one Rust binary that replaces your firewall, IDS/IPS, DDoS mitigation, DLP, and 10+ more tools, all running in-kernel via eBPF at wire speed. Not an endpoint agent — it enforces security inline, right where your traffic flows.
@@ -31,7 +38,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 
 - **IPv4/IPv6 dual-stack** across every IP-path eBPF program and userspace engine, with IPv6 extension header parsing and QinQ 802.1ad support
 - **16 eBPF programs** — 7 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer, vip-announcer, pass), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 1 uprobe (dlp). `xdp-vip-announcer` answers ARP for load-balancer VIPs; `xdp-pass` is a test-only veth helper
-- **Multi-NIC support** — attach to multiple interfaces, bond masters, VLAN trunks. [Interface groups](docs/features/interface-groups.md) for per-interface rule scoping (up to 31 groups)
+- **Multi-NIC support** — attach to multiple interfaces, bond masters, VLAN trunks. [Interface groups](features/interface-groups.md) for per-interface rule scoping (up to 31 groups)
 - **XDP tail-call chaining** — firewall → reject, firewall → ratelimit, ratelimit → syncookie in single attach points
 - **XDP_TX packet forging** — firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation
 - **Parallel event dispatch** — configurable worker count (default 4), deterministic per-source partitioning, lock-free ArcSwap service access
@@ -62,12 +69,12 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 
 eBPFsentinel is open source (AGPL-3.0). All 14 security domains, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4+ fingerprinting are included — no paywall.
 
-An [enterprise edition](docs/features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
+An [enterprise edition](features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
 
 ## Next Steps
 
-- [Prerequisites](docs/getting-started/prerequisites.md) — verify your system meets the requirements
-- [Installation](docs/getting-started/installation.md) — build from source or use Docker
-- [Quickstart](docs/getting-started/quickstart.md) — get the agent running in 5 minutes
-- [Core Concepts](docs/getting-started/concepts.md) — understand the architecture before diving in
-- [Kubernetes Deployment](docs/operations/deployment/kubernetes.md) — Helm chart and DaemonSet guide
+- [Prerequisites](getting-started/prerequisites.md) — verify your system meets the requirements
+- [Installation](getting-started/installation.md) — build from source or use Docker
+- [Quickstart](getting-started/quickstart.md) — get the agent running in 5 minutes
+- [Core Concepts](getting-started/concepts.md) — understand the architecture before diving in
+- [Kubernetes Deployment](operations/deployment/kubernetes.md) — Helm chart and DaemonSet guide
