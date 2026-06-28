@@ -59,7 +59,7 @@ A background task runs every `heartbeat_interval_secs` (default 30s):
 
 1. Calculate elapsed time since each cluster's last heartbeat
 2. Evaluate health status using thresholds
-3. For unhealthy clusters: probe via `GET {endpoint}/api/v1/ha/status`
+3. For unhealthy clusters: probe via `GET {endpoint}/api/v1/federation/status`
 4. Update cluster state from probe response (or mark as degraded/offline on failure)
 5. Persist updated state to redb
 
@@ -131,9 +131,26 @@ Distribution history retains the last **1,000** results.
 `HttpClusterTransport` communicates with member clusters:
 
 - `POST {endpoint}/api/v1/federation/policies/apply` for policy push
-- `GET {endpoint}/api/v1/ha/status` for health checks
+- `GET {endpoint}/api/v1/federation/status` for health checks
 - Timeouts: 5s connect, 10s request
 - Optional CA certificate for mTLS
+
+### Policy Apply (Member Receiver)
+
+Member clusters expose `POST /api/v1/federation/policies/apply`. On receipt the
+member maps `policy_type` to the matching local engine
+(firewall / ids / ips / ratelimit / threatintel / l7 / ddos / dlp), applies the
+policy payload (a JSON array of that engine's rules), and responds:
+
+- **Apply is atomic**: the member snapshots current state before applying and
+  rolls back to the snapshot if the apply fails (fail closed), so a bad push
+  never leaves the engine half-configured.
+- **Dry-run** (`dry_run: true`) validates the payload shape without touching the
+  datapath, reporting `DryRunOk` / `DryRunFailed`.
+- **Per-cluster overrides** replace the policy payload for that member.
+- The member reports its actually-applied policy set in its heartbeat and at
+  `GET /api/v1/federation/status`, so the management can detect drift between
+  pushed and enforced policies.
 
 ## Alert Aggregation
 
@@ -269,6 +286,8 @@ enterprise:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/v1/federation/heartbeat` | Send heartbeat to management (204) |
+| `POST` | `/api/v1/federation/policies/apply` | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure) |
+| `GET` | `/api/v1/federation/status` | Federation health + applied-policy set (health-probe target) |
 
 ## Feature Gating
 
