@@ -188,6 +188,8 @@ Tenants can be created, suspended, and reactivated dynamically via the REST API 
 
 The tenant registry uses **ArcSwap** for lock-free reads on the hot path — tenant lookups (which happen on every packet in eBPF userspace fallback) never block, even during concurrent write operations like add/suspend/activate.
 
+Dynamic tenant changes propagate to the kernel **live, without a restart**: after every create/suspend/activate the agent recomputes the VLAN→tenant and subnet→tenant (IPv4/IPv6) resolution maps from the registry and pushes them into the loaded eBPF programs. On an HA pair only the active (datapath-loaded) node writes the maps; a standby node's push is a no-op until it is promoted. Numeric `tenant_id` values are stable across these changes, so the maps and historical alerts stay consistent.
+
 | Status | Description |
 |--------|-------------|
 | `Active` | Tenant is operational, rules are enforced, self-service allowed |
