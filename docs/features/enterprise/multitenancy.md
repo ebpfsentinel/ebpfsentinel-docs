@@ -17,7 +17,7 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `subnets` | IP subnets assigned to this tenant (bare-metal mode, IPv4 + IPv6 CIDR) |
 | `vlans` | VLAN IDs assigned to this tenant (bare-metal mode) |
 | `description` | Optional description |
-| `tenant_id` | Numeric tenant identifier (auto-assigned sequentially: 1, 2, 3, ...) |
+| `tenant_id` | Numeric tenant identifier — allocated once (`max + 1`) and **stable** for the life of the tenant; adding/suspending/removing other tenants never renumbers it. The default tenant is always `0`. |
 | `quota` | Per-tenant resource limits |
 | `status` | `Active` or `Suspended`|
 | `source` | `Config` (YAML) or `Api` (dynamic creation) |
@@ -131,10 +131,17 @@ Access control is scoped per tenant using JWT claims or API key headers.
 
 ### Identity Extraction
 
-Identity is resolved in order:
+Identity is resolved from a **verified principal only**:
 
-1. **JWT claims** — `namespaces[0]` as tenant_id, `role` claim, `sub` as subject
-2. **Header fallback** (API key auth) — `X-Tenant-Id`, `X-Tenant-Role`, `X-API-Key` as subject
+1. **JWT claims** — `namespaces[0]` as tenant_id, `role` claim, `sub` as subject.
+   The auth layer populates these for both a validated JWT **and** a validated
+   API key.
+
+A request without a verified principal is treated as **unauthenticated**: it
+resolves to no tenant and the `Viewer` role. The `X-Tenant-Id` / `X-Tenant-Role`
+headers are **not** trusted to assert tenant or role — honouring them would let
+any client claim any tenant at any privilege. (`X-API-Key` is still read as the
+subject for audit only and confers no access.)
 
 ### Authorization
 
@@ -210,7 +217,7 @@ Each tenant can be granted self-service capabilities, allowing tenant operators 
 | `manage_ids_rules` | Create/update/delete IDS rules scoped to this tenant |
 | `manage_dlp_patterns` | Create/update/delete DLP patterns scoped to this tenant |
 
-Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/self-service/check` before allowing mutations. A `403 Forbidden` is returned if the operation is not allowed or the tenant is suspended.
+Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/self-service/check` before allowing mutations. A `403 Forbidden` is returned if the operation is not in the tenant's allow-list, the tenant is suspended, or the operation would exceed the tenant's resource quota (firewall/IDS rules count against the `rules` budget, DLP patterns against `patterns`).
 
 ### Self-Service API Endpoints
 
