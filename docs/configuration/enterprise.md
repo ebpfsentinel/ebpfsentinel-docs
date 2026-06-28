@@ -163,6 +163,18 @@ enterprise:
     degraded_threshold_secs: 90
     offline_threshold_secs: 180
     data_dir: /var/lib/ebpfsentinel/federation
+    # Mutual-TLS for inter-cluster auth (optional; default off = plain HTTP).
+    # When enabled, federation routes move to a dedicated client-cert-required
+    # listener and the presented client-cert fingerprint is pinned per cluster.
+    # See features/enterprise/multicluster.md → "Mutual TLS" for the migration.
+    mtls:
+      enabled: false
+      listen_port: 9444
+      ca_cert_path: /etc/ebpfsentinel/cluster-ca.pem
+      server_cert_path: /etc/ebpfsentinel/node-server.pem
+      server_key_path: /etc/ebpfsentinel/node-server.key
+      client_cert_path: /etc/ebpfsentinel/node-client.pem
+      client_key_path: /etc/ebpfsentinel/node-client.key
 
   # ── Advanced RBAC ───────────────────────────────────────────────
   advanced_rbac:

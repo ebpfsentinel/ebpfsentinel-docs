@@ -264,6 +264,58 @@ enterprise:
 | `degraded_threshold_secs` | u64 | `90` | Seconds until degraded status |
 | `offline_threshold_secs` | u64 | `180` | Seconds until offline status |
 | `data_dir` | string | `/var/lib/ebpfsentinel/federation` | Persistent state directory |
+| `mtls` | object | — | Mutual-TLS enforcement (see below). Absent/disabled keeps the legacy plain-HTTP behaviour |
+
+## Mutual TLS (mTLS)
+
+By default federation routes are served on the plain enterprise API. Enabling
+`mtls` moves them to a **dedicated client-cert-required listener**: the TLS
+handshake itself authenticates the peer (a cluster without a CA-signed client
+certificate cannot connect), and the management cluster **pins** each member's
+presented client-cert SHA-256 fingerprint against the value recorded at
+registration. The transport presents the node's client certificate on every
+inter-cluster call.
+
+```yaml
+enterprise:
+  multi_cluster:
+    enabled: true
+    is_management: true
+    ca_cert: /etc/ebpfsentinel/cluster-ca.pem
+    mtls:
+      enabled: true
+      listen_port: 9444            # dedicated mTLS federation listener
+      ca_cert_path: /etc/ebpfsentinel/cluster-ca.pem
+      server_cert_path: /etc/ebpfsentinel/node-server.pem
+      server_key_path: /etc/ebpfsentinel/node-server.key
+      client_cert_path: /etc/ebpfsentinel/node-client.pem
+      client_key_path: /etc/ebpfsentinel/node-client.key
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Turn on mTLS enforcement |
+| `listen_port` | u16 | `9444` | Port for the client-cert-required federation listener |
+| `ca_cert_path` | string | — | PEM CA that signs all cluster certs (verifies both peers) |
+| `server_cert_path` | string | — | PEM server cert chain presented to peers |
+| `server_key_path` | string | — | PEM server private key |
+| `client_cert_path` | string | — | PEM client cert presented when calling peers |
+| `client_key_path` | string | — | PEM client private key |
+
+### Migration (phased rollout)
+
+`mtls` defaults **off**, so an existing unauthenticated federation keeps working
+after upgrade. To migrate without downtime:
+
+1. Issue a server + client certificate per node from a shared CA (the enterprise
+   `tls_ca` tooling can generate them).
+2. Distribute the CA + per-node certs and add the `mtls` block (`enabled: false`
+   initially) to every node.
+3. Flip `mtls.enabled: true` on all nodes and restart. Federation traffic moves
+   to the `listen_port` listener; the plain-HTTP federation routes are withdrawn.
+   Members re-register over mTLS, advertising their real client-cert fingerprint
+   (replacing the legacy `auto-registered` placeholder), which the management
+   pins on subsequent heartbeats.
 
 ## REST API
 
