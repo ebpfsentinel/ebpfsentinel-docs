@@ -156,6 +156,19 @@ policy payload (a JSON array of that engine's rules), and responds:
 
 Alerts from member clusters are collected, deduplicated, and stored at the management level.
 
+### Tenant Scoping
+
+Each `FederatedAlert` carries a `tenant_id` — the **stable tenant string id**
+(name), which is consistent across clusters (unlike the per-cluster numeric id).
+It is preserved through forwarding, ingest, the rolling buffer, the persistent
+store, and the SSE broadcast, so cross-cluster aggregation stays tenant-scoped.
+The list (`GET /api/v1/federation/alerts`) and stream
+(`GET /api/v1/federation/alerts/stream`) endpoints filter by tenant via the same
+RBAC path as local alerts: an **Operator** sees only their own tenant's federated
+alerts, an **Admin** sees all. An alert with no resolvable tenant is attributed
+to the default tenant (`__default__`), never dropped. Older payloads without a
+`tenant_id` deserialize to the default tenant for back-compat.
+
 ### Deduplication
 
 - Each alert has a UUIDv7 `event_id` for deduplication
