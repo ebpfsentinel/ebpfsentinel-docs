@@ -92,7 +92,19 @@ The `attach_mode` field controls how TC programs (tc-ids, tc-conntrack, tc-dns, 
 | `tc` | Force TC clsact qdisc attach on all interfaces |
 | `netkit` | Force netkit attach via `BPF_LINK_CREATE` on all interfaces (fails if interface is not a netkit device) |
 
-**Netkit hot-plug**: in `auto` or `netkit` mode, a background watcher polls `/sys/class/net/` every 5 seconds for new netkit devices. When a new device appears (e.g., Kubernetes pod creation), all loaded TC programs are automatically attached without restarting the agent.
+### Netkit attach
+
+**Netkit** devices (kernel **6.7+**) replace veth pairs for container networking and let BPF programs attach natively — no TC qdisc overhead. eBPFsentinel detects them by reading `/sys/class/net/{iface}/type` (netkit reports `ARPHRD_NONE` / `65534`) and attaches each TC program with a `BPF_LINK_CREATE` syscall using `BPF_NETKIT_PRIMARY` (the ingress side of the netkit pair).
+
+The programs eligible for netkit attach are the TC datapath: `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-qos`. XDP programs (`xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`) keep their own [XDP attach mode](#xdp-attachment-mode).
+
+In `netkit` mode, attaching to a non-netkit interface is a hard error. In `auto` mode the agent silently falls back to TC clsact for any interface that is not a netkit device, so the same config works on bare metal and on Cilium clusters.
+
+### Netkit hot-plug
+
+In `auto` or `netkit` mode a background watcher polls `/sys/class/net/` every 5 seconds for new netkit devices. When one appears (e.g. a Kubernetes pod is scheduled) every loaded TC program is auto-attached to it **without restarting the agent**; when the device disappears (pod deleted) the link is dropped and the program detaches.
+
+The same poll cycle scans `/proc/*/ns/net` for new pod network namespaces (deduplicated by inode) and correlates them with the new device, so hot-plug log lines carry the owning pod's PID and namespace inode for troubleshooting. The watcher only runs when at least one TC program is loaded and `attach_mode` is not `tc`.
 
 ## CLI Overrides
 

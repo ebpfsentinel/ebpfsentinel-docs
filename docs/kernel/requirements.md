@@ -109,6 +109,7 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs` since aya 
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
 | BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
+| Netkit device + `BPF_NETKIT_PRIMARY` attach | 6.7+ | Native TC-program attach to netkit interfaces via `BPF_LINK_CREATE` (Cilium 1.16+ pod networking); standard interfaces fall back to TC clsact |
 
 ## Kernel 6.1+ Optimizations
 

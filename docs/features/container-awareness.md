@@ -341,6 +341,7 @@ eBPF (cgroup_id in PacketEvent)
 ## Related
 
 - [Extended TLS Library Hooking (Enterprise)](enterprise/dlp.md#extended-tls-library-coverage)
+- [TC attach mode & netkit hot-plug](../configuration/agent.md#tc-attachment-mode) — how TC programs attach to Cilium netkit pod interfaces
 - [Deployment Matrix](deployment-matrix.md)
 - [Kubernetes Deployment](../operations/deployment/kubernetes.md)
 - [Docker Deployment](../operations/deployment/docker.md)

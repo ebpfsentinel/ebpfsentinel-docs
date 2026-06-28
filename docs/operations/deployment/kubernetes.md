@@ -227,6 +227,7 @@ data:
     agent:
       interfaces: [eth0]
       bind_address: "0.0.0.0"
+      attach_mode: auto              # netkit for Cilium pods, TC clsact otherwise
       bpf_token:
         # Path of the delegated bpffs the launcher mounts; must match its
         # --bpffs. eBPF loads exclusively through the token created here.
@@ -281,6 +282,31 @@ kubectl -n ebpfsentinel logs -l app=ebpfsentinel
 kubectl -n ebpfsentinel edit configmap ebpfsentinel-config
 kubectl -n ebpfsentinel rollout restart daemonset/ebpfsentinel
 ```
+
+## Cilium / netkit pod networking
+
+On clusters where the CNI gives pods **netkit** interfaces instead of veth
+pairs (Cilium **1.16+**, kernel **6.7+**), eBPFsentinel attaches its TC
+datapath (`tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`,
+`tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-qos`) directly to the
+netkit device via `BPF_LINK_CREATE` (`BPF_NETKIT_PRIMARY`), skipping the TC
+clsact qdisc.
+
+No extra configuration is needed: `agent.attach_mode` defaults to `auto`,
+which uses netkit when the interface is a netkit device and falls back to TC
+clsact otherwise — the same DaemonSet works on bare metal, veth, and netkit
+clusters. A background watcher polls every 5 s and **hot-plugs** newly
+scheduled pod interfaces, attaching all loaded TC programs without an agent
+restart (and detaching when the pod is deleted). It also correlates each new
+device with the pod network namespaces that appeared in the same cycle, so
+hot-plug log lines carry the owning pod's PID and namespace inode.
+
+Set `attach_mode: netkit` to **require** netkit (the agent fails to start if
+an interface is not a netkit device) or `attach_mode: tc` to force clsact
+everywhere. See the [TC attachment mode](../../configuration/agent.md#tc-attachment-mode)
+reference for the full behaviour. The agent Helm chart leaves `attach_mode`
+at its `auto` default; override it through `configOverride` if you need a
+non-default mode.
 
 ## Helm Chart
 
