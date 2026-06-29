@@ -169,7 +169,16 @@ Reports can be generated automatically on a recurring schedule:
 | `Weekly` | 7 days |
 | `Monthly` | 30 days |
 
-The scheduler runs as a background tokio task, generating reports for all configured frameworks at each interval. Email notification to `email_recipients` is parsed in config but not yet implemented.
+The scheduler runs as a background tokio task, generating reports for all configured frameworks at each interval.
+
+### Delivery
+
+Each scheduled report can be delivered over two optional channels, configured under `schedule`:
+
+- **Email (SMTP)** — when `schedule.smtp` is set, the report is emailed to every address in `email_recipients` with the JSON report attached. Submission uses STARTTLS (port 587) by default, or implicit TLS when `starttls: false` (port 465); TLS runs over the agent's rustls stack. Optional SMTP AUTH via `username`/`password`.
+- **Webhook** — when `schedule.webhook_url` is set, a JSON summary (`framework`, `report_id`, `format`, `summary`) is POSTed to the URL on each run, for SOAR/automation pipelines.
+
+Both channels are best-effort: a delivery failure is logged and never aborts report generation or the scheduler loop.
 
 ## Storage
 
@@ -208,6 +217,14 @@ enterprise:
       frequency: weekly
       frameworks: [pci_dss4, soc2]
       email_recipients: [compliance@example.com]
+      smtp:
+        host: smtp.example.com
+        port: 587
+        from: ebpfsentinel@example.com
+        username: smtp-user        # optional
+        password: smtp-secret      # optional
+        starttls: true             # default; set false for implicit TLS (465)
+      webhook_url: https://soar.example.com/hooks/compliance   # optional
     retention_days: 90
     output_dir: /var/lib/ebpfsentinel/reports
 ```
@@ -219,6 +236,9 @@ enterprise:
 | `retention_days` | u32 | `90` | Days to retain generated reports |
 | `output_dir` | string | — | Optional directory for disk persistence |
 | `schedule` | object | — | Optional automated generation config |
+| `schedule.email_recipients` | list | — | Addresses emailed each scheduled report (requires `schedule.smtp`) |
+| `schedule.smtp` | object | — | SMTP server for email delivery (`host`, `port`, `from`, `username?`, `password?`, `starttls`) |
+| `schedule.webhook_url` | string | — | URL POSTed a JSON report summary on each scheduled run |
 
 ## REST API
 
