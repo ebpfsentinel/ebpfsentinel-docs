@@ -39,7 +39,7 @@ t = TCP protocol
 
 ## JA4S ServerHello Fingerprinting
 
-JA4S complements client-side JA4 by fingerprinting the server's `ServerHello` response. Available in the OSS domain crate (`compute_ja4s()`).
+JA4S complements client-side JA4 by fingerprinting the server's `ServerHello` response. The datapath inspects both directions of any conversation touching an `l7.ports` entry, so replies reach the parser and JA4S is computed and cached alongside JA4; the cache is served by `/api/v1/fingerprints/ja4s`.
 
 ### JA4S Hash Format
 
