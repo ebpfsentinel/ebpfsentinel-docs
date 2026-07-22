@@ -104,7 +104,7 @@ All fields in `match_rule` are optional. Omitted fields match any value.
 | `dst_port` | u16 | `null` | Destination port filter |
 | `protocol` | string | `null` | IP protocol: `tcp`, `udp`, `icmp`, `icmpv6`, or numeric value |
 | `dscp` | u8 | `null` | DSCP value (0--63) |
-| `vlan_id` | u16 | `null` | 802.1Q VLAN ID |
+| `vlan_id` | u16 | `null` | 802.1Q VLAN ID (0--4094). `null` matches any VLAN, `0` matches untagged traffic only |
 
 ## Referential Integrity
 

@@ -2,12 +2,20 @@
 
 The `alerting` section configures alert deduplication, throttling, routing, and delivery destinations.
 
+:::note Deduplication and throttling gate delivery, not recording
+Both windows decide whether an alert is handed to its destinations. Every alert
+is stored, streamed and counted first, so a suppressed alert still appears in
+`GET /api/v1/alerts`, on the event stream, and in `ebpfsentinel_alerts_total`.
+Suppressions are visible in `ebpfsentinel_alerts_dropped_total`, labelled
+`reason="dedup"`, `reason="throttle"` or `reason="no_route"`.
+:::
+
 ## Reference
 
 ```yaml
 alerting:
   enabled: true
-  dedup_window_secs: 60                    # Seconds to suppress duplicate alerts
+  dedup_window_secs: 60                    # Seconds to suppress duplicate deliveries
   throttle_window_secs: 300                # Throttle window per source
   throttle_max: 100                        # Max alerts per source per window
   smtp:                                    # Required for email destinations
@@ -35,7 +43,7 @@ alerting:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable alerting |
-| `dedup_window_secs` | `integer` | `60` | Seconds to suppress duplicate alerts |
+| `dedup_window_secs` | `integer` | `60` | Seconds during which an identical alert is not delivered again. The dedup key is (rule, source IP, destination IP, destination port, protocol) — source port is excluded |
 | `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
 | `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
 | `smtp` | `SmtpConfig` | — | SMTP configuration (required for email destinations) |

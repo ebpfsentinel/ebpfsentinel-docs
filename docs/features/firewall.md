@@ -54,7 +54,7 @@ Each rule field is optional — omitted fields act as wildcards:
 | `src_port` | Omit to match any | Port range match (`1024-65535`) |
 | `dst_port` | Omit to match any | Port range match (`80-443`) or single |
 | `protocol` | `any` to match all | Exact match (`tcp`, `udp`, `icmp`) |
-| `vlan_id` | Omit to match any | Exact 802.1Q VLAN ID match |
+| `vlan_id` | Omit to match any | 802.1Q VLAN ID; `0` matches untagged traffic only |
 | `flags` | Omit to match any | TCP flags (`S/SA`, `A/A`, `F/F`) |
 | `icmp_type` | Omit to match any | ICMP type number or name |
 | `icmp_code` | Omit to match any | ICMP code number |

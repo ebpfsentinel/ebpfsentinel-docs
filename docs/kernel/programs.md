@@ -55,7 +55,7 @@ Match fields (all optional — omitted = wildcard):
 | `src_ip` / `dst_ip` | CIDR subnet |
 | `src_port` / `dst_port` | Range (e.g., `1024-65535`) or single port |
 | `protocol` | Exact: `tcp`, `udp`, `icmp` |
-| `vlan_id` | Exact 802.1Q VLAN ID (0 = any) |
+| `vlan_id` | 802.1Q VLAN ID: `0xFFFF` any, 0 untagged only, 1-4094 exact |
 | `state` | Conntrack: `new`, `established`, `related`, `invalid` |
 | `src_alias` / `dst_alias` | IP set lookup (GeoIP, blocklists) |
 | `tcp_flags` | Match/mask notation |

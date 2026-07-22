@@ -883,7 +883,7 @@ curl -X POST http://localhost:8080/api/v1/qos/classifiers \
 | `dst_port` | integer | Destination port (0 = any) |
 | `protocol` | integer | IP protocol number (6=TCP, 17=UDP, 0=any) |
 | `dscp` | integer | DSCP value (0 = any) |
-| `vlan_id` | integer | VLAN ID (0 = any) |
+| `vlan_id` | integer | VLAN ID (0--4094). Omit to match any VLAN, `0` matches untagged traffic only |
 
 #### DELETE /api/v1/qos/classifiers/{id}
 

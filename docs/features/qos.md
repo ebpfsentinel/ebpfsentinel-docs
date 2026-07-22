@@ -23,7 +23,7 @@ Pipes (bandwidth limit, delay, loss, burst)
 Wire
 ```
 
-1. **Classifiers** match packets by 5-tuple (src/dst IP, src/dst port, protocol) and DSCP value. Classifiers are evaluated in priority order; the first match assigns the packet to a queue.
+1. **Classifiers** match packets by 5-tuple (src/dst IP, src/dst port, protocol), DSCP value, and optionally VLAN ID. Classifiers are evaluated in priority order; the first match assigns the packet to a queue.
 2. **Queues** group traffic within a pipe. Each queue has a weight that determines its share of the pipe's bandwidth using WF2Q+ (Worst-case Fair Weighted Fair Queuing) scheduling.
 3. **Pipes** enforce the actual traffic shaping: bandwidth limiting (token bucket), delay emulation, random packet loss, and burst allowance.
 
@@ -66,8 +66,11 @@ Classifiers assign packets to queues based on match criteria:
 | `dst_port` | Destination port (0 = wildcard) |
 | `protocol` | IP protocol number (0 = wildcard) |
 | `dscp` | DSCP value (255 = wildcard) |
+| `vlan_id` | 802.1Q VLAN ID; omit to match any VLAN, `0` matches untagged traffic only |
 
-**Progressive wildcard matching**: the eBPF classifier performs a 4-level lookup with increasingly relaxed keys. The first level tries the full 5-tuple + DSCP. If no match, subsequent levels progressively wildcard fields (ports, then IPs) until a match is found or the default queue is used.
+**Progressive wildcard matching**: the eBPF classifier performs a 7-level lookup with increasingly relaxed keys. The first level tries the full 5-tuple + DSCP. If no match, subsequent levels progressively wildcard fields (ports, then IPs) until a match is found or the default queue is used.
+
+**VLAN scoping**: the whole cascade runs twice — first against classifiers bound to the packet's own VLAN, then against classifiers that name no VLAN. A classifier scoped to a VLAN therefore beats a broader one on the same flow.
 
 ### Scheduler Types
 

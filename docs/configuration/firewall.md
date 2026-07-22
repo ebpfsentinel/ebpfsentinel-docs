@@ -29,7 +29,7 @@ firewall:
       dst_ip: "192.168.1.0/24"          # Destination CIDR (optional)
       src_port: "1024-65535"            # Source port or range (optional)
       dst_port: "80-443"                # Destination port or range (optional)
-      vlan_id: 100                      # 802.1Q VLAN ID (optional — omit to match any)
+      vlan_id: 100                      # 802.1Q VLAN ID (optional — omit to match any, 0 = untagged only)
       scope: global                     # global, a bare interface name (eth0), or a map (optional)
       flags: "S/SA"                     # TCP flags match/mask notation (optional)
       icmp_type: 8                      # ICMP type number or name (optional)
@@ -75,7 +75,7 @@ firewall:
 | `dst_ip` | `string` | No | Destination CIDR |
 | `src_port` | `string` | No | Source port or range (`80`, `1024-65535`) |
 | `dst_port` | `string` | No | Destination port or range |
-| `vlan_id` | `integer` | No | 802.1Q VLAN ID (0 = any) |
+| `vlan_id` | `integer` | No | 802.1Q VLAN ID (0--4094). Omit to match any VLAN, `0` matches untagged traffic only |
 | `scope` | `string` or `map` | No | `global`, a bare interface name (`eth0`), or a map `{ interface: <name> }` / `{ namespace: <name> }` |
 | `flags` | `string` | No | TCP flags in `match/mask` notation (`S/SA`, `A/A`, `F/F`, `R/R`) |
 | `icmp_type` | `integer` or `string` | No | ICMP type number or name (`echo-request`, `8`) |

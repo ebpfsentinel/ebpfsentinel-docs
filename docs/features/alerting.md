@@ -9,16 +9,21 @@ The alert pipeline processes security events from all domain engines through ded
 ## How It Works
 
 ```
-Domain Engine → AlertRouter → Dedup → Throttle → Route → Destination
-                                                          ├── Email (SMTP)
-                                                          ├── Webhook (HTTP POST)
-                                                          └── Log (file)
+Domain Engine → Enrich → Store + Stream + Count → AlertRouter → Destination
+                                                  Dedup         ├── Email (SMTP)
+                                                  Throttle      ├── Webhook (HTTP POST)
+                                                  Route         ├── OTLP
+                                                                └── Log (file)
 ```
+
+Recording happens before routing: an alert is persisted, published on the
+event stream and counted whatever the router later decides. Dedup and throttle
+therefore reduce *notification volume*, never the audit trail.
 
 ### Alert Processing
 
-1. **Deduplication** — identical alerts (same rule, source, destination) within a time window are suppressed
-2. **Throttling** — per-source rate limiting prevents alert storms from a single attacker
+1. **Deduplication** — an alert identical to a recent one (same rule, source IP, destination IP, destination port and protocol; source port ignored) is not delivered again within the window. It is still stored and streamed, and increments `ebpfsentinel_alerts_dropped_total{reason="dedup"}`
+2. **Throttling** — per-rule rate limiting prevents alert storms; excess alerts increment `ebpfsentinel_alerts_dropped_total{reason="throttle"}`
 3. **Routing** — alerts are matched to routes by severity and/or component
 4. **Circuit breaker** — if a sender fails repeatedly, it is temporarily disabled to avoid blocking the pipeline
 
@@ -62,7 +67,7 @@ GeoIP enrichment is optional — enable it via the [`geoip`](../configuration/ge
 ```yaml
 alerting:
   enabled: true
-  dedup_window_secs: 300       # Seconds to suppress duplicate alerts
+  dedup_window_secs: 300       # Seconds to suppress duplicate deliveries
   throttle_window_secs: 300    # Throttle window per source
   throttle_max: 100            # Max alerts per source per window
   smtp:
@@ -124,7 +129,7 @@ grpcurl -plaintext -d '{"min_severity":"critical","component":"ids"}' \
 
 | Crate | Path | Role |
 |-------|------|------|
-| `domain` | `crates/domain/src/alerting/` | Alert router, dedup, throttle logic |
+| `domain` | `crates/domain/src/alert/` | Alert router, dedup, throttle logic |
 | `ports` | `crates/ports/src/secondary/alerting.rs` | Sender port trait |
 | `application` | `crates/application/src/alerting_service_impl.rs` | App service |
 | `adapters` | `crates/adapters/src/grpc/` | gRPC alert stream |

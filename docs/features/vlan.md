@@ -8,7 +8,8 @@ eBPFsentinel supports 802.1Q VLAN filtering, quarantine tagging, and **802.1ad Q
 
 ## Firewall VLAN Filtering
 
-Firewall rules can match on VLAN ID (0 = any VLAN, >0 = exact match):
+Firewall rules can match on VLAN ID. Omit `vlan_id` to match any VLAN; set it
+to `0` to match untagged traffic only, or to 1-4094 for an exact tag:
 
 ```yaml
 firewall:
