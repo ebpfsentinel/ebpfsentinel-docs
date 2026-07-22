@@ -30,7 +30,8 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | **Interface** | Containers, VMs with dedicated veth/tap | `INTERFACE_GROUPS[ifindex] → tenant_id` | `interfaces` |
 | **Subnet** | Bare-metal with shared NIC, per-client IP ranges | `TENANT_SUBNET_V4/V6[src_ip] → tenant_id` (LPM trie) | `subnets` |
 | **VLAN** | Bare-metal with 802.1Q VLAN tagging | `TENANT_VLAN_MAP[vlan_id] → tenant_id` | `vlans` |
-| **Hybrid** | Mixed environment | All three checked in priority order | Any combination |
+| **Cgroup** | Containers sharing a bridge, a subnet and no VLAN | `TENANT_CGROUP_MAP[cgroup_id] → tenant_id` | container label (see below) |
+| **Hybrid** | Mixed environment | All checked in priority order | Any combination |
 
 ### Tenant Resolution Priority (eBPF kernel)
 
@@ -44,10 +45,25 @@ Packet arrives → Parse VLAN + IP headers
     ├─ 3. TENANT_SUBNET_V4[src_ip] → tenant_id    (IPv4 LPM trie)
     │     TENANT_SUBNET_V6[src_ip] → tenant_id    (IPv6 LPM trie)
     │
-    └─ 4. Default tenant_id = 0
+    ├─ 4. TENANT_CGROUP_MAP[cgroup_id] → tenant_id (egress only)
+    │
+    └─ 5. Default tenant_id = 0
 ```
 
-Resolution runs in all 6 eBPF programs that enforce rules: xdp-firewall, xdp-ratelimit, tc-ids, tc-qos, tc-nat-ingress, tc-nat-egress.
+Resolution runs in all 6 eBPF programs that enforce rules: xdp-firewall, xdp-ratelimit, tc-ids, tc-qos, tc-nat-ingress, tc-nat-egress. Step 4 is intrusion detection only: the cgroup id is read from the socket bound to the packet, which exists on egress but not on ingress, where the kernel runs in softirq context with no owning task.
+
+### Cgroup Attribution
+
+Containers on a shared bridge carry no VLAN tag, sit behind no dedicated interface, and usually share one subnet, so the first three modes cannot tell them apart. The remaining signal is the cgroup the traffic originated from.
+
+Unlike VLANs, interfaces and subnets, a cgroup id is not something an operator declares: the kernel mints one per container at creation and recycles it after destruction. The agent therefore discovers the mapping at runtime — it polls the cgroup v2 hierarchy, reads each container's labels from the runtime, resolves a tenant, and writes `TENANT_CGROUP_MAP`. When a container exits its entry is removed in the same pass, so a recycled id can never inherit the previous tenant.
+
+A container is attributed to a tenant by:
+
+1. **Explicit claim** — the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
+2. **Kubernetes namespace** — when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
+
+Labels are read over the Docker Engine API, which also serves Podman's compatible socket. Nodes running a CRI runtime with no Docker-compatible socket keep using VLAN, interface or subnet attribution. Attribution is disabled by default because it requires the runtime socket and the host cgroup hierarchy to be visible to the agent.
 
 ### Limits
 
@@ -56,6 +72,7 @@ Resolution runs in all 6 eBPF programs that enforce rules: xdp-firewall, xdp-rat
 - Reserved: the `__default__` ID cannot be used for user-defined tenants
 - Subnet entries: up to 4,096 IPv4 + 2,048 IPv6 per LPM trie
 - VLAN entries: up to 1,024
+- Cgroup entries: up to 4,096 (one per live container)
 
 ### Registry
 
@@ -281,12 +298,25 @@ enterprise:
         interfaces: [eth2]
         subnets: ["10.3.0.0/16", "fd00:abcd::/48"]
         vlans: [300]
+
+    # Cgroup mode — attribute containers from their labels
+    cgroup_attribution:
+      enabled: true
+      poll_interval_seconds: 10
+      tenant_label: "ebpfsentinel.io/tenant"
 ```
 
 All fields are optional:
 - `name` defaults to `id` if omitted
 - `interfaces`, `subnets`, `vlans`, `namespaces` default to empty
 - `quotas` fields use defaults when omitted
+- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and runtime socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings
+
+Run a container under a tenant by labelling it:
+
+```bash
+docker run -d --label ebpfsentinel.io/tenant=client-a nginx
+```
 
 ## Prometheus Metrics
 

@@ -100,6 +100,11 @@ enterprise:
       - id: team-beta
         name: Team Beta
         namespaces: [ns-beta]
+    # Attribute containers to tenants from their labels (off by default).
+    cgroup_attribution:
+      enabled: false
+      poll_interval_seconds: 10
+      tenant_label: "ebpfsentinel.io/tenant"
 
   # ── SIEM Integration ────────────────────────────────────────────
   siem:
