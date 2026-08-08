@@ -24,10 +24,14 @@ not accepted.
   "issued_at": "2026-03-14T00:00:00Z",
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
+  "max_cores_per_agent": 32,
   "machine_fingerprint": "ca9240c0e28de960...",
   "version": 2
 }
 ```
+
+`max_cores_per_agent` is optional. A license issued without it is read as
+unlimited, so keys generated before the field existed keep working unchanged.
 
 ## Available Features
 
@@ -48,6 +52,28 @@ not accepted.
 | `tls-intelligence` | TLS threat intelligence & PQC compliance |
 | `network-forensics` | Ring buffer capture & flow timeline |
 | `automated-response` | Policy engine & SOAR webhook integration |
+
+## Host Size Band
+
+A subscription is priced by the size of the node it covers, so a license can
+carry a per-node CPU ceiling in `max_cores_per_agent` (0 or absent = no
+ceiling). At load time the agent counts the CPUs the host is provisioned with
+and refuses a license whose ceiling the machine exceeds:
+
+```
+host has 48 CPUs, license covers nodes up to 32 - move the agent to a smaller
+node or upgrade the size band
+```
+
+The count is read from `/sys/devices/system/cpu/present`, falling back to
+`online` and then to the process CPU budget. `present` is preferred because it
+reports what the machine was provisioned with: CPUs taken offline at runtime
+through hotplug do not shrink the node the agent is licensed for.
+
+Refusal behaves like any other license failure - the agent keeps running and
+keeps enforcing the open source datapath, with enterprise features disabled.
+The ceiling lives inside the signed payload, so raising it invalidates both
+signatures.
 
 ## Machine Fingerprint Binding
 
@@ -92,6 +118,7 @@ ebpfsentinel-license generate \
   --features advanced-dlp,ml-detection \
   --expires 2027-01-01 \
   --max-agents 50 \
+  --max-cores-per-agent 32 \
   --fingerprint ca9240c0e28de960... \
   --output license.key
 ```
@@ -213,6 +240,7 @@ export EBPFSENTINEL_LICENSE=/path/to/license.key
 - Missing license: runs in OSS mode (all enterprise features disabled)
 - Invalid signature: rejects license, falls back to OSS mode
 - Fingerprint mismatch: rejects license with clear error
+- Host larger than the licensed size band: rejects license, falls back to OSS mode
 
 ## REST API
 
@@ -230,6 +258,11 @@ Returns license status (200 OK or 402 Payment Required):
   "issued_at": "2026-03-14T00:00:00Z",
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
+  "max_cores_per_agent": 32,
+  "host_cores": 30,
   "machine_fingerprint": "ca9240c0..."
 }
 ```
+
+`host_cores` is what this machine measured, reported next to the ceiling so a
+fleet audit can see the headroom left before a resize takes a node out of band.
