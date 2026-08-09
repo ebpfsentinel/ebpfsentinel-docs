@@ -34,6 +34,19 @@ enterprise:
         - "healthcare.example.org"
       bypass_ips:
         - "10.0.0.0/8"
+    l7_advanced:
+      # Empty = every payload submitted to the L7 analyze endpoint is
+      # scanned. Populate to opt in rule by rule; anything not named is
+      # then no longer scanned.
+      deep_inspect_rule_ids: []
+      custom_inspect_patterns:
+        - id: acme-internal-code
+          name: Acme internal tracking code
+          regex: "ACME-[A-Z]{3}-[0-9]{6}"
+          category: data_exfil    # sql_injection | xss | path_traversal |
+                                  # command_injection | data_exfil
+          severity: medium        # low | medium | high | critical
+          enabled: true
 
   # ── ML Detection ────────────────────────────────────────────────
   ml_detection:
@@ -294,6 +307,22 @@ a lightweight, best-effort collector feed.
 | `advanced_dlp.tls_inspection.ca_key` | string | required | CA private key PEM path |
 | `advanced_dlp.tls_inspection.bypass_domains` | list | `[]` | Domains to skip (exact or `*.suffix`) |
 | `advanced_dlp.tls_inspection.bypass_ips` | list | `[]` | IPs/CIDRs to skip |
+| `advanced_dlp.l7_advanced.deep_inspect_rule_ids` | list | `[]` | Rule ids allowed to trigger a deep-inspection scan. Empty means every submitted payload is scanned |
+| `advanced_dlp.l7_advanced.custom_inspect_patterns` | list | `[]` | Deep-inspection patterns loaded on top of the built-in catalogue |
+
+### Custom L7 Inspect Pattern
+
+See [L7 deep inspection](../features/enterprise/l7-deep-inspection.md)
+for what triggers a scan.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | required | Unique identifier, no collision with a built-in pattern id |
+| `name` | string | required | Label carried by every match |
+| `regex` | string | required | Vectorscan-compatible regex |
+| `category` | string | required | `sql_injection`, `xss`, `path_traversal`, `command_injection`, `data_exfil` |
+| `severity` | string | required | `low`, `medium`, `high`, `critical` |
+| `enabled` | bool | `true` | Load the pattern but keep it out of scans when `false` |
 
 ### Custom DLP Pattern
 
@@ -319,6 +348,8 @@ a lightweight, best-effort collector feed.
 - `license_path` cannot be empty if set
 - Custom pattern IDs must be unique (no collision with built-in `dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`)
 - Custom pattern regex validated via Vectorscan `expression_info` at config load
+- `l7_advanced.deep_inspect_rule_ids` entries cannot be empty or repeat
+- `l7_advanced.custom_inspect_patterns` entries need a unique id (no collision with a built-in pattern), a non-empty name, a regex Vectorscan accepts, and a known category and severity
 - `ml_detection.anomaly_threshold` must be positive
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0

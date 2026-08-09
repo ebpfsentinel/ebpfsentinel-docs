@@ -7,15 +7,25 @@
 The enterprise L7 deep content inspection engine runs compiled
 Vectorscan pattern databases against HTTP, gRPC, database, and
 messaging payloads to catch **SQL injection**, **XSS**, **path
-traversal**, **command injection**, and **data exfiltration** attempts
-— the five OWASP top-tier web attack categories plus credential
-leakage.
+traversal**, **command injection**, and **data exfiltration** attempts.
+Those five categories are the whole classification vocabulary: they are
+how a match is labelled, not stages that can be switched off
+individually.
 
 Unlike the existing DLP engine (which focuses on SSL/TLS plaintext),
 the L7 inspector targets structured L7 traffic: URIs, headers, request
 bodies, SQL statements, JSON payloads, and Redis/MySQL/PostgreSQL wire
 protocols. The two engines run on independent Vectorscan databases so
 neither workload starves the other of scratch space.
+
+## What Triggers a Scan
+
+The engine is not attached to the packet path. A scan runs when a
+payload is submitted to `POST /api/v1/enterprise/l7/analyze`, optionally
+carrying the id of the L7 rule it was matched under. That id is what
+`deep_inspect_rule_ids` filters on: leave the list empty and every
+submitted payload is scanned, name one id and only payloads submitted
+under a listed id are.
 
 ## Pattern Categories
 
@@ -103,6 +113,62 @@ for m in engine.scan(request_body)? {
 }
 ```
 
+## Configuration
+
+Custom patterns can also be declared in the agent YAML, which loads them
+on top of the built-in catalogue at startup. The catalogue stays active:
+these are additions, not a replacement.
+
+```yaml
+enterprise:
+  advanced_dlp:
+    l7_advanced:
+      # Empty = every submitted payload is scanned. Populate to opt in
+      # rule by rule; anything not named is then no longer scanned.
+      deep_inspect_rule_ids: []
+      custom_inspect_patterns:
+        - id: acme-internal-code
+          name: Acme internal tracking code
+          regex: "ACME-[A-Z]{3}-[0-9]{6}"
+          category: data_exfil
+          severity: medium
+          enabled: true
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `deep_inspect_rule_ids` | `[string]` | `[]` | Rule ids allowed to trigger a scan. Empty means every submitted payload is scanned |
+| `custom_inspect_patterns` | `[Pattern]` | `[]` | Patterns loaded on top of the built-in catalogue |
+
+### Custom inspect pattern
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Unique identifier. Must not repeat or match a built-in pattern id |
+| `name` | `string` | Yes | Label carried by every match |
+| `regex` | `string` | Yes | PCRE-compatible expression compiled by Vectorscan |
+| `category` | `string` | Yes | `sql_injection`, `xss`, `path_traversal`, `command_injection`, `data_exfil` |
+| `severity` | `string` | Yes | `low`, `medium`, `high`, `critical` |
+| `enabled` | `bool` | No | Load the pattern but keep it out of scans when `false` (default: `true`) |
+
+A pattern the agent cannot build is reported by id at startup and
+skipped, the rest still load. Duplicate rule ids, an empty rule id, an
+id colliding with a built-in pattern, an unparseable regex, and an
+unknown category or severity are all reported by name at startup.
+
+## REST API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/enterprise/l7/patterns` | List loaded patterns |
+| POST | `/api/v1/enterprise/l7/patterns` | Add one pattern |
+| POST | `/api/v1/enterprise/l7/patterns/bulk` | Replace the whole catalogue |
+| DELETE | `/api/v1/enterprise/l7/patterns/{id}` | Remove a pattern |
+| GET | `/api/v1/enterprise/l7/matches` | Recent match history |
+| GET | `/api/v1/enterprise/l7/rule-toggles` | Rule ids currently allowed to trigger a scan |
+| PUT | `/api/v1/enterprise/l7/rule-toggles` | Replace that set |
+| PATCH | `/api/v1/enterprise/l7/rule-toggles/{id}` | Add or remove one rule id |
+| POST | `/api/v1/enterprise/l7/analyze` | Scan a payload and return matches, policy decision and enrichment |
 
 ## Code Architecture
 
