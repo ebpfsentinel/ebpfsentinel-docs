@@ -13,7 +13,13 @@ The L7 firewall operates in userspace. Packets forwarded from TC programs are pa
 1. **Protocol detection** — identify the application protocol from the payload
 2. **Field extraction** — parse protocol-specific fields (HTTP path, TLS SNI, gRPC method, etc.)
 3. **Rule evaluation** — match extracted fields against configured rules in priority order
-4. **Action** — allow or deny the connection
+4. **Action** — record the decision, and for `deny` raise an alert
+
+The payload reaching step 1 is a copy: the packet that carried it has
+already been forwarded by the time the parser sees it. A `deny` therefore
+marks the flow as denied in the audit trail and raises an alert an automated
+response can act on; it does not drop that packet in the data path. Dropping
+traffic at line rate is the job of the L3/L4 firewall and the IPS.
 
 ### Supported Protocols — OSS
 
@@ -72,19 +78,22 @@ l7:
 
 ```yaml
 l7:
+  enabled: true
+  # A payload is inspected only when one end of the conversation uses a
+  # listed port. The agent refuses to start on an enabled section with an
+  # empty list, since no rule below could ever be evaluated.
+  ports: [80, 443, 445]
   rules:
     - id: block-admin-panel
       priority: 10
       action: deny
       protocol: http
       path: "/admin"
-      description: "Block access to admin panel"
     - id: block-sensitive-api
       priority: 20
       action: deny
       protocol: http
       path: "/api/internal/.*"
-      description: "Block internal API endpoints"
     - id: allow-grpc-health
       priority: 30
       action: allow
@@ -96,7 +105,6 @@ l7:
       action: deny
       protocol: smb
       is_smb2: false
-      description: "Block legacy SMBv1 traffic"
     - id: restrict-tls-sni
       priority: 50
       action: deny

@@ -78,7 +78,6 @@ l7:
       action: deny
       protocol: http
       path: "/admin.*"
-      description: "Block admin panel from non-mgmt"
     - id: block-internal-api
       priority: 20
       action: deny
