@@ -1,6 +1,6 @@
 # Policy Routing
 
-eBPFsentinel supports multi-WAN policy routing with per-gateway health monitoring, weighted priority selection, and GeoIP-based gateway preference. The routing engine selects the best available gateway based on health status, priority, and optional country-based affinity.
+eBPFsentinel supports multi-WAN failover: each gateway is probed independently, and the agent installs the best usable gateway as the host default route. Selection is health first, then priority, so a link going down moves traffic to the next path without operator action.
 
 ## Gateways
 
@@ -15,7 +15,6 @@ Each gateway represents an outbound network path:
 | `priority` | u32 | 100 | Lower values preferred |
 | `enabled` | bool | true | Enable/disable without removing |
 | `health_check` | object | — | Optional health probe configuration |
-| `preferred_for_countries` | list | — | Country codes for GeoIP-based routing |
 
 ## Health Checks
 
@@ -40,15 +39,13 @@ Each gateway can have an independent health probe:
 
 The routing engine automatically fails over to the next-priority healthy gateway when a gateway goes down, and fails back when it recovers.
 
-## GeoIP Gateway Preference
+## What Failover Changes
 
-Gateways can declare `preferred_for_countries` — a list of ISO 3166-1 alpha-2 country codes. When the [GeoIP enrichment](geoip.md) engine resolves a destination IP to a country, the routing engine preferentially selects a gateway that lists that country, falling back to priority-based selection if no match.
+Electing a gateway is only half the job: the agent then rewrites the host default route (`0.0.0.0/0 via <gateway_ip> dev <interface>` in the main table) so the kernel forwards through the elected path. Writing the routing table needs `CAP_NET_ADMIN`; a rootless agent asks its warden to perform the write instead.
 
-## Integration
+The route is written only when the election changes, and a write that fails (missing capability, unreachable warden, unknown interface) is logged and retried on the next probe. When every gateway is down the last programmed route is left in place — there is no better path to switch to — and a `WAN_ALL_DOWN` alert is raised.
 
-- **Firewall**: Policy routing rules in the XDP firewall reference gateway IDs for per-rule routing decisions
-- **GeoIP**: Country-aware gateway selection for geo-routed traffic
-- **DDoS**: Auto-blackhole routes for attack traffic
+Selection is health and priority only. Per-destination or per-country gateway choice is not part of the OSS routing engine.
 
 ## REST API
 
@@ -56,5 +53,8 @@ Gateways can declare `preferred_for_countries` — a list of ISO 3166-1 alpha-2 
 |--------|------|-------------|
 | GET | `/api/v1/routing/status` | Enabled status and gateway count |
 | GET | `/api/v1/routing/gateways` | List gateways with current health status |
+| GET | `/api/v1/routing/routes` | Default route currently in effect (empty when no gateway is usable) |
+| POST | `/api/v1/routing/gateways` | Add a gateway |
+| DELETE | `/api/v1/routing/gateways/{id}` | Remove a gateway |
 
 See [REST API Reference](../api-reference/rest-api.md) for details.

@@ -47,7 +47,7 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`conntrack`](conntrack.md) | No | Connection tracking flood detection thresholds |
 | `container` | No | Container resolver, Docker enricher, Kubernetes enricher |
 | [`nat`](nat.md) | No | SNAT, DNAT, masquerade, NPTv6, hairpin NAT |
-| [`routing`](routing.md) | No | Multi-WAN gateways, health checks, GeoIP routing |
+| [`routing`](routing.md) | No | Multi-WAN gateways, health checks, default-route failover |
 | [`zones`](zones.md) | No | Network zone segmentation, inter-zone policies |
 | [`qos`](qos.md) | No | QoS pipes, queues, classifiers, traffic shaping |
 | `auto_response` | No | Auto block/throttle on alerts (max 3 severity-based policies) |
@@ -76,7 +76,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `tls.yaml` | Certificate and key paths |
 | `conntrack.yaml` | Connection tracking timeouts, limits, flood thresholds |
 | `nat.yaml` | SNAT, DNAT, masquerade, port forwarding, NPTv6, hairpin |
-| `routing.yaml` | Multi-WAN gateways, health checks, GeoIP routing |
+| `routing.yaml` | Multi-WAN gateways, health checks, default-route failover |
 | `zones.yaml` | Network zone definitions, inter-zone policies |
 | `qos.yaml` | Pipes, queues, classifiers, traffic shaping profiles |
 

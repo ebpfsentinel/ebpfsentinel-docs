@@ -32,7 +32,7 @@ eBPFsentinel provides 14 security domains in a single agent binary:
 | **NAT** | SNAT/DNAT/masquerade/1:1/redirect/port-forward, NPTv6 (RFC 6296), hairpin NAT | TC ingress/egress |
 | **Packet Scrubbing** | TTL/hop limit normalization, MSS clamp, DF clear, IP ID random, TCP flag scrub, ECN strip, TOS normalize, TCP timestamp removal | TC classifier |
 
-Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway preference) and **zone segmentation** (interface-based security zones with inter-zone policies).
+Plus **policy routing** (multi-WAN failover with health checks and automatic default-route switching) and **zone segmentation** (interface-based security zones with inter-zone policies).
 
 ## Key Capabilities
 

@@ -329,7 +329,6 @@ routing:
       interface: eth2
       gateway_ip: "198.51.100.1"
       priority: 20
-      preferred_for_countries: [US, CA]
 ```
 
 ### Packet normalization

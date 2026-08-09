@@ -181,7 +181,6 @@ Kernel-side enforcement uses a shared `LpmCoordinator` that manages the firewall
 | **Threat Intel** | Confidence boost for IOCs from high-risk source countries (`country_confidence_boost`) | Userspace |
 | **DNS** | High-risk country reputation factor (`high_risk_countries`) — domains resolving to IPs in listed countries receive a `HighRiskCountry` factor (weight 0.4) | Userspace |
 | **Rate Limit** | Per-country rate limit tiers via dedicated kernel LPM maps (`RL_LPM_SRC_V4/V6`, `RL_TIER_CONFIG`) — country CIDRs mapped to tier profiles | Kernel (LPM) |
-| **Routing** | Geographic gateway preference (`preferred_for_countries`) — WAN gateways preferred for traffic to/from specific countries | Userspace |
 
 ### Enforcement Flow
 

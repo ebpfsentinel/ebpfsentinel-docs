@@ -138,6 +138,5 @@ When GeoIP is enabled, other domains can use country information for enforcement
 | Threat Intel | `threatintel.country_confidence_boost` | IOC confidence boost by country |
 | DNS | `dns.reputation.high_risk_countries` | High-risk country reputation factor |
 | Rate Limit | `ratelimit.country_tiers` | Per-country rate limit tiers (kernel LPM) |
-| Routing | `routing.gateways[].preferred_for_countries` | Geographic gateway preference |
 
 See each domain's configuration reference for details.

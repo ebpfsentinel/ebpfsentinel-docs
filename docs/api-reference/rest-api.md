@@ -698,6 +698,18 @@ curl http://localhost:8080/api/v1/routing/gateways
 ]
 ```
 
+#### GET /api/v1/routing/routes
+
+The default route currently in effect. Returns an empty list when no gateway is usable.
+
+```bash
+curl http://localhost:8080/api/v1/routing/routes
+```
+
+```json
+[{"destination": "0.0.0.0/0", "gateway_id": "1", "gateway_ip": "192.168.1.1"}]
+```
+
 ### Zone Segmentation
 
 #### GET /api/v1/zones/status
@@ -1120,6 +1132,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |
 | GET | `/api/v1/routing/gateways` | Yes | List gateways with health status |
+| GET | `/api/v1/routing/routes` | Yes | Default route currently in effect |
 | GET | `/api/v1/zones/status` | Yes | Zone status |
 | GET | `/api/v1/zones` | Yes | List zones |
 | GET | `/api/v1/zones/policies` | Yes | List inter-zone policies |
