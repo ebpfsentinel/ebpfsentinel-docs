@@ -69,6 +69,8 @@ The trigger policy controls which alerts generate automatic captures:
 
 Only alerts from the listed components AND at or above the minimum severity trigger automatic captures. All other alerts are still ingested into the ring buffer for context.
 
+The component match is exact and case-sensitive, so use the names alerts actually carry: `ids`, `threatintel`, `ddos`, `dlp`, `dns`, `routing`, `ai-security`, `ml-anomaly`. An empty `trigger.components` list accepts every component rather than none.
+
 ### Flow Matching
 
 Flow matching is **bidirectional** — a flow tuple `(A:port1 → B:port2, TCP)` also matches events in the reverse direction `(B:port2 → A:port1, TCP)`. This ensures both sides of a conversation are captured in the pre-event context.

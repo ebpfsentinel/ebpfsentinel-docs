@@ -38,9 +38,6 @@ const config: Config = {
           path: 'docs',
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
-          versions: {
-            '2026.6.1': {label: 'v2026.6.1'},
-          },
           // editUrl: 'https://github.com/ebpfsentinel/ebpfsentinel-docs/edit/main/',
         },
         blog: false,
@@ -92,7 +89,6 @@ const config: Config = {
       },
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
-        {type: 'docsVersionDropdown', position: 'right'},
         {
           href: 'https://github.com/ebpfsentinel',
           label: 'GitHub',
