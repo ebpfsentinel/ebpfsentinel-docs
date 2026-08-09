@@ -177,7 +177,6 @@ const sidebars: SidebarsConfig = {
         'operations/upgrading',
         'operations/compatibility',
         'operations/dashboard-accessibility',
-        'operations/dashboard-desktop',
       ],
     },
     {
