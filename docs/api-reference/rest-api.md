@@ -30,6 +30,30 @@ curl http://localhost:8080/readyz
 {"status": "ready", "ebpf_loaded": true}
 ```
 
+A `not_ready` answer says why. Two optional lists appear only when non-empty,
+and each one is a different problem:
+
+```json
+{
+  "status": "not_ready",
+  "ebpf_loaded": false,
+  "attach_blocked": [
+    "xdp-firewall on eth0: interface eth0 already has an XDP program attached (id 42, native). It is held by a BPF link, so only the process owning that link can replace it. The kernel allows one XDP program per interface, so this one cannot attach on top."
+  ]
+}
+```
+
+- `attach_blocked` - the program loaded but could not reach the wire. This is
+  the nested-XDP case under Docker and Kubernetes, where the container runtime's
+  own program owns the interface. It is a property of the host, not a fault in
+  the agent, and no restart will clear it.
+- `kernel_helpers_missing` - the kernel does not offer something a program
+  needs, so the agent refused to load it. See
+  `/api/v1/ebpf/kernel-features`.
+
+Neither list present, and `ebpf_loaded: false`, means the agent simply has not
+finished loading yet.
+
 ## Protected Endpoints
 
 Require authentication when `auth.enabled: true`. Use `Authorization: Bearer <token>` or `X-API-Key: <key>` headers.
@@ -86,11 +110,30 @@ curl -X POST http://localhost:8080/api/v1/config/reload
 
 #### GET /api/v1/ebpf/status
 
-Per-program eBPF load status.
+Per-program eBPF load status, plus any attach the kernel refused.
 
 ```bash
 curl http://localhost:8080/api/v1/ebpf/status
 ```
+
+```json
+{
+  "programs": [{"name": "xdp-firewall", "loaded": true}],
+  "attach_blocked": [
+    {
+      "program": "xdp-firewall",
+      "interface": "eth0",
+      "reason": "interface eth0 already has an XDP program attached (id 42, native). The kernel allows one XDP program per interface, so this one cannot attach on top.",
+      "nested_xdp": true
+    }
+  ]
+}
+```
+
+`loaded` and attached are different states: a program can be in the kernel and
+still not see a packet because its hook was taken. `attach_blocked` is omitted
+when empty, and `nested_xdp: true` marks the case where another XDP program owns
+the interface.
 
 #### GET /api/v1/ebpf/kernel-features
 

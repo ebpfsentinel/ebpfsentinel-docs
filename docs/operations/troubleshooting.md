@@ -45,6 +45,45 @@ Error: interface eth0 not found
 
 Check available interfaces: `ip link show`. Update `agent.interfaces` in your config.
 
+### Programs load but nothing attaches, and `/readyz` stays 503
+
+The kernel allows exactly one XDP program per interface. Under Docker and
+Kubernetes the container runtime or CNI frequently owns that slot already, so
+the agent's program loads and then loses the attach. Ask the agent what is in
+the way:
+
+```bash
+curl -s http://localhost:8080/readyz | jq .attach_blocked
+curl -s http://localhost:8080/api/v1/ebpf/status | jq .attach_blocked
+```
+
+```json
+[
+  {
+    "program": "xdp-firewall",
+    "interface": "eth0",
+    "reason": "interface eth0 already has an XDP program attached (id 42, generic). It is held by a BPF link, so only the process owning that link can replace it. The kernel allows one XDP program per interface, so this one cannot attach on top. Native and generic XDP cannot both be active on one interface, so matching `agent.xdp_mode` to the attachment already there is the other way out.",
+    "nested_xdp": true
+  }
+]
+```
+
+Confirm from the other side with `ip link show eth0` (look for the `xdp` marker)
+or `sudo bpftool net list`. Options, in order of preference:
+
+1. Attach to a different interface - one the runtime does not manage.
+2. Have whatever owns the slot release it, if it is not load-bearing.
+3. Accept the loss for that interface: the TC and uprobe programs still attach,
+   so IDS, DLP and threat intel keep working without the XDP fast path.
+
+When the reason mentions native and generic XDP, the slot is occupied in a mode
+other than the one requested. Setting `agent.xdp_mode` to the mode already in
+use does not free the slot, but it does remove the mode conflict as a second,
+separate cause.
+
+An empty `attach_blocked` with `"ebpf_loaded": false` is a different problem -
+the agent has not finished loading, or loading failed outright. Check the log.
+
 ### BPF filesystem not mounted
 
 ```
