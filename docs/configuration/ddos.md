@@ -99,9 +99,9 @@ ddos:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `port` | `integer` | Yes | UDP port number |
-| `protocol` | `string` | Yes | Protocol (`udp`) |
-| `max_pps` | `integer` | Yes | Maximum packets per second per source IP |
+| `port` | `integer` | Yes | UDP port number, must be > 0 |
+| `protocol` | `string` | No | Protocol, `udp` only (default: `udp`). The kernel amplification path tracks UDP alone, so any other value is refused |
+| `max_pps` | `integer` | Yes | Maximum packets per second per source IP, must be > 0. Switch the guard off with `enabled: false` rather than `0` |
 
 ### ConnectionTracking
 
