@@ -73,6 +73,27 @@ dns:
 | `format` | `string` | No | `plaintext` | `plaintext` (one domain per line) or `hosts` (hosts-file format) |
 | `refresh_interval_secs` | `integer` | No | `3600` | Seconds between refreshes |
 
+Feeds are downloaded at startup and then on a timer. All feeds share a single
+timer, set to the smallest `refresh_interval_secs` of the list and floored at
+60 seconds, so a mistyped interval cannot turn the agent into a hammer against
+the publisher.
+
+Each feed owns the patterns it contributed. A refresh replaces that feed's
+previous contents instead of adding to them, so a domain the publisher removed
+stops being blocked. Two consequences follow:
+
+- A feed never removes a pattern listed under `domains` in the configuration
+  file. Inline patterns and feed patterns are tracked separately.
+- A feed that fails to download keeps the patterns it last provided. A network
+  blip or an HTTP 503 must not silently unblock a list, so the previous
+  contents stay in force until a refresh succeeds.
+
+`url` is validated at configuration load with the same rules threat intel feeds
+get: the scheme must be `http` or `https`, and hosts that resolve to loopback,
+private, link-local or cloud metadata addresses are refused. A feed URL is an
+outbound request the agent makes on its own, so it must not be usable to reach
+the host's own services.
+
 ### Reputation
 
 | Field | Type | Default | Description |
@@ -81,7 +102,7 @@ dns:
 | `auto_block_threshold` | `float` | `0.8` | Auto-block domains scoring above this |
 | `auto_block_enabled` | `bool` | `false` | Enable automatic blocking of high-score domains |
 | `auto_block_ttl_secs` | `integer` | `3600` | TTL for auto-blocked domains in seconds |
-| `decay_half_life_hours` | `integer` | `24` | Exponential decay half-life in hours |
+| `decay_half_life_hours` | `integer` | `24` | Exponential decay half-life in hours. A domain that stops misbehaving loses half its score every half-life, so an old incident stops holding a domain near the auto-block threshold forever. The same value is used by the score the API reports and by the auto-block decision |
 | `max_tracked_domains` | `integer` | `50000` | Maximum domains tracked for reputation |
 | `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 country codes. Domains resolving to IPs in listed countries receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold |
 

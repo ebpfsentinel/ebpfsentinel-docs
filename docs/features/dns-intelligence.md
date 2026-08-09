@@ -35,10 +35,16 @@ dns:
 
 ### Blocklist Matching
 
-- **Exact match** — `malware.example.com`
-- **Wildcard** — `*.ad-network.com`
-- **Regex** — custom patterns for DGA (Domain Generation Algorithm) detection
-- **Feed-sourced** — external blocklist feeds refreshed on a schedule
+- **Exact match** — `malware.example.com`, case-insensitive
+- **Wildcard** — `*.ad-network.com` matches subdomains up to five levels deep
+
+A pattern reaches the blocklist from one of two places: the `domains` list in
+the configuration file, or an external feed. Feed patterns are refreshed on a
+schedule and a refresh replaces what that feed previously provided, so a domain
+its publisher removed stops being blocked. Configured patterns are never
+touched by a feed. See
+[Configuration: DNS Intelligence](../configuration/dns.md) for the refresh
+timer, the failure behaviour and the feed URL rules.
 
 ## Configuration
 
