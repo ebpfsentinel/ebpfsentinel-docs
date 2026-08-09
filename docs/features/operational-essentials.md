@@ -75,7 +75,7 @@ ebpfsentinel responses revoke resp-1234
 
 ## Auto-Response
 
-Automatic block or throttle of source IPs when alerts match severity-based policies. Up to 3 policies in OSS. Evaluated on every alert (IDS, DLP, DDoS, DNS, packet security).
+Automatic block or throttle of source IPs when alerts match severity-based policies. Up to 3 policies in OSS. Evaluated on every alert that names a source address: IDS, threat intelligence, DDoS, and the packet-level components (firewall, ratelimit, L7, IPS).
 
 ### Configuration
 
@@ -92,9 +92,9 @@ auto_response:
       components: [ids, ddos]      # optional filter (empty = all components)
       action: block
       ttl_secs: 1800
-    - name: throttle-dns-medium
+    - name: throttle-l7-medium
       min_severity: medium
-      components: [dns]
+      components: [l7]
       action: throttle
       ttl_secs: 600
       rate_pps: 100
@@ -102,22 +102,23 @@ auto_response:
 
 ### How It Works
 
-1. An alert is created (IDS pattern match, DDoS detection, DNS blocklist hit, DLP violation, etc.)
-2. Each policy is evaluated in order — first match wins (no stacking)
-3. If `min_severity` matches and `components` matches (or is empty = all), the source IP is blocked or throttled via the IPS blacklist
-4. The block/throttle has a bounded TTL and auto-expires
-5. Every action is logged via `tracing::info` with policy name, alert ID, source IP, and TTL
+1. An alert is created (IDS pattern match, DDoS detection, firewall deny, threat-intel hit, etc.)
+2. An alert that names no source address is skipped: nothing can be contained for it
+3. Each policy is evaluated in order — first match wins (no stacking)
+4. If `min_severity` matches and `components` matches (or is empty = all), the source is blacklisted by the IPS, or given a token bucket in the XDP rate limiter for a `throttle`
+5. The block/throttle has a bounded TTL and auto-expires
+6. Every action is logged via `tracing::info` with policy name, alert ID, source IP, and TTL
 
 ### Policy Fields
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | Yes | — | Policy name (used in logs) |
+| `name` | `string` | Yes | — | Policy name, non-empty and unique (used in logs, metrics and the throttle's rule ID) |
 | `min_severity` | `string` | No | `high` | Minimum alert severity to trigger |
-| `components` | `[string]` | No | `[]` (all) | Component filter: `ids`, `ddos`, `dns`, `dlp`, `firewall`, etc. |
-| `action` | `string` | No | `block` | `block` (deny) or `throttle` (rate limit) |
+| `components` | `[string]` | No | `[]` (all) | Component filter, one or more of `ai-security`, `ddos`, `firewall`, `ids`, `ips`, `l7`, `ratelimit`, `threatintel` |
+| `action` | `string` | No | `block` | `block` (deny, both IP families) or `throttle` (rate limit, IPv4 sources only) |
 | `ttl_secs` | `integer` | No | `3600` | Duration of the block/throttle in seconds |
-| `rate_pps` | `integer` | No | — | Packets per second (only for `throttle`) |
+| `rate_pps` | `integer` | No | — | Packets per second, required above zero on a `throttle` |
 
 ### Limits (OSS vs Enterprise)
 

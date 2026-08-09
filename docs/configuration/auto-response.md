@@ -39,9 +39,9 @@ Each policy defines a severity trigger and the response action to take.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | string | required | Policy name (used in logging) |
+| `name` | string | required | Policy name, non-empty and unique. It labels the response in the metrics and the audit trail, and names the rule a throttle installs |
 | `min_severity` | string | `"high"` | Minimum alert severity to trigger: `low`, `medium`, `high`, `critical` |
-| `components` | list | `[]` | Component filter (e.g., `[ids, ddos, threatintel]`). Empty matches all components |
+| `components` | list | `[]` | Component filter (e.g., `[ids, ddos, threatintel]`). Empty matches all containable components; see below for the accepted names |
 | `action` | string | `"block"` | Response action: `block` or `throttle` |
 | `ttl_secs` | u64 | `3600` | Duration of the response action in seconds |
 | `rate_pps` | u64 | `null` | Rate limit in packets per second. Required, and above zero, on a `throttle` policy; ignored on a `block` one |
@@ -65,6 +65,26 @@ address:
 Both are removed once `ttl_secs` elapses. A source that keeps triggering the
 same policy has its single entry re-armed with a fresh TTL rather than
 accumulating one entry per alert.
+
+## What can be contained
+
+Both actions act on the address the alert names, which leaves two boundaries.
+
+An alert that names no source is skipped before any policy is considered. DLP
+matches and ML anomalies are process-level, and DNS and routing alerts describe
+a name or a gateway rather than a peer, so none of them carries an address to
+contain. `components` therefore accepts only the components whose alerts do:
+
+`ai-security`, `ddos`, `firewall`, `ids`, `ips`, `l7`, `ratelimit`,
+`threatintel`
+
+Any other name is refused at startup rather than accepted as a filter that
+would never match.
+
+A `throttle` reaches IPv4 sources only: the rate limiter's per-source map is
+keyed by a 32-bit address. An IPv6 source matching a throttle policy is logged
+as an enforcement failure and left alone; use a `block` policy to contain it,
+since the IPS blacklist holds both families.
 
 ## OSS Limits
 
