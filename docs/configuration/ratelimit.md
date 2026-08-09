@@ -2,6 +2,8 @@
 
 The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) — it is configured under `ddos`, not as a rate-limit algorithm.
 
+This section also carries the eBPF program the whole [`ddos`](ddos.md) section runs in, so `ratelimit.enabled: false` with `ddos.enabled: true` is refused at startup.
+
 Every source address gets its own token bucket in the kernel. There are three ways to set the size of that bucket, checked in this order:
 
 1. a **country tier**, which covers whole countries through an LPM trie and matches IPv4 and IPv6;
@@ -78,7 +80,7 @@ Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then
 | Sliding Window | `sliding_window` | Weighted average of current and previous windows |
 | Leaky Bucket | `leaky_bucket` | Packets drain at fixed rate |
 
-> SYN-cookie forging (FNV-1a SYN cookies via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. `algorithm: syn_cookie` is rejected at config load.
+> SYN-cookie forging (kernel-issued cookies replayed via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. `algorithm: syn_cookie` is rejected at config load.
 
 ## Examples
 

@@ -2,9 +2,29 @@
 
 The `ddos` section configures kernel-side protections and userspace detection policies for DDoS mitigation.
 
+## Prerequisites
+
+Every guard in this section runs inside the rate-limit eBPF program, and the
+detections the policies count are raised by those same guards. Two rules
+follow, both enforced at startup:
+
+- `ratelimit.enabled` must be `true`, otherwise the program carrying the
+  guards is never loaded and the whole section is inert.
+- At least one of `syn_protection`, `icmp_protection`,
+  `amplification_protection` or `connection_tracking` must be enabled.
+  Policies on their own count nothing: a guard is what reports the flood
+  they measure.
+
+The agent refuses to start on either case rather than running a section that
+can never fire. Unknown keys under `ddos` are refused too, so a misspelt
+guard name is reported instead of silently ignored.
+
 ## Reference
 
 ```yaml
+ratelimit:
+  enabled: true                     # Required: the guards live in its program
+
 ddos:
   enabled: true                     # Enable/disable DDoS protection
   syn_protection:
@@ -45,12 +65,12 @@ ddos:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `bool` | `false` | Enable DDoS protection |
+| `enabled` | `bool` | `false` | Enable DDoS protection. Requires `ratelimit.enabled` and at least one guard |
 | `syn_protection` | `SynProtection` | — | SYN flood kernel-side protection |
 | `icmp_protection` | `IcmpProtection` | — | ICMP flood kernel-side protection |
 | `amplification_protection` | `AmplificationProtection` | — | UDP amplification kernel-side protection |
 | `connection_tracking` | `ConnectionTracking` | — | TCP connection tracking |
-| `policies` | `[DdosPolicy]` | `[]` | Userspace detection policies |
+| `policies` | `[DdosPolicy]` | `[]` | Userspace detection policies, evaluated on the events the guards raise |
 
 ### SynProtection
 
@@ -110,6 +130,9 @@ ddos:
 ### Full protection stack
 
 ```yaml
+ratelimit:
+  enabled: true
+
 ddos:
   enabled: true
   syn_protection:
@@ -153,9 +176,12 @@ ddos:
       enabled: true
 ```
 
-### Minimal — SYN protection only
+### Minimal - SYN protection only
 
 ```yaml
+ratelimit:
+  enabled: true
+
 ddos:
   enabled: true
   syn_protection:
@@ -166,8 +192,14 @@ ddos:
 ### Per-country thresholds with auto-block
 
 ```yaml
+ratelimit:
+  enabled: true
+
 ddos:
   enabled: true
+  syn_protection:
+    enabled: true
+    threshold_pps: 5000
   policies:
     - id: "syn-flood-geo"
       attack_type: "syn_flood"
@@ -184,8 +216,17 @@ ddos:
 ### Detection-only (no blocking)
 
 ```yaml
+ratelimit:
+  enabled: true
+
 ddos:
   enabled: true
+  syn_protection:
+    enabled: true
+    threshold_pps: 5000
+  icmp_protection:
+    enabled: true
+    max_pps: 1000
   policies:
     - id: "syn-detect"
       attack_type: "syn_flood"

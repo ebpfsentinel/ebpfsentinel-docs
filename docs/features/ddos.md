@@ -6,6 +6,8 @@
 
 eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcement** (eBPF/XDP) with **userspace detection** (EWMA-based anomaly detection and attack state machine). This is a separate domain from rate limiting — rate limiting controls per-IP traffic rates, while DDoS protection detects and mitigates coordinated attack patterns.
 
+The two share one kernel program: the guards described below live inside `xdp-ratelimit`, which is only loaded when `ratelimit.enabled` is `true`. DDoS protection therefore requires rate limiting to be enabled, plus at least one guard - policies alone raise nothing, since it is the guards that report the flood a policy measures. The agent refuses to start on a `ddos` section that neither condition satisfies.
+
 ## How It Works
 
 ### Two-Layer Defense
@@ -17,7 +19,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 | Attack Type | Detection | eBPF Protection |
 |-------------|-----------|-----------------|
-| **SYN Flood** | SYN rate exceeds threshold | SYN cookie forging (SYN+ACK via XDP_TX with SipHash-2-4 keyed cookie) |
+| **SYN Flood** | SYN rate exceeds threshold | SYN cookie forging (SYN+ACK via XDP_TX, cookie issued by the kernel helper) |
 | **UDP Amplification** | Per-source-per-port rate spike | Per-port rate limiting for known amplification ports (DNS, NTP, etc.) |
 | **ICMP Flood** | ICMP packet rate exceeds threshold | Rate limiting + oversized payload detection |
 | **RST Flood** | RST packet rate exceeds threshold | Connection tracking with RST rate threshold |
@@ -29,7 +31,7 @@ eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcem
 
 Four independent protection subsystems run in XDP:
 
-**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses with cryptographic SYN cookies directly at XDP speed via `XDP_TX`. The cookie is computed with SipHash-2-4, a keyed pseudo-random function, over the 4-tuple (source/destination IP and port) and a minute-granularity time counter, keyed by a 256-bit secret read from the kernel CSPRNG (`/dev/urandom`) at startup. Using a keyed PRF rather than a plain hash means an attacker who observes forged cookies cannot recover the secret or forge cookies for spoofed connections. MSS is preserved using a 3-bit index encoding 8 standard MSS values in the cookie. When the ACK completing the handshake arrives, the cookie is validated by checking `ack_no - 1` against both the current and previous minute windows — this allows for clock skew at the minute boundary. If cookie validation succeeds, the connection proceeds normally. If forging the SYN+ACK fails (e.g., insufficient headroom), the program falls back to `XDP_DROP`.
+**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses at XDP speed via `XDP_TX`. The cookie itself is issued by the kernel through the `bpf_tcp_raw_gen_syncookie_ipv4` / `_ipv6` helpers, so there is no userspace secret to seed and no custom cookie algorithm to keep in sync: a legitimate client that completes the handshake produces an ACK the kernel validates on its own and turns into an established socket, provided `net.ipv4.tcp_syncookies` is enabled on the host. Spoofed sources never complete the handshake and consume no server resources. If forging the SYN+ACK fails (for example, insufficient headroom), the program falls back to `XDP_DROP`.
 
 **ICMP Protection** — Enforces a maximum ICMP packet rate and detects oversized ICMP payloads (potential tunneling or amplification).
 
@@ -79,9 +81,9 @@ policies:
       KP: 500        # Very low for North Korea
 ```
 
-### Interface Groups
+### Interface Scope
 
-DDoS policies can be scoped to specific interface groups using the `interfaces` field. For example, SYN flood protection can be limited to WAN-facing interfaces while internal traffic is exempt. Policies without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+DDoS guards run wherever `xdp-ratelimit` is attached, and a policy carries no interface field of its own: every policy is evaluated on the events raised by all monitored interfaces. To exempt an interface, keep it out of `agent.interfaces`, or scope the rate-limit rules that feed it - see [Interface Groups](interface-groups.md).
 
 **Engine Limits:**
 - Maximum 100 policies
@@ -91,6 +93,9 @@ DDoS policies can be scoped to specific interface groups using the `interfaces` 
 ## Configuration
 
 ```yaml
+ratelimit:
+  enabled: true       # Required: the DDoS guards live in its eBPF program
+
 ddos:
   enabled: true
   syn_protection:
