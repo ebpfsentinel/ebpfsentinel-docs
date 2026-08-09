@@ -57,6 +57,10 @@ Watches the Kubernetes API for pod metadata (name, namespace, labels, annotation
 |-------|------|---------|-------------|
 | `kubernetes.enabled` | bool | `false` | Enable Kubernetes pod metadata enrichment |
 | `kubernetes.node_name` | string | auto-detect | Node name filter (defaults to `NODE_NAME` env var or hostname) |
-| `kubernetes.label_filter` | `[string]` | `[]` | Only enrich pods with these label keys (empty = all pods) |
+| `kubernetes.label_filter` | `[string]` | `[]` | Label selector narrowing the pod watch. One `key=value` pair per entry, joined into a single selector; empty watches every pod on the node |
+
+A malformed entry (no `=`, an empty key, or several pairs crammed into one
+entry with commas) is refused at load rather than at watch time, where the
+API server's rejection would surface only in the watcher's log.
 
 > Requires a ServiceAccount with `get`, `list`, `watch` on the `pods` resource. See [Kubernetes deployment](../operations/deployment/kubernetes.md).

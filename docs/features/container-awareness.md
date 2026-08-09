@@ -229,7 +229,7 @@ container:
   kubernetes:
     enabled: true          # default: false
     node_name: ""          # empty = auto-detect
-    label_filter: []       # optional pod label selector
+    label_filter: []       # optional pod label selector, one key=value per entry
 ```
 
 ### Cargo feature
@@ -303,7 +303,7 @@ container:
   kubernetes:
     enabled: false
     node_name: ""               # auto-detect
-    label_filter: []
+    label_filter: []            # e.g. ["app=web", "tier=frontend"]
 ```
 
 ## Deployment Requirements
