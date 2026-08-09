@@ -1,33 +1,18 @@
 # Desktop Console
 
-The eBPFsentinel dashboard ships as a native desktop application built
-with [Tauri 2](https://v2.tauri.app/). It reuses the same Leptos
-frontend crate and bundles the `dashboard-server` binary as a sidecar
-process.
+:::warning Not shipped
 
-## Installation
+The desktop shell is **experimental and not released**. No installer is
+built, signed or measured, and no download exists — the supported way to
+reach the console is a browser pointed at a deployed dashboard. The code
+(`crates/dashboard-tauri`) stays in the repository and can be built from
+source, which is what this page describes.
 
-### Linux (deb / AppImage)
+:::
 
-```bash
-# Debian / Ubuntu
-sudo dpkg -i ebpfsentinel-dashboard_0.x.x_amd64.deb
-
-# AppImage (no install required)
-chmod +x eBPFsentinel-Dashboard_0.x.x_amd64.AppImage
-./eBPFsentinel-Dashboard_0.x.x_amd64.AppImage
-```
-
-### macOS
-
-```bash
-# Open the .dmg and drag to /Applications
-open eBPFsentinel-Dashboard_0.x.x_universal.dmg
-```
-
-### Windows
-
-Run the `.msi` installer or extract the portable `.exe`.
+The eBPFsentinel dashboard has a native desktop shell built with
+[Tauri 2](https://v2.tauri.app/). It reuses the same Leptos frontend crate
+and bundles the `dashboard-server` binary as a sidecar process.
 
 ## Configuration
 
@@ -101,28 +86,15 @@ The service name is `ebpfsentinel-dashboard`.
 
 ## Auto-Update
 
-The app ships with [Tauri updater](https://v2.tauri.app/plugin/updater/)
-support. Configure the update endpoint in `tauri.conf.json`:
-
-```json
-{
-  "plugins": {
-    "updater": {
-      "pubkey": "<your-ed25519-public-key>",
-      "endpoints": [
-        "https://releases.example.com/ebpfsentinel/{{target}}/{{arch}}/{{current_version}}"
-      ]
-    }
-  }
-}
-```
-
-Generate signing keys with `tauri signer generate -w ~/.tauri/keys`.
+The Tauri updater plugin is compiled in but has **no endpoint**: nothing
+is published for it to poll. A site that builds and distributes the shell
+internally configures its own endpoint and keys in `tauri.conf.json` —
+see the [Tauri updater docs](https://v2.tauri.app/plugin/updater/).
 
 ## Code Signing
 
-Code signing is **not configured by default**. Customers sign binaries
-with their own certificate.
+Code signing is **not configured by default**. A site that distributes
+its own build signs it with its own certificate.
 
 ### macOS
 
