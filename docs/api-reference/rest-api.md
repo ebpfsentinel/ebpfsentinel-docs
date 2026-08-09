@@ -988,13 +988,18 @@ curl -X POST http://localhost:8080/api/v1/responses/manual \
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `action` | string | Yes | `block_ip` or `throttle_ip` |
-| `target` | string | Yes | Target IP or CIDR (e.g. `1.2.3.4` or `10.0.0.0/24`) |
+| `target` | string | Yes | Target host address (e.g. `1.2.3.4` or `2001:db8::1`); a prefix is refused |
 | `ttl` | string | Yes | Duration string: `30s`, `5m`, `1h`, `1d`, or bare seconds |
-| `rate_pps` | integer | No | Rate limit in packets/sec (required for `throttle_ip`) |
+| `rate_pps` | integer | No | Rate limit in packets/sec, required above zero for `throttle_ip` |
+
+A `block_ip` adds the target to the IPS blacklist and covers both IP families.
+A `throttle_ip` installs a token bucket in the XDP rate limiter and reaches
+IPv4 targets only, since its per-source map is keyed by a 32-bit address.
 
 #### DELETE /api/v1/responses/{id}
 
-Revoke a response action early. Requires `admin` role.
+Revoke a response action early, which lifts the blacklist entry or the token
+bucket immediately instead of waiting for the TTL. Requires `admin` role.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/responses/resp-001

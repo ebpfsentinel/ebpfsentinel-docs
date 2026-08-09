@@ -637,7 +637,7 @@ ebpfsentinel-agent responses list
 ebpfsentinel-agent responses create --action block_ip --target 203.0.113.42 --ttl 1h
 
 # Create a throttle action
-ebpfsentinel-agent responses create --action throttle_ip --target 10.0.0.0/24 --ttl 30m --rate-pps 100
+ebpfsentinel-agent responses create --action throttle_ip --target 203.0.113.42 --ttl 30m --rate-pps 100
 
 # Revoke an action early
 ebpfsentinel-agent responses revoke resp-001
@@ -646,9 +646,9 @@ ebpfsentinel-agent responses revoke resp-001
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--action <TYPE>` | `block_ip` or `throttle_ip` | Required |
-| `--target <IP/CIDR>` | Target IP or CIDR | Required |
+| `--target <IP>` | Target host address; a prefix is not a response target | Required |
 | `--ttl <DUR>` | Duration (e.g. `1h`, `30m`, `3600s`) | Required |
-| `--rate-pps <N>` | Rate limit in pps (for `throttle_ip`) | None |
+| `--rate-pps <N>` | Rate limit in pps, required above zero on `throttle_ip` (IPv4 targets only) | None |
 
 ### fingerprints
 

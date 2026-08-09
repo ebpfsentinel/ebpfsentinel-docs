@@ -47,9 +47,9 @@ Time-bounded block or throttle actions with automatic TTL expiry. No permanent s
 POST /api/v1/responses/manual
 {"action": "block_ip", "target": "1.2.3.4", "ttl": "1h"}
 
-# Throttle a CIDR for 30 minutes
+# Throttle an IP for 30 minutes
 POST /api/v1/responses/manual
-{"action": "throttle_ip", "target": "10.0.0.0/24", "ttl": "30m", "rate_pps": 10}
+{"action": "throttle_ip", "target": "1.2.3.4", "ttl": "30m", "rate_pps": 10}
 
 # List active actions
 GET /api/v1/responses
@@ -62,10 +62,21 @@ DELETE /api/v1/responses/{id}
 
 ```bash
 ebpfsentinel responses create --action block_ip --target 1.2.3.4 --ttl 1h
-ebpfsentinel responses create --action throttle_ip --target 10.0.0.0/24 --ttl 30m --rate-pps 10
+ebpfsentinel responses create --action throttle_ip --target 1.2.3.4 --ttl 30m --rate-pps 10
 ebpfsentinel responses list
 ebpfsentinel responses revoke resp-1234
 ```
+
+### What is installed
+
+| Action | Enforcement |
+|--------|-------------|
+| `block_ip` | The target is added to the IPS blacklist, which drops all of its traffic. Both IP families. |
+| `throttle_ip` | The target gets a token bucket in the XDP rate limiter at `rate_pps` packets per second, with one second of burst. IPv4 targets only, since the rate limiter's per-source map is keyed by a 32-bit address. |
+
+The target is a single host address: both maps are keyed by one address, so a
+prefix is refused rather than silently narrowed. Revoking early, or letting the
+TTL elapse, lifts the entry from the data plane.
 
 ### TTL Formats
 
