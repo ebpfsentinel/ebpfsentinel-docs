@@ -797,7 +797,7 @@ curl http://localhost:8080/api/v1/aliases/status
 
 #### PUT /api/v1/aliases/{id}/content
 
-Set content for an external alias. Only works for aliases with `alias_type: external`.
+Set content for an external alias. Only works for aliases with `type: external`. The addresses are loaded into the kernel IPv4 IP set the referencing firewall rules match against; members that are not IPv4 host addresses are reported in the agent log and stay out of the set.
 
 ```bash
 curl -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \

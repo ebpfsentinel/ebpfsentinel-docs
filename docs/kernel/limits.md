@@ -54,7 +54,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Port-only hash entries | 16,384 | `FW_HASH_PORT` (HashMap, `MAX_FW_HASH_PORT`) |
 | LPM CIDR entries (per direction per family) | 131,072 | `FW_LPM_SRC_V4` / `FW_LPM_DST_V4` / `FW_LPM_SRC_V6` / `FW_LPM_DST_V6` (LPM Trie, `MAX_LPM_RULES`) |
 | IP set entries (IPv4) | 65,536 | `FW_IPSET_V4` (HashMap, `MAX_IPSET_ENTRIES_V4`) |
-| IP set aliases | 255 | Index 0–254 (index 255 = overload blacklist) |
+| IP set aliases | 255 | Set ids 1–255 (id 0 means the rule matches no set) |
 | Per-source state counters | 65,536 | `CT_SRC_COUNTERS` (HashMap, `CT_SRC_COUNTER_MAX`) |
 | Per-rule state counters | 4,096 | `FW_RULE_STATE_COUNT` (Array, `MAX_FIREWALL_RULES`) |
 | Interface groups | 31 | Bits 0–30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |

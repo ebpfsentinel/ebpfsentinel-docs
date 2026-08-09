@@ -1,17 +1,20 @@
 # Aliases Configuration
 
-The `aliases` section defines named collections of IPs, ports, MAC addresses, and other network identifiers that can be referenced by name in firewall rules, NAT, L7, and other domains. Aliases are defined at the top level of the configuration file.
+The `firewall.aliases` section defines named collections of IPs, ports, MAC addresses, and other network identifiers that can be referenced by name in firewall rules, NAT, L7, and other domains.
 
 ## Reference
 
 ```yaml
-aliases:
-  rfc1918:
-    type: ip_set
-    values: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"]
-    exclude: ["10.99.0.0/16"]
-    description: "RFC 1918 private networks"
+firewall:
+  aliases:
+    rfc1918:
+      type: ip_set
+      values: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"]
+      exclude: ["10.99.0.0/16"]
+      description: "RFC 1918 private networks"
 ```
+
+How each type binds to the data plane -- rule expansion, kernel IP set, or LPM drop entries -- is described in [Aliases](../features/aliases.md#how-a-rule-reference-reaches-the-kernel).
 
 ## Fields
 
@@ -111,15 +114,17 @@ saas_providers:
   refresh_interval: 300
 ```
 
-### `interface_group` -- Interface Set
+### `interface_group` -- Interface Addresses
 
-Groups network interfaces by name.
+Stands for the addresses the named interfaces currently carry, re-read on every dynamic refresh so a DHCP lease change is picked up. Only the addresses themselves are used, not the subnets they belong to.
 
 ```yaml
 lan_interfaces:
   type: interface_group
   interfaces: [eth0, eth1]
 ```
+
+To scope a rule to the interfaces it runs on rather than to their addresses, use the top-level `interface_groups` section and the `interfaces` field of the rule instead.
 
 ### `mac_set` -- MAC Address Collection
 
@@ -154,32 +159,33 @@ siem_watchlist:
 ## Example
 
 ```yaml
-aliases:
-  rfc1918:
-    type: ip_set
-    values: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"]
-    description: "RFC 1918 private networks"
+firewall:
+  aliases:
+    rfc1918:
+      type: ip_set
+      values: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"]
+      description: "RFC 1918 private networks"
 
-  http_ports:
-    type: port_set
-    values: [80, 443, 8080, "8443-8445"]
+    http_ports:
+      type: port_set
+      values: [80, 443, 8080, "8443-8445"]
 
-  blocked_countries:
-    type: geoip
-    country_codes: ["CN", "RU", "KP", "IR"]
+    blocked_countries:
+      type: geoip
+      country_codes: ["CN", "RU", "KP", "IR"]
 
-  tor_exits:
-    type: url_table
-    url: "https://check.torproject.org/torbulkexitlist"
-    refresh_interval: 3600
+    tor_exits:
+      type: url_table
+      url: "https://check.torproject.org/torbulkexitlist"
+      refresh_interval: 3600
 
-  all_internal:
-    type: nested
-    aliases: [rfc1918]
-    exclude: ["10.99.0.0/16"]
+    all_internal:
+      type: nested
+      aliases: [rfc1918]
+      exclude: ["10.99.0.0/16"]
 
-  trusted_macs:
-    type: mac_set
-    values: ["aa:bb:cc:dd:ee:ff"]
-    description: "Approved hardware"
+    trusted_macs:
+      type: mac_set
+      values: ["aa:bb:cc:dd:ee:ff"]
+      description: "Approved hardware"
 ```

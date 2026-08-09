@@ -15,7 +15,7 @@ eBPFsentinel supports 11 alias types:
 | `url_table_json` | JSON document fetched via URL with JSONPointer extraction | API responses with nested IP lists |
 | `geoip` | IPs matching country codes via MaxMind GeoLite2 | All IPs from `CN`, `RU` |
 | `dynamic_dns` | Hostnames resolved periodically | `my-server.dyndns.org` |
-| `interface_group` | IPs assigned to named network interfaces | All IPs on `eth0`, `eth1` |
+| `interface_group` | Addresses currently assigned to named interfaces | The agent's own addresses on `eth0`, `eth1` |
 | `mac_set` | MAC addresses for L2 filtering | Known device MAC addresses |
 | `bgp_asn` | IPs belonging to BGP AS numbers via MaxMind ASN database | AS15169 (Google), AS13335 (Cloudflare) |
 | `external` | Empty placeholder — content pushed via REST API | Integration with external CMDB or IPAM |
@@ -28,7 +28,7 @@ Aliases are defined under `firewall.aliases` in the configuration file:
 firewall:
   aliases:
     rfc1918:
-      alias_type: ip_set
+      type: ip_set
       values:
         - "10.0.0.0/8"
         - "172.16.0.0/12"
@@ -36,46 +36,46 @@ firewall:
       description: "RFC 1918 private ranges"
 
     web_ports:
-      alias_type: port_set
+      type: port_set
       values: [80, 443, 8080, "8443-8449"]
 
     internal:
-      alias_type: nested
+      type: nested
       aliases: [rfc1918, vpn_ranges]
       exclude:
         - "10.99.0.0/16"
 
     cloud_ranges:
-      alias_type: url_table
+      type: url_table
       url: "https://ip-ranges.amazonaws.com/ip-ranges.json"
       json_path: "/prefixes/*/ip_prefix"
       refresh_interval: 3600
 
     blocked_countries:
-      alias_type: geoip
+      type: geoip
       country_codes: [CN, RU, KP]
 
     dns_servers:
-      alias_type: dynamic_dns
+      type: dynamic_dns
       hostnames: ["ns1.example.com", "ns2.example.com"]
       refresh_interval: 300
 
     dmz_interfaces:
-      alias_type: interface_group
+      type: interface_group
       interfaces: [eth3, eth4]
 
     known_devices:
-      alias_type: mac_set
+      type: mac_set
       values:
         - "aa:bb:cc:dd:ee:f0"
         - "aa:bb:cc:dd:ee:f1"
 
     google_asn:
-      alias_type: bgp_asn
+      type: bgp_asn
       asn_numbers: [15169, 36040]
 
     external_blocklist:
-      alias_type: external
+      type: external
       description: "Pushed via API by CMDB"
 ```
 
@@ -91,9 +91,9 @@ firewall:
       src_alias: internal
       dst_port_alias: web_ports
 
-    - id: block-countries
+    - id: block-scanners
       action: deny
-      src_alias: blocked_countries
+      src_alias: external_blocklist
 
 nat:
   dnat_rules:
@@ -102,6 +102,41 @@ nat:
       match_src_alias: external_blocklist
       translated_addr: "10.0.3.10"
 ```
+
+## How a Rule Reference Reaches the Kernel
+
+The kernel matches addresses, ports and MAC addresses, never names. Each alias
+type therefore binds to one of three kernel mechanisms, and the type decides
+which one:
+
+| Alias types | Binding | Consequence for rules |
+|-------------|---------|-----------------------|
+| `ip_set`, `nested`, `port_set`, `mac_set` | Rule expansion | The rule is installed once per member, so a rule naming a 5-network alias occupies 5 rule slots |
+| `url_table`, `url_table_json`, `dynamic_dns`, `interface_group`, `external` | Kernel IPv4 IP set | The rule is installed once and matches against the set, which the agent refills on every refresh without touching the rule |
+| `geoip`, `bgp_asn` | LPM trie drop entries | Traffic from the listed countries or AS numbers is dropped on ingress as soon as the alias resolves; naming one of them in a firewall rule does not install that rule |
+
+Expansion covers criteria the IP set cannot express: CIDRs, IPv6, port ranges
+and MAC addresses. When a rule names aliases on several sides, the installed
+rules are the cross product of what each side resolves to, and combinations
+that mix IPv4 with IPv6 are skipped. Expansion is capped at 256 installed rules
+per authored rule; a larger alias belongs to one of the set-backed types, whose
+members the kernel matches without expansion.
+
+The IPv4 IP set holds exact host addresses, up to 65536 across all sets. Members
+that are not `/32` (a CIDR from a URL table, an IPv6 address from a DNS
+resolution) stay out of the set and are reported in the agent log, so a rule is
+never silently narrowed to a network address.
+
+Two more rules apply everywhere:
+
+- A rule that sets both a literal criterion and an alias on the same side keeps
+  the literal; the ignored alias is reported in the log.
+- An alias that resolves to nothing drops its rule instead of installing it with
+  the criterion left out, which would widen the rule rather than restrict it.
+
+Bindings are rebuilt at startup, on configuration reload, on alias reload, and
+on every periodic refresh of the dynamic types, so a new URL table entry or a
+new DHCP address reaches the kernel without a rule change.
 
 ## Recursive Resolution
 

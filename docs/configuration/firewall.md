@@ -87,15 +87,21 @@ firewall:
 | `dscp_match` | `integer` | No | Match DSCP value (0-63, omit = any) |
 | `dscp_mark` | `integer` | No | Set DSCP value on matched packets (0-63) |
 | `state` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid`, `syn_sent`, `syn_recv`, `fin_wait`, `close_wait`, `time_wait` |
-| `src_alias` | `string` | No | Named IP alias for source (resolved to IP set) |
-| `dst_alias` | `string` | No | Named IP alias for destination |
-| `src_port_alias` | `string` | No | Named port alias for source |
-| `dst_port_alias` | `string` | No | Named port alias for destination |
-| `src_mac_alias` | `string` | No | Named MAC alias for source |
-| `dst_mac_alias` | `string` | No | Named MAC alias for destination |
+| `src_alias` | `string` | No | Named IP alias for source (ignored if `src_ip` is also set) |
+| `dst_alias` | `string` | No | Named IP alias for destination (ignored if `dst_ip` is also set) |
+| `src_port_alias` | `string` | No | Named port alias for source (ignored if `src_port` is also set) |
+| `dst_port_alias` | `string` | No | Named port alias for destination (ignored if `dst_port` is also set) |
+| `src_mac_alias` | `string` | No | Named MAC alias for source (ignored if `src_mac` is also set) |
+| `dst_mac_alias` | `string` | No | Named MAC alias for destination (ignored if `dst_mac` is also set) |
 | `schedule` | `string` | No | Time-based schedule name |
 | `max_states` | `integer` | No | Per-rule concurrent connection state limit |
 | `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+
+An alias reference is bound to what the alias holds when the rules are
+installed: static aliases expand into one kernel rule per member, runtime
+aliases back a kernel IP set the rule matches against, and an alias that
+resolves to nothing drops its rule instead of widening it. See
+[Aliases](../features/aliases.md#how-a-rule-reference-reaches-the-kernel).
 
 ### Anti-Lockout
 
@@ -270,15 +276,15 @@ firewall:
 ### Aliases
 
 ```yaml
-aliases:
-  trusted-networks:
-    type: ip_set
-    values: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
-  web-ports:
-    type: port_set
-    values: ["80", "443", "8080"]
-
 firewall:
+  aliases:
+    trusted-networks:
+      type: ip_set
+      values: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    web-ports:
+      type: port_set
+      values: [80, 443, 8080]
+
   rules:
     - id: allow-trusted-web
       priority: 10

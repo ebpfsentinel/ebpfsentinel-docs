@@ -62,8 +62,8 @@ Each rule field is optional — omitted fields act as wildcards:
 | `dst_mac` | Omit to match any | Exact destination MAC address |
 | `dscp_match` | Omit to match any | DSCP value (0-63) |
 | `state` | Omit to match any | Conntrack states (`new`, `established`, `related`, `invalid`) |
-| `src_alias` | Omit to match any | Named IP alias (resolved to IP set) |
-| `dst_alias` | Omit to match any | Named IP alias |
+| `src_alias` | Omit to match any | Named IP alias, bound to the addresses it holds |
+| `dst_alias` | Omit to match any | Named IP alias, bound to the addresses it holds |
 | `negate_source` | `false` | Invert source IP match (match if NOT in CIDR) |
 | `negate_destination` | `false` | Invert destination IP match |
 
@@ -172,18 +172,18 @@ Rules can match on DSCP values and mark packets for downstream QoS queuing:
 
 ### IP/Port Aliases
 
-Named aliases allow rules to reference dynamic IP/port groups:
+Named aliases allow rules to reference IP, port and MAC groups:
 
 ```yaml
-aliases:
-  - id: trusted-networks
-    type: ip
-    entries: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
-  - id: web-ports
-    type: port
-    entries: ["80", "443", "8080"]
-
 firewall:
+  aliases:
+    trusted-networks:
+      type: ip_set
+      values: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    web-ports:
+      type: port_set
+      values: [80, 443, 8080]
+
   rules:
     - id: allow-trusted-web
       action: allow
@@ -191,7 +191,14 @@ firewall:
       dst_port_alias: web-ports
 ```
 
-Aliases are resolved at load time into eBPF IP set / port set maps.
+Static aliases like the two above are expanded when the rules are installed: the
+rule above becomes one kernel rule per network/port pair. Aliases whose content
+is fetched at runtime (URL tables, dynamic DNS, interface addresses, externally
+pushed lists) instead back a kernel IPv4 IP set the rule matches against, so a
+refresh changes what the rule covers without reinstalling it. An alias that
+resolves to nothing drops its rule rather than leaving the criterion out. See
+[Aliases](aliases.md#how-a-rule-reference-reaches-the-kernel) for the full
+binding table and its limits.
 
 ### Rule Scheduling
 
