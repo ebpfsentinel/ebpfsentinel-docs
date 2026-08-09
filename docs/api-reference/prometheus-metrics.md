@@ -134,6 +134,9 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 ## Enterprise Metrics
 
 > Scraped from enterprise agent port (default `:8444/metrics`). Prefix: `ebpfsentinel_ent_`.
+> With `auth.enabled: true` this endpoint needs a credential like the rest of
+> the enterprise port: give the scrape job an `authorization` or an
+> `X-API-Key` header, otherwise it gets `401`.
 
 ### Fleet Management
 

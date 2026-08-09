@@ -1212,15 +1212,28 @@ curl http://localhost:8080/metrics
 
 Served on the enterprise API port (default `8444`). Requires `FleetManagement` license feature.
 
+### Authentication
+
+The enterprise port uses the same credentials as the agent API: with
+`auth.enabled: true` every endpoint on `8444` requires either
+`Authorization: Bearer <token>` or `X-API-Key: <key>`, and an unauthenticated
+call gets `401`. That covers `/metrics`, the Swagger UI and the fleet endpoints
+below, so a Prometheus scrape or a fleet agent needs a credential of its own.
+
+With `auth.enabled: false` the port is open, but nothing can then prove a role:
+every caller is treated as an anonymous viewer, and the role-gated endpoints
+(tenant administration in particular) stay unavailable. Role headers are never
+trusted - the role comes from the verified credential, not from the request.
+
 ### Fleet Management
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/v1/agent/register` | None | Register agent, returns UUIDv7 identity + token |
-| POST | `/api/v1/agent/heartbeat` | None | Agent heartbeat with live rule counts and config version |
-| GET | `/api/v1/agent/identity` | None | Full agent identity, capabilities, eBPF status, TLS info |
-| GET | `/api/v1/agent/config/version` | None | Config SHA-256 hash + reload timestamp |
-| GET | `/api/v1/flows/graph` | None | Network flow graph from conntrack (query: `max_nodes`, `min_bytes`, `protocol`, `limit`) |
+| POST | `/api/v1/agent/register` | Yes | Register agent, returns UUIDv7 identity + token |
+| POST | `/api/v1/agent/heartbeat` | Yes | Agent heartbeat with live rule counts and config version |
+| GET | `/api/v1/agent/identity` | Yes | Full agent identity, capabilities, eBPF status, TLS info |
+| GET | `/api/v1/agent/config/version` | Yes | Config SHA-256 hash + reload timestamp |
+| GET | `/api/v1/flows/graph` | Yes | Network flow graph from conntrack (query: `max_nodes`, `min_bytes`, `protocol`, `limit`) |
 
 See [Fleet Management](../features/enterprise/fleet-management.md) for request/response details.
 

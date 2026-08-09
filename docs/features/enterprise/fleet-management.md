@@ -12,11 +12,18 @@ Gated by the `FleetManagement` license feature.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/v1/agent/register` | None | Register agent, get UUIDv7 identity + token |
-| POST | `/api/v1/agent/heartbeat` | Token | Report status, receive aggregated health |
-| GET | `/api/v1/agent/identity` | Token | Full agent identity with capabilities |
-| GET | `/api/v1/agent/config/version` | Token | Config SHA-256 hash + reload timestamp |
-| GET | `/api/v1/flows/graph` | Token | Network flow graph from conntrack data |
+| POST | `/api/v1/agent/register` | Yes | Register agent, get UUIDv7 identity + token |
+| POST | `/api/v1/agent/heartbeat` | Yes | Report status, receive aggregated health |
+| GET | `/api/v1/agent/identity` | Yes | Full agent identity with capabilities |
+| GET | `/api/v1/agent/config/version` | Yes | Config SHA-256 hash + reload timestamp |
+| GET | `/api/v1/flows/graph` | Yes | Network flow graph from conntrack data |
+
+With `auth.enabled: true` these endpoints require a credential like every other
+enterprise endpoint (`Authorization: Bearer <token>` or `X-API-Key: <key>`),
+registration included: enrolment is not a bootstrap exemption, so provision the
+fleet credential before the first `register` call. The `token` returned by
+registration identifies the agent in the heartbeat body; it does not replace
+that credential.
 
 ## Agent Registration
 
@@ -289,14 +296,17 @@ The handler (`enterprise-adapters/src/http/fleet_handler.rs`) bridges domain log
 ```bash
 # Register
 curl -X POST http://agent:8444/api/v1/agent/register \
+  -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
   -d '{"name":"node-01","labels":{"env":"prod"}}'
 
 # Heartbeat (cron every 30s)
 curl -X POST http://agent:8444/api/v1/agent/heartbeat \
+  -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
   -d '{"agent_id":"019538a2-..."}'
 
 # Config drift check
-curl http://agent:8444/api/v1/agent/config/version
+curl -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
+  http://agent:8444/api/v1/agent/config/version
 ```
 
 ### Kubernetes Operator
