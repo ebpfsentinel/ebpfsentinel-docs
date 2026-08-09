@@ -13,6 +13,12 @@ DLP scans decrypted network traffic for sensitive data patterns — credit card 
    inode. So the agent parses `/proc/<pid>/maps` for every process on the host,
    finds each SSL library, and deduplicates by `(device, inode)` — pods of the
    same image share one overlayfs lower layer, so a single probe covers them all.
+   A library whose file was unlinked while still mapped (an in-place package
+   upgrade, or an image layer replaced under a running container) is covered too:
+   the agent reaches such a mapping through the process's `/proc/<pid>/map_files`
+   entry, which points at the inode the process actually mapped rather than at
+   whatever now carries the old name. That lookup needs `CAP_SYS_ADMIN`, which the
+   warden and the privileged posture both already hold.
 2. **uprobe attachment** — the `uprobe-dlp` program is attached to `SSL_write` /
    `SSL_read` (entry + return) once per unique library inode, so the agent sees
    **every container's** TLS, not only its own.
