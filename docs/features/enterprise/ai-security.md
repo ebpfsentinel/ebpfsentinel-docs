@@ -190,7 +190,10 @@ enterprise:
 Policy evaluation order:
 1. Bypass sources checked first (always returns `monitor`)
 2. Blocked resolver list checked (returns `block` if matched)
-3. If an allow list is configured, anything not on it uses the policy mode
+3. Allowed resolver list checked (returns `monitor`, whatever the mode says)
+4. In `allow_list` mode anything left is blocked; otherwise the policy mode applies
+
+`bypass_sources` are matched as exact addresses, not CIDR ranges.
 
 Violations generate alerts with MITRE ATT&CK mapping T1071.004 (Application Layer Protocol: DNS).
 
