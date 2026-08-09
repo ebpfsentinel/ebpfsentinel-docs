@@ -12,6 +12,28 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | `ebpfsentinel_bytes_processed_total` | Counter | `interface`, `direction` | Bytes processed per interface |
 | `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Per-program packet processing latency |
 
+### Datapath Ring Buffers
+
+Each eBPF program hands its events to userspace through a ring buffer. These
+three metrics account for that handover, labelled by the producing program
+(`source`): `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`, `tc-ids`,
+`tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-qos`, `uprobe-dlp`.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ringbuf_events_total` | Counter | `source` | Records drained from the ring buffer |
+| `ebpfsentinel_ringbuf_events_dropped_total` | Counter | `source`, `reason` | Records drained then lost before the processing pipeline. `reason="channel_full"` is backpressure on the processing channel; `decode_failed` and `truncated_record` mean the record itself could not be read |
+| `ebpfsentinel_ringbuf_latency_seconds` | Histogram | `source` | Delay between the kernel committing a record and userspace draining it |
+
+Reading them together tells you where events are lost. The kernel refuses to
+emit when the ring is above 75% full, and counts that refusal in the
+`events_dropped` slot of the program's own metrics map. `ringbuf_events_total`
+counts what userspace actually received, and `ringbuf_events_dropped_total`
+counts what it received and then had to throw away because the processing
+channel was saturated. A rising `ringbuf_latency_seconds` with no drops means
+the pipeline is keeping up but falling behind; drops on top of it mean it is
+not keeping up at all.
+
 ### Rules
 
 | Metric | Type | Labels | Description |
