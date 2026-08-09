@@ -11,8 +11,8 @@ Native connectors for 10 enterprise SIEM and data lake platforms with durable bu
 | Platform | Protocol | Format | Key Features |
 |----------|----------|--------|--------------|
 | **Splunk** | HTTP Event Collector (HEC) | Splunk envelope | Indexer acknowledgement, channel management, configurable sourcetype/index |
-| **Elasticsearch** | Bulk API | ECS (NDJSON) | ApiKey or Basic auth, index templates with date pattern, ILM policy support |
-| **OpenSearch** | Bulk API | ECS (NDJSON) | Basic auth only, ISM policy support, API-compatible with Elasticsearch |
+| **Elasticsearch** | Bulk API | ECS (NDJSON) | ApiKey or Basic auth, date-patterned index names |
+| **OpenSearch** | Bulk API | ECS (NDJSON) | Basic auth only, API-compatible with Elasticsearch |
 | **Wazuh** | REST API | ECS + agent_name | JWT auth (auto-refresh on 401), agent-based integration |
 | **Microsoft Sentinel** | CEF over Syslog | CEF | RFC 5424 syslog, TLS/TCP transport, 6 custom extension fields |
 | **IBM QRadar** | LEEF over Syslog | LEEF 2.0 | Tab-delimited fields, TLS/TCP transport |
@@ -142,7 +142,8 @@ Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` se
 
 - API-compatible with Elasticsearch
 - **Basic auth only** (no ApiKey support)
-- Uses ISM (Index State Management) instead of ILM
+
+Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the cluster, not by the exporter: the connector only writes documents into the date-patterned index.
 
 ### Wazuh
 
@@ -356,7 +357,6 @@ enterprise:
       endpoint: https://es.internal:9200
       api_key: <api-key>                 # or username/password for Basic auth
       index_pattern: "ebpfsentinel-{yyyy.MM.dd}"
-      ilm_policy: ebpfsentinel           # optional, reserved
       verify_tls: true
 
     opensearch:
@@ -364,7 +364,6 @@ enterprise:
       username: admin
       password: <password>
       index_pattern: "ebpfsentinel-{yyyy.MM.dd}"
-      ism_policy: ebpfsentinel           # optional, reserved
       verify_tls: true
 
     wazuh:

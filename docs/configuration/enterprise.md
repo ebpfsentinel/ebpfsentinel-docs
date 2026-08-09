@@ -134,7 +134,6 @@ enterprise:
       endpoint: https://es.example.com:9200
       api_key: base64-api-key
       index_pattern: "ebpfsentinel-{yyyy.MM.dd}"
-      ilm_policy: hot-warm-delete
     otlp:
       endpoint: http://otel-collector:4318   # OTLP/HTTP; events POSTed to {endpoint}/v1/logs
       timeout_ms: 5000
