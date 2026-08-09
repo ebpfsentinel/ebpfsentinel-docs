@@ -2,6 +2,14 @@
 
 The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) — it is configured under `ddos`, not as a rate-limit algorithm.
 
+Every source address gets its own token bucket in the kernel. There are three ways to set the size of that bucket, checked in this order:
+
+1. a **country tier**, which covers whole countries through an LPM trie and matches IPv4 and IPv6;
+2. a **rule**, which overrides the defaults for exactly one source host;
+3. the **section defaults**, which apply to every source no rule names.
+
+So the general case needs no rule at all: `default_rate` and `default_burst` already give each unnamed source its own bucket. A rule exists to single out one host.
+
 ## Reference
 
 ```yaml
@@ -15,8 +23,7 @@ ratelimit:
       rate: 10000                        # Packets per second
       burst: 20000                       # Burst capacity
       algorithm: token_bucket            # Algorithm choice
-      scope: per_ip                      # per_ip or global
-      src_ip: "10.0.0.0/8"               # Source CIDR filter (optional)
+      src_ip: "10.0.0.20/32"             # Source host this rule limits (required)
 ```
 
 ## Fields
@@ -41,12 +48,13 @@ ratelimit:
 | `burst` | `integer` | Yes | — | Burst capacity |
 | `algorithm` | `string` | No | `token_bucket` | See algorithms below |
 | `action` | `string` | No | `drop` | Action when the limit is exceeded: `drop` or `pass` |
-| `scope` | `string` | No | `source_ip` | `source_ip` (aliases: `src_ip`, `per_ip`) or `global` |
-| `src_ip` | `string` | No | — | Source CIDR filter (only apply to matching IPs) |
-| `src_ip_alias` | `string` | No | — | Named IP-set alias as the source filter (alternative to `src_ip`) |
-| `country_codes` | `[string]` | No | — | Restrict the rule to source countries (ISO 3166-1 alpha-2) |
+| `src_ip` | `string` | Yes | — | Source host this rule limits, as a bare address or a `/32` |
 | `interfaces` | `[string]` | No | — | Restrict the rule to specific interfaces or interface groups |
 | `enabled` | `bool` | No | `true` | Enable or disable this rule |
+
+`src_ip` names one host and nothing else. The kernel config map (`RATELIMIT_CONFIG`) is an exact-match hash on the packet's 32-bit source address, so a shorter prefix such as `10.0.0.0/8` would match a single address rather than the range, and an IPv6 source would match no entry at all. Both are refused at config load, as is `0.0.0.0`, which is the key the section defaults occupy. To limit a range or an IPv6 source, use `country_tiers`, which resolves to CIDRs and carries an IPv6 trie.
+
+Two rules naming the same source are also refused: one source carries one bucket, so the second would silently replace the first.
 
 ### CountryTier
 
@@ -83,16 +91,18 @@ ratelimit:
   default_burst: 2000
   default_algorithm: token_bucket
   rules:
-    - id: global-limit
+    # A backup host that legitimately bursts: raise its ceiling.
+    - id: backup-host
       rate: 10000
       burst: 20000
       algorithm: token_bucket
-      scope: per_ip
-    - id: api-ratelimit
-      rate: 1000
-      burst: 2000
+      src_ip: 10.0.0.20
+    # A scraper hammering the edge: far below the default.
+    - id: scraper
+      rate: 100
+      burst: 200
       algorithm: sliding_window
-      scope: per_ip
+      src_ip: 203.0.113.10
 ```
 
 ### Country-based tiers

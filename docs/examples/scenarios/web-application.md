@@ -85,17 +85,23 @@ l7:
       path: "/api/internal/.*"
 
 ratelimit:
+  enabled: true
+  # Each client address gets its own bucket at these values.
+  default_rate: 1000
+  default_burst: 2000
+  default_algorithm: token_bucket
   rules:
-    - id: web-ratelimit
-      rate: 1000
-      burst: 2000
-      algorithm: token_bucket
-      scope: per_ip
-    - id: syn-protection
-      rate: 50
-      burst: 100
-      algorithm: syn_cookie
-      scope: per_ip
+    # A partner integration that polls hard: give it room.
+    - id: partner-api
+      rate: 10000
+      burst: 20000
+      src_ip: 203.0.113.40
+
+# SYN-flood mitigation lives under `ddos`, not `ratelimit`.
+ddos:
+  enabled: true
+  syn_protection:
+    enabled: true
 
 alerting:
   routes:

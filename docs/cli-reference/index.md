@@ -310,7 +310,8 @@ ebpfsentinel-agent ips domain-blocks
 
 ### ratelimit
 
-Manage rate limiting rules.
+Manage rate limiting rules. A rule overrides the section defaults for one
+source host, so `src_ip` is required and must be a single IPv4 address.
 
 ```bash
 # List rules
@@ -318,15 +319,15 @@ ebpfsentinel-agent ratelimit list
 
 # Add a rule
 ebpfsentinel-agent ratelimit add --json '{
-  "id": "rl-global",
+  "id": "rl-scraper",
   "rate": 1000,
   "burst": 2000,
   "algorithm": "token_bucket",
-  "scope": "per_ip"
+  "src_ip": "203.0.113.10"
 }'
 
 # Delete a rule
-ebpfsentinel-agent ratelimit delete rl-global
+ebpfsentinel-agent ratelimit delete rl-scraper
 ```
 
 ### threatintel

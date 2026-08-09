@@ -44,12 +44,11 @@ ids:
       description: "SQL injection attempt"
 
 ratelimit:
-  rules:
-    - id: global-limit
-      rate: 10000
-      burst: 20000
-      algorithm: token_bucket
-      scope: per_ip
+  enabled: true
+  # Each source address gets its own bucket at these values.
+  default_rate: 10000
+  default_burst: 20000
+  default_algorithm: token_bucket
 ```
 
 ## 2. Start the Agent

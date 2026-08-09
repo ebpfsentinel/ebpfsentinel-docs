@@ -93,12 +93,11 @@ firewall:
       dst_port: "10250-10252"
 
 ratelimit:
-  rules:
-    - id: global-rate
-      rate: 5000
-      burst: 10000
-      algorithm: token_bucket
-      scope: per_ip
+  enabled: true
+  # Each source address gets its own bucket at these values.
+  default_rate: 5000
+  default_burst: 10000
+  default_algorithm: token_bucket
 
 ddos:
   syn:

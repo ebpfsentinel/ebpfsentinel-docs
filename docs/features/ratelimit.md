@@ -4,7 +4,7 @@
 
 ## Overview
 
-XDP-based rate limiting provides DDoS protection with five algorithms, per-CPU lock-free buckets, and kernel-side timer maintenance. The rate limiter runs at XDP speed and is typically invoked via tail-call from the firewall, avoiding a separate program attachment.
+XDP-based rate limiting provides DDoS protection with four algorithms, per-CPU lock-free buckets, and kernel-side timer maintenance. The rate limiter runs at XDP speed and is typically invoked via tail-call from the firewall, avoiding a separate program attachment.
 
 ## How It Works
 
@@ -16,7 +16,8 @@ XDP-based rate limiting provides DDoS protection with five algorithms, per-CPU l
 | **Fixed Window** | Counter resets at fixed intervals | Simple rate caps per time window |
 | **Sliding Window** | Weighted average of current and previous windows | Smoother rate enforcement |
 | **Leaky Bucket** | Packets queue and drain at a fixed rate | Constant output rate |
-| **SYN Cookie** | Custom FNV-1a SYN cookie forging via `XDP_TX` for SYN flood mitigation | TCP SYN flood protection |
+
+SYN-flood mitigation (FNV-1a SYN cookie forging via `XDP_TX`) is configured under [`ddos.syn_protection`](ddos.md), not as a rate-limit algorithm. `algorithm: syn_cookie` is rejected at config load.
 
 ### Kernel-Side Implementation
 
@@ -39,9 +40,11 @@ The firewall writes metadata (rule ID, flags) that the rate limiter can read for
 
 Rate limit rules can be scoped to specific interface groups using the `interfaces` field. For example, you can enforce stricter rate limits on WAN-facing interfaces while allowing higher rates on internal interfaces. Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
 
-### Default Rate
+### Buckets, Defaults and Rules
 
-When a source IP doesn't match any specific rule, the **default rate** applies. This is stored in the eBPF map with key `{src_ip: 0}` and enforced at wire speed.
+Each source address gets its own bucket, keyed on the packet's 32-bit source in a per-CPU hash map. The bucket's size comes from one of three places, checked in this order: a country tier, then a rule naming that exact source, then the section defaults.
+
+The defaults are stored under key `{src_ip: 0}` and cover every source no rule names, so the general case needs no rule at all. A rule exists to single out one host, and its `src_ip` must therefore be a single IPv4 address: the map is an exact-match hash, so a shorter prefix would match one address rather than the range, and IPv6 would match nothing. Both are refused at config load. Use `country_tiers` for ranges and for IPv6.
 
 ### Per-Country Rate Limit Tiers (LPM)
 
@@ -78,26 +81,20 @@ ratelimit:
 
 ```yaml
 ratelimit:
-  default_rate: 1000           # Default PPS for unmatched IPs
-  default_burst: 2000          # Default burst for unmatched IPs
-  default_algorithm: token_bucket  # Default algorithm for unmatched IPs
+  default_rate: 1000           # PPS for every source no rule names
+  default_burst: 2000          # Burst for every source no rule names
+  default_algorithm: token_bucket
   rules:
-    - id: global-limit
+    - id: backup-host
       rate: 10000              # Packets per second
       burst: 20000             # Burst capacity
       algorithm: token_bucket
-      scope: per_ip
-      src_ip: "10.0.0.0/8"    # CIDR filter (optional)
-    - id: syn-protection
+      src_ip: 10.0.0.20        # One source host, required
+    - id: scraper
       rate: 100
       burst: 200
-      algorithm: syn_cookie
-      scope: per_ip
-    - id: api-ratelimit
-      rate: 1000
-      burst: 2000
       algorithm: sliding_window
-      scope: per_ip
+      src_ip: 203.0.113.10
 ```
 
 Maximum **10,240 rules**.
@@ -116,7 +113,7 @@ ebpfsentinel-agent ratelimit add --json '{
   "rate": 500,
   "burst": 1000,
   "algorithm": "token_bucket",
-  "scope": "per_ip"
+  "src_ip": "203.0.113.10"
 }'
 
 # Delete a rule
@@ -139,7 +136,7 @@ ebpfsentinel-agent ratelimit delete emergency-throttle
 | `domain` | `crates/domain/src/ratelimit/` | Rate limit engine (entity, engine, error) |
 | `ports` | `crates/ports/src/primary/ratelimit.rs` | Port trait |
 | `application` | `crates/application/src/ratelimit_service_impl.rs` | App service |
-| `adapters` | `crates/adapters/src/http/ratelimit_handler.rs` | HTTP handler |
+| `agent` | `crates/agent/src/http/ratelimit_handler.rs` | HTTP handler |
 
 ## Metrics
 
