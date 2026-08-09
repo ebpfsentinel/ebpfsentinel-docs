@@ -4,7 +4,11 @@ The `dlp` section configures data loss prevention pattern scanning on decrypted 
 
 ## OSS vs Enterprise
 
-In **OSS** mode, built-in patterns are loaded automatically. Only `enabled` can be toggled. Custom patterns, block mode, and per-pattern mode overrides are rejected at config validation time.
+In **OSS** mode, built-in patterns are loaded automatically. A `patterns`
+entry whose `id` repeats a built-in re-tunes that pattern - a different
+regex or severity, or `enabled: false` to switch it off - and the built-ins
+it does not name are kept as they are. Any other id, block mode, and
+per-pattern mode overrides are rejected at config validation time.
 
 In **Enterprise** mode, all fields are available including custom patterns and block mode.
 
@@ -50,7 +54,7 @@ dlp:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable or disable the DLP module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (enterprise only) |
-| `patterns` | `[Pattern]` | `[]` | Custom DLP patterns (enterprise only) |
+| `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs enterprise |
 
 ### Pattern
 
@@ -91,6 +95,22 @@ dlp:
 ```
 
 Built-in patterns are loaded automatically. No patterns section needed.
+
+### Switch one built-in pattern off (OSS)
+
+```yaml
+dlp:
+  enabled: true
+  patterns:
+    - id: dlp-pii-email          # the id of the built-in to re-tune
+      name: Email Address
+      regex: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
+      severity: medium
+      data_type: pii
+      enabled: false             # too noisy on this host
+```
+
+The other eight built-ins stay loaded exactly as they ship.
 
 ### Disable DLP
 
