@@ -23,7 +23,7 @@ loadbalancer:
           enabled: true                  # Administrative enable flag
           same_segment: false            # required true for every backend of an l2dsr service
       health_check:                      # Optional health probe (probes each backend's addr:port)
-        protocol: "tcp"                  # tcp or http
+        protocol: "tcp"                  # tcp or icmp
         interval_secs: 10                # Probe interval
         timeout_secs: 5                  # Probe timeout
         unhealthy_threshold: 3           # Failures before marking unhealthy (alias: failure_threshold)
@@ -70,11 +70,22 @@ The probe targets each backend's own `addr:port` — there is no separate target
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `protocol` | `string` | `tcp` | `tcp` or `http` |
-| `interval_secs` | `integer` | `10` | Seconds between probes |
-| `timeout_secs` | `integer` | `5` | Seconds before probe timeout |
-| `unhealthy_threshold` | `integer` | `3` | Consecutive failures before marking unhealthy (alias: `failure_threshold`) |
-| `healthy_threshold` | `integer` | `3` | Consecutive successes before marking healthy (alias: `recovery_threshold`) |
+| `protocol` | `string` | `tcp` | `tcp` (connect to the backend's port) or `icmp` (ping the backend's address) |
+| `interval_secs` | `integer` | `10` | Seconds between probes, must be > 0 |
+| `timeout_secs` | `integer` | `5` | Seconds before probe timeout, must be > 0 and must not exceed `interval_secs` |
+| `unhealthy_threshold` | `integer` | `3` | Consecutive failures before marking unhealthy, must be > 0 (alias: `failure_threshold`) |
+| `healthy_threshold` | `integer` | `3` | Consecutive successes before marking healthy, must be > 0 (alias: `recovery_threshold`) |
+
+Every enabled backend of the service is probed on the interval configured
+here. A backend that fails `unhealthy_threshold` probes in a row leaves the
+balancing set — in userspace and in the eBPF backend map — and rejoins it
+after `healthy_threshold` successes in a row. Omit the whole `health_check`
+block and the service's backends are never probed; they stay in the
+balancing set until an operator disables them.
+
+The probe set is built at startup from the YAML services. A service created
+through `POST /api/v1/lb/services` carries no health check, so it is not
+probed.
 
 ## Limits
 
@@ -84,6 +95,7 @@ The probe targets each backend's own `addr:port` — there is no separate target
 - Backend weight must be **> 0**
 - Listen port must be **> 0**
 - An `l2dsr` service requires **every backend** to set `same_segment: true`
+- A `health_check` block requires a known `protocol`, non-zero intervals and thresholds, and `timeout_secs` no larger than `interval_secs`
 
 ## Forwarding mode
 

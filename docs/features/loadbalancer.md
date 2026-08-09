@@ -51,8 +51,10 @@ L2 DSR requirements:
 Optional per-service health probes monitor backend availability:
 
 - **Protocols**: TCP connect or ICMP ping
+- **Target**: the check carries no target of its own. Every enabled backend of the service is probed on the `addr` and `port` it serves on, which is why a TCP probe needs no port setting.
 - **Configurable intervals**: probe frequency, timeout, failure/recovery thresholds
 - **State transitions**: backends transition between `healthy` and `unhealthy` based on consecutive probe results
+- **Scope**: services defined in YAML. The probe set is built at startup, and a service created through the REST API carries no health check, so it is not probed.
 
 ```mermaid
 stateDiagram-v2
@@ -96,7 +98,7 @@ loadbalancer:
           weight: 1
           enabled: true
       health_check:
-        protocol: tcp           # tcp or http; probes each backend's addr:port
+        protocol: tcp           # tcp or icmp; probes each backend's addr:port
         interval_secs: 10
         timeout_secs: 5
         failure_threshold: 3    # alias of unhealthy_threshold
