@@ -271,13 +271,21 @@ enterprise:
 |-------|------|---------|-------------|
 | `enabled` | bool | `true` | Enable federation |
 | `is_management` | bool | `false` | Whether this node is the management cluster |
-| `management_endpoint` | string | — | Management cluster URL (for members) |
-| `ca_cert` | string | — | CA certificate for mTLS between clusters |
-| `heartbeat_interval_secs` | u64 | `30` | Heartbeat interval |
-| `degraded_threshold_secs` | u64 | `90` | Seconds until degraded status |
-| `offline_threshold_secs` | u64 | `180` | Seconds until offline status |
-| `data_dir` | string | `/var/lib/ebpfsentinel/federation` | Persistent state directory |
+| `management_endpoint` | string | — | Management cluster URL. Required on an enabled member (`is_management: false`), which otherwise has nowhere to send its heartbeat. Must start with `http://` or `https://` |
+| `ca_cert` | string | — | CA certificate for mTLS between clusters. Must not be empty when set |
+| `heartbeat_interval_secs` | u64 | `30` | Heartbeat interval, must be > 0 and strictly below `degraded_threshold_secs` |
+| `degraded_threshold_secs` | u64 | `90` | Seconds until degraded status, must be > 0 and strictly below `offline_threshold_secs` |
+| `offline_threshold_secs` | u64 | `180` | Seconds until offline status, must be > 0 |
+| `data_dir` | string | `/var/lib/ebpfsentinel/federation` | Persistent state directory, must not be empty |
 | `mtls` | object | — | Mutual-TLS enforcement (see below). Absent/disabled keeps the legacy plain-HTTP behaviour |
+
+The two thresholds are read against the age of the last heartbeat in the
+order above, so they must widen: an interval at or beyond the degraded
+window marks a healthy member degraded between two beats, and a degraded
+window at or beyond the offline one is a state no cluster can reach. Every
+constraint here is checked when the configuration is read, so a bad value
+is reported by name at startup rather than surfacing as a stalled or
+never-degrading member.
 
 ## Mutual TLS (mTLS)
 
@@ -314,6 +322,11 @@ enterprise:
 | `server_key_path` | string | — | PEM server private key |
 | `client_cert_path` | string | — | PEM client cert presented when calling peers |
 | `client_key_path` | string | — | PEM client private key |
+
+`listen_port` must be > 0, and with `enabled: true` all five PEM paths must
+be non-empty. Both are checked when the configuration is read, because an
+mTLS transport that cannot be built aborts the agent at startup rather than
+falling back to plain HTTP.
 
 ### Migration (phased rollout)
 
