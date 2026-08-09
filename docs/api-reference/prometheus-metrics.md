@@ -116,6 +116,12 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | `ebpfsentinel_qos_events_dropped_total` | Counter | — | RingBuf events dropped due to backpressure |
 | `ebpfsentinel_rules_loaded` | Gauge | `domain="qos"` | Number of loaded QoS classifiers |
 
+### Zones
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_zone_packets_total` | Counter | `zone`, `action` | Packets decided per zone (`action` is `passed` or `dropped`). `zone="unzoned"` is traffic on interfaces no zone claims |
+
 ### System
 
 | Metric | Type | Labels | Description |

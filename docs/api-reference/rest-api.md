@@ -740,6 +740,47 @@ List all inter-zone traffic policies.
 curl http://localhost:8080/api/v1/zones/policies
 ```
 
+#### POST /api/v1/zones
+
+Create a zone. `interfaces` and `default_policy` are optional; a zone with no
+interface carries no traffic, and an absent `default_policy` denies.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/zones \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "dmz", "interfaces": ["eth3"], "default_policy": "deny"}'
+```
+
+#### DELETE /api/v1/zones/{id}
+
+Remove a zone by name. Interfaces of the removed zone become unzoned.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/zones/dmz
+```
+
+#### POST /api/v1/zones/policies
+
+Create an inter-zone policy. Policies are directional.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/zones/policies \
+  -H 'Content-Type: application/json' \
+  -d '{"source_zone": "lan", "dest_zone": "dmz", "action": "allow"}'
+```
+
+```json
+{"id": "lan__dmz", "from": "lan", "to": "dmz", "policy": "allow", "action": "allow"}
+```
+
+#### DELETE /api/v1/zones/policies/{id}
+
+Remove an inter-zone policy. The id is `{from}__{to}`.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/zones/policies/lan__dmz
+```
+
 ### Aliases
 
 #### GET /api/v1/aliases/status
@@ -1136,6 +1177,10 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/zones/status` | Yes | Zone status |
 | GET | `/api/v1/zones` | Yes | List zones |
 | GET | `/api/v1/zones/policies` | Yes | List inter-zone policies |
+| POST | `/api/v1/zones` | Yes | Create a zone |
+| DELETE | `/api/v1/zones/{id}` | Yes | Remove a zone |
+| POST | `/api/v1/zones/policies` | Yes | Create an inter-zone policy |
+| DELETE | `/api/v1/zones/policies/{id}` | Yes | Remove an inter-zone policy |
 | GET | `/api/v1/aliases/status` | Yes | Alias count |
 | PUT | `/api/v1/aliases/{id}/content` | Yes | Set external alias content |
 | GET | `/api/v1/dlp/status` | Yes | DLP status |
