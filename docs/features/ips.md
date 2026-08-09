@@ -4,21 +4,27 @@
 
 ## Overview
 
-The IPS extends the IDS with automatic blocking. When a rule matches in block mode, the source IP is added to a blacklist and subsequent packets from that IP are dropped. The IPS shares the `tc-ids` eBPF program with the IDS — the difference is in the userspace response.
+The IPS extends the IDS with automatic blocking. When a rule matches in block mode, the source IP is added to a blacklist and subsequent packets from that IP are dropped. The IPS shares the `tc-ids` eBPF program with the IDS: `ips.rules` and `ids.rules` live in the same kernel pattern maps, and the difference is in the userspace response.
 
 ## How It Works
 
-1. The IDS engine detects a match against a rule configured for `block` mode
-2. The IPS engine adds the source IP to the blacklist (with optional TTL)
-3. The blacklisted IP is synced to an eBPF map so the kernel drops future packets without userspace involvement
-4. Whitelisted IPs are never blacklisted regardless of rule matches
+1. `ips.rules` are loaded into the same pattern maps as `ids.rules`, so `tc-ids` matches both sets. `ids.enabled: false` therefore also silences the IPS rules
+2. A match against an IPS rule raises an alert on the `ips` component, carrying the rule's own severity and mode
+3. A rule in `block` mode feeds the auto-blacklist counter for the source IP. A rule in `alert` mode is reported and stops there
+4. Once the source crosses `auto_blacklist_threshold` within the detection window, it is blacklisted with a TTL
+5. In `ips.mode: block` the blacklisted address is installed as a host route (/32 or /128) in the firewall LPM maps, so the kernel drops its packets without userspace involvement
+6. Whitelisted IPs are never blacklisted regardless of rule matches, and sampled-out packets never reach the counter
+
+Because both rule sets share the kernel maps, a rule id may not be reused between `ids.rules` and `ips.rules`, and two rules that watch the same `(protocol, dst_port)` pair cannot both be installed: the IPS rule wins, and the shadowed rule is named in a startup warning.
 
 ### Blacklist Management
 
-- **Auto-blacklist** — IPs are added automatically when block-mode rules match
-- **TTL** — blacklist entries expire after a configurable duration
-- **Whitelist** — IPs that should never be blocked (management networks, known-good services)
-- **Manual control** — add or remove IPs via CLI or REST API
+- **Auto-blacklist** - IPs are added automatically when block-mode rules match often enough
+- **TTL** - blacklist entries expire after `max_blacklist_duration_secs`, which is also the window over which detections are counted
+- **Dry run** - `ips.mode: alert` still records what would have been blocked, but installs nothing in the kernel
+- **Capacity** - once `max_blacklist_size` is reached, further blacklisting is refused until entries expire, nothing is evicted
+- **Whitelist** - IPs that should never be blocked (management networks, known-good services)
+- **Manual control** - add or remove IPs via CLI or REST API, which take the same kernel path as auto-blacklisting
 
 ### Per-Country Blacklist Thresholds
 
@@ -35,33 +41,37 @@ ips:
 
 ### Subnet Injection (LPM)
 
-When an IP from a country listed in `country_thresholds` is blacklisted, the IPS also injects the source's /24 subnet (IPv4) or /48 subnet (IPv6) into the firewall LPM Trie maps via the `LpmCoordinator`. This provides kernel-side blocking of the surrounding address space, catching related attack infrastructure. Subnet entries are removed when the blacklist TTL expires.
+Every blacklisted address is installed as a host route (/32 or /128) in the firewall LPM Trie maps through the `LpmCoordinator`, under a dedicated `ips` source so it never collides with alias or GeoIP entries.
+
+When the blacklisted IP comes from a country listed in `country_thresholds`, the IPS additionally injects the source's /24 subnet (IPv4) or /48 subnet (IPv6). This provides kernel-side blocking of the surrounding address space, catching related attack infrastructure. Both host routes and subnet entries are removed when the blacklist TTL expires, and neither is installed while the module runs in `alert` mode.
 
 ## Configuration
 
 ```yaml
 ips:
   mode: block
-  max_blacklist_duration_secs: 3600  # Seconds before auto-removal (0 = permanent)
+  max_blacklist_duration_secs: 3600  # Blacklist TTL and detection window
   whitelist:
     - "10.0.0.0/8"             # Management network
     - "192.168.1.1"            # Monitoring server
   rules:
-    - id: block-sql-injection
-      pattern: "(?i)(union\\s+select|drop\\s+table)"
+    - id: block-reverse-shell
+      description: "Reverse shell callback, auto-block source"
       severity: critical
       mode: block
-      description: "SQL injection — auto-block source"
+      protocol: tcp
+      dst_port: 4444
       threshold:
         type: both
         count: 3
         window_secs: 60
         track_by: src_ip
-    - id: alert-port-scan
-      pattern: ""
+    - id: alert-rdp-probe
+      description: "RDP probe, alert only"
       severity: medium
       mode: alert
-      description: "Port scan detection — alert only"
+      protocol: tcp
+      dst_port: 3389
 ```
 
 See [Configuration: IPS](../configuration/ips.md) for the full reference.
@@ -75,8 +85,11 @@ ebpfsentinel-agent ips list
 # View blacklisted IPs
 ebpfsentinel-agent ips blacklist
 
+# View domain-based blocks (DNS blocklist or reputation)
+ebpfsentinel-agent ips domain-blocks
+
 # Change a rule's mode
-ebpfsentinel-agent ips set-mode block-sql-injection --mode alert
+ebpfsentinel-agent ips set-mode block-reverse-shell --mode alert
 ```
 
 ## REST API
@@ -84,8 +97,11 @@ ebpfsentinel-agent ips set-mode block-sql-injection --mode alert
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/ips/rules` | List IPS rules |
-| PATCH | `/api/v1/ips/rules/{id}` | Update rule mode (alert/block) |
+| PATCH | `/api/v1/ips/rules/{id}` | Update rule mode (alert/block), re-syncing the kernel pattern maps |
 | GET | `/api/v1/ips/blacklist` | List blacklisted IPs |
+| POST | `/api/v1/ips/blacklist` | Blacklist an IP, installing its host route |
+| DELETE | `/api/v1/ips/blacklist/{ip}` | Remove an IP from the blacklist and from the kernel |
+| GET | `/api/v1/ips/domain-blocks` | List domain-based blocks |
 
 ## Code Architecture
 
@@ -93,7 +109,8 @@ ebpfsentinel-agent ips set-mode block-sql-injection --mode alert
 |-------|------|------|
 | `domain` | `crates/domain/src/ips/` | IPS engine (blacklist, whitelist logic) |
 | `ports` | `crates/ports/src/primary/ips.rs` | Port trait |
-| `application` | `crates/application/src/ips_service_impl.rs` | App service |
+| `application` | `crates/application/src/ips_service_impl.rs` | App service (blacklist, whitelist, kernel enforcement) |
+| `application` | `crates/application/src/ids_service_impl.rs` | Owns the shared rule array and syncs both rule sets into the kernel pattern maps |
 
 ## Metrics
 
