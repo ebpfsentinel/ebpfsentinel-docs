@@ -9,7 +9,7 @@ The IPS extends the IDS with automatic blocking. When a rule matches in block mo
 ## How It Works
 
 1. `ips.rules` are loaded into the same pattern maps as `ids.rules`, so `tc-ids` matches both sets. `ids.enabled: false` therefore also silences the IPS rules
-2. A match against an IPS rule raises an alert on the `ips` component, carrying the rule's own severity and mode
+2. A match against an IPS rule raises an alert on the `ips` component, carrying the rule's own severity and mode. A rule carrying a `pattern` is matched against the captured TCP payload in userspace rather than on the port alone, exactly as an IDS content rule is (see [Content patterns](../configuration/ids.md#content-patterns))
 3. A rule in `block` mode feeds the auto-blacklist counter for the source IP. A rule in `alert` mode is reported and stops there
 4. Once the source crosses `auto_blacklist_threshold` within the detection window, it is blacklisted with a TTL
 5. In `ips.mode: block` the blacklisted address is installed as a host route (/32 or /128) in the firewall LPM maps, so the kernel drops its packets without userspace involvement

@@ -22,9 +22,10 @@ The TC classifier program:
 The IDS engine:
 
 1. Receives `PacketEvent` from the event dispatcher
-2. Evaluates each event against configured regex rules
-3. Applies **threshold detection** (per-rule limit, threshold, and combined modes)
-4. Generates alerts with severity, matched rule ID, and packet context
+2. Matches a rule that names no `pattern` on the `(protocol, port)` pair the classifier keyed on
+3. Matches a rule that carries a `pattern` against the captured TCP payload instead, so the port alone never fires it
+4. Applies **threshold detection** (per-rule limit, threshold, and combined modes)
+5. Generates alerts with severity, matched rule ID, and packet context
 
 ### Interface Groups
 

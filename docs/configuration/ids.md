@@ -57,7 +57,7 @@ ids:
 | `protocol` | `string` | No | `any` (default), `tcp`, `udp`, `icmp`. `any` covers TCP, UDP and ICMP |
 | `dst_port` | `integer` | One of the two | Destination port to match. Use `0` for a protocol that carries no port, such as ICMP |
 | `src_port` | `integer` | One of the two | Source port to match, for rules that fire on the reply leg |
-| `pattern` | `string` | No | Regex pattern to match against packet payload |
+| `pattern` | `string` | No | Regex matched against the captured TCP payload (see [Content patterns](#content-patterns)). TCP only |
 | `mode` | `string` | No | Per-rule mode override (`alert` or `block`). The section `mode` is a master switch: while it is `alert`, a rule asking to block only raises an alert |
 | `description` | `string` | No | Human-readable description |
 | `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
@@ -70,6 +70,31 @@ ids:
 The classifier keys its lookup on a port, and it is the only thing that
 raises an IDS event: a rule naming neither `dst_port` nor `src_port` could
 never fire, so the agent refuses to start on one.
+
+### Content patterns
+
+A rule without a `pattern` fires on the port alone: the kernel classifier
+keys on `(protocol, port)` and every matching packet is a detection. A rule
+carrying a `pattern` is decided on the payload instead, in userspace, against
+the bytes the classifier copies out of the packet. What that changes:
+
+- **TCP only.** Only TCP payloads are captured, so a content rule must set
+  `protocol` to `tcp` or `any`. The agent refuses to start on a content rule
+  declared `udp` or `icmp`.
+- **The port is captured automatically.** The ports a content rule names are
+  added to the payload capture set on top of `l7.ports`; nothing has to be
+  listed twice. The combined set is still bound by the 256-port limit.
+- **Up to 2048 bytes per segment** are captured, from the start of the TCP
+  payload. A pattern spanning a segment boundary, or landing past that
+  offset, does not match.
+- **The pattern matches raw bytes.** Unicode mode is on by default, so
+  `\x90` means the code point U+0090 and not the byte `0x90`. Prefix the
+  pattern with `(?-u)` to match bytes literally, as in `(?-u)\xffSMB`.
+- **Encrypted traffic carries no plaintext.** A pattern on port 443 matches
+  the TLS record bytes, not the request inside them.
+
+Both `dst_port` and `src_port` are honoured, so a rule can fire on the reply
+leg of a conversation.
 
 ### Threshold
 
