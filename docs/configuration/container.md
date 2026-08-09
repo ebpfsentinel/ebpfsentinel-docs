@@ -19,6 +19,7 @@ container:
     timeout_ms: 2000
   kubernetes:
     enabled: false
+    node_name: ""
     label_filter: []
 ```
 
@@ -56,7 +57,7 @@ Watches the Kubernetes API for pod metadata (name, namespace, labels, annotation
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `kubernetes.enabled` | bool | `false` | Enable Kubernetes pod metadata enrichment |
-| `kubernetes.node_name` | string | auto-detect | Node name filter (defaults to `NODE_NAME` env var or hostname) |
+| `kubernetes.node_name` | string | `""` | Node whose pods are watched. Empty resolves it from `EBPFSENTINEL_NODE_NAME`, then `HOSTNAME`, then `/proc/sys/kernel/hostname`; set it explicitly when none of those name the node the agent runs on |
 | `kubernetes.label_filter` | `[string]` | `[]` | Label selector narrowing the pod watch. One `key=value` pair per entry, joined into a single selector; empty watches every pod on the node |
 
 A malformed entry (no `=`, an empty key, or several pairs crammed into one
