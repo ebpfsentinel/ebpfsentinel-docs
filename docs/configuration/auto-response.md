@@ -44,7 +44,27 @@ Each policy defines a severity trigger and the response action to take.
 | `components` | list | `[]` | Component filter (e.g., `[ids, ddos, threatintel]`). Empty matches all components |
 | `action` | string | `"block"` | Response action: `block` or `throttle` |
 | `ttl_secs` | u64 | `3600` | Duration of the response action in seconds |
-| `rate_pps` | u64 | `null` | Rate limit in packets per second (only used with `throttle` action) |
+| `rate_pps` | u64 | `null` | Rate limit in packets per second. Required, and above zero, on a `throttle` policy; ignored on a `block` one |
+
+## How a policy is applied
+
+Policies are evaluated in the order they are written and the first one that
+matches is the only one that applies, so list order is precedence: put the
+narrowest policy first.
+
+A policy matches when the alert's severity reaches `min_severity` and its
+component appears in `components` (case is ignored, and an empty list matches
+every component). The action then decides what happens to the alert's source
+address:
+
+| Action | Enforcement |
+|--------|-------------|
+| `block` | The source is added to the IPS blacklist for `ttl_secs`, which drops all of its traffic. |
+| `throttle` | The source gets a token bucket in the XDP rate limiter at `rate_pps` packets per second, with one second of burst. Traffic above the rate is dropped; the rest passes. |
+
+Both are removed once `ttl_secs` elapses. A source that keeps triggering the
+same policy has its single entry re-armed with a fresh TTL rather than
+accumulating one entry per alert.
 
 ## OSS Limits
 
