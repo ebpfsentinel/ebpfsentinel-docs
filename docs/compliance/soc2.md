@@ -54,6 +54,8 @@ ids:
   mode: alert
   rules:
     - id: soc2-sqli
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|drop\\s+table)"
       severity: critical
 

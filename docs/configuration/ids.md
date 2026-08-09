@@ -16,7 +16,7 @@ ids:
     - id: "rule-id"
       severity: high                  # critical, high, medium, low, info
       protocol: any                   # any, tcp, udp, icmp (default: any)
-      dst_port: 22                    # optional destination port
+      dst_port: 22                    # destination port (or src_port; 0 for ICMP)
       pattern: "regex-pattern"        # optional payload regex
       description: "Rule description"
       threshold:                      # Optional threshold detection
@@ -54,11 +54,11 @@ ids:
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique identifier |
 | `severity` | `string` | Yes | `critical`, `high`, `medium`, `low`, `info` |
-| `protocol` | `string` | No | `any` (default), `tcp`, `udp`, `icmp` |
-| `dst_port` | `integer` | No | Destination port to match |
-| `src_port` | `integer` | No | Source port to match |
+| `protocol` | `string` | No | `any` (default), `tcp`, `udp`, `icmp`. `any` covers TCP, UDP and ICMP |
+| `dst_port` | `integer` | One of the two | Destination port to match. Use `0` for a protocol that carries no port, such as ICMP |
+| `src_port` | `integer` | One of the two | Source port to match, for rules that fire on the reply leg |
 | `pattern` | `string` | No | Regex pattern to match against packet payload |
-| `mode` | `string` | No | Per-rule mode override (`alert` or `block`); inherits the section `mode` |
+| `mode` | `string` | No | Per-rule mode override (`alert` or `block`). The section `mode` is a master switch: while it is `alert`, a rule asking to block only raises an alert |
 | `description` | `string` | No | Human-readable description |
 | `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
 | `threshold` | `Threshold` | No | Threshold detection settings |
@@ -66,6 +66,10 @@ ids:
 | `domain_match_mode` | `string` | No | `exact`, `wildcard`, or `regex` (required when `domain_pattern` is set) |
 | `country_thresholds` | `map<string, Threshold>` | No | Per-country threshold overrides (ISO 3166-1 alpha-2 → Threshold). Overrides the rule's `threshold` for traffic from listed countries |
 | `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+
+The classifier keys its lookup on a port, and it is the only thing that
+raises an IDS event: a rule naming neither `dst_port` nor `src_port` could
+never fire, so the agent refuses to start on one.
 
 ### Threshold
 
@@ -93,10 +97,14 @@ ids:
   mode: alert
   rules:
     - id: sql-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
       severity: high
       description: "SQL injection attempt"
     - id: xss
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(<script|javascript:|on\\w+\\s*=)"
       severity: high
       description: "Cross-site scripting attempt"

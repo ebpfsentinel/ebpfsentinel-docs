@@ -53,14 +53,20 @@ ids:
   mode: alert
   rules:
     - id: web-sqli
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
       severity: critical
       description: "SQL injection"
     - id: web-xss
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(<script|javascript:|on\\w+\\s*=)"
       severity: high
       description: "XSS attempt"
     - id: web-path-traversal
+      protocol: tcp
+      dst_port: 80
       pattern: "\\.\\.(/|\\\\)"
       severity: high
       description: "Path traversal"

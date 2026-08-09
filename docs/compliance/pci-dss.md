@@ -64,14 +64,20 @@ ids:
   mode: alert
   rules:
     - id: pci-sql-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
       severity: critical
       description: "SQL injection attempt"
     - id: pci-xss
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(<script|javascript:|on\\w+\\s*=)"
       severity: high
       description: "Cross-site scripting attempt"
     - id: pci-command-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(;\\s*(cat|ls|wget|curl)\\s|\\|\\s*(cat|ls))"
       severity: critical
       description: "Command injection attempt"

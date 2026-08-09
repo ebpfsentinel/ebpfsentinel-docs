@@ -59,10 +59,14 @@ ids:
   mode: alert
   rules:
     - id: hunt-beacon
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(beacon|callback|c2|command.and.control)"
       severity: high
       description: "Potential C2 beacon"
     - id: hunt-exfil
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(exfil|upload|transfer).*\\.(zip|tar|gz|rar|7z)"
       severity: high
       description: "Potential data exfiltration"

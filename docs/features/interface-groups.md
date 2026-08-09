@@ -67,6 +67,8 @@ qos:
 ids:
   rules:
     - id: dmz-strict
+      protocol: tcp
+      dst_port: 80
       pattern: ".*"
       interfaces: [dmz]           # Full inspection on DMZ
 ```

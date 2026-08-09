@@ -37,6 +37,8 @@ ids:
   mode: alert
   rules:
     - id: detect-sql-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1)"
       severity: high
       description: "SQL injection attempt"

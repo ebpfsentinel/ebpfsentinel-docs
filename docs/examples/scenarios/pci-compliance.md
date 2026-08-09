@@ -54,12 +54,18 @@ ids:
   mode: alert
   rules:
     - id: pci-sqli
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
       severity: critical
     - id: pci-xss
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(<script|javascript:)"
       severity: high
     - id: pci-cmd-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(;\\s*(cat|ls|wget)\\s|\\|\\s*(cat|ls))"
       severity: critical
 

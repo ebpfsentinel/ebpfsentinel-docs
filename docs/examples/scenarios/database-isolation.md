@@ -52,10 +52,14 @@ ids:
   mode: alert
   rules:
     - id: db-sqli
+      protocol: tcp
+      dst_port: 5432
       pattern: "(?i)(union\\s+select|drop\\s+table|truncate\\s+table)"
       severity: critical
       description: "SQL injection targeting database"
     - id: db-dump
+      protocol: tcp
+      dst_port: 5432
       pattern: "(?i)(pg_dump|mysqldump|COPY.*TO\\s+STDOUT)"
       severity: critical
       description: "Database dump attempt"

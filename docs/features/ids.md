@@ -83,14 +83,20 @@ ids:
     rate: 0.01          # fraction sampled, 0.0–1.0 (0.01 = 1-in-100)
   rules:
     - id: detect-sql-injection
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table)"
       severity: high
       description: "SQL injection attempt"
     - id: detect-xss
+      protocol: tcp
+      dst_port: 80
       pattern: "(?i)(<script|javascript:|on\\w+\\s*=)"
       severity: high
       description: "Cross-site scripting attempt"
     - id: detect-shell-shock
+      protocol: tcp
+      dst_port: 80
       pattern: "\\(\\)\\s*\\{"
       severity: critical
       description: "Shellshock exploit attempt"
