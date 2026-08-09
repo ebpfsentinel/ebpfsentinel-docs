@@ -23,7 +23,7 @@ Each NAT rule specifies:
 - **match_src / match_dst**: source/destination matching, written as an address or a CIDR
 - **match_dst_port**: Destination port or range to match
 - **match_protocol**: Protocol filter (`tcp`, `udp`, `icmp`, `icmpv6`, or `any`)
-- **match_src_alias / match_dst_alias**: Reference [IP aliases](aliases.md) instead of raw CIDRs
+- **match_src_alias / match_dst_alias**: Reference [IP aliases](aliases.md) instead of raw CIDRs, resolved into one installed rule per network they hold
 - **enabled**: Enable/disable without deleting
 
 ### Interface Groups
@@ -48,7 +48,7 @@ Both programs support IPv4 and IPv6 with full checksum recalculation. Rule scann
 ## Integration
 
 - **Conntrack**: NAT mappings are paired with connection tracking entries for bidirectional translation
-- **Aliases**: Rules can reference named alias sets via `match_src_alias` / `match_dst_alias`
+- **Aliases**: Rules can reference named alias sets via `match_src_alias` / `match_dst_alias`, which are resolved into CIDRs at load time and on reload. An alias that cannot be resolved drops its rule instead of widening it
 - **Firewall**: NAT is applied after firewall rules (ingress) or before firewall rules (egress)
 
 ## REST API

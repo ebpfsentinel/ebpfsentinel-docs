@@ -101,11 +101,32 @@ All match fields are optional. If omitted, the rule matches all traffic.
 | `match_dst` | string | Destination address or CIDR |
 | `match_dst_port` | object | Destination `{ start, end }` port range |
 | `match_protocol` | string | `tcp`, `udp`, `icmp`, `icmpv6`, or `any` (the same as omitting it) |
-| `match_src_alias` | string | Reference an [alias](../features/aliases.md) for source matching |
+| `match_src_alias` | string | Reference an [alias](../features/aliases.md) for source matching, see below |
 | `match_dst_alias` | string | Reference an alias for destination matching |
 
 `icmp` and `icmpv6` are the same setting written two ways: each rule is
 matched by the ICMP of its own address family.
+
+### Alias references
+
+The data plane matches addresses, so an alias-named criterion is resolved
+into CIDRs when the rules are loaded, and again on every configuration
+reload. A rule naming an alias that holds several networks becomes one
+installed rule per network, and a rule naming one on both sides becomes the
+cross product of the two, minus the combinations that mix address families.
+The rules keep the id they were written with.
+
+Two cases are worth knowing:
+
+- A rule that sets both `match_src` and `match_src_alias` keeps the literal
+  CIDR and logs that the alias was ignored, the same on the destination side.
+  The literal is the explicit intent, and the two are not intersected.
+- A rule whose alias is unknown, or resolves to no network, is dropped rather
+  than installed unrestricted, and the reason is logged. A rule that lost its
+  source restriction would translate traffic it was never meant to touch.
+
+An alias that fills in later (a URL table, a hostname set) is picked up at
+the next configuration reload, not the moment the alias refreshes.
 
 A rule is IPv4 or IPv6 as a whole. Its translated, external and internal
 addresses and its match CIDRs must all belong to one family, since the rule
