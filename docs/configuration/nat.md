@@ -97,12 +97,24 @@ All match fields are optional. If omitted, the rule matches all traffic.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `match_src` | string | Source CIDR |
-| `match_dst` | string | Destination CIDR |
+| `match_src` | string | Source address or CIDR, e.g. `10.0.0.1` or `10.0.0.0/8` |
+| `match_dst` | string | Destination address or CIDR |
 | `match_dst_port` | object | Destination `{ start, end }` port range |
-| `match_protocol` | string | `tcp`, `udp`, or omit for both |
+| `match_protocol` | string | `tcp`, `udp`, `icmp`, `icmpv6`, or `any` (the same as omitting it) |
 | `match_src_alias` | string | Reference an [alias](../features/aliases.md) for source matching |
 | `match_dst_alias` | string | Reference an alias for destination matching |
+
+`icmp` and `icmpv6` are the same setting written two ways: each rule is
+matched by the ICMP of its own address family.
+
+A rule is IPv4 or IPv6 as a whole. Its translated, external and internal
+addresses and its match CIDRs must all belong to one family, since the rule
+is installed in the IPv4 or the IPv6 map and an address of the other family
+has no representation there. A rule that mixes them, a match that is neither
+an address nor a CIDR, and a protocol outside the list above are all
+rejected when the configuration is read: the data plane cannot report them,
+it can only leave the criterion out, which widens the rule instead of
+narrowing it.
 
 ### Hairpin NAT (NAT reflection)
 

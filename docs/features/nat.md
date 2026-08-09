@@ -20,9 +20,9 @@ Each NAT rule specifies:
 - **id**: Unique rule identifier
 - **priority**: Lower values match first (default: 100)
 - **type**: One of the 6 types above
-- **match_src / match_dst**: CIDR-based source/destination matching
+- **match_src / match_dst**: source/destination matching, written as an address or a CIDR
 - **match_dst_port**: Destination port or range to match
-- **match_protocol**: Protocol filter (`tcp`, `udp`, or both)
+- **match_protocol**: Protocol filter (`tcp`, `udp`, `icmp`, `icmpv6`, or `any`)
 - **match_src_alias / match_dst_alias**: Reference [IP aliases](aliases.md) instead of raw CIDRs
 - **enabled**: Enable/disable without deleting
 
@@ -34,6 +34,7 @@ NAT rules can be scoped to specific interface groups using the `interfaces` fiel
 
 - Maximum 256 SNAT/DNAT rules per direction (IPv4), 128 per direction (IPv6)
 - Port ranges must have `start <= end`
+- A rule belongs to one address family: its addresses and its match CIDRs must all be IPv4 or all be IPv6
 
 ## eBPF Programs
 
