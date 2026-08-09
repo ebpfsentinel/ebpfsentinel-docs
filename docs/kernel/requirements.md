@@ -17,6 +17,33 @@ uname -r                       # Must be >= 6.9
 ls /sys/kernel/btf/vmlinux     # Must exist
 ```
 
+## Ask the running kernel
+
+A version number is a proxy for capability, not capability itself: vendors backport helpers into older trees and distributions compile features out. At startup the agent therefore asks the kernel directly, per program type, about every helper its programs call, logs a one-line summary, and serves the detail:
+
+```bash
+curl -s http://127.0.0.1:8080/api/v1/ebpf/kernel-features
+```
+
+```json
+{
+  "probed": true,
+  "load_mode": "bpf-token",
+  "program_types": [{"program_type": "xdp", "supported": true}],
+  "helpers": [{"program_type": "xdp", "helper": "bpf_fib_lookup", "supported": true}],
+  "missing_required": []
+}
+```
+
+Read it as follows.
+
+- `missing_required` is the actionable field. Each entry names the program object, the program type and the helper. A program whose helper is missing is refused before it is loaded, with that same sentence as the error, instead of an opaque verifier rejection. `/readyz` stays `not_ready` while any entry remains, and repeats the list in `kernel_helpers_missing`.
+- `probed: false` means the probe could not run, **not** that the kernel is missing anything. `helpers` and `missing_required` are then empty because nothing was measured, and `reason` says why. Nothing is refused on this basis and the agent starts normally.
+- **`probed: false` is the expected answer on the standard deployment.** The probe issues a plain program load, which needs `CAP_BPF`; the agent loads through a BPF token and holds no capabilities, so it cannot probe. `load_mode` is printed alongside precisely so this asymmetry is visible rather than inferred. To get a full reading, run the agent once with `CAP_BPF` on a representative host.
+- Helpers only. KFuncs, map types and program types have no equivalent probe; for those the matrix below and the BTF check remain the source of truth.
+
+The probe does not move the floor, and cannot: the newest helper in the matrix below arrived in 6.1, well under 6.9. What sets the floor is the kfunc surface plus BPF token delegation, neither of which the probe covers. Measured on a 7.0 kernel with `CAP_BPF`, every helper/program-type pair the agent needs is supported and `missing_required` is empty.
+
 ## Feature-to-Kernel-Version Matrix
 
 Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which program relies on it.

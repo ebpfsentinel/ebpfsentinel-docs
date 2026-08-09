@@ -92,6 +92,32 @@ Per-program eBPF load status.
 curl http://localhost:8080/api/v1/ebpf/status
 ```
 
+#### GET /api/v1/ebpf/kernel-features
+
+What the running kernel offers the eBPF programs, measured once at startup and
+cached. `missing_required` is the actionable field: any entry there names an
+object the agent refuses to load, and it also holds `/readyz` at `not_ready`.
+
+```bash
+curl http://localhost:8080/api/v1/ebpf/kernel-features
+```
+
+```json
+{
+  "probed": true,
+  "load_mode": "privileged",
+  "program_types": [{"program_type": "xdp", "supported": true}],
+  "helpers": [{"program_type": "xdp", "helper": "bpf_map_lookup_elem", "supported": true}],
+  "missing_required": []
+}
+```
+
+`probed: false` means nothing was measured, not that a feature is absent - the
+probe needs `CAP_BPF`, which the default BPF-token load path deliberately does
+not hold. In that case `reason` explains why and `missing_required` is empty.
+Only helpers are probed; kfuncs and map types carry no probe and stay covered by
+the documented kernel floor.
+
 ### Firewall
 
 #### GET /api/v1/firewall/rules
@@ -1169,6 +1195,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/config` | Yes | Current config |
 | POST | `/api/v1/config/reload` | Yes (admin) | Trigger reload |
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
+| GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |
