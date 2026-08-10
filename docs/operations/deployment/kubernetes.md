@@ -166,7 +166,7 @@ spec:
 
 | Kernel | Supported path | Notes |
 |--------|----------------|-------|
-| < 6.9 | **Not supported** | The agent requires 6.9+ (BPF token, ARENA maps, kfuncs) |
+| < 6.9 | **Not supported** | The agent requires 6.9+ (BPF token delegation and the kfunc surface) |
 | 6.9+ | BPF token (only path) | Pod grants `CAP_SYS_ADMIN` for the launcher bootstrap; the agent runs unprivileged |
 
 > There is **no capability-based fallback**. eBPF loads exclusively through
@@ -502,7 +502,7 @@ spec:
 
 ## Requirements
 
-- Kernel 6.9+ with BTF — the agent's minimum (BPF token, ARENA maps, kfuncs)
+- Kernel 6.9+ with BTF - the agent's minimum (BPF token delegation and the kfunc surface)
 - `hostNetwork: true` — XDP/TC programs attach to host interfaces
 - `hostPID: true` — uprobe DLP visibility across the node
 - `CAP_SYS_ADMIN` + `allowPrivilegeEscalation: true` on the agent

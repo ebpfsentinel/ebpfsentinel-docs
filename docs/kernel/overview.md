@@ -96,6 +96,6 @@ Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both
 
 - **Linux 6.9+** with `CONFIG_DEBUG_INFO_BTF=y`
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
-- **`CAP_BPF`** + **`CAP_NET_ADMIN`** capabilities (or root)
+- **A BPF token** for loading (kernel 6.9+); the agent holds no `CAP_BPF`. `CAP_NET_ADMIN` is still needed for the host-network operations the warden brokers
 
-The 6.1 minimum unlocks `BPF_MAP_TYPE_USER_RINGBUF` for atomic config push, `bpf_dynptr` for variable-size events, and BPF filesystem map pinning for cross-program sharing. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.
+The 6.9 minimum is set by BPF token delegation and the kfunc surface; `bpf_dynptr` for variable-size events and BPF filesystem map pinning for cross-program sharing arrived well below it. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.

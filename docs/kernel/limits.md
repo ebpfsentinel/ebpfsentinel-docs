@@ -62,8 +62,6 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | DEVMAP redirect targets | 64 | `DEVMAP` |
 | CPUMAP CPU targets | 64 | `CPUMAP` |
 | Tail-call programs | 4 | `XDP_PROG_ARRAY` (ProgramArray) |
-| Config command payload | 128 bytes | `CONFIG_RINGBUF` (`MAX_CONFIG_CMD_PAYLOAD`) |
-| User RingBuf (config push) | 64 KB | `CONFIG_RINGBUF` (`CONFIG_RINGBUF_SIZE`) |
 | RingBuf size | 1 MB | `EVENTS` |
 
 ### xdp-ratelimit

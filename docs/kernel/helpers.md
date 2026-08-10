@@ -1,6 +1,6 @@
 # eBPF Helper Functions
 
-eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required.
+eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required. The authoritative list is the requirement table the agent probes with (`crates/adapters/src/ebpf/helper_probe.rs`), which a unit test keeps in step with the program sources.
 
 ## Helper Reference
 
@@ -11,7 +11,7 @@ eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page 
 | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/) | 4.1+ | tc-nat-ingress, tc-nat-egress | Rewrite packet bytes in-place (IP/port for NAT) |
 | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | 4.5+ | tc-ids, tc-dns | Load packet bytes into stack buffer for L7/DNS payload capture |
 | [`bpf_xdp_adjust_meta`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_meta/) | 4.15+ | xdp-firewall | Prepend metadata area before packet data for XDP-to-TC passing |
-| [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.18+ | xdp-firewall-reject, xdp-ratelimit-syncookie | Grow or shrink packet tail for reject responses and SYN cookie forging |
+| [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.15+ | xdp-firewall-reject, xdp-ratelimit-syncookie | Grow or shrink packet tail for reject responses and SYN cookie forging |
 | [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | 4.2+ | tc-ids | Clone packet and redirect copy to mirror interface for forensic capture (enterprise) |
 
 ### Checksum
@@ -40,7 +40,8 @@ eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | All programs with events | Reserve space in ring buffer for event writing |
 | [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | All programs with events | Submit a reserved ring buffer entry to userspace |
-| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | All programs with events | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
+| [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | All programs with events | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
+| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | tc-dns | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
 
 `RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target — see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
 
@@ -50,7 +51,7 @@ eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | All programs | Suspend-aware monotonic timestamp for events and state tracking |
 | [`bpf_ktime_get_coarse_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_coarse_ns/) | 5.11+ | xdp-ratelimit | Coarse monotonic timestamp (~1-4ms precision, ~10x faster) for rate limiting windows |
-| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.17+ | tc-ids, tc-scrub, tc-qos | Random sampling (IDS), IP ID randomization (scrub), loss emulation (QoS) |
+| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-scrub, tc-qos | Random sampling (IDS), IP ID randomization (scrub), loss emulation (QoS) |
 
 ### QoS & Traffic Control
 
@@ -59,27 +60,36 @@ eBPFsentinel uses 25+ kernel helper functions across its 16 programs. This page 
 | [`bpf_skb_set_tstamp`](https://docs.ebpf.io/linux/helper-function/bpf_skb_set_tstamp/) | 5.18+ | tc-qos | Set EDT (Earliest Departure Time) timestamp for FQ pacing |
 | [`bpf_skb_ecn_set_ce`](https://docs.ebpf.io/linux/helper-function/bpf_skb_ecn_set_ce/) | 5.1+ | tc-qos | Mark ECN Congestion Experienced when token bucket is low |
 
+### SYN Cookies
+
+| Helper | Kernel | Used By | Purpose |
+|--------|--------|---------|---------|
+| [`bpf_tcp_raw_gen_syncookie_ipv4`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_raw_gen_syncookie_ipv4/) / `_ipv6` | 6.0+ | xdp-ratelimit-syncookie | Forge a SYN cookie with no socket on the receive path |
+| [`bpf_tcp_raw_check_syncookie_ipv4`](https://docs.ebpf.io/linux/helper-function/bpf_tcp_raw_check_syncookie_ipv4/) / `_ipv6` | 6.0+ | xdp-ratelimit | Validate the ACK that returns the cookie |
+
 ### Iteration
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress | Iterate over large rule sets without hitting verifier loop limit |
+| [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) | 5.17+ | xdp-firewall, tc-nat-ingress, tc-nat-egress, tc-scrub | Iterate over large rule sets without hitting verifier loop limit |
 
 ### Socket & Process
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-qos, tc-threatintel | Stable per-connection identifier for flow correlation (TC context only) |
+| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids | Stable per-connection identifier for flow correlation (TC context only) |
 | [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read user-space SSL buffer for DLP inspection |
 | [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | tc-conntrack, xdp-firewall | Read `nf_conn->status` at runtime BTF-resolved offsets |
 | [`bpf_get_current_pid_tgid`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_pid_tgid/) | 4.2+ | uprobe-dlp | Process identification for DLP alerts |
-| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids | Cgroup ID for container/pod correlation |
+| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns | Cgroup ID for container/pod correlation |
+| [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Cgroup ID of the socket behind an egress packet |
 
 ### System Info
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
 | [`bpf_get_smp_processor_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_smp_processor_id/) | 4.1+ | All programs | Current CPU ID for per-CPU metrics and CpuMap steering |
+| [`bpf_map_lookup_elem`](https://docs.ebpf.io/linux/helper-function/bpf_map_lookup_elem/) | 3.19+ | All programs | Map read on every packet path |
 
 ## Backpressure Pattern
 

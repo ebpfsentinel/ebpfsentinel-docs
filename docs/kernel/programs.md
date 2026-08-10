@@ -123,10 +123,6 @@ Before passing, the firewall writes metadata via [`bpf_xdp_adjust_meta`](https:/
 
 Downstream TC programs read this metadata without re-parsing packet headers.
 
-#### User RingBuf Config Push (kernel 6.1+)
-
-The firewall is the pilot program for `BPF_MAP_TYPE_USER_RINGBUF`. Userspace pushes config commands (`ADD_RULE`, `REMOVE_RULE`, `UPDATE_CONFIG`, `TOGGLE_FEATURE`) into a ring buffer, and the kernel drains them via `bpf_user_ringbuf_drain`. This replaces per-entry `bpf_map_update_elem` syscalls with atomic batch updates — no race conditions during bulk rule reloads.
-
 ---
 
 ### xdp-ratelimit

@@ -12,6 +12,15 @@ Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is no
 | `ebpfsentinel_bytes_processed_total` | Counter | `interface`, `direction` | Bytes processed per interface |
 | `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Per-program packet processing latency |
 
+`ebpfsentinel_packets_total` carries two kinds of series. A real NIC name in
+`interface` is traffic on that link. A name ending in `_METRICS` is not an
+interface at all: it is one of the per-CPU counter arrays an eBPF program keeps,
+drained on the metrics poll, with `action` naming the counter slot
+(`FIREWALL_METRICS` with `action="dropped"`, `DNS_METRICS` with
+`action="inspected"`, and so on). Counter slots are additive across releases;
+a slot with no exported label fails the build, so a counter the kernel writes
+cannot silently stop being visible.
+
 ### Datapath Ring Buffers
 
 Each eBPF program hands its events to userspace through a ring buffer. These
@@ -92,6 +101,27 @@ not keeping up at all.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_nptv6_translated_total` | Counter | `direction` | Packets translated by NPTv6 prefix rewriting (ingress/egress) |
+
+### Connection Tracking
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_conntrack_active` | Gauge | — | Currently tracked connections |
+| `ebpfsentinel_conntrack_expired_total` | Counter | — | Connection tracking entries expired |
+| `ebpfsentinel_conntrack_kfunc_lookups` | Gauge | — | Kernel netfilter CT lookups attempted from BPF |
+| `ebpfsentinel_conntrack_kfunc_hits` | Gauge | — | Lookups that found a kernel CT entry |
+| `ebpfsentinel_conntrack_kfunc_misses` | Gauge | — | Lookups that found none |
+
+The kernel state behind each hit is counted on `ebpfsentinel_packets_total`
+under `interface="CT_METRICS"`: `kfunc_state_new`, `kfunc_state_established`,
+`kfunc_state_related` and `kfunc_state_invalid` classify the entry's `nf_conn`
+status bits, and `kfunc_marked` counts flows some other netfilter policy on the
+host has tagged.
+
+Watch `kfunc_read_errors` in the same family. Those `nf_conn` fields are read at
+BTF offsets resolved once at startup; a non-zero count means the offsets no
+longer match the running kernel, so the four state counters are undercounting
+rather than reporting an idle datapath.
 
 ### IPS
 

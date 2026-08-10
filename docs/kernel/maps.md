@@ -210,23 +210,6 @@ sleepable-only (unavailable in XDP/TC hooks). See
 
 ### Config Maps
 
-#### [`BPF_MAP_TYPE_USER_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_USER_RINGBUF/)
-
-**Kernel:** 6.1+ | **Used by:** xdp-firewall (pilot, extensible to all programs)
-
-Reverse-direction ring buffer: **userspace writes**, kernel drains via `bpf_user_ringbuf_drain`. Used for atomic batch config push — replacing per-entry `bpf_map_update_elem` syscalls with a single ring buffer drain operation.
-
-**Config command structure** (`ConfigCommand`, 136 bytes):
-- `cmd_type: u8` — `ADD_RULE`, `REMOVE_RULE`, `UPDATE_CONFIG`, `TOGGLE_FEATURE`
-- `domain: u8` — target subsystem
-- `payload_len: u16` — actual payload size
-- `payload: [u8; 128]` — command-specific data
-
-Benefits over `bpf_map_update_elem`:
-- **Atomic multi-entry updates** — no race conditions during bulk rule reloads
-- **Lower latency** — no per-entry syscall overhead
-- **No map-level lock contention** — MPSC ring buffer design
-
 #### `IDS_MIRROR_CONFIG` (Array)
 
 **Kernel:** 3.19+ | **Used by:** tc-ids | **Managed by:** Enterprise forensics module
@@ -295,7 +278,7 @@ Several maps are written from userspace when configuration changes:
 | QoS classifiers (HashMap) | Userspace → Kernel | Classifier add/delete |
 | QoS metrics (PerCpuArray) | Kernel → Userspace | Per-CPU shaping counters |
 
-Maps are updated atomically per-entry via `bpf_map_update_elem`, or in bulk via `USER_RINGBUF` drain (kernel 6.1+). Bulk updates (e.g., threat intel feed refresh) iterate and batch-update entries while the old values remain visible to the eBPF program until overwritten.
+Maps are updated per-entry via `bpf_map_update_elem`. Bulk updates (for example a threat intel feed refresh) iterate and batch-update entries while the old values remain visible to the eBPF program until overwritten.
 
 ### Pinned Maps (BPF Filesystem)
 
