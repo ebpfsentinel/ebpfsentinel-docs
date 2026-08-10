@@ -27,7 +27,7 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 
 | Mode | Use Case | eBPF Resolution | Config Field |
 |------|----------|----------------|--------------|
-| **Interface** | Containers, VMs with dedicated veth/tap | `INTERFACE_GROUPS[ifindex] → tenant_id` | `interfaces` |
+| **Interface** | Containers, VMs with dedicated veth/tap | `TENANT_IFINDEX_MAP[ifindex] → tenant_id` | `interfaces` |
 | **Subnet** | Bare-metal with shared NIC, per-client IP ranges | `TENANT_SUBNET_V4/V6[src_ip] → tenant_id` (LPM trie) | `subnets` |
 | **VLAN** | Bare-metal with 802.1Q VLAN tagging | `TENANT_VLAN_MAP[vlan_id] → tenant_id` | `vlans` |
 | **Cgroup** | Containers sharing a bridge, a subnet and no VLAN | `TENANT_CGROUP_MAP[cgroup_id] → tenant_id` | container label (see below) |
@@ -40,7 +40,7 @@ Packet arrives → Parse VLAN + IP headers
     │
     ├─ 1. TENANT_VLAN_MAP[vlan_id] → tenant_id    (if VLAN tagged)
     │
-    ├─ 2. INTERFACE_GROUPS[ifindex] → tenant_id    (if interface mapped)
+    ├─ 2. TENANT_IFINDEX_MAP[ifindex] → tenant_id  (if interface mapped)
     │
     ├─ 3. TENANT_SUBNET_V4[src_ip] → tenant_id    (IPv4 LPM trie)
     │     TENANT_SUBNET_V6[src_ip] → tenant_id    (IPv6 LPM trie)
@@ -113,7 +113,11 @@ if rule.tenant_id != 0 && rule.tenant_id != packet_tenant_id {
 }
 ```
 
-This check runs **after** the existing `group_mask` interface group check, preserving backward compatibility with OSS interface groups.
+This check runs **after** the existing `group_mask` interface group check, preserving backward compatibility with OSS interface groups. Tenant attribution by interface has a map of its own, separate from the `INTERFACE_GROUPS` map that carries group bitmasks: the two share a key but not a value, and a bitmask read as a tenant id would attribute an interface in group 2 to tenant 2 while destroying the group scoping every rule set relies on.
+
+!!! note "Rules are floating today"
+
+    Packet-side tenant resolution is live: a packet is attributed to a tenant by VLAN, interface, subnet or cgroup, and that attribution reaches alerts, quotas and the API. The rule side is not yet configurable - there is no field on a firewall, IDS, rate-limit, QoS or NAT rule that assigns it to a tenant, so every rule is written to the kernel with `tenant_id = 0` and therefore applies to all tenants. Isolate rule sets per tenant with interface groups or separate agents until per-tenant rule definitions ship.
 
 ## Resource Quotas
 
@@ -205,7 +209,7 @@ Tenants can be created, suspended, and reactivated dynamically via the REST API 
 
 The tenant registry uses **ArcSwap** for lock-free reads on the hot path — tenant lookups (which happen on every packet in eBPF userspace fallback) never block, even during concurrent write operations like add/suspend/activate.
 
-Dynamic tenant changes propagate to the kernel **live, without a restart**: after every create/suspend/activate the agent recomputes the VLAN→tenant and subnet→tenant (IPv4/IPv6) resolution maps from the registry and pushes them into the loaded eBPF programs. On an HA pair only the active (datapath-loaded) node writes the maps; a standby node's push is a no-op until it is promoted. Numeric `tenant_id` values are stable across these changes, so the maps and historical alerts stay consistent.
+Dynamic tenant changes propagate to the kernel **live, without a restart**: after every create/suspend/activate the agent recomputes the VLAN→tenant, interface→tenant and subnet→tenant (IPv4/IPv6) resolution maps from the registry and pushes them into the loaded eBPF programs. Interfaces cross that boundary by name and are resolved to an ifindex on the node that writes the map, since an ifindex means nothing on any other node; a tenant interface absent from a given node is logged and skipped rather than failing the propagation. On an HA pair only the active (datapath-loaded) node writes the maps; a standby node's push is a no-op until it is promoted. Numeric `tenant_id` values are stable across these changes, so the maps and historical alerts stay consistent.
 
 | Status | Description |
 |--------|-------------|
