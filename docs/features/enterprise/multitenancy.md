@@ -101,19 +101,20 @@ Labels are read over the Docker Engine API, which also serves Podman's compatibl
 
 ## eBPF Rule Matching
 
-Three rule families carry a `tenant_id: u32` into the kernel: IDS (and the IPS
-rules that share its schema), rate limiting, and QoS. In all three:
+Every rule-bearing kernel structure carries a `tenant_id: u32`, and in all of
+them:
 
 - `tenant_id = 0` → **floating rule** (applies to all tenants)
 - `tenant_id > 0` → **tenant-scoped rule** (only applies when packet's resolved tenant matches)
 
-The three enforce it differently, because their maps are shaped differently:
+They enforce it differently, because their maps are shaped differently:
 
 | Family | Structure | Behaviour |
 |--------|-----------|-----------|
 | IDS / IPS | `IdsPatternKey (tenant_id, dst_port, protocol)` | The classifier looks up the packet's tenant first and falls back to the `tenant_id = 0` entry, so a tenant-scoped rule **replaces** the global rule for that port rather than adding to it |
 | Rate limit | `RateLimitKey (tenant_id, src_ip)` | Same fallback chain: `(tenant, ip)`, then `(0, ip)`, then the `(0, 0)` global default |
 | QoS | `tenant_id` on the pipe and on the classifier value | The scan skips an entry whose non-zero `tenant_id` differs from the packet's, so a per-tenant pipe becomes that tenant's bandwidth share |
+| Firewall / NAT | `tenant_id` on `FirewallRuleEntry` and `NatRuleEntry` | Same skip on mismatch, in the linear rule scan of `xdp-firewall`, `tc-nat-ingress` and `tc-nat-egress` |
 
 Skip logic, for the scanned structures:
 ```
@@ -134,8 +135,12 @@ no tenant attribution configured every packet resolves to tenant `0`.
 
 !!! note "Firewall and NAT rules are still floating"
 
-    Firewall and NAT rules carry no tenant field, so they always apply to every
-    tenant. Scope them with interface groups or separate agents.
+    The kernel half is already there for firewall and NAT: both entries carry a
+    `tenant_id` and all three programs skip an entry whose non-zero value differs
+    from the packet's tenant. What is missing is the producer, since no firewall
+    or NAT config field assigns one, so every such rule is written with
+    `tenant_id = 0` and applies to all tenants. Scope them with interface groups
+    or separate agents until the field ships.
 
 ## Resource Quotas
 
