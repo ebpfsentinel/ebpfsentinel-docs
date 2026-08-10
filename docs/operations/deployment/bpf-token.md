@@ -162,9 +162,11 @@ docker compose logs -f
 The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` with
 `apparmor=unconfined` + `seccomp=unconfined` (it does `fsconfig` + netlink +
 `AF_PACKET`). The agent container holds **no** capabilities but still runs
-`apparmor=unconfined` + `seccomp=unconfined`: it self-unshares a user namespace
-and issues `mount` / `fsopen` / `bpf` syscalls, and without `CAP_SYS_ADMIN` the
-default seccomp profile (which gates those on `CAP_SYS_ADMIN`) would block them.
+`apparmor=unconfined` and a tailored seccomp profile
+(`dist/seccomp/ebpfsentinel-agent.json`, the Docker default plus an
+unconditional allow for `unshare` / the `mount` family / `bpf`): it self-unshares
+a user namespace and issues those syscalls, and without `CAP_SYS_ADMIN` the
+default profile (which gates them on `CAP_SYS_ADMIN`) would block them.
 A container's `/sys` is read-only, so the agent backs its bpffs mountpoint with a
 `tmpfs` at `/sys/fs/bpf`. See the [full Docker guide](docker.md) for the
 container-awareness mounts.
