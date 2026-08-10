@@ -85,7 +85,7 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 
 **Key constraint (OSS)**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. The OSS uprobe-dlp only hooks OpenSSL's `libssl.so.3`.
 
-**Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still scanned. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
+**Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
 **Recommended K8s deployment** for full DLP coverage (BPF token, default):
 

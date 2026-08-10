@@ -155,17 +155,20 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> Discovery, ELF symbol resolution, the `TlsProbeManager` orchestrator,
-> the `/proc`-based scanner, a periodic background scan loop, Prometheus
-> metrics, and the `/api/v1/enterprise/tls-probes/*` admin endpoints
-> are all live. Kernel-side attachment for the two extended programs
-> (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is not wired yet: the loader
-> attaches uprobes by offset today, as the OpenSSL path already does, so
-> what remains is the enterprise attach path itself rather than a missing
-> kernel or loader capability. Until it lands the agent publishes the
-> attachment plan, so an operator can see exactly which binaries and
-> symbols would be probed, and verify the resolved offsets against the
-> build they belong to.
+> **Two of the five libraries are probed; three are discovery only.**
+> GnuTLS and statically linked BoringSSL are attached: their write and
+> read entry points take the same `(handle, buffer, length)` shape as
+> OpenSSL's, so the existing `uprobe-dlp` programs read them correctly at
+> the offsets the scan resolved. Go `crypto/tls`, Java JSSE and kernel
+> TLS are discovered, reported and left unattached, because each needs a
+> program the agent does not carry - see the per-library table below for
+> the reason in each case. Attaching there anyway would produce a probe
+> that fires and captures nothing, which reads as coverage.
+>
+> For the three unattached libraries the agent publishes the attachment
+> plan, so an operator can see exactly which binaries and symbols would
+> be probed and verify the resolved offsets against the build they
+> belong to.
 
 The OSS `uprobe-dlp` program only hooks OpenSSL's `libssl.so.3`
 (`SSL_write` / `SSL_read`). Any application that manages TLS outside of
@@ -175,13 +178,25 @@ regardless of the TLS library the workload links against.
 
 ### Supported libraries
 
-| Library | Detection | Hook target | Typical workloads |
-|---------|-----------|-------------|-------------------|
-| **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse | `crypto/tls.(*Conn).Write` / `.Read` uprobes, Go ≥1.17 register ABI, Go <1.17 stack ABI | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
-| **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
-| **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
-| **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
-| **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
+| Library | Detection | Hook target | Status | Typical workloads |
+|---------|-----------|-------------|--------|-------------------|
+| **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse | `crypto/tls.(*Conn).Write` / `.Read` uprobes, Go ≥1.17 register ABI, Go <1.17 stack ABI | Discovery only - the Go register ABI passes the buffer differently, so the OpenSSL-shaped programs would read the wrong register | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
+| **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Discovery only - plaintext lives in a JVM heap object, not in a flat buffer the probe can copy | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
+| **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
+| **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | Discovery only - a kernel hook, not a uprobe; needs a kprobe program the agent does not carry | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
+| **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | **Attached** | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
+
+An attached library is probed after the scan cycle that discovered it, not
+only at startup: a container that starts an hour in brings a library the
+first scan never saw. A binary already probed - by this path or by the OSS
+`libssl` scan - is skipped, so re-attaching is safe and never doubles a
+captured buffer. Probes are owned by the datapath generation that created
+them, so a failover tears them down with everything else and the next
+scan cycle re-attaches on the new generation.
+
+A statically stripped build of an attached library resolves no offsets. It
+is reported as discovered, counted under `offsets_unresolved`, and left
+alone rather than probed at the start of the file.
 
 ### Architecture
 
@@ -267,11 +282,18 @@ duration gauge. All metrics are registered under the
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
 | `ebpfsentinel_ent_tls_probes_binaries_discovered` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
-| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Successful probe attach attempts (stays at zero until the extended attach path is wired) |
-| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Failed probe attach attempts |
+| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
+| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a stripped build, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
 | `ebpfsentinel_ent_tls_probes_scan_warnings` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
+
+An HA standby holds no datapath, so it discovers libraries but attaches
+nothing. That case increments neither the attach counter nor the failure
+counter: a standby is not failing to attach, it has nothing to attach to.
+After a promotion the probes appear on the next scan cycle, so with the
+default 30s interval a newly promoted node reaches full DLP coverage
+within one interval rather than at the next agent restart.
 
 ### Admin API
 
