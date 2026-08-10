@@ -66,6 +66,7 @@ ids:
 | `domain_match_mode` | `string` | No | `exact`, `wildcard`, or `regex` (required when `domain_pattern` is set) |
 | `country_thresholds` | `map<string, Threshold>` | No | Per-country threshold overrides (ISO 3166-1 alpha-2 → Threshold). Overrides the rule's `threshold` for traffic from listed countries |
 | `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+| `tenant_id` | `integer` | No | Tenant this rule belongs to. `0` (the default) is global: the rule applies to traffic from every tenant. A non-zero value scopes the rule to packets the agent resolves to that tenant, and takes precedence over a global rule on the same port. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
 
 The classifier keys its lookup on a port, and it is the only thing that
 raises an IDS event: a rule naming neither `dst_port` nor `src_port` could

@@ -52,6 +52,7 @@ ratelimit:
 | `action` | `string` | No | `drop` | Action when the limit is exceeded: `drop` or `pass` |
 | `src_ip` | `string` | Yes | — | Source host this rule limits, as a bare address or a `/32` |
 | `interfaces` | `[string]` | No | — | Restrict the rule to specific interfaces or interface groups |
+| `tenant_id` | `integer` | No | `0` | Tenant this rule belongs to. `0` is global and limits the source address whichever tenant it resolves to. A non-zero value only limits that source inside the named tenant, and takes precedence over a global rule for the same address. An agent without tenant attribution resolves every packet to `0` |
 | `enabled` | `bool` | No | `true` | Enable or disable this rule |
 
 `src_ip` names one host and nothing else. The kernel config map (`RATELIMIT_CONFIG`) is an exact-match hash on the packet's 32-bit source address, so a shorter prefix such as `10.0.0.0/8` would match a single address rather than the range, and an IPv6 source would match no entry at all. Both are refused at config load, as is `0.0.0.0`, which is the key the section defaults occupy. To limit a range or an IPv6 source, use `country_tiers`, which resolves to CIDRs and carries an IPv6 trie.
@@ -70,6 +71,8 @@ Two rules naming the same source are also refused: one source carries one bucket
 | `action` | `string` | No | `drop` or `pass` (default: `drop`) |
 
 Country tiers are resolved to CIDRs via GeoIP at startup and config reload, then loaded into dedicated kernel LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). The LPM lookup runs before per-IP rule matching.
+
+A tier is keyed by country, not by source, so it carries no `tenant_id` and always applies globally. Scope a limit to one tenant with a `rules` entry instead.
 
 ## Algorithms
 

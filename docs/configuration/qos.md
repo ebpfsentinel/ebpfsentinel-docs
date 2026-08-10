@@ -55,6 +55,7 @@ A pipe is the shaper: it owns the rate cap, the burst allowance, the added laten
 | `direction` | string | `"egress"` | Hook this pipe shapes: `egress`, `ingress`, or `both`. A forwarded packet crosses both hooks, so a pipe set to `both` is charged twice for it |
 | `enabled` | bool | `true` | Whether this pipe is active |
 | `interfaces` | list | `[]` | Interface groups this pipe applies to. Empty = all interfaces. Use `"!"` prefix for inversion (e.g., `"!lan"`) |
+| `tenant_id` | u32 | `0` | Tenant this pipe shapes. `0` is global and shapes traffic from every tenant. A non-zero value makes the kernel skip the pipe for packets resolved to another tenant, so the pipe's bandwidth becomes that tenant's share. An agent without tenant attribution resolves every packet to `0` |
 
 Maximum 64 pipes.
 
@@ -82,6 +83,7 @@ Classifiers match traffic and assign it to a queue. They are **not** evaluated i
 | `queue_id` | string | required | ID of the queue to assign matched traffic to (must exist) |
 | `priority` | u8 | `0` | Tie-break between classifiers sharing one lookup key (lower wins) |
 | `interfaces` | list | `[]` | Interface groups this classifier applies to. Empty = all. Use `"!"` prefix for inversion |
+| `tenant_id` | u32 | `0` | Tenant this classifier applies to. `0` is global. A non-zero value makes the kernel skip the classifier for packets resolved to another tenant, so two tenants can send matching traffic to different queues |
 | `match` | object | `{}` | Traffic match criteria (see below). Also accepted as `match_rule` |
 
 Maximum 1024 classifiers.

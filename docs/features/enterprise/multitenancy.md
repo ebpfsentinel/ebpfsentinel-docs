@@ -101,12 +101,21 @@ Labels are read over the Docker Engine API, which also serves Podman's compatibl
 
 ## eBPF Rule Matching
 
-Every eBPF rule (firewall, IDS, rate limit, QoS, NAT) carries a `tenant_id: u32` field:
+Three rule families carry a `tenant_id: u32` into the kernel: IDS (and the IPS
+rules that share its schema), rate limiting, and QoS. In all three:
 
 - `tenant_id = 0` → **floating rule** (applies to all tenants)
 - `tenant_id > 0` → **tenant-scoped rule** (only applies when packet's resolved tenant matches)
 
-Matching logic in eBPF:
+The three enforce it differently, because their maps are shaped differently:
+
+| Family | Structure | Behaviour |
+|--------|-----------|-----------|
+| IDS / IPS | `IdsPatternKey (tenant_id, dst_port, protocol)` | The classifier looks up the packet's tenant first and falls back to the `tenant_id = 0` entry, so a tenant-scoped rule **replaces** the global rule for that port rather than adding to it |
+| Rate limit | `RateLimitKey (tenant_id, src_ip)` | Same fallback chain: `(tenant, ip)`, then `(0, ip)`, then the `(0, 0)` global default |
+| QoS | `tenant_id` on the pipe and on the classifier value | The scan skips an entry whose non-zero `tenant_id` differs from the packet's, so a per-tenant pipe becomes that tenant's bandwidth share |
+
+Skip logic, for the scanned structures:
 ```
 if rule.tenant_id != 0 && rule.tenant_id != packet_tenant_id {
     skip rule  // tenant mismatch
@@ -115,9 +124,18 @@ if rule.tenant_id != 0 && rule.tenant_id != packet_tenant_id {
 
 This check runs **after** the existing `group_mask` interface group check, preserving backward compatibility with OSS interface groups. Tenant attribution by interface has a map of its own, separate from the `INTERFACE_GROUPS` map that carries group bitmasks: the two share a key but not a value, and a bitmask read as a tenant id would attribute an interface in group 2 to tenant 2 while destroying the group scoping every rule set relies on.
 
-!!! note "Rules are floating today"
+Configure it with the `tenant_id` key on an
+[IDS rule](../../configuration/ids.md#rule), an
+[IPS rule](../../configuration/ips.md), a
+[rate-limit rule](../../configuration/ratelimit.md#rule), or a
+[QoS pipe or classifier](../../configuration/qos.md#pipes). Omitting it keeps
+the rule global, which is the only behaviour a standalone agent produces: with
+no tenant attribution configured every packet resolves to tenant `0`.
 
-    Packet-side tenant resolution is live: a packet is attributed to a tenant by VLAN, interface, subnet or cgroup, and that attribution reaches alerts, quotas and the API. The rule side is not yet configurable - there is no field on a firewall, IDS, rate-limit, QoS or NAT rule that assigns it to a tenant, so every rule is written to the kernel with `tenant_id = 0` and therefore applies to all tenants. Isolate rule sets per tenant with interface groups or separate agents until per-tenant rule definitions ship.
+!!! note "Firewall and NAT rules are still floating"
+
+    Firewall and NAT rules carry no tenant field, so they always apply to every
+    tenant. Scope them with interface groups or separate agents.
 
 ## Resource Quotas
 

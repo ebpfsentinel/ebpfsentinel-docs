@@ -49,7 +49,12 @@ ips:
 | `whitelist_aliases` | `[string]` | `[]` | Named IP-set aliases that are never blacklisted, resolved once the alias service has loaded |
 | `sampling` | `Sampling` | none | Optional sampling configuration (same schema as IDS). Sampled-out packets never reach the blacklist counter |
 | `country_thresholds` | `map<string, integer>` | `{}` | Per-country auto-blacklist thresholds (ISO 3166-1 alpha-2 to count). IPs from listed countries are blacklisted after fewer detections. When blacklisted, the source /24 (v4) or /48 (v6) subnet is also injected into the firewall LPM maps |
-| `rules` | `[Rule]` | `[]` | IPS rules (`id`, `description`, `severity`, `protocol`, `dst_port`, `pattern`, `mode`, `threshold`, `enabled`) |
+| `rules` | `[Rule]` | `[]` | IPS rules (`id`, `description`, `severity`, `protocol`, `dst_port`, `pattern`, `mode`, `threshold`, `enabled`, `tenant_id`) |
+
+An IPS rule shares the IDS rule schema, so those fields behave as they do in
+[IDS configuration](ids.md#rule). `tenant_id` defaults to `0`, which is global
+and matches traffic from every tenant; set it only on an agent that resolves
+packets to tenants.
 
 ### Content patterns
 
