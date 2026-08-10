@@ -23,7 +23,7 @@ Container awareness is composed of four independent building blocks:
 | Container Resolver | OSS | cgroup → `ContainerInfo` (runtime + container id) |
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
-| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked BoringSSL, kTLS, GnuTLS — background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API; kernel uprobe attachment blocked on upstream aya support |
+| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked BoringSSL, kTLS, GnuTLS — background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API; discovery and plan publication only, the kernel-side attach path for these libraries is not wired yet |
 
 Each block is opt-in: a bare-metal agent can stay lean, a Docker host
 turns on the Docker enricher, a Kubernetes DaemonSet turns on the K8s

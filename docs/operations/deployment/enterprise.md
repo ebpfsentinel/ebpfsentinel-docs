@@ -32,6 +32,40 @@ whenever the socket is set, so the rootless agent never needs `CAP_SYS_PTRACE`.
   feature inert). Provide it at `/etc/ebpfsentinel/license.key`, via
   `EBPFSENTINEL_LICENSE`, or `enterprise.license_path` in the config.
 
+## What the agent checks before it starts
+
+The version floor is a proxy for capability, not capability itself: helpers get
+backported into older trees and distributions compile features out. Before the
+version gate runs, the enterprise agent asks the running kernel which helpers it
+will accept for each program type, and the result decides the boot:
+
+| Outcome | What it means | What the agent does |
+|---------|---------------|---------------------|
+| Verified | Every helper every object needs is accepted | Starts normally |
+| Unverified | The probe itself could not run, so nothing was measured | Starts normally, logs a WARN carrying `helper_support="unverified"` and the reason. Nothing is refused on this basis |
+| Degraded | Some objects need a helper the kernel rejects | Starts, skips those objects, and names each one |
+| Refused | No object can load | Exits with code `2`, naming the missing helper rather than only the kernel version |
+
+Refusal is reserved for the total case on purpose. A kernel that starves every
+object is not one this agent can protect anything on, but a kernel that starves
+one object still runs the rest, and refusing there would trade a partial
+datapath for none.
+
+The unverified case is the normal one on a rootless deployment: the probe issues
+real `BPF_PROG_LOAD` calls, which need `CAP_BPF`, and the BPF-token path
+deliberately holds no capabilities. It means "not measured", never "missing".
+
+The detail is served on the enterprise API, reading the cached result without
+issuing further kernel calls:
+
+```bash
+curl -sk https://127.0.0.1:8444/api/v1/ebpf/kernel-features
+```
+
+Three signals a log aggregator can key on distinguish an unverified boot: the
+WARN level, the `helper_support="unverified"` field, and the phrase stating that
+helper support was not verified.
+
 ## Bare metal (systemd)
 
 The `dist/` directory ships two units and an installer:

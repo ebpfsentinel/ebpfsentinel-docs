@@ -127,6 +127,30 @@ The HA subsystem controls eBPF program attachment tied to leadership:
 | `LoggingFailoverEmitter` | Logs failover events at WARN level with full details |
 | `FileNodeIdStore` | Persists UUIDv7 node ID to disk |
 
+### Promotion replaces the datapath, it does not adopt one
+
+A promotion always loads a fresh datapath, even when a program from a previous
+generation is still attached to the interface. Adopting the existing attachment
+would leave the node running the previous generation's programs while the
+services handed out on this activation hold the new generation's maps: writes
+succeed, reads return nothing, and the node looks healthy while enforcing
+nothing. A reload costs a few hundred milliseconds on a promotion that already
+takes seconds.
+
+Anything still attached after a step-down is therefore reported rather than
+reused. The agent reads the interface's attachment state back from the kernel
+after detaching and warns about what is left, so the cause is logged on the node
+that failed to clean up rather than discovered on the node promoted after it.
+
+Two consequences are visible to an operator:
+
+- Packet mirroring is bound to the datapath generation that is actually running.
+  On a standby, or on a leader mid-teardown, a mirror request is refused with
+  "packet mirroring is unavailable: the eBPF datapath is not active on this
+  node" instead of being accepted and capturing nothing.
+- Alerts follow the promotion. A promoted leader serves `/api/v1/alerts`,
+  forwards to SIEM, and arms automated response for the datapath it just loaded.
+
 ### State Bridge
 
 13 provider/consumer pairs (`ha_state_bridge.rs`) connect HA replication to OSS application services:

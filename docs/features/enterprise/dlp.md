@@ -158,11 +158,14 @@ Dynamic per-SNI certificate generation:
 > Discovery, ELF symbol resolution, the `TlsProbeManager` orchestrator,
 > the `/proc`-based scanner, a periodic background scan loop, Prometheus
 > metrics, and the `/api/v1/enterprise/tls-probes/*` admin endpoints
-> are all live. Actual kernel-side uprobe attachment for the two new
-> eBPF programs (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is still blocked on
-> upstream aya support for uprobe-by-offset attachment — the enterprise
-> agent exposes the attachment plan so operators can see exactly which
-> binaries and symbols would be probed once that support lands.
+> are all live. Kernel-side attachment for the two extended programs
+> (`uprobe-dlp-go`, `kprobe-dlp-ktls`) is not wired yet: the loader
+> attaches uprobes by offset today, as the OpenSSL path already does, so
+> what remains is the enterprise attach path itself rather than a missing
+> kernel or loader capability. Until it lands the agent publishes the
+> attachment plan, so an operator can see exactly which binaries and
+> symbols would be probed, and verify the resolved offsets against the
+> build they belong to.
 
 The OSS `uprobe-dlp` program only hooks OpenSSL's `libssl.so.3`
 (`SSL_write` / `SSL_read`). Any application that manages TLS outside of
@@ -264,7 +267,7 @@ duration gauge. All metrics are registered under the
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
 | `ebpfsentinel_ent_tls_probes_binaries_discovered` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
-| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Successful probe attach attempts (populated once aya uprobe-by-offset support lands) |
+| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Successful probe attach attempts (stays at zero until the extended attach path is wired) |
 | `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Failed probe attach attempts |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
@@ -275,8 +278,18 @@ duration gauge. All metrics are registered under the
 | Method | Path | Purpose |
 |--------|------|---------|
 | `GET` | `/api/v1/enterprise/tls-probes/status` | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag |
-| `GET` | `/api/v1/enterprise/tls-probes/plans` | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat` |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat` |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …) |
+
+`build_id` is the hex GNU build id of the image the offsets were resolved
+against. It is what makes two scans comparable: an offset that moved while the
+build id stayed the same is a resolution problem, and an offset that moved along
+with the build id is simply a different binary at the same path. A stripped
+binary reports `null` rather than failing the plan, and the kTLS entry reports
+`null` because a kernel hook has no image of its own. The identity is stamped
+once, from the first process seen mapping that path; a later process at the same
+path adds its pid but never restamps, because it may be running a replacement
+file whose offsets were never measured.
 
 All three endpoints are read-only and gated behind the `advanced-dlp`
 license feature. Configuration is managed via the enterprise YAML
