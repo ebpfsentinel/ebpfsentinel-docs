@@ -128,19 +128,21 @@ This check runs **after** the existing `group_mask` interface group check, prese
 Configure it with the `tenant_id` key on an
 [IDS rule](../../configuration/ids.md#rule), an
 [IPS rule](../../configuration/ips.md), a
-[rate-limit rule](../../configuration/ratelimit.md#rule), or a
-[QoS pipe or classifier](../../configuration/qos.md#pipes). Omitting it keeps
+[rate-limit rule](../../configuration/ratelimit.md#rule), a
+[QoS pipe or classifier](../../configuration/qos.md#pipes), a
+[firewall rule](../../configuration/firewall.md#rule), or a
+[SNAT or DNAT rule](../../configuration/nat.md#rule-fields). Omitting it keeps
 the rule global, which is the only behaviour a standalone agent produces: with
 no tenant attribution configured every packet resolves to tenant `0`.
 
-!!! note "Firewall and NAT rules are still floating"
+!!! note "A tenant-scoped firewall rule leaves the fast path"
 
-    The kernel half is already there for firewall and NAT: both entries carry a
-    `tenant_id` and all three programs skip an entry whose non-zero value differs
-    from the packet's tenant. What is missing is the producer, since no firewall
-    or NAT config field assigns one, so every such rule is written with
-    `tenant_id = 0` and applies to all tenants. Scope them with interface groups
-    or separate agents until the field ships.
+    `xdp-firewall` answers exact-tuple rules from hash maps before it reaches the
+    linear scan, and those keys carry the tuple and nothing else. A rule with a
+    non-zero `tenant_id` is therefore kept out of the hash maps and evaluated in
+    the scan, exactly as a rule restricted to an interface group already is.
+    NPTv6 is the one translation that stays global: its prefix rewrite is
+    stateless and carries no tenant.
 
 ## Resource Quotas
 

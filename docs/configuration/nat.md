@@ -46,6 +46,10 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 | `priority` | u32 | `100` | Lower values match first |
 | `type` | string | — | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
 | `interfaces` | list | `[]` | Restrict the rule to specific interfaces or interface groups. Empty = all interfaces |
+| `tenant_id` | u32 | `0` | Tenant this rule belongs to. `0` is global and translates for every tenant. A non-zero value makes the kernel skip the rule for traffic it resolves to any other tenant, which is what lets two tenants keep overlapping private ranges behind separate translations. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
+
+`tenant_id` applies to `snat_rules` and `dnat_rules`. NPTv6 translation is a
+stateless prefix rewrite and is not tenant-scoped.
 
 ### NAT Type Parameters
 

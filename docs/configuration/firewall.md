@@ -96,6 +96,12 @@ firewall:
 | `schedule` | `string` | No | Time-based schedule name |
 | `max_states` | `integer` | No | Per-rule concurrent connection state limit |
 | `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+| `tenant_id` | `integer` | No | Tenant this rule belongs to. `0` (the default) is global: the rule applies to traffic from every tenant. A non-zero value makes the kernel skip the rule for traffic it resolves to any other tenant. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
+
+A rule scoped to a tenant is evaluated in the linear rule scan rather than the
+exact-tuple fast path, since a hash lookup keyed on the tuple alone would serve
+its verdict to the tenants the scope excludes. The cost is the same as for a
+rule restricted to an interface group.
 
 An alias reference is bound to what the alias holds when the rules are
 installed: static aliases expand into one kernel rule per member, runtime
