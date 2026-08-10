@@ -94,6 +94,14 @@ RUST_LOG=info                 # Log level
 
 Per-module log filtering: `RUST_LOG=domain=debug,adapters::http=trace`
 
+`EBPFSENTINEL_BPF_VERIFIER_STATS=1` asks the kernel verifier for its complexity accounting as each eBPF program loads, and logs one line per program:
+
+```json
+{"program":"xdp_firewall","processed":201482,"limit":1000000,"used_pct":20}
+```
+
+`processed` is the number of instructions the verifier walked, `limit` the kernel's hard ceiling (`BPF_COMPLEXITY_LIMIT_INSNS`); a program at or above 80% of it is logged at `warn` instead. A program that crosses the ceiling is rejected at load with `errno 7`, so this is how to see the margin before a new rule shape or feature consumes it. Off by default, since it costs one extra load attempt per program.
+
 ## Hot Reload
 
 The agent watches the config file for changes and applies them without restart — including dynamically loading and unloading eBPF kernel programs when features are enabled or disabled:
