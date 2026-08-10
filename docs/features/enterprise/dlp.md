@@ -194,9 +194,15 @@ captured buffer. Probes are owned by the datapath generation that created
 them, so a failover tears them down with everything else and the next
 scan cycle re-attaches on the new generation.
 
-A statically stripped build of an attached library resolves no offsets. It
-is reported as discovered, counted under `offsets_unresolved`, and left
-alone rather than probed at the start of the file.
+Distribution packages ship these libraries stripped, so the offsets come
+from whichever symbol table survives: the full table when one is present,
+the dynamic exports otherwise. A stock `libgnutls.so.30` is therefore
+probed as shipped, with no debug package required.
+
+A build that exports neither name - a statically linked binary stripped of
+its symbol table, or one built with hidden visibility - resolves no
+offsets. It is reported as discovered, counted under `offsets_unresolved`,
+and left alone rather than probed at the start of the file.
 
 ### Architecture
 
@@ -283,7 +289,7 @@ duration gauge. All metrics are registered under the
 |--------|------|--------|---------|
 | `ebpfsentinel_ent_tls_probes_binaries_discovered` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
 | `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
-| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a stripped build, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
+| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
 | `ebpfsentinel_ent_tls_probes_scan_warnings` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
