@@ -127,9 +127,13 @@ ebpfsentinel-agent alerts mark-fp alert-001
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/ips/rules` | List IDS/IPS rules |
+| GET | `/api/v1/ids/status` | IDS status and detection rule count |
+| GET | `/api/v1/ids/rules` | List detection rules |
+| GET | `/api/v1/ips/rules` | List prevention rules |
 | GET | `/api/v1/alerts` | List alerts (filter by `component=ids`) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Mark alert as false positive |
+
+Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_port)` slot another rule holds, since detection and prevention rules share the same kernel maps. See [IPS](ips.md) for what a lost slot means for each kind of rule.
 
 ## Code Architecture
 

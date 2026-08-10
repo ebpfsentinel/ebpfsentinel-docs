@@ -17,6 +17,8 @@ The IPS extends the IDS with automatic blocking. When a rule matches in block mo
 
 Because both rule sets share the kernel maps, a rule id may not be reused between `ids.rules` and `ips.rules`, and two rules that watch the same `(protocol, dst_port)` pair cannot both be installed: the IPS rule wins, and the shadowed rule is named in a startup warning.
 
+The listing says so too, so a conflict does not have to be caught in the boot log. A rule that lost its slot carries a `kernel_slot` block in `GET /api/v1/ids/rules` and `GET /api/v1/ips/rules`, naming the rule that took it, and `ebpfsentinel-agent ips list` prints the same conflicts under the table. Its `evaluated_in_userspace` field is what matters: a shadowed detection rule is replayed in userspace and still fires, while a shadowed IPS rule is not replayed and enforces nothing until the ports are separated.
+
 ### Blacklist Management
 
 - **Auto-blacklist** - IPs are added automatically when block-mode rules match often enough
