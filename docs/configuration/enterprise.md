@@ -258,6 +258,13 @@ enterprise:
   fleet:
     enabled: false
     data_dir: /var/lib/ebpfsentinel/fleet
+
+  # ── Vendor portal reporting ─────────────────────────────────────
+  portal:
+    enabled: false
+    base_url: https://portal.ebpfsentinel.io
+    join_secret_file: /etc/ebpfsentinel/portal-join-secret
+    state_path: /var/lib/ebpfsentinel/portal/enrolment.json
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -342,6 +349,44 @@ for what triggers a scan.
 | `fleet.enabled` | bool | `false` | Enable fleet management endpoints |
 | `fleet.data_dir` | string | none | Directory for persisting agent identity |
 
+### Vendor portal reporting
+
+The `portal` block lets a deployment report itself to the vendor portal so a
+subscription is measured against what is actually running. It is **off unless
+`enabled: true`**: with no block, or with the block disabled, no client is built
+and no connection leaves the machine.
+
+The agent joins once with the **join secret** a person minted in the portal,
+stores the per-agent credential it receives at `state_path`, and heartbeats from
+then on. The two secrets are not interchangeable: the join secret can be
+withdrawn without touching agents that already joined, and the stored credential
+only ever heartbeats. An agent that is refused (HTTP 401) discards its stored
+credential and joins again; an agent that simply cannot reach the portal keeps
+what it holds and retries with a backoff that grows to fifteen minutes.
+
+What travels is the agent's name and its version. The agent never names an
+organisation or an environment, and the heartbeat interval is whatever the
+portal answers, clamped between 15 seconds and 24 hours and spread by up to ten
+percent so a whole cluster restarting does not land on one second.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `portal.enabled` | bool | `false` | Report to the portal. Everything below is ignored when false |
+| `portal.base_url` | string | none | Where the portal answers. Required when enabled. `https` unless the host is loopback |
+| `portal.join_secret` | string | none | The join secret inline. Prefer one of the two options below |
+| `portal.join_secret_file` | string | none | Path to a file holding the join secret. Cannot be combined with `join_secret` |
+| `portal.agent_name` | string | host name | The name this agent reports under. Up to 253 characters, no control characters |
+| `portal.state_path` | string | `/var/lib/ebpfsentinel/portal/enrolment.json` | Where the credential is kept. Created `0600` inside a `0700` directory |
+| `portal.ca_cert_path` | string | none | Extra root certificate, for a portal behind a private CA. Added to the system roots, never replacing them |
+
+The join secret is read from `EBPFSENTINEL_PORTAL_JOIN_SECRET` first, then from
+`join_secret_file`, then from `join_secret`. The environment variable and the
+file exist so the secret does not have to live in a configuration file that is
+templated, backed up or committed.
+
+Re-enrolling under a name the portal already knows returns the same agent with a
+fresh credential, so a machine that lost its state file is not counted twice.
+
 ### Validation Rules
 
 - `license_path` cannot be empty if set
@@ -353,3 +398,8 @@ for what triggers a scan.
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
+- `portal.join_secret` and `portal.join_secret_file` cannot both be set, enabled or not
+- `portal.base_url` is required when `portal.enabled`, and must be `https` unless the host is `localhost`, `127.0.0.1` or `::1`
+- `portal.state_path` cannot be empty
+- `portal.agent_name`, when set, must survive the same checks the portal applies: non-empty after trimming, at most 253 characters, no control characters
+- `portal.ca_cert_path` and `portal.join_secret_file` cannot be empty when set
