@@ -265,6 +265,8 @@ enterprise:
     base_url: https://portal.ebpfsentinel.io
     join_secret_file: /etc/ebpfsentinel/portal-join-secret
     state_path: /var/lib/ebpfsentinel/portal/enrolment.json
+    telemetry_enabled: false
+    # ingest_secret_file: /etc/ebpfsentinel/portal-ingest-secret
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -378,6 +380,10 @@ percent so a whole cluster restarting does not land on one second.
 | `portal.agent_name` | string | host name | The name this agent reports under. Up to 253 characters, no control characters |
 | `portal.state_path` | string | `/var/lib/ebpfsentinel/portal/enrolment.json` | Where the credential is kept. Created `0600` inside a `0700` directory |
 | `portal.ca_cert_path` | string | none | Extra root certificate, for a portal behind a private CA. Added to the system roots, never replacing them |
+| `portal.telemetry_enabled` | bool | `false` | Send the counter readings described below. Requires `portal.enabled` and an ingest secret |
+| `portal.ingest_secret` | string | none | The ingest secret inline. Prefer the environment variable or the file |
+| `portal.ingest_secret_file` | string | none | Path to a file holding the ingest secret. Cannot be combined with `ingest_secret` |
+| `portal.telemetry_interval_seconds` | integer | `300` | Gap between two readings, held between 60 and 86400 rather than refused |
 
 The join secret is read from `EBPFSENTINEL_PORTAL_JOIN_SECRET` first, then from
 `join_secret_file`, then from `join_secret`. The environment variable and the
@@ -386,6 +392,31 @@ templated, backed up or committed.
 
 Re-enrolling under a name the portal already knows returns the same agent with a
 fresh credential, so a machine that lost its state file is not counted twice.
+
+#### Optional analytics
+
+`telemetry_enabled` is a second, separate decision. What it sends is counters
+over a window: packets and bytes seen, flows opened and being tracked, alerts
+counted by severity and by the part of the agent that raised them, what the
+agent dropped or rate limited or tore down, what the ring buffers lost, whether
+the programs are loaded, and what the agent itself cost the machine in processor
+and memory. It never carries a packet, a payload, an address, a port, a peer, a
+rule identifier or an alert. Nothing in the wire format has a field that could.
+
+Its credential is a third one. The **ingest secret** is not the licence key and
+not the join secret: it is minted per deployment, revocable on its own, and read
+from `EBPFSENTINEL_PORTAL_INGEST_SECRET` first, then from `ingest_secret_file`,
+then from `ingest_secret`. Refusing it (HTTP 401) stops the readings and never
+costs the agent its enrolment, so revoking analytics does not take a deployment
+out of the entitlement count.
+
+The first interval after a start produces no reading: counters are cumulative,
+so one sample is a baseline and the window opens with the second. A delivery
+that fails keeps its window, and the next attempt reports the whole gap rather
+than losing it.
+
+Two numbers cannot be measured by this build and are sent as zero: how full the
+busiest eBPF map is, and how many loads the verifier refused.
 
 ### Validation Rules
 
@@ -403,3 +434,5 @@ fresh credential, so a machine that lost its state file is not counted twice.
 - `portal.state_path` cannot be empty
 - `portal.agent_name`, when set, must survive the same checks the portal applies: non-empty after trimming, at most 253 characters, no control characters
 - `portal.ca_cert_path` and `portal.join_secret_file` cannot be empty when set
+- `portal.ingest_secret` and `portal.ingest_secret_file` cannot both be set, enabled or not, and `ingest_secret_file` cannot be empty when set
+- `portal.telemetry_enabled` requires `portal.enabled`, and requires an ingest secret from the environment, the file or the inline field
