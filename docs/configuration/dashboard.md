@@ -180,7 +180,11 @@ minted the session; otherwise the session runs to its expiry and the
 browser is redirected through your identity provider, whose own session
 is what answers it. That redirect is silent while the provider session
 is live, which is why the session lifetime here can be short without
-asking anyone to sign in again during their working day.
+asking anyone to sign in again during their working day. The console
+takes that redirect itself: the first request answered 401 sends the
+browser to `/auth/login` carrying the page it was on, so a session that
+runs out while a tab is open comes back on the same screen rather than
+filling it with errors.
 
 ## JWKS endpoint
 
