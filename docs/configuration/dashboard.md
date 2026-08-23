@@ -41,7 +41,7 @@ fast. Every value is validated below.
 | `tenant_claim` | string | `tenant` | OIDC claim mapped to the dashboard tenant id. |
 | `role_claim` | string | `groups` | OIDC claim mapped to the dashboard role list. |
 | `post_logout_redirect_uri` | URL | unset | Optional URL the IdP redirects to after `end_session_endpoint`. Must be `http(s)://` when set. |
-| `session_ttl_seconds` | u64 | `43200` | Lifetime of the per-user session JWT (`60..=2592000`). Default 12 h. |
+| `session_ttl_seconds` | u64 | `14400` | Lifetime of the per-user session JWT (`60..=2592000`). Default 4 h. The cookie is a signed JWT rather than a server-side record, so nothing can withdraw one that has been copied off a machine and this value is how long a copied one is worth something. Raise it and that window grows with it. |
 | `cookie_signing_key_file` | path | (required) | Path to a file holding the HMAC seed used to sign the short-lived `pkce_state` cookie. Same on-disk contract as every other secret (mode ≤ `0640`). An empty file falls back to an ephemeral key — sessions do not survive a restart. |
 
 ### `jwt`
@@ -173,9 +173,14 @@ configuration mistakes never present a half-functional login screen.
 
 Refresh tokens are held server-side in a per-replica DashMap keyed by
 `sub`, wrapped in `secrecy::SecretString` (zeroised on drop). The store
-is per-replica: a refresh succeeds only if the user lands on the same
-replica that minted their session — acceptable for a 12 h window. A
-shared store lands as part of the multi-replica scaling work.
+is per-replica by design: the dashboard runs on your own infrastructure
+and must not oblige you to run a shared cache beside it. A refresh
+therefore succeeds only when the request lands on the replica that
+minted the session; otherwise the session runs to its expiry and the
+browser is redirected through your identity provider, whose own session
+is what answers it. That redirect is silent while the provider session
+is live, which is why the session lifetime here can be short without
+asking anyone to sign in again during their working day.
 
 ## JWKS endpoint
 
