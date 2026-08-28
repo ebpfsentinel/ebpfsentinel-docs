@@ -38,6 +38,27 @@ groups:
         annotations:
           summary: "eBPF program not loaded: {{ $labels.program }}"
 
+      - alert: EbpfAttachBlocked
+        expr: ebpfsentinel_ebpf_attach_blocked > 0
+        for: 1m
+        annotations:
+          summary: "eBPF programs loaded but attached nowhere"
+          description: >-
+            A program that loaded and was then refused an attachment leaves the
+            agent running and reporting zeros while watching nothing, which the
+            load gauge above cannot tell you.
+
+      - alert: XdpFellBackToGeneric
+        expr: ebpfsentinel_xdp_attach_mode{mode="generic"} == 1
+        for: 15m
+        annotations:
+          summary: "XDP running in generic mode on {{ $labels.interface }}"
+          description: >-
+            The mode the kernel granted rather than the one that was configured.
+            Generic mode works everywhere and costs an order of magnitude
+            against native, so a driver that refused native is worth knowing
+            about before a throughput figure is disputed.
+
       - alert: HighMemoryUsage
         expr: ebpfsentinel_memory_usage_bytes > 1e9
         for: 5m

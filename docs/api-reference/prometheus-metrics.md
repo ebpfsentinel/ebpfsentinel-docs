@@ -181,6 +181,8 @@ rather than reporting an idle datapath.
 | `ebpfsentinel_memory_usage_bytes` | Gauge | — | Process RSS memory |
 | `ebpfsentinel_cpu_usage_percent` | Gauge | — | Process CPU usage |
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=not) |
+| `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
+| `ebpfsentinel_xdp_attach_mode` | Gauge | `interface`, `mode` | The XDP mode actually in force (1=in force). `mode` is `native`, `generic`, `offloaded`, `multiple` or `unknown` |
 | `ebpfsentinel_config_reloads_total` | Counter | `status` | Config reload count (success/failure) |
 
 ## Enterprise Metrics
