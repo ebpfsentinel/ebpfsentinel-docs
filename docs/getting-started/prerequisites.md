@@ -71,7 +71,7 @@ Only needed if building from source. Pre-built binaries and Docker images don't 
 
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
-| Rust stable | 1.93+ | Userspace crates |
+| Rust stable | 1.98+ | Userspace crates |
 | Rust nightly | latest | eBPF kernel programs (`bpfel-unknown-none` target) |
 | `bpftool` | any | eBPF program inspection |
 | `iproute2` | any | Network interface management |
