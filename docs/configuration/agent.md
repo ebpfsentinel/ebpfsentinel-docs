@@ -56,6 +56,8 @@ The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/
 
 With the defaults, a non-loopback client gets a 60-request burst that refills at 1/s (60/minute); once exhausted, further writes return `429 Too Many Requests` with a `Retry-After` header. **Loopback is exempt by default**, so local CLI tooling and same-host bulk reconfiguration are never throttled. Raise `write_burst` / `write_per_second` if you drive bulk reconfiguration through the API from a remote host, or set `exempt_loopback: false` to rate-limit local clients too. Bulk rule/IOC sets are normally loaded from the YAML config at startup rather than the write API.
 
+Every mutating route sits in that group, including the ones whose cost is not in the agent: `POST /api/v1/threatintel/feeds/refresh` starts an outbound download of every enabled feed, so it is throttled as a write like any other mutation. Because the limit bounds how often the route is called and not how many downloads it starts, that refresh is additionally single-flight: one feed cycle runs at a time, and a caller arriving while one is fetching gets `409 Conflict` with the code `REFRESH_IN_PROGRESS` rather than queueing a second download.
+
 ```yaml
 agent:
   interfaces: [eth0]
