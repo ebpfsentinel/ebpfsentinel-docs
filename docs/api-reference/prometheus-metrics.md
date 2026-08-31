@@ -113,6 +113,16 @@ not keeping up at all.
 | `ebpfsentinel_ddos_syncookie_valid_total` | Counter | — | Valid SYN cookie ACKs received (eBPF) |
 | `ebpfsentinel_ddos_syncookie_invalid_total` | Counter | — | Invalid SYN cookie ACKs rejected (eBPF) |
 
+The counter array behind these is also drained slot by slot onto
+`ebpfsentinel_packets_total` under `interface="DDOS_METRICS"`, one series per
+`action`: `syn_rcv`, `syn_flood_drops`, `icmp_pass`, `icmp_drop`, `amp_passed`,
+`amp_dropped`, `oversized_icmp`, `errors`, `events_dropped`, `conn_tracked`,
+`half_open_drops`, `rst_flood_drops`, `fin_flood_drops`, `ack_flood_drops`,
+`total_seen`, `syncookie_sent`, `syncookie_valid` and `syncookie_invalid`.
+`conn_tracked` and the four flood counters only move when
+`ddos.connection_tracking` is enabled, since that is what arms the TCP state
+machine they belong to.
+
 ### Firewall
 
 | Metric | Type | Labels | Description |
@@ -134,6 +144,15 @@ not keeping up at all.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_nptv6_translated_total` | Counter | `direction` | Packets translated by NPTv6 prefix rewriting (ingress/egress) |
+
+The NAT programs keep their own counter array, exported on
+`ebpfsentinel_packets_total` under `interface="NAT_METRICS"`: `snat_applied`,
+`dnat_applied`, `masq_applied`, `port_alloc_fail`, `errors`, `total_seen`,
+`nptv6_translated`, `hairpin_applied`, `kfunc_delegated`, `kfunc_fallback`,
+`xfrm_steered` and `fou_encap`. `kfunc_delegated` against `kfunc_fallback` is
+the one to watch: the first counts translations handed to the kernel's own
+conntrack kfuncs, the second counts those the agent had to do itself because the
+running kernel did not offer them.
 
 ### Connection Tracking
 
