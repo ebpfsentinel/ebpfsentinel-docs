@@ -231,6 +231,16 @@ FLOW                                                          CONNS    BYTES    
 3 aggregated flow(s) from 43 connection(s).
 ```
 
+### identity
+
+Display the agent's identity metadata: the operator-managed flag, the running
+version and the hostname the agent reports itself under.
+
+```bash
+ebpfsentinel-agent identity
+ebpfsentinel-agent identity -o json
+```
+
 ### health
 
 Check agent liveness and readiness.
@@ -300,6 +310,13 @@ ebpfsentinel-agent ips list
 # View blacklisted IPs
 ebpfsentinel-agent ips blacklist
 
+# Blacklist an IP, optionally with a reason and a lifetime
+ebpfsentinel-agent ips blacklist add 203.0.113.10
+ebpfsentinel-agent ips blacklist add 203.0.113.10 --reason "port scanner" --ttl-secs 3600
+
+# Remove an IP from the blacklist
+ebpfsentinel-agent ips blacklist delete 203.0.113.10
+
 # Change rule mode
 ebpfsentinel-agent ips set-mode rule-001 --mode block
 ebpfsentinel-agent ips set-mode rule-001 --mode alert
@@ -341,8 +358,15 @@ ebpfsentinel-agent threatintel status
 # List loaded IOCs
 ebpfsentinel-agent threatintel iocs
 
+# List URL indicators
+ebpfsentinel-agent threatintel urls
+
 # List configured feeds
 ebpfsentinel-agent threatintel feeds
+
+# Refresh every feed now, or just one of them
+ebpfsentinel-agent threatintel feeds refresh
+ebpfsentinel-agent threatintel feeds refresh --feed-id abuse-ch
 ```
 
 ### alerts
@@ -552,6 +576,9 @@ ebpfsentinel-agent conntrack list --limit 50
 
 # Conntrack status and kfunc hit/miss metrics
 ebpfsentinel-agent conntrack status
+
+# Flush the connection tracking table
+ebpfsentinel-agent conntrack flush
 ```
 
 | Flag | Description | Default |
@@ -567,6 +594,9 @@ DNS intelligence data and cache management.
 # View cache
 ebpfsentinel-agent dns cache
 ebpfsentinel-agent dns cache --domain example.com
+
+# Interception status
+ebpfsentinel-agent dns status
 
 # Statistics
 ebpfsentinel-agent dns stats
@@ -655,10 +685,190 @@ ebpfsentinel-agent responses revoke resp-001
 JA4+ TLS fingerprint cache and analysis.
 
 ```bash
-# Show fingerprint cache summary
+# Show client fingerprint cache summary
 ebpfsentinel-agent fingerprints summary
 ebpfsentinel-agent fingerprints summary -o json
+
+# Show the JA4S server fingerprint cache summary
+ebpfsentinel-agent fingerprints ja4s
 ```
+
+### zones
+
+Security zones and the policies between them. A zone groups interfaces under
+one default policy; an inter-zone policy decides what crosses from one zone to
+another, and is identified as `from__to`.
+
+```bash
+# Zone engine status
+ebpfsentinel-agent zones status
+
+# List zones
+ebpfsentinel-agent zones list
+
+# Add a zone
+ebpfsentinel-agent zones add --json '{
+  "id": "lan",
+  "interfaces": ["eth1", "eth2"],
+  "default_policy": "allow"
+}'
+
+# Delete a zone
+ebpfsentinel-agent zones delete lan
+
+# List inter-zone policies
+ebpfsentinel-agent zones policies
+
+# Add an inter-zone policy
+ebpfsentinel-agent zones add-policy --json '{
+  "from": "lan",
+  "to": "wan",
+  "policy": "allow",
+  "action": "accept"
+}'
+
+# Delete an inter-zone policy
+ebpfsentinel-agent zones delete-policy lan__wan
+```
+
+### routing
+
+Policy routing: the gateways traffic may leave through, and the routes that
+resolve to them.
+
+```bash
+# Policy routing status
+ebpfsentinel-agent routing status
+
+# List gateways with their priority, weight and health
+ebpfsentinel-agent routing gateways
+
+# Add a gateway
+ebpfsentinel-agent routing add-gateway --json '{
+  "id": "wan1",
+  "name": "primary",
+  "interface": "eth0",
+  "gateway_ip": "192.0.2.1",
+  "priority": 10,
+  "weight": 100
+}'
+
+# Delete a gateway
+ebpfsentinel-agent routing delete-gateway wan1
+
+# List routes and the gateway each resolves to
+ebpfsentinel-agent routing routes
+```
+
+### ids
+
+Intrusion Detection System status and rules. Rules are read-only from the CLI;
+`ips set-mode` is what changes how a rule acts.
+
+```bash
+# IDS status: enabled, mode, rule count
+ebpfsentinel-agent ids status
+
+# List rules with severity, protocol, port and pattern
+ebpfsentinel-agent ids rules
+ebpfsentinel-agent ids rules -o json
+```
+
+The JSON form carries two fields the table leaves out: the rate threshold a
+rule fires on, and the kernel slot it occupies when more rules compete for the
+map than the map holds.
+
+### geoip
+
+GeoIP database status and address lookup.
+
+```bash
+# Database status: enabled, and whether it loaded
+ebpfsentinel-agent geoip status
+
+# Look up an address
+ebpfsentinel-agent geoip lookup 203.0.113.10
+```
+
+A field the database has no answer for is printed as `-` rather than as an
+empty column.
+
+### ebpf
+
+The eBPF programs the agent loaded, the uprobes it attached, and what the
+kernel supports.
+
+```bash
+# Loaded programs, and the attaches the kernel refused
+ebpfsentinel-agent ebpf status
+
+# Uprobe inventory: library, path, program, symbol and offset
+ebpfsentinel-agent ebpf uprobes
+
+# Kernel feature probe: load mode, program types, helpers
+ebpfsentinel-agent ebpf kernel-features
+```
+
+`ebpf status` reports loading and attaching apart, because they fail
+separately: a program can sit in the kernel and still reach no wire, which the
+refused-attach table names along with the interface and the reason. An
+interface already carrying somebody else's XDP program is called out as such.
+
+`ebpf kernel-features` ends with the required helpers this kernel does not
+provide. An empty list there is the answer you want.
+
+### config
+
+The running configuration, and reloading it from disk.
+
+```bash
+# Print the running configuration
+ebpfsentinel-agent config show
+
+# Reload the configuration from disk
+ebpfsentinel-agent config reload
+```
+
+`config show` always prints JSON, since the configuration is a document rather
+than a table.
+
+### dlp
+
+Data Loss Prevention status and patterns.
+
+```bash
+# DLP status: enabled, mode, pattern count
+ebpfsentinel-agent dlp status
+
+# List patterns with severity, data type and regex
+ebpfsentinel-agent dlp patterns
+```
+
+### tls
+
+The TLS posture of the agent's own API listener: whether TLS is on, the group
+that was negotiated, and whether that group is post-quantum.
+
+```bash
+ebpfsentinel-agent tls status
+```
+
+### aliases
+
+External alias lists: address sets a firewall rule names instead of repeating
+the addresses.
+
+```bash
+# Alias engine status
+ebpfsentinel-agent aliases status
+
+# Replace the content of an external alias
+ebpfsentinel-agent aliases set-content bogons --json '{
+  "ips": ["192.0.2.0/24", "198.51.100.7"]
+}'
+```
+
+`set-content` replaces the whole list rather than adding to it.
 
 ## Output Formats
 
