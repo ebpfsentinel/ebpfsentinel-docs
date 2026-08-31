@@ -32,7 +32,7 @@ therefore reduce *notification volume*, never the audit trail.
 Each alert includes:
 
 - `id` — unique alert identifier
-- `timestamp` — event time (`bpf_ktime_get_boot_ns`-based, suspend-aware)
+- `timestamp` - event time in nanoseconds since the Unix epoch. Kernel events are stamped with `bpf_ktime_get_boot_ns()`, which is suspend-aware but counts from boot; userspace converts that to an epoch stamp as the record leaves the ring buffer, so a kernel alert and a userspace alert raised a second apart are a second apart.
 - `component` — source domain (firewall, ids, ips, dlp, threatintel, dns, l7, loadbalancer)
 - `severity` — critical, high, medium, low, info
 - `rule_id` — the rule that triggered the alert

@@ -155,6 +155,13 @@ Offset  Field            Type             Notes
 Total: 64 bytes, #[repr(C)], aligned to 8 bytes
 ```
 
+`timestamp_ns` is boot-relative inside the kernel: `bpf_ktime_get_boot_ns()`
+counts from the last boot, not from 1970. Userspace converts it to nanoseconds
+since the Unix epoch as the record leaves the ring buffer, in the same place
+that measures how long the record queued, so every alert, audit record and
+export carries an epoch stamp whether it was raised in the kernel or in
+userspace. A stamp of `0` means "no time" and stays `0`.
+
 ### Backpressure
 
 IDS and threat intel programs check ring buffer fill level before emitting:
