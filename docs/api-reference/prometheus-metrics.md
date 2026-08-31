@@ -301,6 +301,25 @@ Everything under `ebpfsentinel_ent_` requires an Enterprise licence. An OSS
 agent exposes none of it, so a panel mixing the two prefixes goes blank on an
 OSS install rather than reading zero.
 
+### Renamed enterprise series
+
+Five families were registered under a name ending in `_total`. The encoder
+appends that suffix to every counter sample and to nothing else, so the
+counter came out with two of them and the four gauges claimed on the wire to
+be counters.
+
+| Old series | New series | Why |
+|--------|------|--------|
+| `ebpfsentinel_ent_ml_rcf_anomalies_total_total` | `ebpfsentinel_ent_ml_rcf_anomalies_total` | Registered as `ml_rcf_anomalies_total`, so the encoder appended a second suffix. Nothing naming the intended series ever matched it |
+| `ebpfsentinel_ent_fed_clusters_total` | `ebpfsentinel_ent_fed_clusters` | It is a gauge, and `_total` on a gauge is not valid OpenMetrics |
+| `ebpfsentinel_ent_siem_connectors_total` | `ebpfsentinel_ent_siem_connectors` | As above |
+| `ebpfsentinel_ent_tenant_total` | `ebpfsentinel_ent_tenants` | As above. The new name is plural because it counts tenants rather than describing one |
+| `ebpfsentinel_ent_airgap_bundles_total` | `ebpfsentinel_ent_airgap_bundles` | As above |
+
+This is a breaking change for any dashboard panel, alert rule or recording
+rule naming an old series: the query returns no data rather than an error, so
+update the query rather than waiting for something to fail.
+
 ### Fleet Management
 
 | Metric | Type | Description |
@@ -315,7 +334,7 @@ OSS install rather than reading zero.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_ent_tenant_total` | Gauge | - | Configured tenants |
+| `ebpfsentinel_ent_tenants` | Gauge | - | Configured tenants |
 | `ebpfsentinel_ent_tenant_quota_usage_ratio` | Gauge | `tenant`, `resource` | Quota usage as a fraction of the limit (0.0 to 1.0) |
 | `ebpfsentinel_ent_tenant_quota_exceeded_total` | Counter | `tenant`, `resource` | Requests refused because a quota was already at its limit |
 

@@ -355,9 +355,9 @@ These are Enterprise-only series, registered under the `ebpfsentinel_ent_`
 prefix. An OSS agent exposes none of them.
 
 ```
-# HELP ebpfsentinel_ent_tenant_total Number of configured tenants.
-# TYPE ebpfsentinel_ent_tenant_total gauge
-ebpfsentinel_ent_tenant_total 3
+# HELP ebpfsentinel_ent_tenants Total configured tenants.
+# TYPE ebpfsentinel_ent_tenants gauge
+ebpfsentinel_ent_tenants 3
 
 # HELP ebpfsentinel_ent_tenant_quota_usage_ratio Quota usage as a fraction of the limit.
 # TYPE ebpfsentinel_ent_tenant_quota_usage_ratio gauge
