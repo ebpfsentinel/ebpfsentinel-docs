@@ -61,6 +61,32 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes
 
+  grpc-reference:
+    name: gRPC reference matches the proto
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the documentation
+        uses: actions/checkout@v5
+        with:
+          path: ebpfsentinel-docs
+
+      # The message reference on the page is generated from this file, so a
+      # field added to the proto without regenerating fails here rather than in
+      # an integrator's generated client.
+      - name: Check out the agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel
+          path: ebpfsentinel
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Check the gRPC reference
+        working-directory: ebpfsentinel-docs
+        run: npm run check:grpc-reference
+
   build:
     name: build
     runs-on: ubuntu-latest

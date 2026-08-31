@@ -11,7 +11,9 @@
     "version": "docusaurus docs:version",
     "typecheck": "tsc",
     "check:metrics": "node scripts/check-metric-names.mjs",
-    "check:rest-routes": "node scripts/check-rest-routes.mjs"
+    "check:rest-routes": "node scripts/check-rest-routes.mjs",
+    "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",
+    "check:grpc-reference": "node scripts/generate-grpc-reference.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

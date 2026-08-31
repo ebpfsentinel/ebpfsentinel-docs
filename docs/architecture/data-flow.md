@@ -215,7 +215,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph REST["REST API (Axum)"]
-        CRUD["Rule CRUD\n(73 routes: 47 read +\n23 write + 3 system)"]
+        CRUD["Rule CRUD\n(reads and writes rate\nlimited separately)"]
         HEALTH["Status / health"]
         RELOAD["Config reload"]
         OPENAPI["OpenAPI / Swagger UI"]
