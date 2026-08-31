@@ -29,8 +29,21 @@ alerting:
 | `mitre.technique.id` | MITRE ATT&CK technique |
 | `alert.component` | Source component (ids, dlp, etc.) |
 | `alert.rule_id` | Matched rule ID |
+
+### OTLP Resource
+
+The resource says which agent a record came from, so one collector can hold a
+fleet and still attribute a record.
+
+| Attribute | Source |
+|-----------|--------|
 | `service.name` | `ebpfsentinel` |
 | `service.version` | Agent version |
+| `service.instance.id` | `EBPFSENTINEL_NODE_NAME`, `HOSTNAME`, then `/proc/sys/kernel/hostname`; omitted when none of them answers |
+
+`OTEL_RESOURCE_ATTRIBUTES` replaces or adds any of these, and
+`OTEL_SERVICE_NAME` then wins over the `service.name` that string may itself
+carry, which is the precedence the OpenTelemetry specification states.
 
 Delivery is **best-effort** (fire-and-forget). Enterprise adds durable buffer, at-least-once delivery, and OTLP Metrics export.
 
@@ -115,7 +128,7 @@ auto_response:
 
 1. An alert is created (IDS pattern match, DDoS detection, firewall deny, threat-intel hit, etc.)
 2. An alert that names no source address is skipped: nothing can be contained for it
-3. Each policy is evaluated in order — first match wins (no stacking)
+3. Each policy is evaluated in order - first match wins (no stacking)
 4. If `min_severity` matches and `components` matches (or is empty = all), the source is blacklisted by the IPS, or given a token bucket in the XDP rate limiter for a `throttle`
 5. The block/throttle has a bounded TTL and auto-expires
 6. Every action is logged via `tracing::info` with policy name, alert ID, source IP, and TTL
@@ -127,12 +140,12 @@ auto_response:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | Yes | — | Policy name, non-empty and unique (used in logs, metrics and the throttle's rule ID) |
+| `name` | `string` | Yes | - | Policy name, non-empty and unique (used in logs, metrics and the throttle's rule ID) |
 | `min_severity` | `string` | No | `high` | Minimum alert severity to trigger |
 | `components` | `[string]` | No | `[]` (all) | Component filter, one or more of `ai-security`, `ddos`, `firewall`, `ids`, `ips`, `l7`, `ratelimit`, `threatintel` |
 | `action` | `string` | No | `block` | `block` (deny, both IP families) or `throttle` (rate limit, IPv4 sources only) |
 | `ttl_secs` | `integer` | No | `3600` | Duration of the block/throttle in seconds |
-| `rate_pps` | `integer` | No | — | Packets per second, required above zero on a `throttle` |
+| `rate_pps` | `integer` | No | - | Packets per second, required above zero on a `throttle` |
 
 ### Limits (OSS vs Enterprise)
 

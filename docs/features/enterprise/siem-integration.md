@@ -93,11 +93,11 @@ Events are buffered in a **redb-backed** durable store (not in-memory ring buffe
 
 Key properties:
 
-- **Persistence** — events survive agent restart (redb transactions)
-- **FIFO eviction** — oldest events dropped when buffer cap exceeded
-- **Dropped counter** — `dropped_total` metric incremented on overflow
-- **At-least-once delivery** — events acked only after successful export
-- **Recovery** — on startup, scans stored events to rebuild sequence positions
+- **Persistence** - events survive agent restart (redb transactions)
+- **FIFO eviction** - oldest events dropped when buffer cap exceeded
+- **Dropped counter** - `dropped_total` metric incremented on overflow
+- **At-least-once delivery** - events acked only after successful export
+- **Recovery** - on startup, scans stored events to rebuild sequence positions
 
 Batches are flushed when either the batch size or flush interval is reached, whichever comes first.
 
@@ -182,14 +182,14 @@ Used by Sentinel, QRadar, and generic Syslog connectors:
 
 ## OTLP Enterprise Connector
 
-An 8th connector sends events to any OpenTelemetry-compatible collector (Grafana Alloy, Datadog Agent, Jaeger, etc.) with **at-least-once delivery** guarantees — unlike the OSS fire-and-forget OTLP sender.
+An 8th connector sends events to any OpenTelemetry-compatible collector (Grafana Alloy, Datadog Agent, Jaeger, etc.) with **at-least-once delivery** guarantees - unlike the OSS fire-and-forget OTLP sender.
 
 Key features:
 
-- **Exponential backoff retry** — configurable `max_retries` (default 3) with `initial_backoff_ms` (default 500 ms, doubles each retry)
-- **Durable buffer integration** — events are persisted in the redb buffer before export; only acked after successful HTTP 2xx response from the collector
-- **Circuit breaker protection** — inherits the same 3-state circuit breaker as all other SIEM connectors
-- **OTLP/HTTP JSON format** — sends to `{endpoint}/v1/logs` with `resourceLogs` → `scopeLogs` → `logRecords` structure
+- **Exponential backoff retry** - configurable `max_retries` (default 3) with `initial_backoff_ms` (default 500 ms, doubles each retry)
+- **Durable buffer integration** - events are persisted in the redb buffer before export; only acked after successful HTTP 2xx response from the collector
+- **Circuit breaker protection** - inherits the same 3-state circuit breaker as all other SIEM connectors
+- **OTLP/HTTP JSON format** - sends to `{endpoint}/v1/logs` with `resourceLogs` → `scopeLogs` → `logRecords` structure
 - **Attributes**: `alert.component`, `alert.rule_id` and, when the alert names one,
   `mitre.technique.id` - the same three the OSS sender writes - plus `event.id`,
   `ebpfsentinel.tenant_id` when the event belongs to a tenant, and the L7 enrichment
@@ -198,6 +198,11 @@ Key features:
 - **Severity**: `severityNumber` follows the OpenTelemetry logs data model (9 INFO,
   13 WARN, 17 ERROR, 21 FATAL) and `severityText` carries the product's own word
   (`low`, `medium`, `high`, `critical`), so a collector can filter on either
+- **Resource**: `service.name`, `service.version` and `service.instance.id` - the
+  same set the OSS sender writes, so one collector holding a fleet can say which
+  deployment a record came from, and `OTEL_RESOURCE_ATTRIBUTES` and
+  `OTEL_SERVICE_NAME` override it in the order the OpenTelemetry specification
+  states
 - **Timestamps**: `timeUnixNano` is when the alert happened and
   `observedTimeUnixNano` is when the exporter picked it up, which is what makes a
   buffered replay after an outage readable as a replay rather than as a burst
@@ -213,7 +218,7 @@ enterprise:
       initial_backoff_ms: 500   # first retry delay (doubles each time)
 ```
 
-The OTLP connector plugs into the existing fan-out pipeline — it can run alongside Splunk, Elasticsearch, or any other connector simultaneously.
+The OTLP connector plugs into the existing fan-out pipeline - it can run alongside Splunk, Elasticsearch, or any other connector simultaneously.
 
 ## S3 Data Lake Connector
 
@@ -221,10 +226,10 @@ Exports events as NDJSON (one JSON object per line) to any S3-compatible object 
 
 Key features:
 
-- **Date-partitioned keys** — objects stored as `{prefix}/year=YYYY/month=MM/day=DD/hour=HH/{batch_id}.ndjson.gz` for efficient partition pruning
-- **Gzip compression** — configurable (enabled by default), reduces storage costs by 80-90%
-- **S3-compatible** — works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store
-- **Authentication** — access key/secret key pair, or IAM instance roles when credentials are omitted
+- **Date-partitioned keys** - objects stored as `{prefix}/year=YYYY/month=MM/day=DD/hour=HH/{batch_id}.ndjson.gz` for efficient partition pruning
+- **Gzip compression** - configurable (enabled by default), reduces storage costs by 80-90%
+- **S3-compatible** - works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store
+- **Authentication** - access key/secret key pair, or IAM instance roles when credentials are omitted
 
 ```yaml
 enterprise:
@@ -233,7 +238,7 @@ enterprise:
       endpoint: http://minio:9000           # or https://s3.amazonaws.com
       bucket: siem-data-lake
       prefix: ebpfsentinel/siem
-      access_key_id: AKIAIOSFODNN7EXAMPLE   # optional — uses IAM if absent
+      access_key_id: AKIAIOSFODNN7EXAMPLE   # optional - uses IAM if absent
       secret_access_key: wJalrXUtnFEMI...   # optional
       compress: true                         # gzip (default: true)
       timeout_ms: 10000
@@ -245,10 +250,10 @@ Exports events directly to a ClickHouse table via the HTTP interface for real-ti
 
 Key features:
 
-- **HTTP JSONEachRow format** — native ClickHouse ingestion format, no intermediate transform needed
-- **Retry with backoff** — configurable `max_retries` and `initial_backoff_ms`
-- **Basic auth** — optional username/password
-- **Configurable target** — database and table name
+- **HTTP JSONEachRow format** - native ClickHouse ingestion format, no intermediate transform needed
+- **Retry with backoff** - configurable `max_retries` and `initial_backoff_ms`
+- **Basic auth** - optional username/password
+- **Configurable target** - database and table name
 
 ```yaml
 enterprise:
@@ -329,7 +334,7 @@ curl -X POST http://agent:8080/api/v1/siem/retro-ioc-scan \
 }
 ```
 
-The scan operates on the durable buffer's current contents — its depth depends on `buffer_size_bytes` and event throughput.
+The scan operates on the durable buffer's current contents - its depth depends on `buffer_size_bytes` and event throughput.
 
 ## Metrics
 
