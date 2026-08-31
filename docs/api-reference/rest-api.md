@@ -161,6 +161,36 @@ not hold. In that case `reason` explains why and `missing_required` is empty.
 Only helpers are probed; kfuncs and map types carry no probe and stay covered by
 the documented kernel floor.
 
+#### GET /api/v1/ebpf/uprobes
+
+The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.
+
+```bash
+curl http://localhost:8080/api/v1/ebpf/uprobes
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `libraries` | integer | Distinct libraries carrying probes |
+| `probes` | array | Every probe, ordered by inode then symbol so two runs diff cleanly |
+
+Each entry of `probes`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lib` | string | Library basename |
+| `path` | string | Path the link was created against, as the loader saw it |
+| `dev` | integer | Block device of the probed file |
+| `ino` | integer | Inode of the probed file. With `dev`, the identity two runs are compared on: the same path can name a different file after a package upgrade |
+| `program` | string | Loader name of the eBPF program behind the probe |
+| `symbol` | string | Exported symbol the probe sits on |
+| `offset` | integer | File offset the link was created at. A changed offset for an unchanged inode is a resolution regression, not a new build |
+| `retprobe` | boolean | The probe fires on return rather than on entry |
+| `brokered` | boolean | `BPF_LINK_CREATE` was issued by the warden (rootless posture) rather than by the agent itself |
+| `sticky` | boolean | The attachment survives a reconcile that finds no process mapping the inode, the cold-start system-library fallback |
+
 ### Firewall
 
 #### GET /api/v1/firewall/rules
@@ -307,6 +337,40 @@ List blacklisted IPs.
 curl http://localhost:8080/api/v1/ips/blacklist
 ```
 
+#### POST /api/v1/ips/blacklist
+
+Manually add an IP to the IPS blacklist. Drives the same path the DNS-blocklist and reputation auto-block features already use, so the entry is visible through `GET /api/v1/ips/blacklist` and is subject to the policy's TTL cap and expiry sweeper. Returns `201` on success and `400` for an unparseable address or a full blacklist.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/ips/blacklist \
+  -H "Content-Type: application/json" \
+  -d '{"ip":"198.51.100.7","reason":"manual-soc","ttl_secs":3600}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ip` | string | Yes | IP address to blacklist (IPv4 or IPv6) |
+| `reason` | string | No | Human-readable reason. Defaults to `manual-api` |
+| `ttl_secs` | integer | No | TTL in seconds. Defaults to, and is capped at, the policy's maximum blacklist duration |
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ip` | string | The address that was blacklisted |
+| `reason` | string | Reason recorded against the entry |
+| `ttl_remaining_secs` | integer | Seconds left before the sweeper expires the entry |
+
+#### DELETE /api/v1/ips/blacklist/{ip}
+
+Remove an IP from the IPS blacklist. Returns `204` on success, `400` for an unparseable address and `404` when the address is not blacklisted.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/ips/blacklist/198.51.100.7
+```
+
 #### GET /api/v1/ips/domain-blocks
 
 List domain-based IP blocks (IPs blocked due to DNS-driven IPS).
@@ -369,6 +433,88 @@ List configured feeds.
 curl http://localhost:8080/api/v1/threatintel/feeds
 ```
 
+#### GET /api/v1/threatintel/urls
+
+List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot rather than from a kernel map.
+
+```bash
+curl http://localhost:8080/api/v1/threatintel/urls
+```
+
+Response: an array of
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `url` | string | The indicator |
+| `feed_id` | string | Feed the indicator came from |
+| `confidence` | integer | Feed-reported confidence |
+| `threat_type` | string | Feed-reported classification |
+
+#### POST /api/v1/threatintel/feeds/refresh
+
+Trigger an immediate re-fetch of every enabled threat-intel feed. Returns `409` when a refresh is already running and `503` when feeds are not enabled in the agent configuration.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/threatintel/feeds/refresh \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `feed_id` | string | No | Feed to refresh. Accepted for forward compatibility; the fetcher refreshes every enabled feed in a single cycle |
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Outcome of the trigger |
+| `message` | string | Human-readable detail |
+
+### GeoIP
+
+#### GET /api/v1/geoip/status
+
+GeoIP enrichment status.
+
+```bash
+curl http://localhost:8080/api/v1/geoip/status
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Whether GeoIP enrichment is enabled in the agent configuration |
+| `ready` | boolean | Whether an mmdb-backed lookup database is loaded and ready |
+
+#### GET /api/v1/geoip/lookup
+
+Resolve one IP address to its GeoIP record. Returns `400` for an unparseable address and `404` when GeoIP is not available.
+
+```bash
+curl "http://localhost:8080/api/v1/geoip/lookup?ip=203.0.113.9"
+```
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ip` | string | Yes | IP address to resolve (IPv4 or IPv6) |
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ip` | string | The address that was resolved |
+| `country_code` | string \| null | ISO country code, `null` when the database has no entry |
+| `country_name` | string \| null | Country name, `null` when the database has no entry |
+| `city` | string \| null | City name, `null` when the database carries no city data |
+| `asn` | integer \| null | Autonomous system number, `null` when no ASN database is loaded |
+| `as_org` | string \| null | Autonomous system organisation, `null` when no ASN database is loaded |
+
 ### Alerts
 
 #### GET /api/v1/alerts
@@ -404,7 +550,7 @@ Server-side filters are applied to every alert before it is forwarded.
 Clients reconnecting with `Last-Event-ID: <last-id>` receive every alert
 emitted after that id from the in-memory replay buffer (≤ 5 000 entries)
 without duplication. If `Last-Event-ID` is unknown to the buffer (the
-client missed too much), the stream resumes live without backfill — the
+client missed too much), the stream resumes live without backfill - the
 client should refetch via `GET /api/v1/alerts`.
 
 | Parameter | Type | Description |
@@ -654,6 +800,23 @@ curl -X POST http://localhost:8080/api/v1/lb/vips \
 
 ### DNS Intelligence
 
+#### GET /api/v1/dns/status
+
+DNS intelligence subsystem status: whether the cache and blocklist are enabled, and what the blocklist has done since start.
+
+```bash
+curl http://localhost:8080/api/v1/dns/status
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Whether DNS intelligence (cache and blocklist) is enabled |
+| `blocklist_pattern_count` | integer | Blocklist patterns currently loaded |
+| `blocklist_domains_blocked` | integer | Domains matched against the blocklist since start |
+| `blocklist_ips_injected` | integer | IPs pushed into the IPS blacklist by a blocklist match |
+
 #### GET /api/v1/dns/cache
 
 List DNS cache entries. Supports `?domain=example.com` filter.
@@ -765,6 +928,49 @@ curl http://localhost:8080/api/v1/routing/gateways
   {"id": 1, "name": "wan1", "interface": "eth0", "gateway_ip": "192.168.1.1", "priority": 10, "enabled": true, "status": "healthy"},
   {"id": 2, "name": "wan2", "interface": "eth1", "gateway_ip": "10.0.0.1", "priority": 20, "enabled": true, "status": "down"}
 ]
+```
+
+#### POST /api/v1/routing/gateways
+
+Add a routing gateway. Returns `201` on success and `409` when the name or address conflicts with an existing gateway.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/routing/gateways \
+  -H "Content-Type: application/json" \
+  -d '{"name":"wan3","ip":"192.0.2.1","interface":"eth2","weight":30,"enabled":true,"health_check_interval_secs":10}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Gateway name |
+| `ip` | string | Yes | Gateway IPv4 address |
+| `interface` | string | No | Egress interface. Defaults to empty, inheriting the agent's primary |
+| `weight` | integer | No | Routing weight, mapped to failover priority (lower is preferred) |
+| `enabled` | boolean | No | Whether the gateway is eligible for selection |
+| `health_check_interval_secs` | integer | No | Health-check probe interval in seconds. When set, an ICMP probe is configured |
+
+Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` returns.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Gateway identifier, rendered as a string for stable API addressing |
+| `name` | string | Gateway name |
+| `interface` | string | Egress interface |
+| `gateway_ip` | string | Gateway IPv4 address |
+| `priority` | integer | Failover priority (lower is preferred) |
+| `weight` | integer | Alias of `priority`, exposed as a routing weight |
+| `enabled` | boolean | Whether the gateway is eligible for selection |
+| `status` | string | Health-check observed status (`healthy`, `degraded`, `down`) |
+| `health_status` | string | Alias of `status` for clients expecting a `health_status` field |
+
+#### DELETE /api/v1/routing/gateways/{id}
+
+Remove a routing gateway. Returns `204` on success and `404` when no gateway carries that identifier.
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/routing/gateways/1
 ```
 
 #### GET /api/v1/routing/routes
@@ -1169,6 +1375,24 @@ Stop a running capture. Requires `admin` role.
 curl -X DELETE http://localhost:8080/api/v1/captures/cap-001
 ```
 
+### TLS
+
+#### GET /api/v1/tls/status
+
+Report the negotiated TLS key-exchange group for the connection carrying this request, so an operator can confirm a post-quantum hybrid handshake against a live connection rather than against the configuration.
+
+```bash
+curl https://localhost:8443/api/v1/tls/status
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tls` | boolean | Whether this request arrived over TLS |
+| `negotiated_group` | string \| null | Negotiated TLS 1.3 key-exchange named group (for example `X25519MLKEM768`, `X25519`, `secp256r1`), `null` when the request did not arrive over TLS |
+| `post_quantum` | boolean | `true` when the negotiated group is the post-quantum hybrid (`X25519MLKEM768`) |
+
 ### Metrics
 
 #### GET /metrics
@@ -1203,6 +1427,8 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/ips/rules` | Yes | List IPS rules |
 | PATCH | `/api/v1/ips/rules/{id}` | Yes | Update IPS rule mode |
 | GET | `/api/v1/ips/blacklist` | Yes | List blacklisted IPs |
+| POST | `/api/v1/ips/blacklist` | Yes | Add an IP to the blacklist |
+| DELETE | `/api/v1/ips/blacklist/{ip}` | Yes | Remove an IP from the blacklist |
 | GET | `/api/v1/ips/domain-blocks` | Yes | List domain-based IP blocks |
 | GET | `/api/v1/ratelimit/rules` | Yes | List rate limit rules |
 | POST | `/api/v1/ratelimit/rules` | Yes | Create rate limit rule |
@@ -1210,6 +1436,10 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/threatintel/status` | Yes | Feed status |
 | GET | `/api/v1/threatintel/iocs` | Yes | List IOCs |
 | GET | `/api/v1/threatintel/feeds` | Yes | List feeds |
+| GET | `/api/v1/threatintel/urls` | Yes | List malicious URL indicators |
+| POST | `/api/v1/threatintel/feeds/refresh` | Yes | Trigger a feed refresh |
+| GET | `/api/v1/geoip/status` | Yes | GeoIP enrichment status |
+| GET | `/api/v1/geoip/lookup` | Yes | Resolve an IP to its GeoIP record |
 | GET | `/api/v1/alerts` | Yes | List alerts |
 | GET | `/api/v1/alerts/stream` | Yes | SSE live alert feed (`Last-Event-ID` resume) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Yes | Mark false positive |
@@ -1228,6 +1458,7 @@ curl http://localhost:8080/metrics
 | DELETE | `/api/v1/lb/services/{id}` | Yes (admin) | Delete LB service |
 | GET | `/api/v1/lb/vips` | Yes | L2 VIP announcer status |
 | POST | `/api/v1/lb/vips` | Yes (admin) | Apply VIP announce config |
+| GET | `/api/v1/dns/status` | Yes | DNS intelligence status |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
 | DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |
 | GET | `/api/v1/dns/stats` | Yes | DNS statistics |
@@ -1239,10 +1470,13 @@ curl http://localhost:8080/metrics
 | POST | `/api/v1/config/reload` | Yes (admin) | Trigger reload |
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
 | GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
+| GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |
 | GET | `/api/v1/routing/gateways` | Yes | List gateways with health status |
+| POST | `/api/v1/routing/gateways` | Yes | Add a routing gateway |
+| DELETE | `/api/v1/routing/gateways/{id}` | Yes | Remove a routing gateway |
 | GET | `/api/v1/routing/routes` | Yes | Default route currently in effect |
 | GET | `/api/v1/zones/status` | Yes | Zone status |
 | GET | `/api/v1/zones` | Yes | List zones |
@@ -1277,6 +1511,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/captures` | Yes | List packet capture sessions |
 | POST | `/api/v1/captures/manual` | Yes (admin) | Start a manual packet capture |
 | DELETE | `/api/v1/captures/{id}` | Yes (admin) | Stop a running capture |
+| GET | `/api/v1/tls/status` | Yes | Negotiated TLS key-exchange group for this connection |
 
 ## Enterprise Endpoints
 

@@ -10,7 +10,8 @@
     "clear": "docusaurus clear",
     "version": "docusaurus docs:version",
     "typecheck": "tsc",
-    "check:metrics": "node scripts/check-metric-names.mjs"
+    "check:metrics": "node scripts/check-metric-names.mjs",
+    "check:rest-routes": "node scripts/check-rest-routes.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

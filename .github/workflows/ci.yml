@@ -35,6 +35,32 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:metrics
 
+  rest-routes:
+    name: REST reference matches the mounted surface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the documentation
+        uses: actions/checkout@v5
+        with:
+          path: ebpfsentinel-docs
+
+      # `openapi.json` is generated from the agent's route annotations and its
+      # own suite pins it to the mounted router both ways, so checking the page
+      # against it is enough to catch a route that shipped undocumented.
+      - name: Check out the agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel
+          path: ebpfsentinel
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Check REST routes
+        working-directory: ebpfsentinel-docs
+        run: npm run check:rest-routes
+
   build:
     name: build
     runs-on: ubuntu-latest
