@@ -190,7 +190,17 @@ Key features:
 - **Durable buffer integration** — events are persisted in the redb buffer before export; only acked after successful HTTP 2xx response from the collector
 - **Circuit breaker protection** — inherits the same 3-state circuit breaker as all other SIEM connectors
 - **OTLP/HTTP JSON format** — sends to `{endpoint}/v1/logs` with `resourceLogs` → `scopeLogs` → `logRecords` structure
-- **Attributes**: `event.id`, `alert.component`, `alert.rule_id` per log record
+- **Attributes**: `alert.component`, `alert.rule_id` and, when the alert names one,
+  `mitre.technique.id` - the same three the OSS sender writes - plus `event.id`,
+  `ebpfsentinel.tenant_id` when the event belongs to a tenant, and the L7 enrichment
+  fields under the names the other connectors already use (`threat.technique.id`,
+  `http.request.method`, `url.path`, and the rest)
+- **Severity**: `severityNumber` follows the OpenTelemetry logs data model (9 INFO,
+  13 WARN, 17 ERROR, 21 FATAL) and `severityText` carries the product's own word
+  (`low`, `medium`, `high`, `critical`), so a collector can filter on either
+- **Timestamps**: `timeUnixNano` is when the alert happened and
+  `observedTimeUnixNano` is when the exporter picked it up, which is what makes a
+  buffered replay after an outage readable as a replay rather than as a burst
 
 ```yaml
 enterprise:
