@@ -144,6 +144,7 @@ rather than reporting an idle datapath.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_ips_blacklist_size` | Gauge | — | Current blacklist entry count |
+| `ebpfsentinel_auto_responses_total` | Counter | `policy` | Auto-response enforcements applied, by the policy that matched. Only an enforcement that succeeded is counted; a policy that matched and failed to apply is logged and left out |
 
 ### Load Balancer
 
@@ -170,6 +171,13 @@ rather than reporting an idle datapath.
 | `ebpfsentinel_dns_queries_total` | Counter | — | DNS queries observed |
 | `ebpfsentinel_dns_blocked_total` | Counter | — | Domains blocked by blocklist |
 | `ebpfsentinel_domain_reputation_tracked` | Gauge | — | Domains with reputation scores |
+| `ebpfsentinel_encrypted_dns_detections_total` | Counter | `protocol` (`doh`/`dot`), `resolver` | Encrypted DNS connections detected. A DoT detection reads the resolver out of the TLS SNI, which the client writes, so the label is capped at 64 distinct values per process and everything past the cap is counted under `resolver="other"` |
+
+### TLS Fingerprints
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_fingerprints_seen_total` | Counter | - | JA4 fingerprints computed from observed TLS ClientHellos. The fingerprint value is deliberately not a label: it is derived from bytes the client chose, so one series per value is an unbounded label set a peer controls. Read them from `GET /api/v1/fingerprints/summary` or `ebpfsentinel-agent fingerprints` |
 
 ### QoS
 

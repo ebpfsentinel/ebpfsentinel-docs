@@ -72,6 +72,13 @@ The `TlsClientHello` struct includes an optional `session_id` field parsed from 
 
 Alerts for TLS-based connections are enriched with `ja4_fingerprint` when the flow is in the fingerprint cache. The cache stores up to 10,000 fingerprints with a 5-minute TTL.
 
+## Metrics
+
+`ebpfsentinel_fingerprints_seen_total` counts the ClientHellos the pipeline
+fingerprinted. The JA4 value is deliberately not a label: it is derived from
+bytes the client chose, so a series per value is an unbounded label set a peer
+controls. The values themselves are read per flow from the cache below.
+
 ## API
 
 ```

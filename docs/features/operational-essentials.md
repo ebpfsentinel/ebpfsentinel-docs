@@ -119,6 +119,9 @@ auto_response:
 4. If `min_severity` matches and `components` matches (or is empty = all), the source is blacklisted by the IPS, or given a token bucket in the XDP rate limiter for a `throttle`
 5. The block/throttle has a bounded TTL and auto-expires
 6. Every action is logged via `tracing::info` with policy name, alert ID, source IP, and TTL
+7. Every enforcement that succeeded increments
+   `ebpfsentinel_auto_responses_total{policy}`. A policy that matched and
+   failed to apply is logged as a warning and left out of the counter
 
 ### Policy Fields
 
@@ -256,6 +259,10 @@ dns:
 
 ### Behavior
 
-Detection is **passive** (alert-only in OSS). Detected events are logged and counted via Prometheus metric `record_encrypted_dns(protocol, resolver)`.
+Detection is **passive** (alert-only in OSS). Detected events are logged and
+counted on `ebpfsentinel_encrypted_dns_detections_total{protocol,resolver}`. A
+DoT detection reads the resolver name out of the TLS SNI, which the client
+writes, so the label is capped at 64 distinct values per process and everything
+past the cap is counted under `resolver="other"`.
 
 Enterprise adds policy enforcement: block unauthorized DoH/DoT, allow-list for approved resolvers.
