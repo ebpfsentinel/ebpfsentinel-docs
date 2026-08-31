@@ -303,11 +303,11 @@ within one interval rather than at the next agent restart.
 
 ### Admin API
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `GET` | `/api/v1/enterprise/tls-probes/status` | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag |
-| `GET` | `/api/v1/enterprise/tls-probes/plans` | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat` |
-| `GET` | `/api/v1/enterprise/tls-probes/warnings` | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | advanced-dlp | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | advanced-dlp | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
+| `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | advanced-dlp | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the
@@ -343,6 +343,18 @@ Pattern changes take effect without restarting the agent:
 - Change global or per-pattern mode
 - Toggle individual patterns enabled/disabled
 - Atomic database recompilation (old database serves scans until new one is ready)
+
+## REST API
+
+The active TLS probe endpoints documented under Admin API above sit on the same port and the same license feature.
+
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/dlp/status` | viewer | advanced-dlp | Enterprise DLP engine status. |
+| `GET` | `/api/v1/enterprise/dlp/patterns` | viewer | advanced-dlp | List all DLP patterns. |
+| `POST` | `/api/v1/enterprise/dlp/patterns` | operator | advanced-dlp | Add a custom pattern. |
+| `DELETE` | `/api/v1/enterprise/dlp/patterns/{id}` | operator | advanced-dlp | Remove a custom pattern. |
+| `PATCH` | `/api/v1/enterprise/dlp/patterns/{id}/mode` | operator | advanced-dlp | Change pattern mode. |
 
 ## Feature Gating
 

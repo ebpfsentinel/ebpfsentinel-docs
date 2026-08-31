@@ -93,10 +93,16 @@ assert_eq!(alert.mitre.as_ref().unwrap().id, "T1190");
 | `enterprise-domain` | `crates/enterprise-domain/src/l7_enrichment/pci.rs` | `controls_for_inspect_category` / `controls_for_policy_code` |
 | `enterprise-domain` | `crates/enterprise-domain/src/l7_enrichment/engine.rs` | `L7Enricher` |
 
+## REST API
+
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/enriched-alerts` | viewer | advanced-dlp | Alerts carrying their L7 protocol context. |
+
 ## Feature Gating
 
 The enrichment layer requires the same `advanced-dlp` license feature
 as the Vectorscan DLP engine, the L7 deep content inspection engine,
-and the per-protocol policy engines — all four E18 enterprise
+and the per-protocol policy engines: all four enterprise
 capabilities light up together. Without a license the enricher stays
 idle and the OSS L7 firewall operates unchanged.

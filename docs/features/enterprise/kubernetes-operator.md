@@ -19,6 +19,15 @@ A Kubernetes operator that manages eBPFsentinel agents via Custom Resource Defin
 
 Deploy eBPFsentinel as a DaemonSet with ConfigMap-based configuration. Use the REST API or CLI for runtime rule management. See [Kubernetes Deployment](../../operations/deployment/kubernetes.md).
 
+## REST API
+
+The operator mounts no endpoint on the agent. There is no `kubernetes-operator`
+license feature and no route belongs to it: the operator is a separate binary
+that drives agents through the endpoints listed in
+[Enterprise REST API](../../api-reference/rest-api-enterprise.md) and through
+the Kubernetes API, and it serves its own surface rather than adding to the
+agent's.
+
 ## Dashboard integration
 
 Every ConfigMap rendered by the operator forces `management.operator_managed: true` in the agent config so the dashboard can lock its config-edit UI on operator-managed agents:

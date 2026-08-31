@@ -235,30 +235,30 @@ RBAC management routes (create, delete, update, reload, assignments) require adm
 
 ### Role Management
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/rbac/roles` | List all roles |
-| `POST` | `/api/v1/rbac/roles` | Create custom role (201) |
-| `GET` | `/api/v1/rbac/roles/{id}` | Role details (404 if not found) |
-| `PUT` | `/api/v1/rbac/roles/{id}` | Update custom role (403 for built-in) |
-| `DELETE` | `/api/v1/rbac/roles/{id}` | Delete custom role (403 for built-in, 204 on success) |
-| `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | Resolved grants with inheritance |
-| `PUT` | `/api/v1/rbac/roles` | Bulk reload all custom roles (atomic) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/rbac/roles` | viewer | advanced-rbac | List all roles. |
+| `POST` | `/api/v1/rbac/roles` | operator | advanced-rbac | Create custom role (201). |
+| `GET` | `/api/v1/rbac/roles/{id}` | viewer | advanced-rbac | Role details (404 if not found). |
+| `PUT` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Update custom role (403 for built-in). |
+| `DELETE` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
+| `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
+| `PUT` | `/api/v1/rbac/roles` | operator | advanced-rbac | Bulk reload all custom roles (atomic). |
 
 ### Permission Checking
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/rbac/check` | Check permission (`{ role_id, domain, permission, resource_id? }`) |
-| `POST` | `/api/v1/rbac/filter` | Filter accessible resources (`{ role_id, domain, resource_ids }`) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/rbac/check` | operator | advanced-rbac | Check permission (`{ role_id, domain, permission, resource_id? }`). |
+| `POST` | `/api/v1/rbac/filter` | operator | advanced-rbac | Filter accessible resources (`{ role_id, domain, resource_ids }`). |
 
 ### Subject Assignments
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/rbac/assignments` | Assign role to subject (201) |
-| `DELETE` | `/api/v1/rbac/assignments` | Remove role from subject (204) |
-| `GET` | `/api/v1/rbac/assignments/{subject}` | List roles for subject |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Assign role to subject (201). |
+| `DELETE` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Remove role from subject (204). |
+| `GET` | `/api/v1/rbac/assignments/{subject}` | viewer | advanced-rbac | List roles for subject. |
 
 ## Feature Gating
 

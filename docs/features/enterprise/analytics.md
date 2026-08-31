@@ -208,16 +208,17 @@ enterprise:
 
 ## REST API
 
-| Method | Endpoint | Query Params | Description |
-|--------|----------|-------------|-------------|
-| `GET` | `/api/v1/analytics/top-talkers` | `period` (default 24h), `limit` (default 20) | Top talkers with period-over-period deltas |
-| `GET` | `/api/v1/analytics/alerts` | `period` (default 24h) | Alert summary by severity and component |
-| `GET` | `/api/v1/analytics/ioc` | `period` (default 24h) | IOC hit summary by threat type |
-| `GET` | `/api/v1/analytics/status` | — | Pipeline status |
-| `GET` | `/api/v1/analytics/trends` | `period` (min 7d) | Trend report (JSON) |
-| `GET` | `/api/v1/analytics/trends/csv` | `period` (min 7d) | Trend report (CSV) |
-| `GET` | `/api/v1/analytics/trends/text` | `period` (min 7d) | Trend report (text) |
-| `GET` | `/api/v1/analytics/trends/history` | — | Cached daily trend reports (up to 30) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with period-over-period deltas. Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). |
+| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Flow volume aggregates over the requested period. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/status` | viewer | advanced-analytics | Pipeline status. |
+| `GET` | `/api/v1/analytics/trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/csv` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/text` | viewer | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/history` | viewer | advanced-analytics | Cached daily trend reports (up to 30). |
 
 ## Feature Gating
 

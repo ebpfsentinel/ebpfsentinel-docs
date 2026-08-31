@@ -113,14 +113,18 @@ Flow entries group events by `(src_port, dst_port, protocol)` and track first/la
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/enterprise/forensics/status` | Ring buffer status, capture count, trigger policy |
-| `GET` | `/api/v1/enterprise/forensics/captures` | List all forensic captures |
-| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | Get single capture metadata |
-| `DELETE` | `/api/v1/enterprise/forensics/captures/{id}` | Delete a capture |
-| `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | Flow timeline around an alert |
-| `GET` | `/api/v1/enterprise/forensics/timeline/flow` | Timeline for a specific flow tuple |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer status, capture count, trigger policy. |
+| `GET` | `/api/v1/enterprise/forensics/mirror` | viewer | network-forensics | Return the current packet mirror configuration. |
+| `POST` | `/api/v1/enterprise/forensics/mirror/start` | operator | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
+| `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
+| `GET` | `/api/v1/enterprise/forensics/captures` | viewer | network-forensics | List all forensic captures. |
+| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | viewer | network-forensics | Get single capture metadata. |
+| `DELETE` | `/api/v1/enterprise/forensics/captures/{id}` | operator | network-forensics | Delete a capture. |
+| `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | network-forensics | Flow timeline around an alert. |
+| `GET` | `/api/v1/enterprise/forensics/timeline/flow` | viewer | network-forensics | Timeline for a specific flow tuple. |
+| `GET` | `/api/v1/forensics/events/stream` | viewer | network-forensics | Server-Sent Events live forensic event feed. |
 
 ### Timeline Query Parameters
 

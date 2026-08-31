@@ -166,16 +166,16 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/enterprise/response/status` | Service status (active policies, webhooks, cooldowns, audit depth) |
-| `GET` | `/api/v1/enterprise/response/policies` | List all response policies |
-| `POST` | `/api/v1/enterprise/response/policies` | Create a response policy |
-| `DELETE` | `/api/v1/enterprise/response/policies/{id}` | Delete a response policy |
-| `GET` | `/api/v1/enterprise/response/webhooks` | List all webhook endpoints |
-| `POST` | `/api/v1/enterprise/response/webhooks` | Create a webhook endpoint |
-| `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | Delete a webhook endpoint |
-| `GET` | `/api/v1/enterprise/response/audit` | Query the audit trail |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/response/status` | viewer | automated-response | Service status (active policies, webhooks, cooldowns, audit depth). |
+| `GET` | `/api/v1/enterprise/response/policies` | viewer | automated-response | List all response policies. |
+| `POST` | `/api/v1/enterprise/response/policies` | operator | automated-response | Create a response policy. |
+| `DELETE` | `/api/v1/enterprise/response/policies/{id}` | operator | automated-response | Delete a response policy. |
+| `GET` | `/api/v1/enterprise/response/webhooks` | viewer | automated-response | List all webhook endpoints. |
+| `POST` | `/api/v1/enterprise/response/webhooks` | operator | automated-response | Create a webhook endpoint. |
+| `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | operator | automated-response | Delete a webhook endpoint. |
+| `GET` | `/api/v1/enterprise/response/audit` | viewer | automated-response | Query the audit trail. |
 
 ## Metrics
 

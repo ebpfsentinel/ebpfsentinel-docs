@@ -1,5 +1,9 @@
 # REST API Reference
 
+This page describes the **open-source agent**. The enterprise agent is a
+separate binary listening on a port of its own, and its surface is
+documented in [Enterprise REST API](rest-api-enterprise.md).
+
 Base URL: `http://localhost:8080` (or `https://` with TLS enabled)
 
 ## Public Endpoints
@@ -1515,126 +1519,8 @@ curl http://localhost:8080/metrics
 
 ## Enterprise Endpoints
 
-Served on the enterprise API port (default `8444`). Requires `FleetManagement` license feature.
-
-### Authentication
-
-The enterprise port uses the same credentials as the agent API: with
-`auth.enabled: true` every endpoint on `8444` requires either
-`Authorization: Bearer <token>` or `X-API-Key: <key>`, and an unauthenticated
-call gets `401`. That covers `/metrics`, the Swagger UI and the fleet endpoints
-below, so a Prometheus scrape or a fleet agent needs a credential of its own.
-
-With `auth.enabled: false` the port is open, but nothing can then prove a role:
-every caller is treated as an anonymous viewer, and the role-gated endpoints
-(tenant administration in particular) stay unavailable. Role headers are never
-trusted - the role comes from the verified credential, not from the request.
-
-### Fleet Management
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/v1/agent/register` | Yes | Register agent, returns UUIDv7 identity + token |
-| POST | `/api/v1/agent/heartbeat` | Yes | Agent heartbeat with live rule counts and config version |
-| GET | `/api/v1/agent/identity` | Yes | Full agent identity, capabilities, eBPF status, TLS info |
-| GET | `/api/v1/agent/config/version` | Yes | Config SHA-256 hash + reload timestamp |
-| GET | `/api/v1/flows/graph` | Yes | Network flow graph from conntrack (query: `max_nodes`, `min_bytes`, `protocol`, `limit`) |
-
-See [Fleet Management](../features/enterprise/fleet-management.md) for request/response details.
-
-### Network Forensics
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/api/v1/forensics/events/stream` | Yes | SSE live forensic event feed (`Last-Event-ID` resume) |
-
-#### GET /api/v1/forensics/events/stream
-
-Server-Sent Events live forensic event feed. Each frame carries
-`id: <event-id>`, `event: forensic_event`, and `data: <json>` matching the
-forensic event schema captured in the engine ring buffer. The connection
-emits a `:keepalive` comment every 15 seconds so HTTP/1.1 intermediaries do
-not idle-close the stream.
-
-Server-side filters are applied to every event before it is forwarded.
-Clients reconnecting with `Last-Event-ID: <last-id>` receive every event
-whose id is lexicographically greater than that value from the in-memory
-ring buffer, without duplication (ids are UUIDv7, so lexical order is time
-order). If the client missed more than the ring buffer holds, the stream
-resumes live without backfill.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `severity_min` | string | Minimum severity (`low` \| `medium` \| `high` \| `critical`). |
-| `component` | string | Component to receive (case-insensitive exact match). |
-| `mitre_technique` | string | MITRE ATT&CK technique id, e.g. `T1190` (case-insensitive). |
-
-Response headers:
-
-- `Content-Type: text/event-stream`
-- `Cache-Control: no-cache`
-- `Connection: keep-alive`
-
-```bash
-curl -N -H 'Accept: text/event-stream' \
-    "https://localhost:8444/api/v1/forensics/events/stream?severity_min=high&component=ids"
-```
-
-```text
-:keepalive
-
-id: 01934567-89ab-7def-0123-456789abcdef
-event: forensic_event
-data: {"id":"01934567-89ab-7def-0123-456789abcdef","component":"ids","severity":"High",...}
-```
-
-The Prometheus gauge `forensics_sse_subscribers` exposes the current
-subscriber count, incremented / decremented by the handler on connect /
-disconnect.
-
-### Multi-Cluster Federation
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/api/v1/federation/alerts/stream` | Yes | SSE live federated alert feed, cluster-scoped (`Last-Event-ID` resume) |
-
-#### GET /api/v1/federation/alerts/stream
-
-Server-Sent Events live feed of aggregated alerts from federated clusters.
-Available on the management node only. Each frame carries
-`id: <event-id>`, `event: federated_alert`, and `data: <json>` matching the
-[`FederatedAlert`](#) schema returned by `GET /api/v1/federation/alerts`. The
-connection emits a `:keepalive` comment every 15 seconds.
-
-Server-side filters are applied to every alert before it is forwarded.
-`cluster_id` scopes the stream to a single federation tenant (cluster); a
-missing value streams every cluster's alerts. Clients reconnecting with
-`Last-Event-ID: <last-id>` receive every alert whose UUIDv7 `event_id` is
-lexicographically greater than that value from the in-memory rolling buffer
-(≤ 5 000 entries), without duplication.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `cluster_id` | string | Restrict to one cluster UUID (the federation tenant scope). |
-| `severity` | string | Severity to receive (case-insensitive exact match). |
-| `component` | string | Component to receive (case-insensitive exact match). |
-
-```bash
-curl -N -H 'Accept: text/event-stream' \
-    -H 'Last-Event-ID: 01934567-89ab-7def-0123-456789abcdef' \
-    "https://localhost:8444/api/v1/federation/alerts/stream?cluster_id=01234567-89ab-cdef-0123-456789abcdef"
-```
-
-```text
-:keepalive
-
-id: 01934567-89ab-7def-0123-456789abcdef
-event: federated_alert
-data: {"event_id":"01934567-89ab-7def-0123-456789abcdef","cluster_name":"prod-east","severity":"high",...}
-```
-
-The Prometheus gauge `federation_alerts_sse_subscribers`, labelled by
-`tenant` (the cluster UUID, or `all` when unscoped), exposes the current
-subscriber count per scope.
-
-See [Multi-Cluster Federation](../features/enterprise/multicluster.md) for request/response details.
+The enterprise agent serves a surface of its own on the enterprise API port
+(default `8444`), including the fleet management, network forensics and
+multi-cluster federation endpoints that used to be listed here. Every one of
+them, with the role and the license feature each requires, is documented in
+[Enterprise REST API](rest-api-enterprise.md).

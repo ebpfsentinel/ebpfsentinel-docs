@@ -10,13 +10,13 @@ Gated by the `FleetManagement` license feature.
 
 ## Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/v1/agent/register` | Yes | Register agent, get UUIDv7 identity + token |
-| POST | `/api/v1/agent/heartbeat` | Yes | Report status, receive aggregated health |
-| GET | `/api/v1/agent/identity` | Yes | Full agent identity with capabilities |
-| GET | `/api/v1/agent/config/version` | Yes | Config SHA-256 hash + reload timestamp |
-| GET | `/api/v1/flows/graph` | Yes | Network flow graph from conntrack data |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/agent/register` | operator | fleet-management | Register agent, get UUIDv7 identity + token. |
+| `POST` | `/api/v1/agent/heartbeat` | operator | fleet-management | Report status, receive aggregated health. |
+| `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
+| `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash + reload timestamp. |
+| `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
 
 With `auth.enabled: true` these endpoints require a credential like every other
 enterprise endpoint (`Authorization: Bearer <token>` or `X-API-Key: <key>`),

@@ -248,7 +248,7 @@ Dynamic tenant changes propagate to the kernel **live, without a restart**: afte
 
 ### Self-Service Policy
 
-Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits. Self-service is a property of the tenant object set through the tenant management API (`POST`/`PUT /api/v1/enterprise/tenants`) — it is **not** part of the static `enterprise.tenants` YAML, which always starts a config-defined tenant with self-service disabled.
+Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits. Self-service is a property of the tenant object set through the tenant management API (`POST /api/v1/enterprise/tenants`), and it is **not** part of the static `enterprise.tenants` YAML, which always starts a config-defined tenant with self-service disabled.
 
 ```json
 {
@@ -269,13 +269,13 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 
 ### Self-Service API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/enterprise/tenants` | Create tenant dynamically (admin) |
-| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | Suspend tenant (admin) |
-| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | Reactivate suspended tenant (admin) |
-| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | Get self-service policy |
-| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | Check if operation is allowed |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/enterprise/tenants` | operator | multi-tenancy | Create tenant dynamically (admin). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | multi-tenancy | Suspend tenant (admin). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | multi-tenancy | Reactivate suspended tenant (admin). |
+| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | multi-tenancy | Get self-service policy. |
+| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | multi-tenancy | Check if operation is allowed. |
 
 ### Self-Service Metrics
 
@@ -395,16 +395,16 @@ by hand.
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/tenants` | List all tenants (admin only) |
-| `GET` | `/api/v1/tenants/{id}` | Tenant details (read permission) |
-| `GET` | `/api/v1/tenants/{id}/quota` | Current quota limits and usage |
-| `PUT` | `/api/v1/tenants/{id}/quota` | Update quota (admin, partial update, 429 on reduction below usage) |
-| `POST` | `/api/v1/tenants/{id}/quota/check` | Check quota without consuming (read permission) |
-| `GET` | `/api/v1/tenants/metrics` | Prometheus quota metrics (admin only) |
-| `GET` | `/api/v1/enterprise/alerts` | Tenant-scoped alerts (filtered by effective tenant) |
-| `GET` | `/api/v1/enterprise/audit` | Tenant-scoped audit logs (filtered by effective tenant) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/tenants` | viewer | multi-tenancy | List all tenants (admin only). |
+| `GET` | `/api/v1/tenants/{id}` | viewer | multi-tenancy | Tenant details (read permission). |
+| `GET` | `/api/v1/tenants/{id}/quota` | viewer | multi-tenancy | Current quota limits and usage. |
+| `PUT` | `/api/v1/tenants/{id}/quota` | operator | multi-tenancy | Update quota (admin, partial update, 429 on reduction below usage). |
+| `POST` | `/api/v1/tenants/{id}/quota/check` | operator | multi-tenancy | Check quota without consuming (read permission). |
+| `GET` | `/api/v1/tenants/metrics` | viewer | multi-tenancy | Prometheus quota metrics (admin only). |
+| `GET` | `/api/v1/enterprise/alerts` | viewer | multi-tenancy | Tenant-scoped alerts (filtered by effective tenant). |
+| `GET` | `/api/v1/enterprise/audit` | viewer | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
 
 ### Tenant Response
 

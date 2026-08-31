@@ -94,6 +94,26 @@ let req = SqlRequest {
 assert!(policy.evaluate(&req).is_allow());
 ```
 
+## REST API
+
+A `PUT` replaces the policy for one protocol as a whole; there is no partial update.
+
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/policy/decisions` | viewer | advanced-dlp | Recent per-protocol policy decisions. |
+| `GET` | `/api/v1/enterprise/l7/policy/redis` | viewer | advanced-dlp | Current Redis policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/redis` | operator | advanced-dlp | Replace the Redis policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/mongodb` | viewer | advanced-dlp | Current MongoDB policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/mongodb` | operator | advanced-dlp | Replace the MongoDB policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/kafka` | viewer | advanced-dlp | Current Kafka policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/kafka` | operator | advanced-dlp | Replace the Kafka policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/sql` | viewer | advanced-dlp | Current SQL policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/sql` | operator | advanced-dlp | Replace the SQL policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/ldap` | viewer | advanced-dlp | Current LDAP policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ldap` | operator | advanced-dlp | Replace the LDAP policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/ssh` | viewer | advanced-dlp | Current SSH policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ssh` | operator | advanced-dlp | Replace the SSH policy. |
+
 ## Code Architecture
 
 | Crate | Path | Role |

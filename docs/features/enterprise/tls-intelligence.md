@@ -73,9 +73,10 @@ GET    /api/v1/enterprise/tls-intelligence/threats
 POST   /api/v1/enterprise/tls-intelligence/threats
 DELETE /api/v1/enterprise/tls-intelligence/threats/{id}
 GET    /api/v1/enterprise/tls-intelligence/threats/matches
-GET    /api/v1/enterprise/tls-intelligence/threats/allowlist
-PUT    /api/v1/enterprise/tls-intelligence/threats/allowlist
 ```
+
+The allowlist is configuration only. No route reads or writes it, so a change
+to it is a configuration change followed by a reload.
 
 ## TLS Behavior Anomaly
 
@@ -116,8 +117,9 @@ enterprise:
 
 ```
 GET /api/v1/enterprise/tls-intelligence/anomalies
-GET /api/v1/enterprise/tls-intelligence/anomalies/stats
-GET /api/v1/enterprise/tls-intelligence/fingerprints
+GET /api/v1/enterprise/tls-intelligence/anomalies/config
+PUT /api/v1/enterprise/tls-intelligence/anomalies/config
+GET /api/v1/enterprise/tls-intelligence/clusters
 ```
 
 ## PQC Compliance Detection
@@ -167,8 +169,8 @@ enterprise:
 ### API
 
 ```
-GET /api/v1/enterprise/tls-intelligence/pqc/summary
-GET /api/v1/enterprise/tls-intelligence/pqc/destinations
+GET /api/v1/enterprise/tls-intelligence/pqc/report
+GET /api/v1/enterprise/tls-intelligence/pqc/connections
 ```
 
 ## Cipher/Protocol Compliance
@@ -230,14 +232,14 @@ enterprise:
 ### API
 
 ```
-GET /api/v1/enterprise/tls-intelligence/compliance/policy
-PUT /api/v1/enterprise/tls-intelligence/compliance/policy
-GET /api/v1/enterprise/tls-intelligence/compliance/violations
+GET /api/v1/enterprise/tls-intelligence/crypto/policy
+PUT /api/v1/enterprise/tls-intelligence/crypto/policy
+GET /api/v1/enterprise/tls-intelligence/crypto/violations
 ```
 
 ## TLS Behavioral Scoring
 
-Advanced behavioral analysis extending the core E13 sub-capabilities with 7 detection engines:
+Advanced behavioral analysis extending the core sub-capabilities with 7 detection engines:
 
 ### Cipher Downgrade Detection
 
@@ -333,29 +335,30 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/enterprise/tls-intelligence/threats` | List all threat fingerprint entries |
-| `POST` | `/api/v1/enterprise/tls-intelligence/threats` | Add custom threat entry |
-| `DELETE` | `/api/v1/enterprise/tls-intelligence/threats/{id}` | Remove threat entry |
-| `GET` | `/api/v1/enterprise/tls-intelligence/threats/matches` | List threat match detections |
-| `GET` | `/api/v1/enterprise/tls-intelligence/threats/allowlist` | Get allowlist entries |
-| `PUT` | `/api/v1/enterprise/tls-intelligence/threats/allowlist` | Update allowlist |
-| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies` | List behavior anomaly alerts |
-| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies/stats` | Anomaly detection statistics |
-| `GET` | `/api/v1/enterprise/tls-intelligence/fingerprints` | List tracked fingerprints with rarity scores |
-| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/summary` | PQC compliance summary |
-| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/destinations` | Per-destination PQC breakdown |
-| `GET` | `/api/v1/enterprise/tls-intelligence/compliance/policy` | Get cipher/protocol compliance policy |
-| `PUT` | `/api/v1/enterprise/tls-intelligence/compliance/policy` | Update compliance policy |
-| `GET` | `/api/v1/enterprise/tls-intelligence/compliance/violations` | List compliance violations |
-| `GET` | `/api/v1/enterprise/tls-intelligence/status` | Overall TLS intelligence status |
-| `GET` | `/api/v1/enterprise/tls-intelligence/cipher-downgrades` | List cipher downgrade detections |
-| `GET` | `/api/v1/enterprise/tls-intelligence/server-fingerprints` | List server fingerprint changes |
-| `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | List SNI/cert mismatch detections |
-| `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | List session resumption anomalies |
-| `GET` | `/api/v1/enterprise/tls-intelligence/ml/status` | TLS ML inference status |
-| `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | Peer-group rarity status |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/tls-intelligence/threats` | viewer | tls-intelligence | List all threat fingerprint entries. |
+| `POST` | `/api/v1/enterprise/tls-intelligence/threats` | operator | tls-intelligence | Add custom threat entry. |
+| `DELETE` | `/api/v1/enterprise/tls-intelligence/threats/{id}` | operator | tls-intelligence | Remove threat entry. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/threats/matches` | viewer | tls-intelligence | List threat match detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies` | viewer | tls-intelligence | List behavior anomaly alerts. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | viewer | tls-intelligence | Current anomaly detector thresholds. |
+| `PUT` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | operator | tls-intelligence | Replace the anomaly detector thresholds. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/server-fingerprints` | viewer | tls-intelligence | List server fingerprint changes. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/report` | viewer | tls-intelligence | Post-quantum readiness summary for the estate. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/connections` | viewer | tls-intelligence | Connections carrying post-quantum key exchange. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | viewer | tls-intelligence | Current cryptographic policy. |
+| `PUT` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | operator | tls-intelligence | Replace the cryptographic policy. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/violations` | viewer | tls-intelligence | Connections that breached the cryptographic policy. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/status` | viewer | tls-intelligence | Overall TLS intelligence status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/cipher-downgrades` | viewer | tls-intelligence | List cipher downgrade detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | viewer | tls-intelligence | List SNI/cert mismatch detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | viewer | tls-intelligence | List session resumption anomalies. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/ml/status` | viewer | tls-intelligence | TLS ML inference status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | viewer | tls-intelligence | Peer-group rarity status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/alerts` | viewer | tls-intelligence | List TLS intelligence alerts. |
+| `POST` | `/api/v1/enterprise/tls-intelligence/events` | operator | tls-intelligence | Ingest a TLS handshake observation. |
 
 ## Configuration
 
@@ -394,21 +397,21 @@ enterprise:
         - 257                         # 0x0101 rsa_pkcs1_md5
         - 513                         # 0x0201 rsa_pkcs1_sha1
 
-    # Cipher Downgrade Detection (E20)
+    # Cipher Downgrade Detection
     cipher_baseline:
       enabled: true
       warmup_observations: 10
 
-    # Beaconing-TLS Bridge (E20)
+    # Beaconing-TLS Bridge
     beaconing_bridge:
       enabled: true
 
-    # ML Anomaly Detection (E20)
+    # ML Anomaly Detection
     ml:
       model_path: /etc/ebpfsentinel/tls-anomaly.onnx
       anomaly_threshold: 0.7
 
-    # Peer-Group Rarity (E20)
+    # Peer-Group Rarity
     peer_group_rarity:
       enabled: true
       min_group_observations: 50

@@ -420,10 +420,10 @@ Only configure the connectors you need. Unconfigured connectors are ignored.
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/siem/status` | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts) |
-| `POST` | `/api/v1/siem/retro-ioc-scan` | Retroactive IOC matching against buffered events |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/siem/status` | viewer | siem-integration | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts). |
+| `POST` | `/api/v1/siem/retro-ioc-scan` | operator | siem-integration | Retroactive IOC matching against buffered events. |
 
 ## Feature Gating
 

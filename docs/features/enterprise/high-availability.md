@@ -301,14 +301,14 @@ Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when 
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/ha/status` | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded) |
-| `GET` | `/api/v1/ha/peers` | Peer list with addresses |
-| `POST` | `/api/v1/ha/failover` | Manual failover (leader only, 409 Conflict if not leader or no peers) |
-| `GET` | `/api/v1/ha/replication` | Per-category replication status (leader_seq, synced flag) |
-| `GET` | `/api/v1/ha/interfaces` | Interface assignments and ownership status (active_active mode) |
-| `GET` | `/api/v1/ha/health` | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/ha/status` | viewer | high-availability | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded). |
+| `GET` | `/api/v1/ha/peers` | viewer | high-availability | Peer list with addresses. |
+| `POST` | `/api/v1/ha/failover` | operator | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
+| `GET` | `/api/v1/ha/replication` | viewer | high-availability | Per-category replication status (leader_seq, synced flag). |
+| `GET` | `/api/v1/ha/interfaces` | viewer | high-availability | Interface assignments and ownership status (active_active mode). |
+| `GET` | `/api/v1/ha/health` | viewer | high-availability | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded). |
 
 ## Feature Gating
 

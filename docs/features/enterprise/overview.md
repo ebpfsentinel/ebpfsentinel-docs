@@ -38,6 +38,23 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Dashboard UI](dashboard.md) | Web-based management console |
 | [Kubernetes Operator](kubernetes-operator.md) | CRD-driven configuration |
 
+## API Surface
+
+The enterprise agent serves its whole HTTP surface on the enterprise API port
+(default `8444`), documented endpoint by endpoint with the role and the license
+feature each one requires in
+[Enterprise REST API](../../api-reference/rest-api-enterprise.md). A feature the
+license does not carry is never mounted, so a call to one of its paths answers
+`404 Not Found` rather than `403 Forbidden`.
+
+Three routes are mounted whatever the license carries:
+
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
+| `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
+| `GET` | `/metrics` | none | none | OpenMetrics text output for every enterprise metric. |
+
 ## Enterprise Architecture
 
 The enterprise edition follows the same hexagonal/DDD architecture as the OSS agent:

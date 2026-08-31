@@ -242,15 +242,15 @@ enterprise:
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/compliance/reports` | Generate a new report (`{ framework, period_start_ms, period_end_ms, format }`) |
-| `GET` | `/api/v1/compliance/reports` | List reports (summary views, newest first) |
-| `GET` | `/api/v1/compliance/reports/{id}` | Fetch full report (JSON) |
-| `GET` | `/api/v1/compliance/reports/{id}/csv` | Export as CSV (attachment: `report.csv`) |
-| `GET` | `/api/v1/compliance/reports/{id}/text` | Export as structured text |
-| `GET` | `/api/v1/compliance/reports/{id}/pdf` | Export as branded PDF (attachment: `report.pdf`) |
-| `POST` | `/api/v1/compliance/segmentation/validate` | Validate a network segmentation policy (zones, allowed flows) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/compliance/reports` | operator | compliance-reports | Generate a new report (`{ framework, period_start_ms, period_end_ms, format }`). |
+| `GET` | `/api/v1/compliance/reports` | viewer | compliance-reports | List reports (summary views, newest first). |
+| `GET` | `/api/v1/compliance/reports/{id}` | viewer | compliance-reports | Fetch full report (JSON). |
+| `GET` | `/api/v1/compliance/reports/{id}/csv` | viewer | compliance-reports | Export as CSV (attachment: `report.csv`). |
+| `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | compliance-reports | Export as structured text. |
+| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | compliance-reports | Export as branded PDF (attachment: `report.pdf`). |
+| `POST` | `/api/v1/compliance/segmentation/validate` | operator | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
 
 ### Error Responses
 

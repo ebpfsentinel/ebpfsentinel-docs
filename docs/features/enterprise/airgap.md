@@ -175,12 +175,12 @@ enterprise:
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/airgap/import` | Import a bundle (200 with `status: ok/skipped/error`) |
-| `GET` | `/api/v1/airgap/bundles` | List imported bundles (version + created_at_ms) |
-| `POST` | `/api/v1/airgap/check-freshness` | Validate bundle freshness |
-| `GET` | `/api/v1/airgap/status` | Air-gap mode status (enabled, features_disabled, bundle_dir, last_import, count) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/airgap/import` | operator | air-gap | Import a bundle (200 with `status: ok/skipped/error`). |
+| `GET` | `/api/v1/airgap/bundles` | viewer | air-gap | List imported bundles (version + created_at_ms). |
+| `POST` | `/api/v1/airgap/check-freshness` | operator | air-gap | Validate bundle freshness. |
+| `GET` | `/api/v1/airgap/status` | viewer | air-gap | Air-gap mode status (enabled, features_disabled, bundle_dir, last_import, count). |
 
 ### Status Response
 

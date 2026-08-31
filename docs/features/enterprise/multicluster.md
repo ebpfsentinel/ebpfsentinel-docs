@@ -347,25 +347,26 @@ after upgrade. To migrate without downtime:
 
 ### Management Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/federation/clusters` | Register member cluster (201, 409 on duplicate endpoint) |
-| `GET` | `/api/v1/federation/clusters` | List member clusters (summaries) |
-| `GET` | `/api/v1/federation/clusters/{id}` | Cluster details (404 if not found) |
-| `DELETE` | `/api/v1/federation/clusters/{id}` | Unregister cluster (204) |
-| `GET` | `/api/v1/federation/overview` | Federation-wide status |
-| `POST` | `/api/v1/federation/policies/push` | Distribute policy (with dry_run, overrides) |
-| `GET` | `/api/v1/federation/policies/history` | Distribution history (last 1,000) |
-| `POST` | `/api/v1/federation/alerts` | Ingest alerts from members |
-| `GET` | `/api/v1/federation/alerts` | Query federated alerts (filters: cluster_id, severity, component, limit) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/federation/clusters` | operator | multi-cluster | Register member cluster (201, 409 on duplicate endpoint). |
+| `GET` | `/api/v1/federation/clusters` | viewer | multi-cluster | List member clusters (summaries). |
+| `GET` | `/api/v1/federation/clusters/{id}` | viewer | multi-cluster | Cluster details (404 if not found). |
+| `DELETE` | `/api/v1/federation/clusters/{id}` | operator | multi-cluster | Unregister cluster (204). |
+| `GET` | `/api/v1/federation/overview` | viewer | multi-cluster | Federation-wide status. |
+| `POST` | `/api/v1/federation/policies/push` | operator | multi-cluster | Distribute policy (with dry_run, overrides). |
+| `GET` | `/api/v1/federation/policies/history` | viewer | multi-cluster | Distribution history (last 1,000). |
+| `POST` | `/api/v1/federation/alerts` | operator | multi-cluster | Ingest alerts from members. |
+| `GET` | `/api/v1/federation/alerts` | viewer | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
+| `GET` | `/api/v1/federation/alerts/stream` | viewer | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
 
 ### Member Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/federation/heartbeat` | Send heartbeat to management (204) |
-| `POST` | `/api/v1/federation/policies/apply` | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure) |
-| `GET` | `/api/v1/federation/status` | Federation health + applied-policy set (health-probe target) |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/federation/heartbeat` | operator | multi-cluster | Send heartbeat to management (204). |
+| `POST` | `/api/v1/federation/policies/apply` | operator | multi-cluster | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure). |
+| `GET` | `/api/v1/federation/status` | viewer | multi-cluster | Federation health + applied-policy set (health-probe target). |
 
 ## Feature Gating
 

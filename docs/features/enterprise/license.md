@@ -275,9 +275,9 @@ export EBPFSENTINEL_LICENSE=/path/to/license.key
 
 ## REST API
 
-```
-GET /api/v1/license
-```
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/license` | viewer | none | Enterprise license status (200, or 402 when the license is absent or invalid). |
 
 Returns license status (200 OK or 402 Payment Required):
 

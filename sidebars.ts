@@ -121,6 +121,7 @@ const sidebars: SidebarsConfig = {
       label: 'API Reference',
       items: [
         'api-reference/rest-api',
+        'api-reference/rest-api-enterprise',
         'api-reference/grpc-api',
         'api-reference/openapi',
         {

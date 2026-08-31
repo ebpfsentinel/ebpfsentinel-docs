@@ -18,4 +18,14 @@ A web-based management console for visualizing security events, managing rules, 
 
 ## Current Alternative
 
-Use the REST API with Swagger UI (`http://localhost:8080/swagger-ui/`) for API exploration, and build Grafana dashboards from Prometheus metrics for visualization. The CLI provides full management capabilities.
+Use the REST API with Swagger UI (`http://localhost:8080/swagger-ui/` on the
+open-source agent, `https://localhost:8444/swagger-ui/` on the enterprise
+agent) for API exploration, and build Grafana dashboards from Prometheus
+metrics for visualization. The CLI provides full management capabilities.
+
+## REST API
+
+This feature mounts no endpoint. There is no `dashboard` license feature and
+no route belongs to it: the console described above does not exist yet, and
+what it would read is already served by the endpoints listed in
+[Enterprise REST API](../../api-reference/rest-api-enterprise.md).

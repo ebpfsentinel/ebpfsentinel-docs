@@ -41,6 +41,31 @@ cargo run -p xtask -- emit-openapi
 
 CI regenerates it and fails when the committed copy differs, so a route whose annotation changed without the file being regenerated does not reach a release. A second check enumerates the routes the binary actually mounts and fails when one of them is missing from the document, which is what keeps "every operation is described" a fact rather than an intention.
 
+## What the enterprise document carries that OpenAPI has no word for
+
+Two facts decide whether an enterprise call succeeds, and OpenAPI has
+vocabulary for neither: the licence feature that mounts the route at all, and
+the domain grant the authorization middleware checks. Every enterprise
+operation carries both in one `x-access` extension:
+
+```json
+"x-access": {
+  "license-feature": "advanced-dlp",
+  "role": "operator",
+  "grant": "l7:write"
+}
+```
+
+`license-feature` is `none` for a route mounted whatever the licence carries.
+`role` is the least privileged built-in role that already holds the grant, and
+a custom role carrying the same grant works too. `grant` is `none` for the
+scrape endpoint, which is the one route served without an authorization check.
+
+The values are read from the same tables the running agent enforces rather
+than written by hand, and [Enterprise REST API](rest-api-enterprise.md) is
+checked against them, so a role documented on a page and a role the middleware
+demands cannot drift apart.
+
 ## SDK generation
 
 ```bash

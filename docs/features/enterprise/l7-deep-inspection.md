@@ -158,17 +158,17 @@ unknown category or severity are all reported by name at startup.
 
 ## REST API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/enterprise/l7/patterns` | List loaded patterns |
-| POST | `/api/v1/enterprise/l7/patterns` | Add one pattern |
-| POST | `/api/v1/enterprise/l7/patterns/bulk` | Replace the whole catalogue |
-| DELETE | `/api/v1/enterprise/l7/patterns/{id}` | Remove a pattern |
-| GET | `/api/v1/enterprise/l7/matches` | Recent match history |
-| GET | `/api/v1/enterprise/l7/rule-toggles` | Rule ids currently allowed to trigger a scan |
-| PUT | `/api/v1/enterprise/l7/rule-toggles` | Replace that set |
-| PATCH | `/api/v1/enterprise/l7/rule-toggles/{id}` | Add or remove one rule id |
-| POST | `/api/v1/enterprise/l7/analyze` | Scan a payload and return matches, policy decision and enrichment |
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/patterns` | viewer | advanced-dlp | List loaded patterns. |
+| `POST` | `/api/v1/enterprise/l7/patterns` | operator | advanced-dlp | Add one pattern. |
+| `POST` | `/api/v1/enterprise/l7/patterns/bulk` | operator | advanced-dlp | Replace the whole catalogue. |
+| `DELETE` | `/api/v1/enterprise/l7/patterns/{id}` | operator | advanced-dlp | Remove a pattern. |
+| `GET` | `/api/v1/enterprise/l7/matches` | viewer | advanced-dlp | Recent match history. |
+| `GET` | `/api/v1/enterprise/l7/rule-toggles` | viewer | advanced-dlp | Rule ids currently allowed to trigger a scan. |
+| `PUT` | `/api/v1/enterprise/l7/rule-toggles` | operator | advanced-dlp | Replace that set. |
+| `PATCH` | `/api/v1/enterprise/l7/rule-toggles/{id}` | operator | advanced-dlp | Add or remove one rule id. |
+| `POST` | `/api/v1/enterprise/l7/analyze` | operator | advanced-dlp | Scan a payload and return matches, policy decision and enrichment. |
 
 ## Code Architecture
 

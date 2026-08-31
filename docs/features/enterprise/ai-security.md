@@ -8,8 +8,8 @@ AI/LLM Security detects and controls unauthorized AI service usage (Shadow AI), 
 
 Five sub-capabilities:
 
-| Capability | Story | Description |
-|-----------|-------|-------------|
+| Capability | Description |
+|-----------|-------------|
 | AI Provider Registry | 38+ built-in AI provider domain entries with wildcard matching |
 | Shadow AI Detection | Monitor, block, or allow-list mode for AI provider access |
 | AI-aware DLP | Regex-based payload scanning for sensitive data sent to AI providers |
@@ -252,7 +252,7 @@ Status returns:
 
 ## MITRE ATT&CK Coverage
 
-| Story | Technique | Name | Tactic |
+| Capability | Technique | Name | Tactic |
 |-------|-----------|------|--------|
 | Shadow AI | T1567.002 | Exfiltration to Cloud Storage | exfiltration |
 | AI DLP | T1048 | Exfiltration Over Alternative Protocol | exfiltration |
@@ -274,6 +274,30 @@ Status returns:
 | `ai_exfil_bytes` | Counter | provider |
 | `ai_enc_dns_detections` | Counter | resolver, action |
 | `ai_enc_dns_bypassed` | Counter | — |
+
+## REST API
+
+Every path below is served on the Enterprise port. The role is the least-privileged built-in role that satisfies the grant the middleware requires; a custom role carrying the same grant works too.
+
+| Method | Path | Role | License feature | Description |
+|--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/ai-security/status` | viewer | ai-llm-security | AI security engine state and counters. |
+| `GET` | `/api/v1/enterprise/ai-security/alerts` | viewer | ai-llm-security | List AI security alerts. |
+| `POST` | `/api/v1/enterprise/ai-security/events` | operator | ai-llm-security | Process a connection event. |
+| `GET` | `/api/v1/enterprise/ai-security/providers` | viewer | ai-llm-security | List the known AI provider destinations. |
+| `POST` | `/api/v1/enterprise/ai-security/providers` | operator | ai-llm-security | Add an AI provider destination. |
+| `DELETE` | `/api/v1/enterprise/ai-security/providers/{id}` | operator | ai-llm-security | Remove an AI provider destination. |
+| `GET` | `/api/v1/enterprise/ai-security/shadow-ai/detections` | viewer | ai-llm-security | Unsanctioned AI service use seen on the estate. |
+| `GET` | `/api/v1/enterprise/ai-security/shadow-ai/policy` | viewer | ai-llm-security | Current shadow AI policy. |
+| `PUT` | `/api/v1/enterprise/ai-security/shadow-ai/policy` | operator | ai-llm-security | Replace the shadow AI policy. |
+| `GET` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | viewer | ai-llm-security | List the prompt inspection patterns. |
+| `POST` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | operator | ai-llm-security | Add a prompt inspection pattern. |
+| `DELETE` | `/api/v1/enterprise/ai-security/ai-dlp/patterns/{id}` | operator | ai-llm-security | Remove a prompt inspection pattern. |
+| `GET` | `/api/v1/enterprise/ai-security/exfiltration/sources` | viewer | ai-llm-security | Sources ranked by outbound volume to AI providers. |
+| `GET` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | viewer | ai-llm-security | Current exfiltration volume thresholds. |
+| `PUT` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | operator | ai-llm-security | Replace the exfiltration volume thresholds. |
+| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | viewer | ai-llm-security | Current DoH and DoT handling policy. |
+| `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | operator | ai-llm-security | Replace the DoH and DoT handling policy. |
 
 ## Feature Gating
 
