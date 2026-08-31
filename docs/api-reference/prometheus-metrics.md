@@ -18,6 +18,24 @@ This is a breaking change for any dashboard panel, alert rule or recording
 rule naming the old series: the query returns no data rather than an error, so
 update the query rather than waiting for something to fail.
 
+## Removed series
+
+Five metrics were registered and never written, so they exported nothing: a
+panel or an alert rule naming one of them was always empty, which reads as a
+quiet estate rather than as a metric nobody wired. Four of them restated a
+counter the kernel already publishes, and are removed in favour of it.
+
+| Removed series | Read instead | Why |
+|--------|------|--------|
+| `ebpfsentinel_bytes_processed_total` | Nothing | No datapath counts bytes per interface, so the family had no source at all |
+| `ebpfsentinel_conntrack_expired_total` | `ebpfsentinel_packets_total{interface="CT_METRICS",action="evicted"}` and `action="closed"` | Expiry happens in the kernel, and the kernel already counts it |
+| `ebpfsentinel_conntrack_kfunc_lookups` | `ebpfsentinel_packets_total{interface="CT_METRICS",action="kfunc_lookups"}` | Same counter under the kernel-map family, and as a counter rather than a gauge, so `rate()` works on it |
+| `ebpfsentinel_conntrack_kfunc_hits` | `ebpfsentinel_packets_total{interface="CT_METRICS",action="kfunc_hits"}` | As above |
+| `ebpfsentinel_conntrack_kfunc_misses` | `ebpfsentinel_packets_total{interface="CT_METRICS",action="kfunc_misses"}` | As above |
+
+The same applies to the query rather than to the exporter: a panel naming a
+removed series returns no data, which is what it was already doing.
+
 ## Metrics Catalog
 
 ### Packet Processing
@@ -25,7 +43,6 @@ update the query rather than waiting for something to fail.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_packets_total` | Counter | `interface`, `action` | Packets processed (pass, drop, log, rate_limited) |
-| `ebpfsentinel_bytes_processed_total` | Counter | `interface`, `direction` | Bytes processed per interface |
 | `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Per-program packet processing latency |
 
 `ebpfsentinel_packets_total` carries two kinds of series. A real NIC name in
@@ -123,10 +140,6 @@ not keeping up at all.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_conntrack_active` | Gauge | — | Currently tracked connections |
-| `ebpfsentinel_conntrack_expired_total` | Counter | — | Connection tracking entries expired |
-| `ebpfsentinel_conntrack_kfunc_lookups` | Gauge | — | Kernel netfilter CT lookups attempted from BPF |
-| `ebpfsentinel_conntrack_kfunc_hits` | Gauge | — | Lookups that found a kernel CT entry |
-| `ebpfsentinel_conntrack_kfunc_misses` | Gauge | — | Lookups that found none |
 
 The kernel state behind each hit is counted on `ebpfsentinel_packets_total`
 under `interface="CT_METRICS"`: `kfunc_state_new`, `kfunc_state_established`,
@@ -151,6 +164,7 @@ rather than reporting an idle datapath.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_packets_total` | Counter | `domain="loadbalancer"`, `action` | LB packets (forward, no_backend) |
+| `ebpfsentinel_lb_backends_healthy` | Gauge | `service` | Backends passing health checks, per configured service (zero for a service that has been removed) |
 | `ebpfsentinel_lb_vip_arp_replies` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
 | `ebpfsentinel_lb_vip_takeovers_total` | Counter | `vip` | Gratuitous-ARP takeovers per VIP (L2 VIP announcer) |
 
