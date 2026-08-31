@@ -175,7 +175,12 @@ Alerts include `matched_domain` for correlation and are routed through the same 
 
 ## Metrics
 
-- `ebpfsentinel_dns_cache_size` — current DNS cache entry count
-- `ebpfsentinel_dns_queries_total` — DNS queries observed
-- `ebpfsentinel_dns_blocked_total` — domains blocked by blocklist
-- `ebpfsentinel_domain_reputation_tracked` — domains with reputation scores
+- `ebpfsentinel_dns_cache_entries` - current DNS cache entry count
+- `ebpfsentinel_dns_cache_hits_total` - cache lookup hits
+- `ebpfsentinel_dns_cache_evictions_total` - entries evicted by LRU or TTL expiry
+- `ebpfsentinel_packets_total{interface="DNS_METRICS", action="inspected"}` - DNS packets observed on the wire
+- `ebpfsentinel_dns_blocked_domains_total` - domains matched by the blocklist
+- `ebpfsentinel_dns_injected_ips` - IPs currently injected into the datapath from the blocklist
+- `ebpfsentinel_domain_reputation_high_risk` - domains the reputation engine currently rates high risk
+- `ebpfsentinel_domain_auto_blocked_total` - domains auto-blocked by the reputation engine
+- `ebpfsentinel_encrypted_dns_detections_total{protocol, resolver}` - DoH and DoT connections detected

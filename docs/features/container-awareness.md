@@ -70,9 +70,9 @@ observes packets for, so this is usually more than enough.
 
 | Metric | Meaning |
 |--------|---------|
-| `ebpfsentinel_container_cache_hit_total` | Resolved via cache |
-| `ebpfsentinel_container_cache_miss_total` | Resolved via `/proc` |
-| `ebpfsentinel_container_resolver_error_total` | `/proc` read failed |
+| `ebpfsentinel_container_resolver_cache_hits_total` | Resolved via cache |
+| `ebpfsentinel_container_resolver_cache_misses_total` | Resolved via `/proc` |
+| `ebpfsentinel_container_resolver_errors_total` | `/proc` read failed |
 
 ### Configuration
 
@@ -215,12 +215,11 @@ pub trait NamespaceHook: Send + Sync {
 
 ### Metrics
 
-| Metric | Meaning |
-|--------|---------|
-| `ebpfsentinel_k8s_enricher_pods_cached` | Current pod cache size |
-| `ebpfsentinel_k8s_enricher_lookups_total` | Total lookups served |
-| `ebpfsentinel_k8s_enricher_misses_total` | Lookups that missed the cache |
-| `ebpfsentinel_k8s_enricher_api_errors_total` | Watcher backoff events |
+The Kubernetes enricher keeps its own counters - pods cached, lookups served,
+cache misses and watcher backoff events - as in-process atomics. **None of them
+is registered with the Prometheus registry**, so none is scrapable: they are
+readable only through the enricher's own accessors. The container resolver
+counters above are the scrapable ones.
 
 ### Configuration
 

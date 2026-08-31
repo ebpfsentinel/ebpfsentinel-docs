@@ -128,8 +128,8 @@ curl -s http://localhost:8080/api/v1/ebpf/status | jq
 
 | Metric | Description |
 |--------|-------------|
-| `ebpfsentinel_config_reload_total{component, result}` | Counter per domain (firewall, ids, ...) and result (success/failure) |
-| `ebpfsentinel_ebpf_program_loaded{program}` | Gauge: 1 if loaded, 0 if not |
+| `ebpfsentinel_rules_reloads_total{component, result}` | Counter per component (firewall, ids, ...) and result (success/failure) |
+| `ebpfsentinel_ebpf_program_status{program}` | Gauge: 1 if loaded, 0 if not |
 
 ## Example: Enable IDS at Runtime
 

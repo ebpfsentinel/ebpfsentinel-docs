@@ -140,6 +140,6 @@ ebpfsentinel-agent ratelimit delete emergency-throttle
 
 ## Metrics
 
-- `ebpfsentinel_packets_total{interface, verdict="rate_limited"}` — packets dropped by rate limiter
-- `ebpfsentinel_rules_loaded{domain="ratelimit"}` — number of loaded rate limit rules
-- `ebpfsentinel_processing_duration_seconds{domain="ratelimit"}` — rate limit evaluation latency
+- `ebpfsentinel_packets_total{interface="RATELIMIT_METRICS", action="dropped"}` - packets dropped by the rate limiter. The same map carries `matched`, `errors`, `events_dropped`, `total_seen` and `mtu_exceeded`
+- `ebpfsentinel_rules_loaded{component="ratelimit"}` - number of loaded rate limit rules
+- `ebpfsentinel_packet_processing_duration_seconds{program="ratelimit"}` - rate limit event dispatch latency

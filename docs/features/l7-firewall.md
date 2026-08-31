@@ -221,5 +221,5 @@ ebpfsentinel-agent l7 delete block-uploads
 
 ## Metrics
 
-- `ebpfsentinel_rules_loaded{domain="l7"}` — number of loaded L7 rules
-- `ebpfsentinel_processing_duration_seconds{domain="l7"}` — L7 rule evaluation latency
+- `ebpfsentinel_rules_loaded{component="l7"}` - number of loaded L7 rules
+- `ebpfsentinel_packet_processing_duration_seconds{program="l7"}` - L7 rule evaluation latency

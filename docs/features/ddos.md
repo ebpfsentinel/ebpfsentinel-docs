@@ -214,7 +214,13 @@ ebpfsentinel-agent --output json ddos attacks
 
 ### Userspace (Prometheus)
 
-- `ebpfsentinel_ddos_attacks_active` — currently active attack mitigations
-- `ebpfsentinel_ddos_attacks_total{attack_type}` — total attacks detected by type
-- `ebpfsentinel_ddos_blocked_total` — total packets blocked by DDoS policies
-- `ebpfsentinel_rules_loaded{domain="ddos"}` — number of loaded DDoS policies
+- `ebpfsentinel_ddos_attacks_active` - currently active attack mitigations
+- `ebpfsentinel_ddos_attacks_detected_total{attack_type}` - total attacks detected by type
+- `ebpfsentinel_ddos_mitigations_total{attack_type}` - total mitigation actions applied by type
+- `ebpfsentinel_rules_loaded{component="ddos"}` - number of loaded DDoS policies
+- `ebpfsentinel_packets_total{interface="DDOS_METRICS", action}` - what the datapath itself counted: `syn_rcv`, `syn_flood_drops`, `icmp_pass`, `icmp_drop`, `amp_passed`, `amp_dropped`, `oversized_icmp`, `errors`, `events_dropped`, `conn_tracked`, `half_open_drops`, `rst_flood_drops`, `fin_flood_drops`, `ack_flood_drops`, `total_seen`, `syncookie_sent`, `syncookie_valid`, `syncookie_invalid`
+
+The three userspace families count declarations, not packets:
+`attacks_detected` is how many attacks the detector declared, and the packets
+actually dropped are the `DDOS_METRICS` slots. `conn_tracked` and the four
+flood counters only move when `ddos.connection_tracking` is enabled.

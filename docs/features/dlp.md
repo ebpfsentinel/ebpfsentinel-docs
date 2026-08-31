@@ -199,5 +199,9 @@ Enterprise DLP capabilities are activated by the separate enterprise repository,
 
 ## Metrics
 
-- `ebpfsentinel_alerts_total{component="dlp", severity}` — DLP alerts generated
-- `ebpfsentinel_processing_duration_seconds{domain="dlp"}` — pattern matching latency
+- `ebpfsentinel_alerts_total{component="dlp", severity}` - DLP alerts generated
+- `ebpfsentinel_dlp_scans_total` - data scans performed
+- `ebpfsentinel_dlp_matches_total{rule_id}` - pattern matches, by pattern
+- `ebpfsentinel_dlp_scan_duration_seconds` - pattern matching latency
+- `ebpfsentinel_packet_processing_duration_seconds{program="dlp"}` - time spent dispatching one DLP event
+- `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`)

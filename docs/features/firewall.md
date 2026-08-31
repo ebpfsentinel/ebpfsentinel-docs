@@ -469,15 +469,14 @@ ebpfsentinel-agent conntrack connections
 
 ## Metrics
 
-- `ebpfsentinel_packets_total{interface, verdict}` — packets processed with verdict (pass/drop/log)
-- `ebpfsentinel_rules_loaded{domain="firewall"}` — number of loaded firewall rules
-- `ebpfsentinel_processing_duration_seconds{domain="firewall"}` — rule evaluation latency
-- `ebpfsentinel_conntrack_connections` — active connections in conntrack table
-- `ebpfsentinel_conntrack_new_total` — new connections tracked
-- `ebpfsentinel_scrub_mss_clamped_total` — MSS options clamped
-- `ebpfsentinel_scrub_ttl_fixed_total` — TTL values normalized
-- `ebpfsentinel_scrub_tcp_flags_scrubbed_total` — TCP reserved/NS/CWR/ECE bits cleared
-- `ebpfsentinel_scrub_ecn_stripped_total` — ECN bits stripped from IP TOS/Traffic Class
-- `ebpfsentinel_scrub_tos_normalized_total` — TOS/DSCP bytes normalized
-- `ebpfsentinel_scrub_tcp_ts_stripped_total` — TCP timestamp options removed
-- `ebpfsentinel_firewall_rejected_total` — packets rejected (TCP RST or ICMP unreachable sent via XDP_TX)
+The firewall, the scrubber and the connection tracker export no family of
+their own. Their counters are slots in per-CPU kernel maps, folded onto
+`ebpfsentinel_packets_total` with `interface` naming the map and `action`
+naming the slot.
+
+- `ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action}` - `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected` (TCP RST or ICMP unreachable sent via XDP_TX), `mtu_exceeded`, `reject_throttled`
+- `ebpfsentinel_packets_total{interface="SCRUB_METRICS", action}` - `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped`
+- `ebpfsentinel_packets_total{interface="CT_METRICS", action}` - `new`, `established`, `closed`, `invalid`, `evicted`, `lookups`, `hits` and the `kfunc_*` slots
+- `ebpfsentinel_conntrack_active` - active connections in the conntrack table
+- `ebpfsentinel_rules_loaded{component="firewall"}` - number of loaded firewall rules
+- `ebpfsentinel_packet_processing_duration_seconds{program="firewall"}` - firewall event dispatch latency

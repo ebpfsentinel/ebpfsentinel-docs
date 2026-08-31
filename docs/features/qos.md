@@ -257,11 +257,17 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 
 Prometheus metrics:
 
-- `ebpfsentinel_qos_total_seen` - total packets evaluated
-- `ebpfsentinel_qos_shaped_total` - packets shaped
-- `ebpfsentinel_qos_dropped_loss_total` - packets dropped by loss emulation
-- `ebpfsentinel_qos_dropped_queue_total` - packets dropped for want of credit
-- `ebpfsentinel_qos_delayed_total` - packets delayed
-- `ebpfsentinel_qos_errors_total` - processing errors
-- `ebpfsentinel_qos_events_dropped_total` - RingBuf backpressure drops
-- `ebpfsentinel_rules_loaded{domain="qos"}` - loaded classifier count
+QoS exports no family of its own. Its counters are slots in the per-CPU
+`QOS_METRICS` map, folded onto `ebpfsentinel_packets_total` with
+`interface="QOS_METRICS"` and `action` naming the slot:
+
+- `action="total_seen"` - total packets evaluated
+- `action="shaped"` - packets shaped
+- `action="dropped_loss"` - packets dropped by loss emulation
+- `action="dropped_queue"` - packets dropped for want of credit
+- `action="delayed"` - packets delayed
+- `action="errors"` - processing errors
+- `action="events_dropped"` - ring buffer backpressure drops
+
+Alongside them, `ebpfsentinel_rules_loaded{component="qos"}` is the loaded
+classifier count.

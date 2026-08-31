@@ -146,7 +146,9 @@ Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_p
 
 ## Metrics
 
-- `ebpfsentinel_alerts_total{component="ids", severity}` — IDS alerts generated
-- `ebpfsentinel_events_sampled_total{component="ids"}` — events skipped by sampling
-- `ebpfsentinel_threshold_suppressed_total{component="ids", rule_id}` — threshold-suppressed alerts
-- `ebpfsentinel_processing_duration_seconds{domain="ids"}` — engine evaluation latency
+- `ebpfsentinel_alerts_total{component="ids", severity}` - IDS alerts generated
+- `ebpfsentinel_alerts_by_rule_total{component="ids", rule_id}` - IDS alerts per rule
+- `ebpfsentinel_alerts_dropped_total{reason}` - alerts suppressed before delivery, `reason="dedup"` inside the dedup window and `reason="throttle"` for the per-rule rate limit
+- `ebpfsentinel_ids_domain_matches_total{rule_id}` - matches driven by a domain pattern
+- `ebpfsentinel_packet_processing_duration_seconds{program="ids"}` - IDS event dispatch latency
+- `ebpfsentinel_packets_total{interface="IDS_METRICS", action}` - kernel-side counters (`matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`)

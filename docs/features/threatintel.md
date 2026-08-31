@@ -247,7 +247,8 @@ ebpfsentinel-agent threatintel feeds
 
 ## Metrics
 
-- `ebpfsentinel_alerts_total{component="threatintel", severity}` — threat intel alerts generated
-- `ebpfsentinel_rules_loaded{domain="threatintel"}` — total loaded IOC count
-- `ebpfsentinel_processing_duration_seconds{domain="threatintel"}` — feed parse/reload latency
-- `ebpfsentinel_config_reloads_total{status="success"|"failure"}` — per-feed fetch results
+- `ebpfsentinel_alerts_total{component="threatintel", severity}` - threat intel alerts generated
+- `ebpfsentinel_threatintel_matches_total{feed}` - IOC matches, by the feed that resolved them
+- `ebpfsentinel_rules_loaded{component="threatintel"}` - total loaded IOC count
+- `ebpfsentinel_packet_processing_duration_seconds{program="threatintel"}` - threat intel event dispatch latency
+- `ebpfsentinel_rules_reloads_total{component="threatintel", result}` - per-feed fetch outcome (`success` or `failure`)

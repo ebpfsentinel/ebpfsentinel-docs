@@ -351,15 +351,26 @@ docker run -d --label ebpfsentinel.io/tenant=client-a nginx
 
 `GET /api/v1/tenants/metrics` (admin only) returns Prometheus text format:
 
-```
-# HELP ebpfsentinel_tenant_quota_limit Configured quota limit per tenant and resource.
-# TYPE ebpfsentinel_tenant_quota_limit gauge
-ebpfsentinel_tenant_quota_limit{tenant="alpha",resource="rules"} 1000
+These are Enterprise-only series, registered under the `ebpfsentinel_ent_`
+prefix. An OSS agent exposes none of them.
 
-# HELP ebpfsentinel_tenant_quota_usage Current resource usage per tenant.
-# TYPE ebpfsentinel_tenant_quota_usage gauge
-ebpfsentinel_tenant_quota_usage{tenant="alpha",resource="rules"} 50
 ```
+# HELP ebpfsentinel_ent_tenant_total Number of configured tenants.
+# TYPE ebpfsentinel_ent_tenant_total gauge
+ebpfsentinel_ent_tenant_total 3
+
+# HELP ebpfsentinel_ent_tenant_quota_usage_ratio Quota usage as a fraction of the limit.
+# TYPE ebpfsentinel_ent_tenant_quota_usage_ratio gauge
+ebpfsentinel_ent_tenant_quota_usage_ratio{tenant="alpha",resource="rules"} 0.05
+
+# HELP ebpfsentinel_ent_tenant_quota_exceeded Requests refused because a quota was already at its limit.
+# TYPE ebpfsentinel_ent_tenant_quota_exceeded counter
+ebpfsentinel_ent_tenant_quota_exceeded_total{tenant="alpha",resource="rules"} 0
+```
+
+There is no gauge carrying the configured limit itself. Usage is published as
+a ratio so a panel needs no second series to be readable, and the limit is read
+from `GET /api/v1/tenants/{id}/quota`.
 
 ## REST API
 

@@ -136,5 +136,10 @@ grpcurl -plaintext -d '{"min_severity":"critical","component":"ids"}' \
 
 ## Metrics
 
-- `ebpfsentinel_alerts_total{component, severity}` — total alerts generated
-- `ebpfsentinel_processing_duration_seconds{domain="alerting"}` — alert routing latency
+- `ebpfsentinel_alerts_total{component, severity, technique_id}` - total alerts generated
+- `ebpfsentinel_alerts_by_rule_total{component, rule_id}` - total alerts per rule
+- `ebpfsentinel_alerts_dropped_total{reason}` - alerts dropped before delivery (`dedup`, `throttle`)
+- `ebpfsentinel_alerts_exported_total{destination}` - alerts handed off to an external sender
+- `ebpfsentinel_alert_sender_circuit_state{destination}` - sender circuit breaker state (0=closed, 1=half-open, 2=open)
+- `ebpfsentinel_alerts_sse_subscribers` - live SSE subscriber count
+- `ebpfsentinel_false_positives_total{component, rule_id}` - alerts marked as false positives

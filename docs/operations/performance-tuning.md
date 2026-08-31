@@ -54,7 +54,7 @@ dns:
   cache_ttl: 3600        # Reduce for dynamic environments
 ```
 
-Monitor `ebpfsentinel_dns_cache_size` to see actual usage.
+Monitor `ebpfsentinel_dns_cache_entries` to see actual usage.
 
 ## Firewall Rule Optimization
 

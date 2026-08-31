@@ -63,4 +63,6 @@ ebpfsentinel-agent audit history fw-001
 
 ## Metrics
 
-- `ebpfsentinel_config_reloads_total{status}` — config reload count (success/failure)
+- `ebpfsentinel_audit_events_total` - audit events recorded
+- `ebpfsentinel_audit_failures_total` - audit write failures
+- `ebpfsentinel_rules_reloads_total{component, result}` - config reload count, by component and `result` (`success` or `failure`)

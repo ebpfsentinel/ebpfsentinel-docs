@@ -287,12 +287,12 @@ duration gauge. All metrics are registered under the
 
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
-| `ebpfsentinel_ent_tls_probes_binaries_discovered` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
-| `ebpfsentinel_ent_tls_probes_attached` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
-| `ebpfsentinel_ent_tls_probes_attach_failures` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
+| `ebpfsentinel_ent_tls_probes_binaries_discovered_total` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
+| `ebpfsentinel_ent_tls_probes_attached_total` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
+| `ebpfsentinel_ent_tls_probes_attach_failures_total` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
-| `ebpfsentinel_ent_tls_probes_scan_warnings` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
+| `ebpfsentinel_ent_tls_probes_scan_warnings_total` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
 
 An HA standby holds no datapath, so it discovers libraries but attaches
 nothing. That case increments neither the attach counter nor the failure

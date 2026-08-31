@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  metric-names:
+    name: metric names match the agent registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the documentation
+        uses: actions/checkout@v5
+        with:
+          path: ebpfsentinel-docs
+
+      # The agent's registry is the source of truth for every series this tree
+      # names. It is public, so the check reads it directly rather than
+      # vendoring a copy that would need its own drift check.
+      - name: Check out the agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel
+          path: ebpfsentinel
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Check metric names
+        working-directory: ebpfsentinel-docs
+        run: npm run check:metrics
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build

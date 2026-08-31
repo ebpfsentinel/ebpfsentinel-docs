@@ -116,6 +116,9 @@ ebpfsentinel-agent ips set-mode block-reverse-shell --mode alert
 
 ## Metrics
 
-- `ebpfsentinel_ips_blacklist_size` — current blacklist entry count
-- `ebpfsentinel_alerts_total{component="ips", severity}` — IPS alerts generated
-- `ebpfsentinel_threshold_suppressed_total{component="ips", rule_id}` — threshold-suppressed alerts
+- `ebpfsentinel_ips_blacklist_size` - current blacklist entry count
+- `ebpfsentinel_ips_blocks_total` - enforcement actions applied
+- `ebpfsentinel_auto_responses_total{policy}` - auto-response enforcements applied, by the policy that matched
+- `ebpfsentinel_ids_ct_dying_total` - conntrack entries marked `IPS_DYING` by a flow kill
+- `ebpfsentinel_alerts_total{component="ips", severity}` - IPS alerts generated
+- `ebpfsentinel_alerts_dropped_total{reason="throttle"}` - alerts suppressed by the per-rule rate limit

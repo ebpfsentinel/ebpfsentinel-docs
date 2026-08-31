@@ -270,11 +270,11 @@ All fleet operations are instrumented under the `ebpfsentinel_ent_` prefix:
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `fleet_registrations` | Counter | Agent registrations processed |
-| `fleet_heartbeats` | Counter | Agent heartbeats received |
-| `fleet_identity_queries` | Counter | Identity queries served |
-| `fleet_config_version_queries` | Counter | Config version queries served |
-| `fleet_flow_graph_queries` | Counter | Flow graph queries served |
+| `ebpfsentinel_ent_fleet_registrations_total` | Counter | Agent registrations processed |
+| `ebpfsentinel_ent_fleet_heartbeats_total` | Counter | Agent heartbeats received |
+| `ebpfsentinel_ent_fleet_identity_queries_total` | Counter | Identity queries served |
+| `ebpfsentinel_ent_fleet_config_version_queries_total` | Counter | Config version queries served |
+| `ebpfsentinel_ent_fleet_flow_graph_queries_total` | Counter | Flow graph queries served |
 
 ## Domain Architecture
 

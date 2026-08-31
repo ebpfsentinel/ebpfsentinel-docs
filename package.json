@@ -9,7 +9,8 @@
     "serve": "docusaurus serve",
     "clear": "docusaurus clear",
     "version": "docusaurus docs:version",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "check:metrics": "node scripts/check-metric-names.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

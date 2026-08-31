@@ -226,5 +226,9 @@ GeoIP Database (MaxMind)
 
 ## Metrics
 
-- `ebpfsentinel_geoip_lookups_total` — total GeoIP lookups performed
-- `ebpfsentinel_geoip_ready` — database readiness (1=loaded, 0=not loaded)
+- `ebpfsentinel_geoip_lookups_total{result}` - total GeoIP lookups, by outcome (`hit` or `miss`)
+
+There is no readiness gauge. A database that failed to load produces no
+lookups at all, so `absent(rate(ebpfsentinel_geoip_lookups_total[5m]))` is what
+says so on a dashboard, and `GET /api/v1/geoip/status` is the authoritative
+answer.

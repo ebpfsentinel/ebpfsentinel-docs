@@ -178,18 +178,13 @@ The dashboard uses `'wasm-unsafe-eval'` until `'wasm-eval'` reaches baseline sup
 
 Browsers send violation reports as `POST /csp-report` (Content-Type `application/csp-report`). The dashboard server logs each violation at `warn` level and increments the Prometheus counter `ebpfsentinel_dashboard_csp_violations_total{directive}`.
 
-### Client panic uplink
+### Client error isolation
 
-A Rust panic in the WebAssembly client is caught by a custom hook that POSTs a sanitised payload to `POST /api/v1/diagnostics/wasm-panic`. The server logs the report at `error` level under the `client_panic` span and increments `ebpfsentinel_dashboard_wasm_panic_total{route}`. PII is excluded by construction:
-
-- `route` is derived from `window.location.pathname`; query strings and fragments are stripped server-side.
-- Payload field lengths are capped at 512 bytes per field.
-- Reports whose `message`, `location`, or `route` contain a JWT-shaped token are rejected with `400`.
-- No cookies, no JWT subject, no tenant body — only an opaque `subject_hash` if the client chooses to forward one.
-
-Per-session rate limit: ≤ 10 reports / minute (sliding window). The session key is the `session` cookie value when present, the peer IP otherwise. Excess reports return `429 Too Many Requests` and are not logged.
-
-Each per-route subtree of the dashboard is wrapped in its own `<ErrorBoundary>` so a fault in one detail view does not blank the sidebar, top bar, or the rest of the application; the error fallback is reset on the next navigation.
+Each per-route subtree of the dashboard is wrapped in its own error boundary so
+a fault in one detail view does not blank the sidebar, top bar, or the rest of
+the application; the error fallback is reset on the next navigation. There is
+no client panic uplink: the dashboard front sends no crash report to the
+server, so no route accepts one and no metric counts one.
 
 ### Additional security headers
 
