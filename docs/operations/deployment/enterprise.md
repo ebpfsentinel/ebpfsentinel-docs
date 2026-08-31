@@ -138,8 +138,10 @@ The warden holds the host capabilities
 (`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`) and mounts host
 `/proc` and `/sys/fs/cgroup` read-only; the agent stays `cap-drop: ALL`. The
 chart exposes the OSS API (8080), gRPC (50051), metrics (9090), the enterprise
-HTTPS API (8444) and the HA peer gRPC port (9443).
+HTTPS API (8444) and the HA peer gRPC port (9443). The last one carries no
+authentication and no TLS, so it must reach the HA peers and nothing else - see
+the [gRPC API reference](../../api-reference/grpc-api.md).
 
 > On Ubuntu 24.04+ nodes, set `kernel.apparmor_restrict_unprivileged_userns=0`
 > per node (a privileged init DaemonSet, a node-bootstrap MachineConfig, or
-> `/etc/sysctl.d/`) — the in-pod Unconfined profiles do not lift that host gate.
+> `/etc/sysctl.d/`) - the in-pod Unconfined profiles do not lift that host gate.

@@ -94,14 +94,26 @@ jobs:
         with:
           path: ebpfsentinel-docs
 
-      # The message reference on the page is generated from this file, so a
-      # field added to the proto without regenerating fails here rather than in
-      # an integrator's generated client.
+      # The message reference on the page is generated from these files, so a
+      # field added to a proto without regenerating fails here rather than in an
+      # integrator's generated client.
       - name: Check out the agent
         uses: actions/checkout@v5
         with:
           repository: ebpfsentinel/ebpfsentinel
           path: ebpfsentinel
+
+      # The enterprise HA peer service is the other half of what speaks gRPC.
+      # That repository is private, so the checkout needs a read token. The same
+      # check runs in the enterprise pipeline, so an rpc added there fails the
+      # change that caused it rather than the next documentation branch anybody
+      # opens.
+      - name: Check out the enterprise agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-enterprise
+          path: ebpfsentinel-enterprise
+          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
 
       - uses: actions/setup-node@v5
         with:

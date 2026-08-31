@@ -161,7 +161,7 @@ enterprise:
     max_replication_bandwidth: 10485760  # bytes/s (optional)
     replication_interval_ms: 200
     split_brain_policy: prefer_active    # prefer_active | prefer_standby | fence
-    listen_addr: "0.0.0.0:9443"
+    listen_addr: "0.0.0.0:9443"    # peer gRPC: no auth, no TLS - fence it to the peers
     data_dir: /var/lib/ebpfsentinel/ha
     mode: active-passive           # active-passive | active-active
     # interface_assignments required only in active-active mode:

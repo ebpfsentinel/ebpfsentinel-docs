@@ -245,15 +245,29 @@ enterprise:
 
 ## gRPC Service
 
-`HaPeerGrpcService` implements 5 RPC methods with connection pooling:
+`HaPeerService` carries the cluster's own traffic on `listen_addr`
+(`0.0.0.0:9443` by default), with connection pooling on the client side:
 
 | RPC | Description |
 |-----|-------------|
-| `request_vote` | Election vote request/response |
-| `heartbeat` | Leader heartbeat + ack |
-| `replicate_delta` | Push incremental state update |
-| `replicate_snapshot` | Push full state snapshot |
-| `request_snapshot` | Follower requests initial sync |
+| `RequestVote` | Election vote request/response |
+| `Heartbeat` | Leader heartbeat + ack |
+| `ReplicateDelta` | Push incremental state update |
+| `ReplicateSnapshot` | Push full state snapshot |
+| `RequestSnapshot` | Follower requests initial sync |
+
+The message shapes, the wire tags and what each call does to the node that
+receives it are in the [gRPC API reference](../../api-reference/grpc-api.md).
+
+:::warning The peer port is a trust boundary
+
+This channel carries no authentication and no TLS. Whatever can open a TCP
+connection to the port can force a leadership change or replace a node's
+firewall, IPS and blocklist state. Bind `listen_addr` to the interface that
+carries peer traffic, allow the port from the peer addresses only, and never
+expose it to a client network or an ingress.
+
+:::
 
 ## Configuration
 
