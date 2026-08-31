@@ -158,8 +158,48 @@ A subject can have multiple roles. Access is granted if **any** assigned role pr
 | `/api/v1/ids/*` | `Ids` |
 | `/api/v1/dlp/*`, `/api/v1/enterprise/dlp/*` | `Dlp` |
 | `/api/v1/alerts/*`, `/api/v1/enterprise/alerts/*` | `Alerts` |
+| `/api/v1/l7/*`, `/api/v1/enterprise/l7/*` | `L7` |
 | `/api/v1/rbac/*`, `/api/v1/config/*`, `/api/v1/license/*` | `Config` |
+| `/api/v1/enterprise/tenants/*`, `/api/v1/ebpf/*` | `Config` |
+| `/swagger-ui`, `/api-docs/*` | `Config` |
 | ... | (all 17 domains mapped) |
+
+### An unrecognised path is refused
+
+The table above is matched by prefix and is written by hand, so it is one edit
+behind every route somebody mounts. A path it does not recognise is **refused
+with 403**, whoever asks, including an admin:
+
+```json
+{
+  "error": "access denied: this path maps to no security domain",
+  "code": "RBAC_PATH_UNMAPPED"
+}
+```
+
+Failing closed is the only safe direction here. A path with no domain has no
+permission anybody could hold, so there is nothing to check an admin against
+either, and passing it through would make every newly mounted route reachable
+by any authenticated principal regardless of role until somebody noticed the
+missing entry. Refusing instead makes the cost of a missing entry the route
+itself, which the person who mounted it discovers immediately.
+
+The mapping is not left to a review. A test enumerates every path the agent
+mounts, reading them off the binary's own source, and fails when any of them
+maps to no domain, so a route added without a table entry breaks the build
+rather than being reachable by a viewer.
+
+### The only path served without authorization
+
+| Path | Why |
+|------|-----|
+| `GET /metrics` | The Prometheus scrape probe, which must answer before any principal exists |
+
+That is the whole list. It lives in one constant, `RBAC_EXEMPT_PATHS`, whose
+exact contents are pinned by a test, so adding a second exemption is a
+deliberate edit to both the constant and the test rather than something that
+can happen by accident. The enterprise API port mounts no liveness or readiness
+path of its own; container probes use the OSS agent's HTTP port.
 
 ### Method-to-Permission Mapping
 
@@ -167,6 +207,16 @@ A subject can have multiple roles. Access is granted if **any** assigned role pr
 |-------------|------------|
 | GET, HEAD, OPTIONS | `Read` |
 | POST, PUT, PATCH, DELETE | `Write` |
+
+`DELETE` maps to `Write` because the permission model has three levels -
+`Read`, `Write`, `Admin` - and no `Delete` of its own. This is a deliberate
+limit rather than an oversight: a role that may modify a resource may also
+remove it, so a role granted `Write` on a domain can delete within that domain.
+Where deletion must be held apart from modification, grant `Write` to nobody
+and put the mutating routes behind `Admin`, which is what the RBAC management
+routes themselves do. Separating the two would mean a fourth permission level
+in every role definition, every stored grant and every inheritance resolution,
+which is a change to the grant model rather than to this table.
 
 ### Admin-Only Routes
 
