@@ -158,8 +158,9 @@ not keeping up at all.
 |--------|------|--------|-------------|
 | `ebpfsentinel_alerts_total` | Counter | `component`, `severity`, `technique_id` | Total alerts produced. `technique_id` is the MITRE ATT&CK technique, empty when the rule maps to none |
 | `ebpfsentinel_alerts_by_rule_total` | Counter | `component`, `rule_id` | Total alerts per rule |
-| `ebpfsentinel_alerts_dropped_total` | Counter | `reason` | Alerts dropped before delivery. `reason="dedup"` is a repeat inside the dedup window, `reason="throttle"` is the per-component rate limit |
-| `ebpfsentinel_alerts_exported_total` | Counter | `destination` | Alerts handed off to an external sender (e.g. `otlp`) |
+| `ebpfsentinel_alerts_dropped_total` | Counter | `reason` | Alerts dropped before delivery. `reason="dedup"` is a repeat inside the dedup window, `reason="throttle"` is the per-component rate limit, `reason="no_route"` is an alert no route wanted, `reason="no_sender"` is a route whose destination was never built |
+| `ebpfsentinel_alerts_exported_total` | Counter | `destination` | Alerts accepted by an external sender's transport. Acceptance is an HTTP 2xx for a webhook, an SMTP hand-over for an email and a place in the batch queue for `otlp`, so for `otlp` it is not confirmation from the collector |
+| `ebpfsentinel_alerts_export_failures_total` | Counter | `destination` | Alert exports that failed: one per alert the sender gave up on, and one per batch an OTLP flush could not deliver, since a batched exporter cannot say which alerts were in the batch it lost |
 | `ebpfsentinel_alert_sender_circuit_state` | Gauge | `destination` | Alert sender circuit breaker state (0=closed, 1=half-open, 2=open) |
 | `ebpfsentinel_alerts_sse_subscribers` | Gauge | - | Live SSE alert-stream subscriber count |
 | `ebpfsentinel_false_positives_total` | Counter | `component`, `rule_id` | Alerts an operator marked as a false positive |

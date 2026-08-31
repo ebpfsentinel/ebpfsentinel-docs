@@ -27,7 +27,7 @@ alerting:
     - name: "route-name"
       destination: webhook                 # log, email, or webhook
       min_severity: high                   # Minimum severity to route
-      event_types: [ids, ips]              # Optional — omit to match all components
+      event_types: [ids, ips]              # Optional - omit to match all components
       webhook_url: "https://..."           # Required for webhook destination
       email_to: "ops@example.com"          # Required for email destination
   otlp:                                    # OpenTelemetry export (optional)
@@ -43,11 +43,11 @@ alerting:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable alerting |
-| `dedup_window_secs` | `integer` | `60` | Seconds during which an identical alert is not delivered again. The dedup key is (rule, source IP, destination IP, destination port, protocol) — source port is excluded |
+| `dedup_window_secs` | `integer` | `60` | Seconds during which an identical alert is not delivered again. The dedup key is (rule, source IP, destination IP, destination port, protocol) - source port is excluded |
 | `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
 | `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
-| `smtp` | `SmtpConfig` | — | SMTP configuration (required for email destinations) |
-| `otlp` | `OtlpConfig` | — | OpenTelemetry export configuration |
+| `smtp` | `SmtpConfig` | - | SMTP configuration (required for email destinations) |
+| `otlp` | `OtlpConfig` | - | OpenTelemetry export configuration |
 | `routes` | `[Route]` | `[]` | Alert routing rules |
 
 ### Route
@@ -68,8 +68,8 @@ alerting:
 |-------|------|---------|-------------|
 | `host` | `string` | Required | SMTP server hostname |
 | `port` | `integer` | `587` | SMTP port |
-| `username` | `string` | — | SMTP username (optional) |
-| `password` | `string` | — | SMTP password (optional) |
+| `username` | `string` | - | SMTP username (optional) |
+| `password` | `string` | - | SMTP password (optional) |
 | `from_address` | `string` | Required | Sender email address |
 | `tls` | `bool` | `true` | Enable TLS |
 
@@ -84,11 +84,13 @@ alerting:
 Each alert is exported as one OTLP **Logs** record (this is not a traces or
 metrics pipeline) carrying severity plus `mitre.technique.id`, `alert.component`
 and `alert.rule_id` attributes. Delivery is **fire-and-forget**: the record is
-handed to the OpenTelemetry SDK batch exporter — no retry, no delivery
-confirmation. Each successful hand-off increments
-`ebpfsentinel_alerts_exported_total{destination="otlp"}`. For at-least-once
+handed to the OpenTelemetry SDK batch exporter - no retry, no delivery
+confirmation. Each record the batch queue accepts increments
+`ebpfsentinel_alerts_exported_total{destination="otlp"}`, and a batch a flush
+could not deliver increments
+`ebpfsentinel_alerts_export_failures_total{destination="otlp"}`. For at-least-once
 delivery (durable buffer, circuit breaker, retry/backoff), use the Enterprise
-OTLP SIEM exporter — see [Enterprise configuration](enterprise.md).
+OTLP SIEM exporter - see [Enterprise configuration](enterprise.md).
 
 ## Examples
 

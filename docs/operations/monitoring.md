@@ -74,7 +74,7 @@ groups:
 ## OpenTelemetry (OTLP) export
 
 Beyond Prometheus scraping, the agent can **push alerts** to an OpenTelemetry
-collector. This exports the OTLP **Logs** signal only — one alert per OTLP log
+collector. This exports the OTLP **Logs** signal only - one alert per OTLP log
 record (severity, MITRE technique, component, rule id as attributes). It is
 **not** a traces or metrics pipeline; agent metrics stay on `/metrics`.
 
@@ -92,8 +92,24 @@ alerting:
 ```
 
 Delivery is **fire-and-forget** (batched by the OpenTelemetry SDK, no retry and
-no delivery confirmation). Each successful hand-off increments
+no delivery confirmation). Each record the batch queue accepts increments
 `ebpfsentinel_alerts_exported_total{destination="otlp"}`.
+
+That series counts acceptance rather than delivery, and the difference is
+deliberate: acceptance is an HTTP 2xx for a webhook and an SMTP hand-over for an
+email, which are the moment the destination stops being able to refuse, but for
+a batched exporter it is only a place in the queue. What the collector did with
+the batch afterwards is reported by
+`ebpfsentinel_alerts_export_failures_total{destination="otlp"}`, which counts one
+per batch a flush could not deliver - a batched exporter cannot say which alerts
+were in the batch it lost. The same series carries `destination="webhook"` and
+`destination="email"`, where it counts one per alert the sender gave up on after
+its retries, so a collector outage and a webhook outage are read the same way.
+
+A route naming a destination the agent was never configured to build delivers
+nothing at all, and that is counted as
+`ebpfsentinel_alerts_dropped_total{reason="no_sender"}` rather than passing
+silently.
 
 > **Note:** the Enterprise edition additionally ships an OTLP **SIEM exporter**
 > (one of the SIEM destinations) that posts OTLP/HTTP JSON to `{endpoint}/v1/logs`
