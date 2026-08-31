@@ -32,13 +32,13 @@ Use this to generate client libraries, import into Postman, or integrate with AP
 
 ## Features
 
-- Full request/response schema documentation for all 82 endpoints (97 paths including health/metrics)
+- Full request/response schema documentation for all 105 operations across 89 paths, including the health probes and the metrics endpoint
 - SecurityScheme definitions for both authentication methods:
   - `bearer_auth` — JWT Bearer token (RS256, obtained via OIDC or static configuration)
   - `api_key` — Static API key via `X-API-Key` header
 - 401/403 error responses documented on all protected endpoints
-- 25 domain tags (Health, Firewall, L7, IPS, IDS, Rate Limiting, Alerts, Audit, Threat Intel, Ops, DNS, Domains, DDoS, ConnTrack, DLP, NAT, Aliases, Routing, Load Balancer, QoS, Zones, MITRE ATT&CK, Fingerprints, Captures, Responses)
-- 80+ schema components with full type definitions
+- 27 domain tags (Health, Agent, Observability, Firewall, L7 Firewall, IPS, IDS, Rate Limiting, Alerts, Audit, Threat Intelligence, Ops, DNS, Domains, DDoS, ConnTrack, DLP, NAT, Aliases, Routing, Load Balancer, QoS, Zones, MITRE ATT&CK, Fingerprints, Captures, Responses)
+- 114 schema components with full type definitions
 - Try-it-out functionality (send real requests from the browser)
 
 ## SDK Generation
