@@ -1,36 +1,45 @@
 name: ci
 
 on:
+  # main is pushed to directly here, so `pull_request` never fired.
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  metric-names:
-    name: metric names match the two registries
+  # The four references on one runner. Each of them checked out the same three
+  # trees and installed the same node to run one npm script that takes seconds,
+  # so four runners were paying that setup four times over.
+  references:
+    name: the four references match what they describe
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out the documentation
         uses: actions/checkout@v5
         with:
           path: ebpfsentinel-docs
 
-      # The agent's registry is the source of truth for every series this tree
-      # names. It is public, so the check reads it directly rather than
-      # vendoring a copy that would need its own drift check.
+      # The agent is the source of truth for every series this tree names, for
+      # `openapi.json` generated from its route annotations, and for the proto
+      # the gRPC reference describes. It is public, so the checks read it
+      # directly rather than vendoring a copy that would need its own drift
+      # check.
       - name: Check out the agent
         uses: actions/checkout@v5
         with:
           repository: ebpfsentinel/ebpfsentinel
           path: ebpfsentinel
 
-      # The enterprise registry is the other half, and this tree names every
-      # series it exposes. That repository is private, so the checkout needs a
-      # read token. The same check runs in the enterprise pipeline as well, so a
-      # family renamed there fails the change that caused it rather than the
+      # The enterprise registry is the other half of the metric names, mounts
+      # the other half of the REST surface, carries the HA peer service and
+      # declares the licence binary's flags. That repository is private, so the
+      # checkout needs a read token. The same checks run in the enterprise
+      # pipeline as well, so a family renamed, a route regated, an rpc added or
+      # a default changed there fails the change that caused it rather than the
       # next documentation branch anybody opens.
       - name: Check out the enterprise agent
         uses: actions/checkout@v5
@@ -47,107 +56,13 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:metrics
 
-  rest-routes:
-    name: REST reference matches the mounted surface
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the documentation
-        uses: actions/checkout@v5
-        with:
-          path: ebpfsentinel-docs
-
-      # `openapi.json` is generated from the agent's route annotations and its
-      # own suite pins it to the mounted router both ways, so checking the page
-      # against it is enough to catch a route that shipped undocumented.
-      - name: Check out the agent
-        uses: actions/checkout@v5
-        with:
-          repository: ebpfsentinel/ebpfsentinel
-          path: ebpfsentinel
-
-      # The enterprise document is the other half of the surface, and it carries
-      # the role and the licence feature per operation as well as the path. That
-      # repository is private, so the checkout needs a read token. The same check
-      # runs in the enterprise pipeline, so a route added there fails the change
-      # that caused it rather than the next documentation branch anybody opens.
-      - name: Check out the enterprise agent
-        uses: actions/checkout@v5
-        with:
-          repository: ebpfsentinel/ebpfsentinel-enterprise
-          path: ebpfsentinel-enterprise
-          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Check REST routes
+      - name: Check the REST reference
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes
-
-  grpc-reference:
-    name: gRPC reference matches the proto
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the documentation
-        uses: actions/checkout@v5
-        with:
-          path: ebpfsentinel-docs
-
-      # The message reference on the page is generated from these files, so a
-      # field added to a proto without regenerating fails here rather than in an
-      # integrator's generated client.
-      - name: Check out the agent
-        uses: actions/checkout@v5
-        with:
-          repository: ebpfsentinel/ebpfsentinel
-          path: ebpfsentinel
-
-      # The enterprise HA peer service is the other half of what speaks gRPC.
-      # That repository is private, so the checkout needs a read token. The same
-      # check runs in the enterprise pipeline, so an rpc added there fails the
-      # change that caused it rather than the next documentation branch anybody
-      # opens.
-      - name: Check out the enterprise agent
-        uses: actions/checkout@v5
-        with:
-          repository: ebpfsentinel/ebpfsentinel-enterprise
-          path: ebpfsentinel-enterprise
-          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
 
       - name: Check the gRPC reference
         working-directory: ebpfsentinel-docs
         run: npm run check:grpc-reference
-
-  cli-reference:
-    name: CLI reference matches the enterprise binary
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the documentation
-        uses: actions/checkout@v5
-        with:
-          path: ebpfsentinel-docs
-
-      # The three subcommands and every flag are read off the clap declarations
-      # in the binary, so a fourth subcommand or a changed default fails here
-      # rather than sending an operator to --help. That repository is private,
-      # so the checkout needs a read token. The same check runs in the
-      # enterprise pipeline, so a command added there fails the change that
-      # caused it rather than the next documentation branch anybody opens.
-      - name: Check out the enterprise agent
-        uses: actions/checkout@v5
-        with:
-          repository: ebpfsentinel/ebpfsentinel-enterprise
-          path: ebpfsentinel-enterprise
-          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
 
       - name: Check the CLI reference
         working-directory: ebpfsentinel-docs
@@ -156,6 +71,7 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
