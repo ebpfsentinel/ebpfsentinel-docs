@@ -225,5 +225,5 @@ for the `announce` block.
 - `ebpfsentinel_rules_loaded{domain="loadbalancer"}` — number of loaded services
 - `ebpfsentinel_packets_total{domain="loadbalancer", action="forward"}` — packets forwarded to backends
 - `ebpfsentinel_packets_total{domain="loadbalancer", action="no_backend"}` — packets with no available backend
-- `ebpfsentinel_lb_vip_arp_replies_total{vip}` — forged ARP replies per VIP (speaker only)
+- `ebpfsentinel_lb_vip_arp_replies{vip}` — forged ARP replies per VIP (speaker only)
 - `ebpfsentinel_lb_vip_takeovers_total{vip}` — gratuitous-ARP takeovers per VIP

@@ -110,7 +110,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **Forged ARP reply**: for an ARP "who-has" targeting an owned VIP, rewrites a fixed 28 bytes (`sha` = this node's NIC MAC) and `XDP_TX`s the reply out the receiving interface — bounded, no loop, no SKB
 - **Speaker election**: userspace populates the `VIP_SET` map **only** while this node is the elected speaker; a standby node keeps it empty and never answers (split-brain safe)
 - **Gratuitous ARP on takeover**: emitted by userspace over a raw `AF_PACKET` socket (not eBPF), so upstream switches relearn the MAC immediately
-- **Metrics**: `ebpfsentinel_lb_vip_arp_replies_total`, `ebpfsentinel_lb_vip_takeovers_total`
+- **Metrics**: `ebpfsentinel_lb_vip_arp_replies`, `ebpfsentinel_lb_vip_takeovers_total`
 - Configured via `loadbalancer.announce`; see [Load balancer → L2 VIP announcer](../features/loadbalancer.md#l2-vip-announcer)
 
 ## TC IDS (tc-ids)

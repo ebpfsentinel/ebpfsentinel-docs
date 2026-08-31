@@ -2,6 +2,22 @@
 
 Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is not configured).
 
+## Renamed series
+
+Two metrics changed name. Both were registered under a name ending in
+`_total`, which the OpenMetrics text encoder appends to every counter sample
+by itself, so one was exported twice over and the other carried a counter
+suffix on a gauge.
+
+| Old series | New series | Why |
+|--------|------|--------|
+| `ebpfsentinel_ids_ct_dying_total_total` | `ebpfsentinel_ids_ct_dying_total` | Registered as `ids_ct_dying_total`, so the encoder appended a second suffix. Nothing naming the intended series ever matched it |
+| `ebpfsentinel_lb_vip_arp_replies_total` | `ebpfsentinel_lb_vip_arp_replies` | It is a gauge, and `_total` on a gauge is not valid OpenMetrics |
+
+This is a breaking change for any dashboard panel, alert rule or recording
+rule naming the old series: the query returns no data rather than an error, so
+update the query rather than waiting for something to fail.
+
 ## Metrics Catalog
 
 ### Packet Processing
@@ -134,7 +150,7 @@ rather than reporting an idle datapath.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_packets_total` | Counter | `domain="loadbalancer"`, `action` | LB packets (forward, no_backend) |
-| `ebpfsentinel_lb_vip_arp_replies_total` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
+| `ebpfsentinel_lb_vip_arp_replies` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
 | `ebpfsentinel_lb_vip_takeovers_total` | Counter | `vip` | Gratuitous-ARP takeovers per VIP (L2 VIP announcer) |
 
 ### GeoIP

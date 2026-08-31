@@ -223,7 +223,7 @@ A bounded XDP ARP responder for load-balancer virtual IPs (VIPs). It is kept off
 |--------|-------------|
 | **Speaker election** | Userspace populates `VIP_SET` **only** while this node is the elected speaker; a standby node keeps an empty set and never answers, so two nodes never claim the same VIP (split-brain safe) |
 | **Gratuitous ARP** | On takeover, userspace broadcasts a gratuitous ARP per VIP (raw `AF_PACKET`, not eBPF) so upstream switches relearn the MAC immediately |
-| **Metrics** | `ebpfsentinel_lb_vip_arp_replies_total` (forged replies per VIP) and `ebpfsentinel_lb_vip_takeovers_total` |
+| **Metrics** | `ebpfsentinel_lb_vip_arp_replies` (forged replies per VIP) and `ebpfsentinel_lb_vip_takeovers_total` |
 
 Configured via the `loadbalancer.announce` block. See [Load balancer → L2 VIP announcer](../features/loadbalancer.md#l2-vip-announcer).
 
