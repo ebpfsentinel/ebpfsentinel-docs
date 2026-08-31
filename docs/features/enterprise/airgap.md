@@ -6,6 +6,64 @@
 
 Offline operation for environments without internet access. Threat intelligence feeds are packaged into signed bundles with per-file SHA-256 checksums, transferred via USB or file copy, and imported into air-gapped agents with Ed25519 signature verification, integrity validation, and path traversal protection.
 
+## License Activation Across the Gap
+
+Air-gap mode is itself gated on a license carrying the `air-gap` feature, and
+that license reaches a host with no route to the vendor the same way the feed
+bundles do: as a file somebody carries. Four commands do it, two on each side of
+the gap. Nothing in this workflow opens a socket.
+
+**1. On the air-gapped agent, write the request.**
+
+```bash
+ebpfsentinel-enterprise-agent generate-request \
+  --features advanced-dlp,ml-detection \
+  --output request.json
+```
+
+The file carries the machine fingerprint, the agent version and the features
+asked for. `fingerprint --output` writes a different file - the fingerprint and
+the three values it is computed from, with no features - which is a report for a
+support ticket and is refused by step 3.
+
+**2. Carry `request.json` to a connected workstation.**
+
+**3. On the workstation, sign the activation.**
+
+```bash
+ebpfsentinel-license activate \
+  --signing-key license-signing.key \
+  --pq-signing-key license-signing-pq.key \
+  --request request.json \
+  --org "Acme Corp" \
+  --expires 2027-01-01 \
+  --max-agents 50 \
+  --max-cores-per-agent 32 \
+  --output activation.key
+```
+
+The features are read out of the request and the terms out of the flags, so the
+sale is what the vendor typed and the machine is what the agent asked for. The
+activation is bound to that one fingerprint, and it is dual-signed: both the
+Ed25519 and the ML-DSA-65 signing keys are required.
+
+**4. Carry `activation.key` back and install it.**
+
+```bash
+ebpfsentinel-enterprise-agent import-activation activation.key \
+  --install-path /etc/ebpfsentinel/license.key
+```
+
+The agent validates before it installs: three lines in the envelope, both
+signatures against the public keys built into the binary, the fingerprint bound
+to this machine and the size band covering it. A refusal names the four causes
+and exits non-zero; nothing is written. Restart the agent, or point it at the
+installed path with `--license` or `enterprise.license_path`.
+
+Every flag of the three agent commands is in the
+[CLI reference](../../cli-reference/index.md#enterprise-agent-commands), and the
+signing side in [Enterprise License System](license.md).
+
 ## Bundle Format
 
 A bundle is a directory containing:
@@ -76,7 +134,9 @@ ebpfsentinel-license feed-export \
 
 ## Import Workflow
 
-On the air-gapped agent, import and verify the bundle:
+On the air-gapped agent, import and verify the bundle. A feed bundle is imported
+through the agent's own API or picked up by auto-import; the license half of the
+gap is the four commands above, and neither reaches the other's files.
 
 ### Import Steps
 

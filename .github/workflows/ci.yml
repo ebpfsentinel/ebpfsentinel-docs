@@ -123,6 +123,36 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:grpc-reference
 
+  cli-reference:
+    name: CLI reference matches the enterprise binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the documentation
+        uses: actions/checkout@v5
+        with:
+          path: ebpfsentinel-docs
+
+      # The three subcommands and every flag are read off the clap declarations
+      # in the binary, so a fourth subcommand or a changed default fails here
+      # rather than sending an operator to --help. That repository is private,
+      # so the checkout needs a read token. The same check runs in the
+      # enterprise pipeline, so a command added there fails the change that
+      # caused it rather than the next documentation branch anybody opens.
+      - name: Check out the enterprise agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-enterprise
+          path: ebpfsentinel-enterprise
+          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Check the CLI reference
+        working-directory: ebpfsentinel-docs
+        run: npm run check:cli-reference
+
   build:
     name: build
     runs-on: ubuntu-latest

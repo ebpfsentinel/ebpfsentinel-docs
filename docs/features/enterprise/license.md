@@ -87,9 +87,14 @@ Licenses are bound to specific machines via a SHA-256 fingerprint computed from:
 # Display fingerprint
 ebpfsentinel-enterprise-agent fingerprint
 
-# Export fingerprint to JSON
-ebpfsentinel-enterprise-agent fingerprint --output request.json
+# Write the fingerprint and its components to a JSON report
+ebpfsentinel-enterprise-agent fingerprint --output fingerprint.json
 ```
+
+That file is a report rather than an activation request: it carries no list of
+features, so `activate` refuses it. The file that crosses an air gap is the one
+`generate-request` writes, and every flag of the three agent commands is in the
+[CLI reference](../../cli-reference/index.md#enterprise-agent-commands).
 
 Wildcard fingerprint (`*`) is supported for development/testing licenses.
 
@@ -187,6 +192,7 @@ For environments without internet access:
                     ──── transfer ────►
                                        2. ebpfsentinel-license activate \
                                             --signing-key KEY \
+                                            --pq-signing-key PQ_KEY \
                                             --request request.json \
                                             --org "Acme" \
                                             --expires 2027-01-01 \
@@ -195,6 +201,9 @@ For environments without internet access:
 3. import-activation activation.key
    (validates + installs to /etc/ebpfsentinel/license.key)
 ```
+
+The same round trip is walked command by command, with what each step writes and
+what refuses it, in [Air-Gap Mode](airgap.md#license-activation-across-the-gap).
 
 ## Post-Quantum License Signing
 

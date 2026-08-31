@@ -10,6 +10,7 @@
     "clear": "docusaurus clear",
     "version": "docusaurus docs:version",
     "typecheck": "tsc",
+    "check:cli-reference": "node scripts/check-cli-reference.mjs",
     "check:metrics": "node scripts/check-metric-names.mjs",
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",

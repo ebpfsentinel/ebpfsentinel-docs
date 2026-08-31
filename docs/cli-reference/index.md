@@ -933,3 +933,101 @@ ebpfsentinel-agent --token sk-my-api-key firewall list
 export EBPFSENTINEL_TOKEN=sk-my-api-key
 ebpfsentinel-agent firewall list
 ```
+## Enterprise Agent Commands
+
+> **Edition: Enterprise**
+
+The enterprise agent is a binary of its own, and it is not a client of the one
+above. Given no subcommand it runs as the daemon; given one of the three below
+it reads the machine, writes a file or installs one and exits. All three are
+meant to run before the daemon has ever started, which is why none of them
+takes a host or a token.
+
+```
+ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
+```
+
+### Enterprise Global Options
+
+These are read when the binary runs as the daemon. A subcommand ignores them.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-c, --config <PATH>` | Config file path | `config/ebpfsentinel.yaml` |
+| `--license <PATH>` | License key file. Also read from the `EBPFSENTINEL_LICENSE` environment variable. Absent here and in `enterprise.license_path`, the agent starts in open-source mode rather than refusing to start | From `enterprise.license_path` |
+| `--bind-address <ADDR>` | Bind address of the enterprise API | `127.0.0.1` |
+| `--enterprise-port <PORT>` | Port of the enterprise API | `8444` |
+
+### fingerprint
+
+Print the machine fingerprint a license is bound to, and the three values it is
+computed from.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--output <PATH>` | Also write the fingerprint and its components to a JSON file | Printed only |
+
+```bash
+ebpfsentinel-enterprise-agent fingerprint
+```
+
+```
+Machine Fingerprint
+===================
+Machine ID:  8f14e45fceea167a5a36dedd4bea2543
+CPU Brand:   Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz
+MAC Address: 52:54:00:12:34:56
+Fingerprint: ca9240c0e28de9601b98e0f04b19f0d2...
+```
+
+A component the host does not expose is reported as `unavailable` on stderr and
+folded into the hash as that word, so the fingerprint is still stable across
+restarts of the same machine.
+
+The file `--output` writes is a report: it carries the fingerprint and its
+components and no list of features, so it is **not** the file `ebpfsentinel-license
+activate` reads. Use `generate-request` for that.
+
+### generate-request
+
+Write an activation request for a license that will be signed on another
+machine. This is the file the air-gapped round trip carries out.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--features <LIST>` | Features to ask for, comma separated (`advanced-dlp,ml-detection`) | Empty, which asks for a license carrying no feature |
+| `-o, --output <PATH>` | Path of the request JSON | Required |
+
+```bash
+ebpfsentinel-enterprise-agent generate-request \
+  --features advanced-dlp,ml-detection \
+  --output request.json
+```
+
+The request carries the fingerprint, the agent version and the features asked
+for. The vendor signs the terms it sold rather than the ones the file asks for,
+so a feature nobody bought does not arrive by editing this file.
+
+### import-activation
+
+Validate a signed activation and install it.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `<ACTIVATION>` | Path of the activation key file received back | Required |
+| `--install-path <PATH>` | Where to install the validated license | `/etc/ebpfsentinel/license.key` |
+
+```bash
+ebpfsentinel-enterprise-agent import-activation activation.key \
+  --install-path /etc/ebpfsentinel/license.key
+```
+
+Nothing is installed before the file is validated: the envelope has to carry
+three lines, both signatures have to verify against the keys built into the
+binary, and the machine fingerprint and the size band have to cover this host.
+A refusal names the four causes and exits non-zero, so a provisioning script
+can gate on it. The parent directory is created when it is missing.
+
+The whole round trip is walked in [Air-Gap Mode](../features/enterprise/airgap.md#license-activation-across-the-gap),
+and the signing half of it, which runs `ebpfsentinel-license` on a connected
+workstation, is documented in the [Enterprise License System](../features/enterprise/license.md).
