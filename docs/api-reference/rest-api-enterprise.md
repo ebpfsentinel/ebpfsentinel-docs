@@ -99,13 +99,15 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/rbac/assignments` | operator | `config:write` | advanced-rbac | Assign role to subject (201). |
-| `DELETE` | `/api/v1/rbac/assignments` | operator | `config:write` | advanced-rbac | Remove role from subject (204). |
+| `DELETE` | `/api/v1/rbac/assignments` | operator | `config:write` | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
 | `GET` | `/api/v1/rbac/assignments/{subject}` | viewer | `config:read` | advanced-rbac | List roles for subject. |
+| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | operator | `config:write` | advanced-rbac | Remove role from subject (204). No request body. |
 | `POST` | `/api/v1/rbac/check` | operator | `config:write` | advanced-rbac | Check permission (`{ role_id, domain, permission, resource_id? }`). |
 | `POST` | `/api/v1/rbac/filter` | operator | `config:write` | advanced-rbac | Filter accessible resources (`{ role_id, domain, resource_ids }`). |
 | `GET` | `/api/v1/rbac/roles` | viewer | `config:read` | advanced-rbac | List all roles. |
 | `POST` | `/api/v1/rbac/roles` | operator | `config:write` | advanced-rbac | Create custom role (201). |
-| `PUT` | `/api/v1/rbac/roles` | operator | `config:write` | advanced-rbac | Bulk reload all custom roles (atomic). |
+| `PUT` | `/api/v1/rbac/roles` | operator | `config:write` | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
+| `POST` | `/api/v1/rbac/roles/reload` | operator | `config:write` | advanced-rbac | Bulk reload all custom roles (atomic). |
 | `GET` | `/api/v1/rbac/roles/{id}` | viewer | `config:read` | advanced-rbac | Role details (404 if not found). |
 | `PUT` | `/api/v1/rbac/roles/{id}` | operator | `config:write` | advanced-rbac | Update custom role (403 for built-in). |
 | `DELETE` | `/api/v1/rbac/roles/{id}` | operator | `config:write` | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |

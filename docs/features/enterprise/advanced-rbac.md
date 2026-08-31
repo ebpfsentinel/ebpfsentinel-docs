@@ -128,12 +128,17 @@ Roles can inherit grants from a parent role:
 
 ### Hot-Reload
 
-`PUT /api/v1/rbac/roles` performs atomic two-pass reload:
+`POST /api/v1/rbac/roles/reload` performs atomic two-pass reload:
 
 1. Insert all roles (check for duplicates)
 2. Validate inheritance (parent refs, cycles, depth)
 3. On success: replace all custom roles, keep built-in
 4. On failure: no changes applied (atomic rollback)
+
+`PUT /api/v1/rbac/roles` is the older spelling of the same call, kept for one
+release and marked deprecated. A `PUT` on a collection promises to replace it,
+and this call reloads the custom roles while leaving the built-in ones in place,
+which is why the action has an address of its own.
 
 ## Subject-to-Role Assignments
 
@@ -142,6 +147,12 @@ Map user identities (JWT `sub` claim or API key name) to roles:
 ```json
 POST /api/v1/rbac/assignments
 { "subject": "user-123", "role_id": "firewall-operator" }
+```
+
+An assignment is removed by naming the pair in the path, with no request body:
+
+```
+DELETE /api/v1/rbac/assignments/user-123/firewall-operator
 ```
 
 A subject can have multiple roles. Access is granted if **any** assigned role provides the required permission.
@@ -243,7 +254,8 @@ RBAC management routes (create, delete, update, reload, assignments) require adm
 | `PUT` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Update custom role (403 for built-in). |
 | `DELETE` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
 | `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
-| `PUT` | `/api/v1/rbac/roles` | operator | advanced-rbac | Bulk reload all custom roles (atomic). |
+| `PUT` | `/api/v1/rbac/roles` | operator | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
+| `POST` | `/api/v1/rbac/roles/reload` | operator | advanced-rbac | Bulk reload all custom roles (atomic). |
 
 ### Permission Checking
 
@@ -257,8 +269,9 @@ RBAC management routes (create, delete, update, reload, assignments) require adm
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
 | `POST` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Assign role to subject (201). |
-| `DELETE` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Remove role from subject (204). |
+| `DELETE` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
 | `GET` | `/api/v1/rbac/assignments/{subject}` | viewer | advanced-rbac | List roles for subject. |
+| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | operator | advanced-rbac | Remove role from subject (204). No request body. |
 
 ## Feature Gating
 
