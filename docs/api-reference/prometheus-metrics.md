@@ -1,11 +1,24 @@
 # Prometheus Metrics
 
-Scrape from `:9090/metrics` (or `:8080/metrics` if a separate metrics port is not configured).
+## Which port each registry is on
+
+There are two registries and they are scraped separately, because the two
+agents are two binaries: neither one exposes the other's series.
+
+| Registry | Prefix | Scraped from | Also served on |
+|----------|--------|--------------|----------------|
+| OSS agent | `ebpfsentinel_` | `:9090/metrics`, the dedicated metrics listener (`agent.metrics_port`) | `:8080/metrics`, the control API (`agent.http_port`) |
+| Enterprise agent | `ebpfsentinel_ent_` | `:8444/metrics`, the enterprise API (`--enterprise-port`) | - |
+
+The OSS registry has a listener of its own so a scraper can reach it while the
+control API port stays firewalled off. The enterprise agent runs no second
+listener: its `/metrics` is on the enterprise API port and carries the
+enterprise registry only.
 
 ## How to read this page
 
-Every family below is registered by the agent. Two encoding rules decide the
-name you actually query:
+Every family below is registered by one of the two agents. Two encoding rules
+decide the name you actually query:
 
 - A counter is registered without a suffix and the OpenMetrics text encoder
   appends `_total` to every sample. `alerts` is registered, `ebpfsentinel_alerts_total`
@@ -292,7 +305,8 @@ Queries observed on the wire are a kernel slot:
 
 ## Enterprise Metrics
 
-> Scraped from enterprise agent port (default `:8444/metrics`). Prefix: `ebpfsentinel_ent_`.
+> Scraped from the enterprise API port (default `:8444/metrics`). Prefix:
+> `ebpfsentinel_ent_`.
 > With `auth.enabled: true` this endpoint needs a credential like the rest of
 > the enterprise port: give the scrape job an `authorization` or an
 > `X-API-Key` header, otherwise it gets `401`.
@@ -300,6 +314,13 @@ Queries observed on the wire are a kernel slot:
 Everything under `ebpfsentinel_ent_` requires an Enterprise licence. An OSS
 agent exposes none of it, so a panel mixing the two prefixes goes blank on an
 OSS install rather than reading zero.
+
+The tables below are the whole enterprise registry: every family it registers
+is listed once, under the feature that writes it, with the name a query
+returns data for. The same two encoding rules apply as above, so a counter is
+listed with the `_total` the encoder appends and a gauge without it. A family
+this page omits, or a name it carries that the registry does not expose, fails
+`npm run check:metrics`.
 
 ### Renamed enterprise series
 
@@ -320,32 +341,308 @@ This is a breaking change for any dashboard panel, alert rule or recording
 rule naming an old series: the query returns no data rather than an error, so
 update the query rather than waiting for something to fail.
 
-### Fleet Management
+### Fleet management
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `ebpfsentinel_ent_fleet_registrations_total` | Counter | Agent registrations processed |
-| `ebpfsentinel_ent_fleet_heartbeats_total` | Counter | Agent heartbeats received |
-| `ebpfsentinel_ent_fleet_identity_queries_total` | Counter | Identity queries served |
-| `ebpfsentinel_ent_fleet_config_version_queries_total` | Counter | Config version queries served |
-| `ebpfsentinel_ent_fleet_flow_graph_queries_total` | Counter | Flow graph queries served |
-
-### Multi-Tenancy
+The control plane serving agent registration, heartbeats and fleet queries.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_ent_tenants` | Gauge | - | Configured tenants |
-| `ebpfsentinel_ent_tenant_quota_usage_ratio` | Gauge | `tenant`, `resource` | Quota usage as a fraction of the limit (0.0 to 1.0) |
-| `ebpfsentinel_ent_tenant_quota_exceeded_total` | Counter | `tenant`, `resource` | Requests refused because a quota was already at its limit |
+| `ebpfsentinel_ent_fleet_registrations_total` | Counter | - | Agent registrations processed |
+| `ebpfsentinel_ent_fleet_heartbeats_total` | Counter | - | Agent heartbeats received |
+| `ebpfsentinel_ent_fleet_identity_queries_total` | Counter | - | Agent identity queries served |
+| `ebpfsentinel_ent_fleet_config_version_queries_total` | Counter | - | Config version queries served |
+| `ebpfsentinel_ent_fleet_flow_graph_queries_total` | Counter | - | Flow graph queries served |
+
+### Multi-tenancy
+
+Tenant lifecycle, per-tenant dispatch and quota enforcement.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_tenants` | Gauge | - | Total configured tenants |
+| `ebpfsentinel_ent_tenant_alerts_total` | Counter | `tenant` | Tenant-scoped alerts dispatched |
+| `ebpfsentinel_ent_tenant_audit_total` | Counter | `tenant` | Tenant-scoped audit entries |
+| `ebpfsentinel_ent_tenant_quota_exceeded_total` | Counter | `tenant`, `resource` | Quota exceeded events by tenant and resource |
+| `ebpfsentinel_ent_tenant_quota_usage_ratio` | Gauge | `tenant`, `resource` | Quota usage ratio (0.0-1.0) by tenant and resource |
+| `ebpfsentinel_ent_tenants_added_total` | Counter | `source` | Tenants added dynamically by the source they came from |
+| `ebpfsentinel_ent_tenants_suspended_total` | Counter | - | Tenants suspended |
+| `ebpfsentinel_ent_tenants_activated_total` | Counter | - | Tenants reactivated after suspension |
+| `ebpfsentinel_ent_tenant_self_service_checks_total` | Counter | `operation` | Self-service operations admitted, by operation |
 
 There is no gauge carrying the configured limit itself. Usage is published as
 a ratio so a panel needs no second series to be readable, and the limit is
 read from `GET /api/v1/tenants/{id}/quota`.
 
-### Extended TLS Probes
+### Role-based access control
 
-Documented with the feature in
+Permission checks and role administration on the enterprise API.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_rbac_permission_checks_total` | Counter | `result` | RBAC permission checks by result |
+| `ebpfsentinel_ent_rbac_role_changes_total` | Counter | `action` | RBAC role changes by action |
+| `ebpfsentinel_ent_rbac_custom_roles` | Gauge | - | Number of custom RBAC roles |
+| `ebpfsentinel_ent_rbac_role_assignments` | Gauge | - | Active role assignments |
+
+### High availability
+
+Leader election, failover, heartbeats and interface ownership in an HA pair or cluster.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_ha_elections_total` | Counter | `outcome` | HA leader elections by outcome |
+| `ebpfsentinel_ent_ha_failovers_total` | Counter | `trigger` | HA failover events by trigger |
+| `ebpfsentinel_ent_ha_heartbeats_sent_total` | Counter | - | HA heartbeats sent to peers |
+| `ebpfsentinel_ent_ha_heartbeats_received_total` | Counter | - | HA heartbeats received from peers |
+| `ebpfsentinel_ent_ha_role` | Gauge | - | Current HA role (0=follower, 1=candidate, 2=leader) |
+| `ebpfsentinel_ent_ha_term` | Gauge | - | Current Raft term number |
+| `ebpfsentinel_ent_ha_peers` | Gauge | - | Number of known HA peers |
+| `ebpfsentinel_ent_ha_ebpf_active` | Gauge | - | Whether eBPF programs are active on this node (0/1) |
+| `ebpfsentinel_ent_ha_split_brain_total` | Counter | `action` | Split-brain resolution actions |
+| `ebpfsentinel_ent_ha_interface_takeovers_total` | Counter | `interface` | Interface takeovers in active-active mode |
+| `ebpfsentinel_ent_ha_interface_releases_total` | Counter | `interface` | Interface releases after peer recovery |
+| `ebpfsentinel_ent_ha_mode` | Gauge | `mode` | HA operating mode |
+| `ebpfsentinel_ent_ha_owned_interfaces` | Gauge | - | Number of interfaces owned by this node |
+| `ebpfsentinel_ent_ha_cluster_health` | Gauge | `health` | Cluster health state |
+| `ebpfsentinel_ent_ha_degradation_entered_total` | Counter | `policy` | Degraded mode entries by policy |
+| `ebpfsentinel_ent_ha_degradation_exited_total` | Counter | - | Degraded mode exits |
+| `ebpfsentinel_ent_ha_peer_failure_count` | Gauge | `peer` | Consecutive heartbeat failures per peer |
+
+### State replication
+
+Delta and snapshot replication of runtime state between HA members.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_repl_deltas_sent_total` | Counter | `category` | Replication deltas sent by category |
+| `ebpfsentinel_ent_repl_deltas_received_total` | Counter | `category` | Replication deltas received by category |
+| `ebpfsentinel_ent_repl_snapshots_sent_total` | Counter | `category` | Full snapshots sent by category |
+| `ebpfsentinel_ent_repl_snapshots_received_total` | Counter | `category` | Full snapshots received by category |
+| `ebpfsentinel_ent_repl_lag` | Gauge | `category`, `follower` | Replication lag (sequence delta) by category and follower |
+| `ebpfsentinel_ent_repl_bandwidth_rejected_total` | Counter | `category` | Replication attempts rejected by bandwidth limiter |
+| `ebpfsentinel_ent_repl_errors_total` | Counter | `category` | Replication errors by category |
+
+### Multi-cluster federation
+
+Cluster registry, federated alert ingest and policy distribution.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_fed_cluster_registrations_total` | Counter | - | Cluster registrations |
+| `ebpfsentinel_ent_fed_cluster_unregistrations_total` | Counter | - | Cluster unregistrations |
+| `ebpfsentinel_ent_fed_clusters` | Gauge | - | Total registered clusters |
+| `ebpfsentinel_ent_fed_clusters_online` | Gauge | - | Online clusters |
+| `ebpfsentinel_ent_fed_alerts_ingested_total` | Counter | - | Federated alerts ingested |
+| `ebpfsentinel_ent_fed_alerts_deduplicated_total` | Counter | - | Federated alerts deduplicated |
+| `ebpfsentinel_ent_fed_policy_pushes_total` | Counter | - | Policy distribution pushes |
+| `ebpfsentinel_ent_fed_policy_failures_total` | Counter | `cluster` | Policy distribution failures by cluster |
+| `ebpfsentinel_ent_fed_alerts_sse_subscribers` | Gauge | `tenant` | Live federation alerts SSE subscribers by tenant scope |
+| `ebpfsentinel_ent_fed_policies_applied_total` | Counter | `policy_type` | Federated policies applied locally by policy type |
+| `ebpfsentinel_ent_fed_policy_apply_failures_total` | Counter | `policy_type` | Federated policy applies that failed and were rolled back, by policy type |
+| `ebpfsentinel_ent_fed_policies_active` | Gauge | - | Federated policies currently applied on this cluster |
+
+### SIEM export
+
+Outbound event delivery to a SIEM connector, with its buffer and circuit breaker.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_siem_events_exported_total` | Counter | - | SIEM events exported |
+| `ebpfsentinel_ent_siem_events_dropped_total` | Counter | - | SIEM events dropped |
+| `ebpfsentinel_ent_siem_export_errors_total` | Counter | - | SIEM export errors |
+| `ebpfsentinel_ent_siem_buffer_size_bytes` | Gauge | - | SIEM buffer size in bytes |
+| `ebpfsentinel_ent_siem_circuit_state` | Gauge | - | SIEM circuit breaker state (0=closed, 1=half-open, 2=open) |
+| `ebpfsentinel_ent_siem_connectors` | Gauge | - | Configured SIEM connectors |
+
+### Automated response
+
+Policy evaluation, response actions, SOAR webhooks and the cooldowns holding them back.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_response_policy_evaluations_total` | Counter | - | Alerts evaluated against the response policy set |
+| `ebpfsentinel_ent_response_actions_executed_total` | Counter | `action`, `outcome` | Response actions executed by action and outcome |
+| `ebpfsentinel_ent_response_webhooks_sent_total` | Counter | `result` | SOAR webhook deliveries by result |
+| `ebpfsentinel_ent_response_policies_active` | Gauge | - | Response policies currently enabled |
+| `ebpfsentinel_ent_response_cooldowns_active` | Gauge | - | Response cooldowns currently holding an action back |
+| `ebpfsentinel_ent_response_audit_trail_depth` | Gauge | - | Entries currently held in the response audit trail |
+
+### Forensics
+
+Forensic event ingest, the ring buffer holding it and the captures triggered off it.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_forensics_sse_subscribers` | Gauge | - | Live forensic events SSE subscribers |
+| `ebpfsentinel_ent_forensics_events_ingested_total` | Counter | - | Forensic events ingested into the ring buffer |
+| `ebpfsentinel_ent_forensics_ring_buffer_depth` | Gauge | - | Forensic events currently held in the ring buffer |
+| `ebpfsentinel_ent_forensics_ingestion_seconds_total` | Counter | - | Time spent ingesting forensic events |
+| `ebpfsentinel_ent_forensics_captures_triggered_total` | Counter | `component` | Forensic captures triggered by the alert component that fired them |
+| `ebpfsentinel_ent_forensics_captures_completed_total` | Counter | - | Forensic captures that completed |
+| `ebpfsentinel_ent_forensics_captures_failed_total` | Counter | - | Forensic captures that failed |
+| `ebpfsentinel_ent_forensics_captures_expired_total` | Counter | - | Forensic captures removed by the retention sweep |
+
+### Compliance reporting
+
+Report generation and control results per framework.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_compliance_reports_generated_total` | Counter | `framework` | Compliance reports generated by framework |
+| `ebpfsentinel_ent_compliance_controls_passing` | Gauge | `framework` | Passing compliance controls by framework |
+| `ebpfsentinel_ent_compliance_controls_failing` | Gauge | `framework` | Failing compliance controls by framework |
+| `ebpfsentinel_ent_compliance_reports_stored` | Gauge | - | Total compliance reports stored |
+
+### Analytics
+
+Event ingest, trend reports, top talkers and flow queries.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_analytics_events_ingested_total` | Counter | `event_type` | Analytics events ingested by type |
+| `ebpfsentinel_ent_analytics_trends_generated_total` | Counter | - | Analytics trend reports generated |
+| `ebpfsentinel_ent_analytics_top_talkers` | Gauge | - | Number of tracked top-talkers |
+| `ebpfsentinel_ent_analytics_events_buffered` | Gauge | - | Events in analytics buffer |
+| `ebpfsentinel_ent_analytics_flow_queries_total` | Counter | - | Flow queries executed against the analytics store |
+
+### ML anomaly detection
+
+Baseline learning, streaming detectors and the Random Cut Forest.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_ml_anomalies_detected_total` | Counter | `severity` | ML anomalies detected by severity |
+| `ebpfsentinel_ent_ml_suggestions_generated_total` | Counter | - | ML rule suggestions generated |
+| `ebpfsentinel_ent_ml_feedback_submitted_total` | Counter | `label` | ML feedback submitted by label |
+| `ebpfsentinel_ent_ml_baseline_samples` | Gauge | - | ML baseline sample count |
+| `ebpfsentinel_ent_ml_model_loaded` | Gauge | - | Whether an ML model is loaded (0/1) |
+| `ebpfsentinel_ent_ml_ewma_anomalies_total` | Counter | - | EWMA streaming anomalies detected |
+| `ebpfsentinel_ent_ml_cusum_drifts_total` | Counter | - | CUSUM change-point drifts detected |
+| `ebpfsentinel_ent_ml_heavy_hitter_alerts_total` | Counter | - | Heavy-hitter threshold alerts emitted |
+| `ebpfsentinel_ent_ml_heavy_hitter_top1_bytes` | Gauge | - | Byte volume of current top-1 heavy hitter |
+| `ebpfsentinel_ent_ml_rcf_anomalies_total` | Counter | - | Random Cut Forest anomaly observations recorded |
+| `ebpfsentinel_ent_ml_rcf_last_score` | Gauge | - | Most recent Random Cut Forest anomaly score |
+| `ebpfsentinel_ent_ml_rcf_trees_count` | Gauge | - | Number of trees in the active Random Cut Forest |
+| `ebpfsentinel_ent_ml_rcf_points_inserted_total` | Counter | - | Points inserted into the Random Cut Forest |
+
+### Deep DLP
+
+Hyperscan content scanning and the blocks it triggers.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_dlp_hyperscan_scans_total` | Counter | - | Hyperscan DLP scans performed |
+| `ebpfsentinel_ent_dlp_hyperscan_matches_total` | Counter | `pattern_id` | Hyperscan DLP matches by pattern |
+| `ebpfsentinel_ent_dlp_blocks_total` | Counter | - | DLP block actions triggered |
+| `ebpfsentinel_ent_dlp_patterns_loaded` | Gauge | - | DLP patterns currently loaded |
+| `ebpfsentinel_ent_dlp_reloads_total` | Counter | `result` | DLP pattern reload attempts by result |
+
+### Shadow AI and AI DLP
+
+AI provider matching, exfiltration tracking and encrypted-DNS policy.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_ai_providers_loaded` | Gauge | - | Number of loaded AI provider entries |
+| `ebpfsentinel_ent_ai_provider_matches_total` | Counter | `provider` | AI provider domain matches |
+| `ebpfsentinel_ent_ai_shadow_detections_total` | Counter | `provider`, `action` | Shadow AI detections by provider and action |
+| `ebpfsentinel_ent_ai_shadow_bytes_total` | Counter | `provider` | Bytes sent to AI providers (shadow AI) |
+| `ebpfsentinel_ent_ai_dlp_scans_total` | Counter | - | AI DLP scans performed |
+| `ebpfsentinel_ent_ai_dlp_matches_total` | Counter | `pattern_id` | AI DLP pattern matches |
+| `ebpfsentinel_ent_ai_dlp_blocks_total` | Counter | - | AI DLP block actions |
+| `ebpfsentinel_ent_ai_exfil_detections_total` | Counter | `detection_type` | AI exfiltration detections by type |
+| `ebpfsentinel_ent_ai_exfil_bytes_total` | Counter | `provider` | Bytes tracked for AI exfiltration |
+| `ebpfsentinel_ent_ai_enc_dns_detections_total` | Counter | `resolver`, `action` | Encrypted DNS policy detections |
+| `ebpfsentinel_ent_ai_enc_dns_bypassed_total` | Counter | - | Encrypted DNS policy bypasses |
+
+### DNS and beaconing detection
+
+Domain-generation, tunnelling and C2 beaconing detectors.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_dns_dga_detected_total` | Counter | - | DGA-generated domains detected |
+| `ebpfsentinel_ent_dns_tunneling_detected_total` | Counter | - | DNS tunneling domains detected |
+| `ebpfsentinel_ent_beaconing_detected_total` | Counter | - | C2 beaconing suspects detected |
+
+### L7 inspection and policy
+
+Vectorscan pattern matching, per-protocol policy decisions and the analysis pipeline.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_l7_inspect_patterns_loaded` | Gauge | - | Number of Vectorscan patterns currently compiled in the L7 inspect engine |
+| `ebpfsentinel_ent_l7_inspect_matches_total` | Counter | `category` | Vectorscan L7 pattern matches by category |
+| `ebpfsentinel_ent_l7_inspect_scans_total` | Counter | - | Total L7 inspection scans (hits + misses) |
+| `ebpfsentinel_ent_l7_policy_decisions_total` | Counter | `protocol`, `outcome` | Per-protocol L7 policy decisions by protocol and outcome |
+| `ebpfsentinel_ent_l7_policy_violations_total` | Counter | `code` | L7 policy violations by machine-readable code |
+| `ebpfsentinel_ent_l7_policy_rules_loaded` | Gauge | `protocol` | Number of rules currently loaded per L7 policy engine |
+| `ebpfsentinel_ent_l7_enrichments_produced_total` | Counter | `source`, `technique` | L7 alert enrichments emitted by source detector and MITRE technique |
+| `ebpfsentinel_ent_l7_analyze_requests_total` | Counter | `protocol` | Requests to the L7 `/analyze` admin pipeline by protocol |
+| `ebpfsentinel_ent_l7_analyze_duration_seconds` | Gauge | - | Most recent `/analyze` pipeline duration in seconds |
+
+### TLS interception proxy
+
+The inspecting proxy and the internal CA issuing its certificates.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_tls_connections_intercepted_total` | Counter | - | TLS connections intercepted |
+| `ebpfsentinel_ent_tls_connections_bypassed_total` | Counter | - | TLS connections bypassed |
+| `ebpfsentinel_ent_tls_certs_generated_total` | Counter | - | TLS certificates generated by internal CA |
+| `ebpfsentinel_ent_tls_active_connections` | Gauge | - | Active TLS proxy connections |
+
+### TLS intelligence
+
+Fingerprint tracking, threat matching, crypto policy and the behavioural models.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_tls_intel_threat_entries_loaded` | Gauge | - | Number of loaded TLS threat entries |
+| `ebpfsentinel_ent_tls_intel_threat_matches_total` | Counter | `category` | TLS threat matches by category |
+| `ebpfsentinel_ent_tls_intel_fingerprints_tracked` | Gauge | - | Number of tracked TLS fingerprints |
+| `ebpfsentinel_ent_tls_intel_anomalies_detected_total` | Counter | - | TLS behavior anomalies detected |
+| `ebpfsentinel_ent_tls_intel_pqc_connections_total` | Counter | `status` | PQC connections by status |
+| `ebpfsentinel_ent_tls_intel_pqc_compliance_ratio` | Gauge | - | PQC compliance ratio (0-100) |
+| `ebpfsentinel_ent_tls_intel_crypto_violations_total` | Counter | `violation_type` | Crypto policy violations by type |
+| `ebpfsentinel_ent_tls_intel_weak_protocol_seen_total` | Counter | - | Weak TLS protocol versions seen |
+| `ebpfsentinel_ent_tls_intel_events_processed_total` | Counter | - | TLS intelligence events processed |
+| `ebpfsentinel_ent_tls_intel_allowlist_skipped_total` | Counter | - | TLS threat matches skipped due to allowlist |
+| `ebpfsentinel_ent_tls_intel_clustering_outliers_total` | Counter | - | TLS fingerprint clustering outliers detected |
+| `ebpfsentinel_ent_tls_intel_cipher_downgrades_total` | Counter | - | Cipher suite or protocol version downgrades detected |
+| `ebpfsentinel_ent_tls_intel_sni_cert_mismatches_total` | Counter | - | Connections whose SNI did not match the presented certificate |
+| `ebpfsentinel_ent_tls_intel_session_resume_anomalies_total` | Counter | - | Session resumption anomalies detected |
+| `ebpfsentinel_ent_tls_intel_ml_inferences_total` | Counter | - | TLS behavioural model inferences run |
+| `ebpfsentinel_ent_tls_intel_ml_anomalies_total` | Counter | - | TLS behavioural model anomalies detected |
+| `ebpfsentinel_ent_tls_intel_peer_group_anomalies_total` | Counter | - | Peer-group rarity anomalies detected |
+| `ebpfsentinel_ent_tls_intel_peer_groups_tracked` | Gauge | - | Peer groups currently tracked |
+
+### Extended TLS probes
+
+The uprobe scanner attaching to userspace TLS libraries.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_tls_probes_binaries_discovered_total` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
+| `ebpfsentinel_ent_tls_probes_attached_total` | Counter | `library` | Extended TLS probes successfully attached, labelled by TLS library |
+| `ebpfsentinel_ent_tls_probes_attach_failures_total` | Counter | `library`, `reason` | Extended TLS probe attach failures, labelled by library and reason |
+| `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
+| `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | - | Most recent extended TLS probe scan duration in seconds |
+| `ebpfsentinel_ent_tls_probes_scan_warnings_total` | Counter | `library` | Warnings emitted during extended TLS probe scans, labelled by category |
+
+The scanner itself is documented with the feature in
 [Enterprise DLP](../features/enterprise/dlp.md).
+
+### Air-gap
+
+Offline bundle import and the features an air-gapped deployment turns off.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_airgap_bundles_imported_total` | Counter | - | Successful bundle imports |
+| `ebpfsentinel_ent_airgap_import_failures_total` | Counter | `reason` | Bundle import failures by reason |
+| `ebpfsentinel_ent_airgap_bundles` | Gauge | - | Total bundles imported since startup |
+| `ebpfsentinel_ent_airgap_features_disabled` | Gauge | - | Features disabled in air-gap mode |
 
 ## Scrape Configuration
 
@@ -356,6 +653,16 @@ scrape_configs:
   - job_name: ebpfsentinel
     static_configs:
       - targets: ['localhost:9090']
+    scrape_interval: 15s
+
+  # The enterprise registry is a second target: it lives on the enterprise API
+  # port, and with `auth.enabled: true` the job needs a credential.
+  - job_name: ebpfsentinel-enterprise
+    scheme: https
+    static_configs:
+      - targets: ['localhost:8444']
+    authorization:
+      credentials_file: /etc/prometheus/ebpfsentinel-enterprise.token
     scrape_interval: 15s
 ```
 
@@ -376,13 +683,17 @@ Import Prometheus metrics into Grafana for visualization. Key panels:
 ## Keeping this page honest
 
 Every `ebpfsentinel_*` token in this documentation tree is checked against the
-agent's own registry by `npm run check:metrics`, which reads the registered
-families out of the agent source and fails on a name nothing exposes. Names
-that belong to another binary (the enterprise agent, the dashboard server) or
-that are quoted here only as a retired series are listed with their source in
-`scripts/known-metrics.json`. An entry in that list that no page names fails
-the check as well, so the exception register shrinks rather than accumulates.
+two registries by `npm run check:metrics`, which reads the registered families
+out of the OSS agent source and the enterprise agent source and fails on a
+name neither one exposes. It runs in both directions: a family that either
+registry exposes and no page names fails the check as well, so this page is
+the registry rather than a subset of it somebody remembered to write down.
 
-The check runs on every pull request against a fresh checkout of the agent, so
-a family renamed there breaks this page's build rather than a Grafana panel
-somebody opens a month later.
+Names that belong to a third binary (the dashboard server) or that are quoted
+here only as a retired series are listed with their source in
+`scripts/known-metrics.json`. An entry in that list that no page names fails
+the check too, so the exception register shrinks rather than accumulates.
+
+The check runs on every pull request against a fresh checkout of both agents,
+so a family renamed in either one breaks this page's build rather than a
+Grafana panel somebody opens a month later.

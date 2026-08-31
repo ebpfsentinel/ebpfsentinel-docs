@@ -349,28 +349,49 @@ docker run -d --label ebpfsentinel.io/tenant=client-a nginx
 
 ## Prometheus Metrics
 
-`GET /api/v1/tenants/metrics` (admin only) returns Prometheus text format:
+The tenant series are part of the enterprise registry and are scraped from
+`/metrics` on the enterprise API port, under the `ebpfsentinel_ent_` prefix.
+An OSS agent exposes none of them.
 
-These are Enterprise-only series, registered under the `ebpfsentinel_ent_`
-prefix. An OSS agent exposes none of them.
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_tenants` | Gauge | - | Configured tenants |
+| `ebpfsentinel_ent_tenants_added_total` | Counter | `source` | Tenants added dynamically, by the source they came from |
+| `ebpfsentinel_ent_tenants_suspended_total` | Counter | - | Tenants suspended |
+| `ebpfsentinel_ent_tenants_activated_total` | Counter | - | Tenants reactivated after suspension |
+| `ebpfsentinel_ent_tenant_alerts_total` | Counter | `tenant` | Tenant-scoped alerts dispatched |
+| `ebpfsentinel_ent_tenant_audit_total` | Counter | `tenant` | Tenant-scoped audit entries |
+| `ebpfsentinel_ent_tenant_quota_usage_ratio` | Gauge | `tenant`, `resource` | Quota usage as a fraction of the limit (0.0 to 1.0) |
+| `ebpfsentinel_ent_tenant_quota_exceeded_total` | Counter | `tenant`, `resource` | Requests refused because a quota was already at its limit |
+| `ebpfsentinel_ent_tenant_self_service_checks_total` | Counter | `operation` | Self-service operations admitted, by operation |
+
+A scrape sample reads:
 
 ```
 # HELP ebpfsentinel_ent_tenants Total configured tenants.
 # TYPE ebpfsentinel_ent_tenants gauge
 ebpfsentinel_ent_tenants 3
 
-# HELP ebpfsentinel_ent_tenant_quota_usage_ratio Quota usage as a fraction of the limit.
+# HELP ebpfsentinel_ent_tenant_quota_usage_ratio Quota usage ratio (0.0-1.0) by tenant and resource.
 # TYPE ebpfsentinel_ent_tenant_quota_usage_ratio gauge
 ebpfsentinel_ent_tenant_quota_usage_ratio{tenant="alpha",resource="rules"} 0.05
 
-# HELP ebpfsentinel_ent_tenant_quota_exceeded Requests refused because a quota was already at its limit.
+# HELP ebpfsentinel_ent_tenant_quota_exceeded Quota exceeded events by tenant and resource.
 # TYPE ebpfsentinel_ent_tenant_quota_exceeded counter
 ebpfsentinel_ent_tenant_quota_exceeded_total{tenant="alpha",resource="rules"} 0
 ```
 
-There is no gauge carrying the configured limit itself. Usage is published as
-a ratio so a panel needs no second series to be readable, and the limit is read
-from `GET /api/v1/tenants/{id}/quota`.
+There is no gauge in the registry carrying the configured limit itself. Usage
+is published as a ratio so a panel needs no second series to be readable, and
+the limit is read from `GET /api/v1/tenants/{id}/quota`.
+
+`GET /api/v1/tenants/metrics` (admin only) is a different thing: a snapshot of
+the configured limit and the current usage per tenant and resource, rendered
+as Prometheus text by the handler itself. It is written rather than registered,
+so it hangs under no prefix, is on no registry, and appears on neither
+`/metrics` endpoint. Point a scrape job at `/metrics` and read the limit
+through the quota endpoint; the snapshot is there for an operator reading it
+by hand.
 
 ## REST API
 

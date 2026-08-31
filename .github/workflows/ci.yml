@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   metric-names:
-    name: metric names match the agent registry
+    name: metric names match the two registries
     runs-on: ubuntu-latest
     steps:
       - name: Check out the documentation
@@ -26,6 +26,18 @@ jobs:
         with:
           repository: ebpfsentinel/ebpfsentinel
           path: ebpfsentinel
+
+      # The enterprise registry is the other half, and this tree names every
+      # series it exposes. That repository is private, so the checkout needs a
+      # read token. The same check runs in the enterprise pipeline as well, so a
+      # family renamed there fails the change that caused it rather than the
+      # next documentation branch anybody opens.
+      - name: Check out the enterprise agent
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-enterprise
+          path: ebpfsentinel-enterprise
+          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
 
       - uses: actions/setup-node@v5
         with:
