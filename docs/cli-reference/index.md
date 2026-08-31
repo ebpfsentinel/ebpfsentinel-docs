@@ -35,26 +35,45 @@ ebpfsentinel-agent version
 
 ### watch
 
-Real-time alert stream — like `tail -f` for security events. Polls the agent API and displays only new alerts with ANSI severity coloring.
+Real-time alert stream - like `tail -f` for security events. Consumes the agent's
+Server-Sent Events feed, so an alert appears as the agent raises it rather than at
+the next poll, and displays it with ANSI severity coloring.
+
+If the connection drops, `watch` reconnects on its own, waiting 1 second and
+doubling up to 30 seconds between attempts. It hands the agent the id of the last
+alert it printed, so the agent replays what happened while the connection was
+down and the reconnect leaves no hole.
+
+Filters are applied by the agent before an alert reaches the wire, so a filtered
+watch is quieter on the network as well as on screen.
 
 ```bash
-# Watch all alerts (poll every 2s)
+# Watch all alerts
 ebpfsentinel-agent watch
 
-# Watch only high+ severity IDS alerts, poll every 5s
-ebpfsentinel-agent watch --severity high --component ids --interval 5
+# Watch only high+ severity IDS alerts
+ebpfsentinel-agent watch --severity high --component ids
 ```
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-i, --interval <SECS>` | Poll interval in seconds | `2` |
+| `-i, --interval <SECS>` | Seconds between reads of the alert list, used only by the polling fallback | `2` |
 | `--component <NAME>` | Filter by component (ids, ddos, dns, dlp, etc.) | All |
 | `--severity <LEVEL>` | Filter by minimum severity (low, medium, high, critical) | All |
+
+Where the agent serves no alert stream it answers 503, and `watch` falls back to
+re-reading the alert list every `--interval` seconds. It says so on the first
+line, because the difference is visible in latency and you should know which of
+the two you are reading:
+
+```
+  [polling] this agent serves no alert stream (alert stream not enabled); polling every 2s instead, so an alert can be up to that late.
+```
 
 Example output:
 
 ```
-Watching alerts (severity>=high) — poll every 2s. Press Ctrl+C to stop.
+Watching alerts (severity>=high) - live stream. Press Ctrl+C to stop.
 
   ids         critical  203.0.113.42       -> 10.0.1.15          SSH brute force (rule ssh-bf-001)
   threatintel high      203.0.113.42       -> 10.0.1.15          IOC match: abuse.ch feed
@@ -563,10 +582,24 @@ ebpfsentinel-agent nat nptv6 delete --id site-a
 
 ### conntrack
 
-Connection tracking — live flow events and status.
+Connection tracking - live flow events and status.
+
+`conntrack watch` consumes the agent's Server-Sent Events feed of flow lifecycle
+events (`new`, `update`, `destroy`) and reconnects on its own with the same
+backoff `watch` uses.
+
+The agent can only serve that feed where it has `/proc/net/nf_conntrack` to read,
+so on a kernel built without `CONFIG_NF_CONNTRACK_PROCFS` the route answers 404.
+`conntrack watch` then falls back to diffing successive reads of the connection
+list every `--interval` seconds and says so, since a flow that opens and closes
+between two reads never appears at all:
+
+```
+  [polling] this agent serves no conntrack event stream (Conntrack event stream not enabled); polling every 2s instead, so a short flow can open and close between two reads and never appear.
+```
 
 ```bash
-# Watch live conntrack events (SSE stream, refreshes every 2s)
+# Watch live conntrack events
 ebpfsentinel-agent conntrack watch
 ebpfsentinel-agent conntrack watch --interval 5
 
@@ -583,7 +616,7 @@ ebpfsentinel-agent conntrack flush
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--interval <SECS>` | Poll interval for watch mode | `2` |
+| `--interval <SECS>` | Seconds between reads of the connection list, used only by the polling fallback | `2` |
 | `--limit <N>` | Max connections to list | `100` |
 
 ### dns
