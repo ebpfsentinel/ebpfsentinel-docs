@@ -292,10 +292,32 @@ a lightweight, best-effort collector feed.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `otlp.endpoint` | string | Required | OTLP/HTTP collector base URL (events POSTed to `/v1/logs`) |
+| `otlp.endpoint` | string | Required | OTLP/HTTP collector base URL (events POSTed to `/v1/logs`). Must be an `http://` or `https://` URL with a host |
 | `otlp.timeout_ms` | u64 | `5000` | Per-request timeout |
 | `otlp.max_retries` | u32 | `3` | Retries per batch before tripping the circuit breaker |
 | `otlp.initial_backoff_ms` | u64 | `500` | Initial backoff, doubled each retry |
+| `otlp.headers` | map | - | Headers sent with every batch, which is how a hosted collector is authenticated. Held to the same rule webhook headers are: no control characters, no non-ASCII |
+| `otlp.ca_cert` | string | - | Path to a PEM bundle trusted in addition to the system roots |
+| `otlp.verify_tls` | bool | `true` | Whether the collector's certificate is verified |
+
+This connector is HTTP only, so `verify_tls: false` is accepted here whatever the
+open source block would have said about the gRPC transport. A header that cannot
+be sent, and a certificate authority that cannot be read, both refuse at boot
+rather than becoming a buffer that never drains.
+
+```yaml
+enterprise:
+  siem:
+    otlp:
+      endpoint: "https://otel-collector:4318"
+      timeout_ms: 5000
+      max_retries: 3
+      initial_backoff_ms: 500
+      headers:
+        authorization: "Bearer <token>"
+      ca_cert: "/etc/ebpfsentinel/collector-ca.pem"
+      verify_tls: true
+```
 
 ### License
 

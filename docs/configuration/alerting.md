@@ -31,9 +31,13 @@ alerting:
       webhook_url: "https://..."           # Required for webhook destination
       email_to: "ops@example.com"          # Required for email destination
   otlp:                                    # OpenTelemetry export (optional)
-    endpoint: "http://otel-collector:4317"
+    endpoint: "https://otel-collector:4317"
     protocol: "grpc"                       # grpc or http. Default: grpc
     timeout_ms: 5000                       # Export timeout in milliseconds. Default: 5000
+    headers:                               # Sent with every export. Default: none
+      authorization: "Bearer <token>"
+    ca_cert: "/etc/ebpfsentinel/collector-ca.pem"  # Extra trust anchor. Default: system roots
+    verify_tls: true                       # http only when false. Default: true
 ```
 
 ## Fields
@@ -77,9 +81,26 @@ alerting:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `endpoint` | `string` | Required | OpenTelemetry collector endpoint (e.g. `http://otel-collector:4317`) |
-| `protocol` | `string` | `grpc` | Export protocol: `grpc` (OTLP/gRPC) or `http` (OTLP/HTTP-protobuf) |
+| `endpoint` | `string` | Required | OpenTelemetry collector endpoint (e.g. `http://otel-collector:4317`). Must be an `http://` or `https://` URL with a host |
+| `protocol` | `string` | `grpc` | Export protocol: `grpc` (OTLP/gRPC) or `http` (OTLP/HTTP-protobuf). Any other word is refused at boot |
 | `timeout_ms` | `u64` | `5000` | Export timeout in milliseconds |
+| `headers` | `map` | - | Headers sent with every export. This is how a hosted collector is authenticated. Names and values are held to the same rule webhook headers are: no control characters, no non-ASCII |
+| `ca_cert` | `string` | - | Path to a PEM bundle trusted in addition to the system roots, for a collector behind a private certificate authority |
+| `verify_tls` | `bool` | `true` | Whether the collector's certificate is verified |
+
+A route whose destination is `otlp` needs the `otlp` block: the agent refuses to
+start rather than dropping the route, because a webhook route carries its own URL
+and an email route its own recipient, while an OTLP route reads the one collector
+configured here.
+
+Turning `verify_tls` off is accepted **only** with `protocol: http`. The gRPC
+transport offers no way to skip certificate verification, so `verify_tls: false`
+beside `protocol: grpc` is refused at boot rather than silently verifying.
+
+Under Kubernetes the credential and the trust anchor are not written into the
+`AlertPolicy`: `otlp.auth` names a Secret whose value the operator sends as one
+header (`authorization` unless `header` says otherwise), and `otlp.caSecretRef`
+names a Secret key the operator mounts and points `ca_cert` at.
 
 Each alert is exported as one OTLP **Logs** record (this is not a traces or
 metrics pipeline) carrying severity plus `mitre.technique.id`, `alert.component`
