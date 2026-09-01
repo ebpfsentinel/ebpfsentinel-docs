@@ -4,7 +4,12 @@ Core operational features for incident response, observability, and network inve
 
 ## OTLP Export
 
-Export alerts as OpenTelemetry Logs to any OTLP-compatible backend (Grafana Tempo, Jaeger, Elastic APM, Datadog, etc.).
+Export alerts as OpenTelemetry **Logs** to any OTLP-compatible collector, which
+then routes them to a log backend (Grafana Loki, Elasticsearch, OpenSearch,
+Datadog Logs, Splunk, ...). This signal is logs and nothing else: the agent emits
+no traces and no OTLP metrics, so a trace store such as Jaeger or Grafana Tempo
+has nothing to receive here. Agent metrics stay on the Prometheus `/metrics`
+endpoint.
 
 ### Configuration
 
@@ -20,15 +25,26 @@ alerting:
       min_severity: low
 ```
 
-### OTLP Log Attributes
+### OTLP Log Record
+
+Each alert becomes exactly one log record.
+
+| Field | Value |
+|-------|-------|
+| `timeUnixNano` | When the alert was raised, in nanoseconds since the Unix epoch |
+| `observedTimeUnixNano` | When the exporter took the record, same clock and same unit |
+| `severityNumber` | `9` (low), `13` (medium), `17` (high), `21` (critical) - the first number of each range in the OpenTelemetry logs data model |
+| `severityText` | The product's own word: `low`, `medium`, `high`, `critical` |
+| `body` | The whole alert as JSON, as a `stringValue` |
 
 | Attribute | Source |
 |-----------|--------|
-| `severity_number` | Alert severity (Info/Warn/Error/Fatal) |
-| `body` | Full alert JSON payload |
-| `mitre.technique.id` | MITRE ATT&CK technique |
+| `mitre.technique.id` | MITRE ATT&CK technique, present only when the alert names one |
 | `alert.component` | Source component (ids, dlp, etc.) |
 | `alert.rule_id` | Matched rule ID |
+
+An attribute carrying an empty string is a field a query matches on and learns
+nothing from, so `mitre.technique.id` is left off rather than sent blank.
 
 ### OTLP Resource
 
@@ -45,7 +61,11 @@ fleet and still attribute a record.
 `OTEL_SERVICE_NAME` then wins over the `service.name` that string may itself
 carry, which is the precedence the OpenTelemetry specification states.
 
-Delivery is **best-effort** (fire-and-forget). Enterprise adds durable buffer, at-least-once delivery, and OTLP Metrics export.
+Delivery is **best-effort** (fire-and-forget): the record is handed to the
+OpenTelemetry SDK batch exporter, with no retry and no delivery confirmation.
+Enterprise adds a durable buffer, at-least-once delivery with retry and backoff,
+and per-event attributes the open source record has no name for. It adds no
+second signal: the enterprise connector is OTLP Logs as well.
 
 ---
 

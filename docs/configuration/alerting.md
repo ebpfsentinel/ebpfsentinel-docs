@@ -25,7 +25,7 @@ alerting:
     tls: true
   routes:
     - name: "route-name"
-      destination: webhook                 # log, email, or webhook
+      destination: webhook                 # log, email, webhook, or otlp
       min_severity: high                   # Minimum severity to route
       event_types: [ids, ips]              # Optional - omit to match all components
       webhook_url: "https://..."           # Required for webhook destination
@@ -51,7 +51,7 @@ alerting:
 | `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
 | `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
 | `smtp` | `SmtpConfig` | - | SMTP configuration (required for email destinations) |
-| `otlp` | `OtlpConfig` | - | OpenTelemetry export configuration |
+| `otlp` | `OtlpExportConfig` | - | OpenTelemetry export configuration |
 | `routes` | `[Route]` | `[]` | Alert routing rules |
 
 ### Route
@@ -77,7 +77,7 @@ alerting:
 | `from_address` | `string` | Required | Sender email address |
 | `tls` | `bool` | `true` | Enable TLS |
 
-### OtlpConfig
+### OtlpExportConfig
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -102,9 +102,23 @@ Under Kubernetes the credential and the trust anchor are not written into the
 header (`authorization` unless `header` says otherwise), and `otlp.caSecretRef`
 names a Secret key the operator mounts and points `ca_cert` at.
 
-Each alert is exported as one OTLP **Logs** record (this is not a traces or
-metrics pipeline) carrying severity plus `mitre.technique.id`, `alert.component`
-and `alert.rule_id` attributes. Delivery is **fire-and-forget**: the record is
+Each alert is exported as one OTLP **Logs** record. This is the logs signal and
+nothing else: the agent emits no traces and no OTLP metrics, and its own metrics
+stay on the Prometheus `/metrics` endpoint.
+
+| Field | Value |
+|-------|-------|
+| `timeUnixNano` | When the alert was raised, in nanoseconds since the Unix epoch |
+| `observedTimeUnixNano` | When the exporter took the record, same clock and same unit |
+| `severityNumber` | `9` (low), `13` (medium), `17` (high), `21` (critical) |
+| `severityText` | `low`, `medium`, `high`, `critical` |
+| `body` | The whole alert as JSON |
+| `mitre.technique.id` | Attribute, present only when the alert names a technique |
+| `alert.component` | Attribute: the component that raised the alert |
+| `alert.rule_id` | Attribute: the rule that matched |
+
+The two timestamps are separate on purpose: a collector reading them can tell a
+late batch from an old event. Delivery is **fire-and-forget**: the record is
 handed to the OpenTelemetry SDK batch exporter - no retry, no delivery
 confirmation. Each record the batch queue accepts increments
 `ebpfsentinel_alerts_exported_total{destination="otlp"}`, and a batch a flush

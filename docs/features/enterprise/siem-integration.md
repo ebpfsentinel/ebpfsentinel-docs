@@ -182,7 +182,12 @@ Used by Sentinel, QRadar, and generic Syslog connectors:
 
 ## OTLP Enterprise Connector
 
-An 8th connector sends events to any OpenTelemetry-compatible collector (Grafana Alloy, Datadog Agent, Jaeger, etc.) with **at-least-once delivery** guarantees - unlike the OSS fire-and-forget OTLP sender.
+An 8th connector sends events to any OpenTelemetry-compatible collector (Grafana
+Alloy, the OpenTelemetry Collector, Datadog Agent, ...) with **at-least-once
+delivery** guarantees - unlike the OSS fire-and-forget OTLP sender. It emits the
+logs signal only, so the collector behind it routes to a log backend (Loki,
+Elasticsearch, OpenSearch, Splunk, ...); there are no traces and no OTLP metrics
+for a trace store to receive.
 
 Key features:
 

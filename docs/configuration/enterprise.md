@@ -285,10 +285,25 @@ delivery.
 
 The **OTLP SIEM exporter** (`siem.otlp`) is distinct from the OSS OTLP alert
 sink ([alerting.otlp](alerting.md)): it posts OTLP/HTTP **JSON** to
-`{endpoint}/v1/logs`, carries the full enriched `SiemEvent` (not just the raw
-alert), and adds per-batch retry with exponential backoff feeding the circuit
-breaker. Use it when you need reliable SIEM delivery; use the OSS alert OTLP for
-a lightweight, best-effort collector feed.
+`{endpoint}/v1/logs` and adds per-batch retry with exponential backoff feeding
+the circuit breaker. Use it when you need reliable SIEM delivery; use the OSS
+alert OTLP for a lightweight, best-effort collector feed.
+
+Both editions build the same record - same timestamps in epoch nanoseconds, same
+`severityNumber` and `severityText`, the alert JSON as the body, and the
+`mitre.technique.id`, `alert.component` and `alert.rule_id` attributes - so a
+routing rule written against one works against the other. What the enterprise
+connector adds is the rest of the `SiemEvent` as further attributes: `event.id`,
+`ebpfsentinel.tenant_id` when the event belongs to a tenant, and the L7
+enrichment under the names the other connectors already use
+(`threat.technique.id`, `threat.technique.name`, `threat.tactic.name`,
+`vulnerability.category`, `http.request.method`, `url.path`,
+`http.request.fingerprint`, the `ebpfsentinel.l7.*` fields and
+`ebpfsentinel.compliance.pci_dss`). The delivery bookkeeping the event carries -
+`export_timestamp_ms`, `destination_name` and `delivery_attempt` - is not on the
+wire: the moment of export is `observedTimeUnixNano`, and the other two describe
+this agent's buffer rather than the alert. This exporter is OTLP Logs as well: it
+emits no traces and no OTLP metrics.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

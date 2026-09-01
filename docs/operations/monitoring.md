@@ -75,8 +75,11 @@ groups:
 
 Beyond Prometheus scraping, the agent can **push alerts** to an OpenTelemetry
 collector. This exports the OTLP **Logs** signal only - one alert per OTLP log
-record (severity, MITRE technique, component, rule id as attributes). It is
-**not** a traces or metrics pipeline; agent metrics stay on `/metrics`.
+record, carrying `timeUnixNano` and `observedTimeUnixNano` (both nanoseconds
+since the Unix epoch), a `severityNumber` and `severityText` pair, the alert JSON
+as the body, and the MITRE technique, component and rule id as attributes. It is
+**not** a traces or metrics pipeline; agent metrics stay on `/metrics`, and a
+trace store has nothing to receive from this agent.
 
 Enable it as an alert destination (see [Alerting](../configuration/alerting.md)):
 
@@ -109,7 +112,9 @@ its retries, so a collector outage and a webhook outage are read the same way.
 A route naming a destination the agent was never configured to build delivers
 nothing at all, and that is counted as
 `ebpfsentinel_alerts_dropped_total{reason="no_sender"}` rather than passing
-silently.
+silently. An `otlp` route never reaches that counter: a route naming it with no
+`alerting.otlp` block is refused at boot, and an exporter that could not be built
+fails the boot too.
 
 > **Note:** the Enterprise edition additionally ships an OTLP **SIEM exporter**
 > (one of the SIEM destinations) that posts OTLP/HTTP JSON to `{endpoint}/v1/logs`
