@@ -6,6 +6,46 @@
 
 Offline operation for environments without internet access. Threat intelligence feeds are packaged into signed bundles with per-file SHA-256 checksums, transferred via USB or file copy, and imported into air-gapped agents with Ed25519 signature verification, integrity validation, and path traversal protection.
 
+## What Air-Gap Mode Refuses
+
+Turning air-gap mode on does more than change a status field: the agent decides
+once at startup that it is air-gapped and every component that would build an
+HTTP client asks that decision before it opens a socket. A refused attempt never
+reaches the network layer.
+
+The line the agent draws is between a destination **we** chose and a destination
+**you** chose:
+
+| Purpose | Air-gap | Why |
+|---------|---------|-----|
+| `threat-intel-feed-download` | **Refused** | Reaches a public feed provider. Import a signed bundle instead. |
+| `portal-reporting` | **Refused** | Reaches the vendor. Entitlement is measured from the offline licence. |
+| `siem-export` | Permitted | The collector is the one named in your configuration. |
+| `compliance-delivery` | Permitted | The webhook or SMTP host is the one named in your configuration. |
+| `federation-peer` | Permitted | Another cluster in your own federation. |
+| `response-webhook` | Permitted | The endpoint an automated response action names. |
+
+A permitted purpose is not a promise that the host is reachable: a SIEM
+collector sitting outside the enclave fails the way any unreachable host does.
+What air-gap guarantees is that the two refused purposes are not attempted at
+all, whatever URL the configuration carries.
+
+On startup the agent states what it enforces rather than what it hopes:
+
+```text
+INFO  Air-gap mode ENABLED - threat-intel feed downloads and vendor portal
+      reporting are refused; destinations named in this configuration stay
+      reachable
+WARN  feature="threat-intel-feed-download (import a signed bundle instead)"
+      Air-gap: outbound connections for this purpose are refused
+WARN  feature="portal-reporting (entitlement is measured from the offline licence)"
+      Air-gap: outbound connections for this purpose are refused
+```
+
+Every refusal is counted per purpose and reported on
+`GET /api/v1/airgap/status`, so an operator can tell a deployment that never
+tried to reach out from one that is trying and being stopped.
+
 ## License Activation Across the Gap
 
 Air-gap mode is itself gated on a license carrying the `air-gap` feature, and
@@ -253,11 +293,30 @@ enterprise:
 | Field | Description |
 |-------|-------------|
 | `enabled` | Whether air-gap mode is active |
-| `features_disabled` | Features disabled in air-gap mode (e.g., `"remote-feeds"`, `"oidc-jwks-fetch"`) |
+| `features_disabled` | The purposes air-gap refuses, with what to do instead. Derived from the gate itself rather than from a fixed list. |
 | `bundle_dir` | Bundle storage directory |
 | `last_bundle_import_ms` | Timestamp of last successful import |
 | `bundles_imported` | Count of imported bundles |
+| `outbound_refusals` | One entry per purpose that has actually been refused, with a count. Empty when nothing has tried. |
+
+```json
+{
+  "enabled": true,
+  "features_disabled": [
+    "threat-intel-feed-download (import a signed bundle instead)",
+    "portal-reporting (entitlement is measured from the offline licence)"
+  ],
+  "bundle_dir": "/var/lib/ebpfsentinel/bundles",
+  "last_bundle_import_ms": 1709913600000,
+  "bundles_imported": 3,
+  "outbound_refusals": [
+    { "purpose": "threat-intel-feed-download", "refused": 4 }
+  ]
+}
+```
 
 ## Feature Gating
 
-Air-Gap Mode requires a valid license with the `air-gap` feature. Without a license, threat intelligence feeds must be fetched from remote URLs.
+Air-Gap Mode requires a valid license with the `air-gap` feature. Without that
+feature, or with `air_gap.enabled` left false, no purpose is refused and threat
+intelligence feeds are fetched from remote URLs as usual.
