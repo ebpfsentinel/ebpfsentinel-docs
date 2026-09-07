@@ -14,6 +14,7 @@
     "check:cli-invocations": "node scripts/check-cli-invocations.mjs",
     "check:metrics": "node scripts/check-metric-names.mjs",
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
+    "check:vendored-openapi": "node scripts/check-vendored-openapi.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",
     "check:grpc-reference": "node scripts/generate-grpc-reference.mjs --check",
     "check:no-em-dash": "node scripts/check-no-em-dash.mjs",

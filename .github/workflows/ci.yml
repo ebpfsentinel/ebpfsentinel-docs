@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  # The four references on one runner. Each of them checked out the same three
+  # Every reference on one runner. Each of them checked out the same three
   # trees and installed the same node to run one npm script that takes seconds,
-  # so four runners were paying that setup four times over.
+  # so a runner apiece was paying that setup over and over.
   references:
-    name: the four references match what they describe
+    name: the references match what they describe
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -59,6 +59,13 @@ jobs:
       - name: Check the REST reference
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes
+
+      # The API explorer renders a copy of the agent's document rather than
+      # reading it, because the page is prerendered. A copy nobody compares
+      # drifts, and this one had: three routes and a release behind.
+      - name: Check the vendored OpenAPI document
+        working-directory: ebpfsentinel-docs
+        run: npm run check:vendored-openapi
 
       - name: Check the gRPC reference
         working-directory: ebpfsentinel-docs
