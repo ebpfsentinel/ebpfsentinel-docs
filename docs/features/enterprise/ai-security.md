@@ -4,17 +4,37 @@
 
 ## Overview
 
-AI/LLM Security detects and controls unauthorized AI service usage (Shadow AI), scans outbound traffic to AI providers for sensitive data exfiltration, enforces payload size and rate thresholds, and applies encrypted DNS policies. It builds on the existing DNS intelligence and L7 domain enforcement capabilities.
+AI/LLM Security scores connection events against AI provider destinations: it identifies unsanctioned AI service usage (Shadow AI), scans submitted payloads for sensitive data on its way to an AI provider, judges payload size and request rate against thresholds, and applies encrypted DNS policy. Every one of those produces an alert and a verdict; none of them touches the datapath. Read [What Reaches the Engine](#what-reaches-the-engine) before deploying it.
 
 Five sub-capabilities:
 
 | Capability | Description |
 |-----------|-------------|
 | AI Provider Registry | 38+ built-in AI provider domain entries with wildcard matching |
-| Shadow AI Detection | Monitor, block, or allow-list mode for AI provider access |
+| Shadow AI Detection | Monitor, block, or allow-list verdict for AI provider access |
 | AI-aware DLP | Regex-based payload scanning for sensitive data sent to AI providers |
-| Exfiltration Detection | Per-request, aggregate, and burst rate threshold enforcement |
+| Exfiltration Detection | Per-request, aggregate, and burst rate thresholds |
 | Encrypted DNS Policy | Resolver allow/block lists for encrypted DNS (DoH/DoT/DoQ) |
+
+## What Reaches the Engine
+
+The engine is not attached to the packet path. It scores connection events
+that are submitted to it: the only entry is
+`POST /api/v1/enterprise/ai-security/events`, and nothing on the packet path,
+the DLP path or the SIEM path feeds it. An agent with the feature licensed and
+configured, and nothing posting events, records no detection of any kind.
+
+That constraint decides what every mode below means. A mode named `block` -
+in the shadow AI policy, in an AI DLP pattern or in the encrypted DNS policy -
+**drops nothing**. It is the verdict the engine returns in the response body,
+for the caller that submitted the event to act on. The agent writes no rule,
+touches no eBPF map and closes no connection as a result. Everything the
+engine does on its own is observation: it raises an alert, records a metric and
+keeps the event in the lists the read endpoints serve.
+
+To enforce against AI providers on the datapath today, use the L7 domain rules
+and the DNS intelligence block lists, which are attached to the packet path,
+and use this feature for the visibility and the verdict.
 
 ## AI Provider Registry
 
@@ -69,11 +89,11 @@ DELETE /api/v1/enterprise/ai-security/providers/{id}
 
 Detects outbound connections to AI providers and applies policy:
 
-| Mode | Behavior |
-|------|----------|
+| Mode | Verdict returned |
+|------|------------------|
 | `monitor` | Log all AI provider access (default) |
-| `block` | Block all AI provider access |
-| `allow_list` | Block providers not on the explicit allow list |
+| `block` | `block` for all AI provider access |
+| `allow_list` | `block` for providers not on the explicit allow list |
 
 ```yaml
 enterprise:
@@ -88,7 +108,7 @@ enterprise:
         - 192.168.1.50      # admin workstation
 ```
 
-When a connection to an AI provider is detected, the engine:
+When a submitted event names an AI provider, the engine:
 1. Checks if the source IP is exempt
 2. In `allow_list` mode, checks if the provider is in the allowed list
 3. Generates an alert with MITRE ATT&CK mapping T1567.002 (Exfiltration to Cloud Storage)
@@ -103,7 +123,7 @@ PUT /api/v1/enterprise/ai-security/shadow-ai/policy
 
 ## AI-aware DLP
 
-Regex-based payload scanning applied when traffic is destined for an AI provider. Separate from the Vectorscan-based enterprise DLP - this is a lightweight, AI-context-specific scanner.
+Regex-based scanning of the payload sample on a submitted event whose destination is an AI provider. Separate from the Vectorscan-based enterprise DLP - this is a lightweight, AI-context-specific scanner.
 
 ```yaml
 enterprise:
@@ -126,10 +146,14 @@ enterprise:
           enabled: true
 ```
 
-When a pattern matches payload data sent to an AI provider:
+Patterns are compiled when they are added, so a scan matches against the
+compiled form rather than recompiling the regex per payload. An invalid regex is
+refused at the moment the pattern is added.
+
+When a pattern matches payload data in a submitted event:
 - An alert is generated with MITRE ATT&CK mapping T1048 (Exfiltration Over Alternative Protocol)
 - Metrics are recorded (`ai_dlp_scans`, `ai_dlp_matches`, `ai_dlp_blocks`)
-- In `block` mode, the connection result indicates the traffic should be blocked
+- In `block` mode, the connection result carries the verdict that the traffic should be blocked. The agent does not block it - see [What Reaches the Engine](#what-reaches-the-engine)
 
 ### API
 
@@ -141,13 +165,16 @@ DELETE /api/v1/enterprise/ai-security/ai-dlp/patterns/{id}
 
 ## Exfiltration Detection
 
-Tracks upload volume and request rates to AI providers per source IP. Three threshold types:
+Tracks the upload volume and request rate reported by submitted events, per source IP. Three threshold types:
 
-| Threshold | Default | Description |
-|-----------|---------|-------------|
-| Per-request | 10 MB | Single request payload size |
-| Aggregate hourly | 100 MB | Total bytes to AI providers per source per hour |
-| Burst rate | 60/min | Requests per minute to AI providers |
+| Threshold | `detection_type` | Default | Description |
+|-----------|------------------|---------|-------------|
+| Per-request | `per_request` | 10 MB | Single request payload size |
+| Aggregate hourly | `aggregate_hourly` | 100 MB | Total bytes to AI providers per source per hour |
+| Burst rate | `burst_rate` | 60/min | Requests per minute to AI providers |
+
+Those three are the whole vocabulary: a detection exists only where a threshold
+does, and the byte counts are the ones the submitted events reported.
 
 ```yaml
 enterprise:
@@ -212,7 +239,9 @@ PUT /api/v1/enterprise/ai-security/encrypted-dns/policy
 
 ## Event Ingestion
 
-Process outbound connection events through the full AI security pipeline (shadow AI + exfiltration + DLP):
+This is the only way an event enters the feature. A submitted event runs the
+full pipeline (shadow AI, then exfiltration tracking, then DLP) and the verdicts
+come back in the response:
 
 ```
 POST /api/v1/enterprise/ai-security/events
@@ -235,7 +264,38 @@ Request body:
 }
 ```
 
-Response includes shadow AI action, exfiltration detections, and DLP matches.
+Response:
+```json
+{
+  "shadow_ai_action": "block",
+  "exfil_detections": [
+    {
+      "timestamp_ns": 0,
+      "src_addr": [167772161, 0, 0, 0],
+      "is_ipv6": false,
+      "provider": "OpenAI",
+      "detection_type": "per_request",
+      "value": 1048576,
+      "threshold": 1048576
+    }
+  ],
+  "dlp_matches": [
+    {
+      "pattern_id": "ssn-ai",
+      "pattern_name": "SSN in AI prompt",
+      "severity": "critical",
+      "data_type": "pii",
+      "mode": "block"
+    }
+  ]
+}
+```
+
+`shadow_ai_action` is `null` when the domain is not a known AI provider, and the
+rest of the pipeline is skipped. Exfiltration tracking runs only when
+`bytes_sent` is above zero, and the DLP scan runs only when `payload_sample` is
+present. Both `shadow_ai_action` and a match's `mode` are verdicts for the
+caller to enforce, not actions the agent took.
 
 ## Alerts & Status
 
@@ -307,4 +367,4 @@ Every path below is served on the Enterprise port. The role is the least-privile
 
 ## Feature Gating
 
-AI/LLM Security requires a valid license with the `ai-llm-security` feature. Without a license, all AI security endpoints return 404 and no detection occurs.
+AI/LLM Security requires a valid license with the `ai-llm-security` feature. Without a license, all AI security endpoints return 404, so there is no route to submit an event to and no detection occurs.
