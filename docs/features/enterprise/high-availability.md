@@ -258,7 +258,9 @@ default because stopping is the surprising outcome.
 **ReadOnly** refuses every state-changing request for as long as the node is
 degraded. `GET`, `HEAD` and `OPTIONS` are served normally, so an operator
 diagnosing the partition can still read everything. Any other method answers
-`503 Service Unavailable`:
+`503 Service Unavailable`, including a method the agent does not recognise: a
+verb nobody classified is treated as a write rather than waved through, which is
+the same split the rate limiter and the role check use.
 
 ```json
 {
@@ -273,15 +275,36 @@ replicate, so a rule written to it is a rule the rest of the cluster does not
 have, and when the partition heals the two halves disagree about what the policy
 is. A refusal at the moment of the change beats a divergence discovered later.
 
-Two things are deliberately still writable:
+#### The one exemption
 
-- Everything under `/api/v1/ha/*`, which carries the manual failover command.
-  That is the one write that exists to get a degraded cluster out of the state
-  being reported on, so refusing it would mean the posture had removed its own
-  remedy.
-- Nothing else. Authorization is checked first, so a caller with no permission
-  on a route reads that they have no permission rather than that the cluster is
-  degraded.
+Everything under `/api/v1/ha` stays writable while the posture is in force. It
+carries the manual failover command, which is the one write that exists to get a
+degraded cluster out of the state being reported on, so refusing it would mean
+the posture had removed its own remedy. The routes concerned are the six listed
+under [High availability](../../api-reference/rest-api-enterprise.md#high-availability),
+and the prefix matches before the query string, so a request carrying parameters
+is exempt on the same terms.
+
+The list is one prefix compiled into the agent and pinned by a test. There is no
+configuration key that adds a second, deliberately: an exemption is a route that
+may write a rule the rest of the cluster will not have, and the only reason this
+one is safe is that failover changes cluster membership rather than policy.
+
+Nothing else is exempt, and in particular the exemption is not a way round
+authorization. The role check answers first, so a caller with no permission on a
+route reads that they have no permission rather than that the cluster is
+degraded; a `503` means the call would otherwise have gone through.
+
+#### When the posture does not apply
+
+The refusal is only ever raised by a node that has an HA configuration. A
+deployment with no `high_availability` block has no cluster to be partitioned
+from, so the check is skipped rather than evaluated and answered healthy, and no
+request on such an agent can receive `HA_READ_ONLY_DEGRADED`.
+
+`Continue` never raises it either. It is the default, so an agent that has HA
+configured but has not chosen a policy keeps accepting changes through a
+partition.
 
 **FailClosed** does everything `ReadOnly` does, and additionally closes the
 datapath. It applies only from `Isolated`, never from `Degraded`: a node that can

@@ -21,8 +21,9 @@ missing from here is a path it does not.
 
 ## How to read the tables
 
-Two facts decide whether a call succeeds, and both are stated per
-endpoint.
+Two facts decide whether a call is allowed, and both are stated per
+endpoint. A third, the cluster's posture, is not a property of the route
+and is described below the tables' two columns.
 
 **License feature.** The feature the route belongs to. A feature the
 license did not carry when the agent started is never mounted, so the call
@@ -41,10 +42,54 @@ route. `viewer` reads, `operator` reads and writes, `admin` does both and
 administers roles. A custom role carrying the same grant works too: the
 middleware checks the grant, never the role name. The grant is
 `<domain>:<permission>`, where the permission is `read` for `GET`, `HEAD`
-and `OPTIONS` and `write` for every other method. `none` means the route
-sits outside RBAC. See
+and `OPTIONS` and `write` for every other method, with one raise: a route
+that rewrites the role model itself is checked for `admin` rather than
+`write`, which is why the RBAC rows below carry `config:admin`. `none`
+means the route sits outside RBAC. See
 [Advanced RBAC](../features/enterprise/advanced-rbac.md) for how roles and
 grants are defined.
+
+## Writes while the cluster is degraded
+
+A node running [high availability](../features/enterprise/high-availability.md)
+with `degradation_policy: read-only` or `fail-closed` stops accepting
+changes for as long as it cannot see its peers. This is a posture of the
+node rather than a property of any endpoint, so it applies to the whole
+surface and is not repeated in the tables.
+
+While it is in force, every method other than `GET`, `HEAD` and `OPTIONS`
+answers `503 Service Unavailable`:
+
+```json
+{
+  "error": "cluster in read-only degraded mode",
+  "code": "HA_READ_ONLY_DEGRADED"
+}
+```
+
+Reads are served normally throughout, so an integrator polling status or
+an operator diagnosing the partition sees the same data as on a healthy
+node. Only the paths under `/api/v1/ha` still accept writes, because the
+manual failover command is the one write that exists to end the state
+being reported on. There is no way to ask for a second exemption: the list
+is one prefix compiled into the agent.
+
+Three things follow for a client:
+
+- The refusal is transient and safe to retry. It says the node could not
+  replicate the change, not that the request was wrong, so nothing about
+  the payload needs fixing before trying again.
+- It is the last refusal a request can meet. Rate limiting, authentication,
+  the license check and the role check all answer first, so a `503` here
+  means the call would otherwise have been carried out.
+- A deployment with no `high_availability` block never returns it. There
+  is no cluster to be partitioned from, so there is nothing to degrade,
+  and the check is skipped entirely rather than answering healthy.
+
+`fail-closed` refuses writes here in exactly the same way, and additionally
+closes the datapath. See
+[High availability](../features/enterprise/high-availability.md#graceful-degradation)
+for what each policy does to traffic.
 
 ## Authentication
 
