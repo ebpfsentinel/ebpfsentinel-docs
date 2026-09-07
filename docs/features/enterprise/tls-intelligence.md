@@ -374,6 +374,25 @@ GET /api/v1/enterprise/tls-intelligence/ml/status
 GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 ```
 
+`GET /ml/status` reports what the process actually holds:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `ml_enabled` | boolean | Whether an inference engine is loaded. `false` when no model was configured, when the configured file failed to load, and in a build carrying no ONNX runtime |
+| `model_version` | string | Version reported by the loaded model, empty when none is loaded |
+| `anomaly_threshold` | number | Score at or above which an observation is treated as anomalous |
+| `threat_entries_loaded` | integer | Threat fingerprint entries in the database |
+| `fingerprints_tracked` | integer | Distinct JA4 fingerprints seen across the estate |
+
+`GET /peer-groups/status` reports the grouping rather than the estate:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `enabled` | boolean | Whether `peer_group_rarity.enabled` was set |
+| `peer_groups_tracked` | integer | Distinct groups the engine holds |
+| `min_group_observations` | integer | Observations a group needs before it is judged |
+| `rarity_threshold` | number | Threshold both halves of the comparison are held to |
+
 ## MITRE ATT&CK Coverage
 
 | Capability | Technique | Name | Tactic |
