@@ -134,7 +134,8 @@ ebpfsentinel-agent ratelimit delete emergency-throttle
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/xdp-ratelimit/` | XDP kernel program |
 | `domain` | `crates/domain/src/ratelimit/` | Rate limit engine (entity, engine, error) |
-| `ports` | `crates/ports/src/primary/ratelimit.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/ratelimit_map_port.rs` | Per-CPU bucket map writes |
+| `ports` | `crates/ports/src/secondary/ratelimit_lpm_port.rs` | Subnet rule LPM trie writes |
 | `application` | `crates/application/src/ratelimit_service_impl.rs` | App service |
 | `agent` | `crates/agent/src/http/ratelimit_handler.rs` | HTTP handler |
 

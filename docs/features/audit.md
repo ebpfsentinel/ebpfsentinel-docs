@@ -58,7 +58,8 @@ ebpfsentinel-agent audit history fw-001
 | Crate | Path | Role |
 |-------|------|------|
 | `domain` | `crates/domain/src/audit/` | Audit engine (entity, engine, error) |
-| `ports` | `crates/ports/src/secondary/audit.rs` | Storage port trait |
+| `ports` | `crates/ports/src/secondary/audit_store.rs` | Storage port trait |
+| `ports` | `crates/ports/src/secondary/audit_sink.rs` | Write port every domain service records through |
 | `application` | `crates/application/src/audit_service_impl.rs` | App service |
 
 ## Metrics

@@ -117,9 +117,12 @@ ebpfsentinel-agent domains unblock example.com
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/tc-dns/` | TC classifier kernel program |
 | `domain` | `crates/domain/src/dns/` | DNS engine (parser, cache, blocklist) |
-| `domain` | `crates/domain/src/domain_reputation/` | Domain reputation engine |
-| `ports` | `crates/ports/src/primary/dns.rs` | Port trait |
-| `application` | `crates/application/src/dns_service_impl.rs` | App service |
+| `domain` | `crates/domain/src/dns/reputation.rs` | Domain reputation engine |
+| `ports` | `crates/ports/src/secondary/dns_cache_port.rs` | Passive DNS cache port |
+| `ports` | `crates/ports/src/secondary/domain_reputation_port.rs` | Reputation store port |
+| `application` | `crates/application/src/dns_cache_service_impl.rs` | Cache app service |
+| `application` | `crates/application/src/dns_blocklist_service_impl.rs` | Blocklist app service |
+| `application` | `crates/application/src/domain_reputation_service_impl.rs` | Reputation app service |
 
 ## Encrypted DNS Detection (DoH/DoT)
 

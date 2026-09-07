@@ -211,7 +211,7 @@ ebpfsentinel-agent capture list
 
 - One capture at a time (concurrent requests return HTTP 409)
 - Maximum duration: 5 minutes (configurable)
-- Output: `/tmp/ebpfsentinel-{id}.pcap`
+- Output: `/var/lib/ebpfsentinel/captures/{id}.pcap`. The directory has to exist and be writable by the account the agent runs as, and a container or pod deployment has to mount it, or the capture starts and writes nothing
 - Requires `libpcap-dev` at build time (feature `pcap-capture`, enabled by default)
 
 ---

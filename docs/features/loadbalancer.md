@@ -160,7 +160,7 @@ ebpfsentinel-agent --output json lb services
 | `ports` | `crates/ports/src/secondary/loadbalancer_map_port.rs` | eBPF map port trait |
 | `application` | `crates/application/src/lb_service_impl.rs` | App service (engine + eBPF sync) |
 | `adapters` | `crates/adapters/src/ebpf/lb_map_manager.rs` | eBPF map adapter |
-| `adapters` | `crates/adapters/src/http/lb_handler.rs` | HTTP handler (5 endpoints) |
+| `agent` | `crates/agent/src/http/lb_handler.rs` | HTTP handler (5 endpoints) |
 | `infrastructure` | `crates/infrastructure/src/config/loadbalancer.rs` | Config parsing |
 
 ## Event Pipeline Integration

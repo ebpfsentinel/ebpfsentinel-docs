@@ -183,9 +183,10 @@ ebpfsentinel-agent --output json ddos attacks
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/xdp-ratelimit/` | XDP kernel-side protections (SYN, ICMP, UDP amp, conntrack) |
 | `domain` | `crates/domain/src/ddos/` | DDoS engine (entity, engine, error) — attack detection + state machine |
-| `ports` | `crates/ports/src/primary/ddos.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/lpm_coordinator_port.rs` | Kernel LPM writes behind auto-CIDR blocking |
+| `ports` | `crates/ports/src/secondary/alias_resolution_port.rs` | Alias expansion for policy match fields |
 | `application` | `crates/application/src/ddos_service_impl.rs` | App service |
-| `adapters` | `crates/adapters/src/http/ddos_handler.rs` | HTTP handler |
+| `agent` | `crates/agent/src/http/ddos_handler.rs` | HTTP handler |
 | `infrastructure` | `crates/infrastructure/src/config/ddos.rs` | DDoS config (protections + policies) |
 
 ## Metrics

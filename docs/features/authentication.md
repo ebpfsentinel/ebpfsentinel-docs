@@ -111,5 +111,7 @@ See [Configuration: Authentication](../configuration/auth.md) for the full refer
 | Crate | Path | Role |
 |-------|------|------|
 | `domain` | `crates/domain/src/auth/` | Auth engine (token validation, RBAC) |
-| `infrastructure` | `crates/infrastructure/src/config.rs` | Auth config parsing |
-| `adapters` | `crates/adapters/src/http/` | Axum middleware for auth extraction |
+| `infrastructure` | `crates/infrastructure/src/config/auth.rs` | Auth config parsing |
+| `adapters` | `crates/adapters/src/auth/` | JWKS fetch, OIDC discovery, API key store |
+| `agent` | `crates/agent/src/http/middleware/auth.rs` | Axum middleware for auth extraction |
+| `agent` | `crates/agent/src/http/middleware/rbac.rs` | Role check on the extracted identity |

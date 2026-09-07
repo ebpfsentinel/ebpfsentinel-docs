@@ -215,9 +215,10 @@ ebpfsentinel-agent l7 delete block-uploads
 | Crate | Path | Role |
 |-------|------|------|
 | `domain` | `crates/domain/src/l7/` | L7 engine (parsers, rule evaluation) |
-| `ports` | `crates/ports/src/primary/l7.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/geoip_port.rs` | GeoIP lookup for source and destination country matching |
+| `ports` | `crates/ports/src/secondary/l7_extended_parser_port.rs` | Extension point consulted when the built-in detector returns `Unknown`; the enterprise edition implements it, the open-source build has no implementation |
 | `application` | `crates/application/src/l7_service_impl.rs` | App service |
-| `adapters` | `crates/adapters/src/http/l7_handler.rs` | HTTP handler |
+| `agent` | `crates/agent/src/http/l7_handler.rs` | HTTP handler |
 
 ## Metrics
 

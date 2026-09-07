@@ -456,13 +456,14 @@ ebpfsentinel-agent conntrack list
 | `ebpf-programs` | `crates/ebpf-programs/tc-scrub/` | TC packet normalization |
 | `domain` | `crates/domain/src/firewall/` | Firewall engine (entity, engine, error) |
 | `domain` | `crates/domain/src/routing/` | Gateway and routing entities |
-| `ports` | `crates/ports/src/primary/firewall.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/ebpf_map_port.rs` | Rule array and LPM map writes |
+| `ports` | `crates/ports/src/secondary/conntrack_kill_port.rs` | Tears down flows a rule change now denies |
 | `application` | `crates/application/src/firewall_service_impl.rs` | App service (anti-lockout, mode, eBPF sync) |
 | `application` | `crates/application/src/schedule_service_impl.rs` | Rule scheduling service |
 | `application` | `crates/application/src/conntrack_service_impl.rs` | Conntrack management |
 | `application` | `crates/application/src/routing_service_impl.rs` | Gateway monitoring & failover |
-| `adapters` | `crates/adapters/src/http/firewall_handler.rs` | HTTP handler |
-| `adapters` | `crates/adapters/src/http/conntrack_handler.rs` | Conntrack HTTP handler |
+| `agent` | `crates/agent/src/http/firewall_handler.rs` | HTTP handler |
+| `agent` | `crates/agent/src/http/conntrack_handler.rs` | Conntrack HTTP handler |
 
 ## Metrics
 

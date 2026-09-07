@@ -130,8 +130,9 @@ grpcurl -plaintext -d '{"min_severity":"critical","component":"ids"}' \
 | Crate | Path | Role |
 |-------|------|------|
 | `domain` | `crates/domain/src/alert/` | Alert router, dedup, throttle logic |
-| `ports` | `crates/ports/src/secondary/alerting.rs` | Sender port trait |
-| `application` | `crates/application/src/alerting_service_impl.rs` | App service |
+| `ports` | `crates/ports/src/secondary/alert_sender.rs` | Sender port trait |
+| `ports` | `crates/ports/src/secondary/alert_store.rs` | Alert history port |
+| `application` | `crates/application/src/alert_pipeline.rs` | Routing, dedup, throttle and concurrent sender dispatch |
 | `adapters` | `crates/adapters/src/grpc/` | gRPC alert stream |
 
 ## Metrics

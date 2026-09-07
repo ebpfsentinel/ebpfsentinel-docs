@@ -185,7 +185,7 @@ ebpfsentinel-agent alerts mark-fp alert-dlp-001
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/uprobe-dlp/` | uprobe kernel program |
 | `domain` | `crates/domain/src/dlp/` | DLP engine (entity, engine, error) |
-| `ports` | `crates/ports/src/primary/dlp.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/dlp_matcher_port.rs` | Pattern matcher port the engine calls |
 | `application` | `crates/application/src/dlp_service_impl.rs` | App service |
 
 ### Feature Gating

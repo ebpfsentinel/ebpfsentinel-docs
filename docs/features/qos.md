@@ -210,7 +210,7 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | `ebpf-programs` | `crates/ebpf-programs/tc-qos/` | TC ingress + egress kernel-side traffic shaping |
 | `ebpf-common` | `crates/ebpf-common/src/qos.rs` | Shared `#[repr(C)]` types (pipe/queue/classifier map entries, pipe and flow state) |
 | `domain` | `crates/domain/src/qos/` | QoS engine (entity, engine, error) |
-| `ports` | `crates/ports/src/primary/qos.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/qos_map_port.rs` | eBPF map port the service syncs through |
 | `application` | `crates/application/src/qos_service_impl.rs` | App service (engine + eBPF map sync) |
 | `adapters` | `crates/adapters/src/ebpf/qos_map_manager.rs` | eBPF map adapter |
 | `agent` | `crates/agent/src/http/qos_handler.rs` | HTTP handler (10 endpoints) |

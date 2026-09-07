@@ -35,8 +35,8 @@ crates/domain/src/<domain>/
 
 **Trait definitions.** Consumed by application code, implemented by adapters.
 
-- `primary/` — traits that the application layer calls (e.g., firewall service interface)
-- `secondary/` — traits that adapters implement (e.g., storage, metrics, alert senders)
+- `secondary/` — traits that adapters implement (e.g., storage, metrics, alert senders). This is where every port in the tree lives.
+- `primary/` — reserved for traits the application layer would expose to a driving adapter. It holds no trait: HTTP handlers hold the app services as concrete types on `AppState`, so there is nothing to invert yet. Add a trait here only when a caller needs one, not because the layer exists.
 
 ### application
 

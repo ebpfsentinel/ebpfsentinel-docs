@@ -110,7 +110,8 @@ ebpfsentinel-agent ips set-mode block-reverse-shell --mode alert
 | Crate | Path | Role |
 |-------|------|------|
 | `domain` | `crates/domain/src/ips/` | IPS engine (blacklist, whitelist logic) |
-| `ports` | `crates/ports/src/primary/ips.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/ips_blacklist_port.rs` | Kernel blacklist map writes |
+| `ports` | `crates/ports/src/secondary/lpm_coordinator_port.rs` | Subnet blacklist LPM trie writes |
 | `application` | `crates/application/src/ips_service_impl.rs` | App service (blacklist, whitelist, kernel enforcement) |
 | `application` | `crates/application/src/ids_service_impl.rs` | Owns the shared rule array and syncs both rule sets into the kernel pattern maps |
 

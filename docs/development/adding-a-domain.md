@@ -55,17 +55,15 @@ pub enum MyError {
 
 Add port traits in `crates/ports/src/`:
 
-**`primary/<name>.rs`** — trait consumed by adapters:
+**`secondary/<name>_port.rs`** — trait the app service calls and an adapter implements, one per outbound need (eBPF map writes, storage, metrics, an external lookup):
 
 ```rust
-pub trait MyPort: Send + Sync {
-    fn list_rules(&self) -> Vec<MyRule>;
-    fn add_rule(&self, rule: MyRule) -> Result<(), MyError>;
-    fn delete_rule(&self, id: &str) -> Result<(), MyError>;
+pub trait MyMapPort: Send + Sync {
+    fn sync_rules(&self, rules: &[MyRule]) -> Result<(), MyError>;
 }
 ```
 
-**secondary/** — if you need storage or external integrations, add traits here.
+**`primary/`** holds no trait. The HTTP handlers hold app services as concrete types on `AppState`, so there is nothing to invert; add a primary trait only when a second caller needs one.
 
 ### 3. Application Service
 
@@ -77,26 +75,34 @@ pub struct MyAppService<M: MetricsPort> {
     metrics: M,
 }
 
-impl<M: MetricsPort> MyPort for MyAppService<M> {
-    // Implement port trait, wrapping engine calls with metrics
+impl<M: MetricsPort> MyAppService<M> {
+    // Wrap engine calls with metrics and the secondary ports the domain needs
 }
 ```
+
+Hold it on `AppState` in `crates/agent/src/http/state.rs`, as `Option<Arc<RwLock<MyAppService>>>` when the feature can be disabled.
 
 ### 4. HTTP Handlers
 
-Add handlers at `crates/adapters/src/http/<name>_handler.rs`:
+Add handlers at `crates/agent/src/http/<name>_handler.rs`:
 
 ```rust
-pub async fn list_rules(State(svc): State<Arc<dyn MyPort>>) -> impl IntoResponse {
-    Json(svc.list_rules())
+pub async fn list_rules(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<MyRuleResponse>>, ApiError> {
+    let svc = state.my_service()?;
+    let svc = svc.read().await;
+    Ok(Json(svc.rules().iter().map(MyRuleResponse::from_domain).collect()))
 }
 ```
 
-Wire routes in `crates/adapters/src/http/router.rs`.
+The accessor on `AppState` returns `ApiError::ServiceUnavailable` when the feature is off, so a handler never has to spell that refusal out.
+
+Wire routes in `crates/agent/src/http/router.rs`.
 
 ### 5. Configuration
 
-Add config section in `crates/infrastructure/src/config.rs`:
+Add a config module under `crates/infrastructure/src/config/`, one file per section, and declare it in that directory's `mod.rs`:
 
 ```rust
 #[derive(Debug, Deserialize)]
@@ -138,8 +144,8 @@ If the domain needs kernel-side enforcement, create a new eBPF program crate und
 ## Checklist
 
 - [ ] Domain engine with entity, engine, error, mod
-- [ ] Port trait(s) in primary/ (and secondary/ if needed)
-- [ ] App service implementing port trait
+- [ ] Secondary port trait(s) for every outbound need
+- [ ] App service wrapping the engine, held on `AppState`
 - [ ] HTTP handler(s) with routes wired in router
 - [ ] Config section with validate() + to_domain_*()
 - [ ] Agent startup initialization

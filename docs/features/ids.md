@@ -141,7 +141,7 @@ Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_p
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/tc-ids/` | TC classifier kernel program |
 | `domain` | `crates/domain/src/ids/` | IDS engine (entity, engine, error) |
-| `ports` | `crates/ports/src/primary/ids.rs` | Port trait |
+| `ports` | `crates/ports/src/secondary/ids_map_port.rs` | Kernel pattern and sampling map writes |
 | `application` | `crates/application/src/ids_service_impl.rs` | App service |
 
 ## Metrics
