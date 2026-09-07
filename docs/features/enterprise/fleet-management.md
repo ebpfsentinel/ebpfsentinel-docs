@@ -18,12 +18,30 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash + reload timestamp. |
 | `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
 
-With `auth.enabled: true` these endpoints require a credential like every other
-enterprise endpoint (`Authorization: Bearer <token>` or `X-API-Key: <key>`),
-registration included: enrolment is not a bootstrap exemption, so provision the
-fleet credential before the first `register` call. The `token` returned by
-registration identifies the agent in the heartbeat body; it does not replace
-that credential.
+### What authenticates what
+
+Two different credentials are in play, and neither substitutes for the other.
+
+| Credential | Where it travels | Which routes require it |
+|------------|------------------|-------------------------|
+| The API credential (`Authorization: Bearer <token>` or `X-API-Key: <key>`) | HTTP header | All five, whenever `auth.enabled: true` |
+| The agent token minted by registration | The `token` field of the heartbeat request body | `POST /api/v1/agent/heartbeat` only |
+
+With `auth.enabled: true` these endpoints require the API credential like every
+other enterprise endpoint, registration included: enrolment is not a bootstrap
+exemption, so provision the fleet credential before the first `register` call.
+
+The agent token is a second, narrower proof, and it is checked on the heartbeat
+alone. It is what distinguishes this agent from anything else holding the same
+API credential, so a fleet-wide read credential cannot be used to heartbeat as a
+named node. `agent_id` is not a credential and is never treated as one: it is
+returned by `GET /api/v1/agent/identity` and it appears in the log lines the
+fleet writes.
+
+The other three routes carry no per-agent proof, because none of them asserts an
+identity: `register` mints the first token and so cannot require one, while
+`identity`, `config/version` and `flows/graph` are reads of this agent's own
+state by whoever already holds the API credential.
 
 ## Agent Registration
 
@@ -59,9 +77,15 @@ Only `name` is required. All other fields are optional.
 }
 ```
 
-- `agent_id`: UUIDv7 (time-ordered, globally unique)
-- `token`: SHA-256 of `"{agent_id}:{timestamp}"` - used for heartbeat authentication
+- `agent_id`: UUIDv7 (time-ordered, globally unique). Not a secret: it is published by `GET /api/v1/agent/identity`
+- `token`: 32 random bytes as 64 lowercase hex characters, read from the operating system's random source. It is what the heartbeat is held to, it relates to nothing else the agent publishes, and it is returned exactly once per registration, so store it when you receive it
 - `registered_at`: Unix epoch seconds
+
+The token is not derived from `agent_id`, `registered_at` or any other field this
+API returns. An agent upgraded from a build that did derive it replaces the
+stored token with a random one the first time it starts, once, and logs that it
+did; a fleet manager holding the old value gets 401 on the next heartbeat and
+must register again to obtain the new one.
 
 ### Idempotency
 
@@ -87,11 +111,19 @@ An agent with every section disabled reports an empty list. That is a working ag
 
 ### Identity Persistence
 
-When `data_dir` is configured, the agent writes `agent-identity.json` to disk after each registration. On startup, the persisted identity is loaded so the agent retains its `agent_id` across restarts.
+When `data_dir` is configured, the agent writes `agent-identity.json` to disk after each registration. On startup, the persisted identity is loaded so the agent retains its `agent_id` and its token across restarts.
 
 ```
 {data_dir}/agent-identity.json
 ```
+
+The file holds the token, so it is a credential file and is written like one:
+mode `0600`, and `0700` on the directory when the agent is the one that created
+it. A `data_dir` the operator laid out keeps the mode the operator chose, so
+check it if you provision that directory yourself. The write goes to a temporary
+file beside the target and is renamed into place, so a machine losing power
+mid-write comes back with the previous identity rather than with half of the new
+one.
 
 ## Agent Heartbeat
 
@@ -103,9 +135,12 @@ Aggregates live agent status in < 5 ms (all in-memory reads).
 
 ```json
 {
-  "agent_id": "019538a2-7f3b-7def-8123-456789abcdef"
+  "agent_id": "019538a2-7f3b-7def-8123-456789abcdef",
+  "token": "9f2a4c81d0e75b3648af1c9e2d05b7a3c48e1f60b92d7a5c3e08f14b6d29a7c5"
 }
 ```
+
+Both fields are required. `token` is the value registration returned.
 
 ### Response
 
@@ -139,7 +174,10 @@ Aggregates live agent status in < 5 ms (all in-memory reads).
 - `metrics_snapshot`: Reserved for future enrichment (Prometheus metrics are write-only; scrape `/metrics` for live counters)
 - `pending_changes`: Whether the configuration now held differs from the one the running datapath was built from
 
-Returns 401 if `agent_id` does not match the registered identity.
+Returns 401 with `{"error": "agent identifier or token not recognised"}` when the
+identifier is not the registered one, when the token is not the one registration
+handed back, or when no token was sent at all. One message covers all three, so a
+caller learns nothing from which of them it got wrong.
 
 ### Health
 
@@ -328,7 +366,7 @@ enterprise-domain/src/fleet/
 ├── mod.rs          # Module declaration
 ├── entity.rs       # DTOs: RegistrationRequest, HeartbeatResponse, FlowGraph, etc.
 ├── engine.rs       # FleetEngine: registration, idempotency, config hashing
-├── error.rs        # FleetError: NotRegistered, InvalidRequest
+├── error.rs        # FleetError: NotRegistered, NotAuthenticated, InvalidRequest
 └── flow_graph.rs   # FlowGraphBuilder: connection aggregation + graph construction
 ```
 
@@ -339,15 +377,16 @@ The handler (`enterprise-adapters/src/http/fleet_handler.rs`) bridges domain log
 ### Ansible / Terraform
 
 ```bash
-# Register
+# Register, keeping both halves of the answer: the token is returned once
 curl -X POST http://agent:8444/api/v1/agent/register \
   -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
-  -d '{"name":"node-01","labels":{"env":"prod"}}'
+  -d '{"name":"node-01","labels":{"env":"prod"}}' \
+  | jq -r '.agent_id, .token' > /etc/ebpfsentinel/fleet-identity
 
 # Heartbeat (cron every 30s)
 curl -X POST http://agent:8444/api/v1/agent/heartbeat \
   -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
-  -d '{"agent_id":"019538a2-..."}'
+  -d "{\"agent_id\":\"${AGENT_ID}\",\"token\":\"${AGENT_TOKEN}\"}"
 
 # Config drift check
 curl -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
@@ -356,7 +395,7 @@ curl -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
 
 ### Kubernetes Operator
 
-The operator watches `EBPFSentinelAgent` CRDs and calls:
-1. `/api/v1/agent/register` on pod creation
-2. `/api/v1/agent/heartbeat` via liveness probe
+A controller watching `EBPFSentinelAgent` CRDs uses the three routes as:
+1. `/api/v1/agent/register` on pod creation, storing the returned token in a `Secret`
+2. `/api/v1/agent/heartbeat` on a timer, reading that token back. Not a liveness probe: a probe carries no request body, so it can present no token and would be refused
 3. `/api/v1/agent/config/version` to detect config drift and trigger rolling updates
