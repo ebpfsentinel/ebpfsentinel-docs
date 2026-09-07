@@ -220,10 +220,11 @@ path of its own; container probes use the OSS agent's HTTP port.
 
 ### Method-to-Permission Mapping
 
-| HTTP Method | Permission |
-|-------------|------------|
+| Request | Permission |
+|---------|------------|
 | GET, HEAD, OPTIONS | `Read` |
 | POST, PUT, PATCH, DELETE | `Write` |
+| Any method that rewrites the role model | `Admin` |
 
 `DELETE` maps to `Write` because the permission model has three levels -
 `Read`, `Write`, `Admin` - and no `Delete` of its own. This is a deliberate
@@ -235,9 +236,50 @@ routes themselves do. Separating the two would mean a fourth permission level
 in every role definition, every stored grant and every inheritance resolution,
 which is a change to the grant model rather than to this table.
 
-### Admin-Only Routes
+### Rewriting the role model costs `Admin`, not `Write`
 
-RBAC management routes (create, delete, update, reload, assignments) require admin role. Read-only RBAC routes (check, filter, list, get, effective-grants) require read permission on `Config`.
+Every control-plane path maps to the `Config` domain, and the built-in
+`operator` role holds `Write` on every domain including `Config`. Deciding on
+the method alone would therefore make `POST /api/v1/rbac/assignments` a
+`Config:Write` that an `operator` already holds - so an `operator` could assign
+itself `admin` and hold everything. The role model is what every other check is
+made against, so the routes that rewrite it are raised to `Admin` before the
+check is made.
+
+The raised routes are: creating, updating, deleting and reloading roles, and
+assigning or unassigning them. Everything else under `/api/v1/rbac` - `check`,
+`filter`, list, get, effective-grants - reads the model and keeps the permission
+its method maps to.
+
+The raise lives in the middleware rather than in each handler, so a route
+mounted without a check of its own cannot be reached under-permissioned. An
+`operator` denied here reads the same refusal as any other:
+
+```json
+{
+  "error": "access denied: role 'operator' lacks admin permission for config",
+  "code": "RBAC_ACCESS_DENIED"
+}
+```
+
+### Assignment changes are attributed
+
+A role assignment or unassignment is recorded in the agent's audit trail with
+the principal that made it, taken from the same caller resolution the
+authorization check used, so the recorded author cannot differ from the one the
+decision was made against. A JWT principal is named by its role
+(`role:admin`) or, where the token carries no role, by its subject
+(`subject:ops@example.com`); a deployment running with authentication off is
+recorded as `unattributed` rather than as nobody:
+
+```text
+rbac: assigned role 'firewall-operator' to 'user-123' by role:admin
+rbac: unassigned role 'viewer' from 'user-123' by subject:ops@example.com
+```
+
+The change is never refused because the trail could not be written: an agent
+whose audit store is unavailable still applies the assignment and records the
+line to its log.
 
 ### Error Response
 
@@ -255,13 +297,13 @@ RBAC management routes (create, delete, update, reload, assignments) require adm
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/rbac/roles` | viewer | advanced-rbac | List all roles. |
-| `POST` | `/api/v1/rbac/roles` | operator | advanced-rbac | Create custom role (201). |
+| `POST` | `/api/v1/rbac/roles` | admin | advanced-rbac | Create custom role (201). |
 | `GET` | `/api/v1/rbac/roles/{id}` | viewer | advanced-rbac | Role details (404 if not found). |
-| `PUT` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Update custom role (403 for built-in). |
-| `DELETE` | `/api/v1/rbac/roles/{id}` | operator | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
+| `PUT` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Update custom role (403 for built-in). |
+| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
 | `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
-| `PUT` | `/api/v1/rbac/roles` | operator | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
-| `POST` | `/api/v1/rbac/roles/reload` | operator | advanced-rbac | Bulk reload all custom roles (atomic). |
+| `PUT` | `/api/v1/rbac/roles` | admin | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
+| `POST` | `/api/v1/rbac/roles/reload` | admin | advanced-rbac | Bulk reload all custom roles (atomic). |
 
 ### Permission Checking
 
@@ -274,10 +316,10 @@ RBAC management routes (create, delete, update, reload, assignments) require adm
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Assign role to subject (201). |
-| `DELETE` | `/api/v1/rbac/assignments` | operator | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
+| `POST` | `/api/v1/rbac/assignments` | admin | advanced-rbac | Assign role to subject (201). |
+| `DELETE` | `/api/v1/rbac/assignments` | admin | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
 | `GET` | `/api/v1/rbac/assignments/{subject}` | viewer | advanced-rbac | List roles for subject. |
-| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | operator | advanced-rbac | Remove role from subject (204). No request body. |
+| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | admin | advanced-rbac | Remove role from subject (204). No request body. |
 
 ## Feature Gating
 
