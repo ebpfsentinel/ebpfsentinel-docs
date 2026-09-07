@@ -116,9 +116,9 @@ curl -s http://localhost:8080/api/v1/ebpf/status | jq
 ```json
 {
   "programs": [
-    { "name": "xdp_firewall", "loaded": true },
-    { "name": "tc_ids", "loaded": true },
-    { "name": "tc_conntrack", "loaded": false },
+    { "name": "xdp-firewall", "loaded": true },
+    { "name": "tc-ids", "loaded": true },
+    { "name": "tc-conntrack", "loaded": false },
     ...
   ]
 }

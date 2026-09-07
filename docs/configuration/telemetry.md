@@ -44,19 +44,19 @@ eight of its programs:
   "installation_id": "3f8a1c9d47b25e60a1d3f9c8b7e40521",
   "version": "0.1.0",
   "programs": [
-    { "program": "tc_conntrack", "state": "loaded" },
-    { "program": "tc_dns", "state": "loaded" },
-    { "program": "tc_ids", "state": "loaded" },
-    { "program": "tc_nat_egress", "state": "not_loaded" },
-    { "program": "tc_nat_ingress", "state": "not_loaded" },
-    { "program": "tc_qos", "state": "not_loaded" },
-    { "program": "tc_scrub", "state": "loaded" },
-    { "program": "tc_threatintel", "state": "loaded" },
-    { "program": "uprobe_dlp", "state": "not_loaded" },
-    { "program": "xdp_firewall", "state": "loaded" },
-    { "program": "xdp_loadbalancer", "state": "not_loaded" },
-    { "program": "xdp_ratelimit", "state": "loaded" },
-    { "program": "xdp_vip_announcer", "state": "not_loaded" }
+    { "program": "tc-conntrack", "state": "loaded" },
+    { "program": "tc-dns", "state": "loaded" },
+    { "program": "tc-ids", "state": "loaded" },
+    { "program": "tc-nat-egress", "state": "not_loaded" },
+    { "program": "tc-nat-ingress", "state": "not_loaded" },
+    { "program": "tc-qos", "state": "not_loaded" },
+    { "program": "tc-scrub", "state": "loaded" },
+    { "program": "tc-threatintel", "state": "loaded" },
+    { "program": "uprobe-dlp", "state": "not_loaded" },
+    { "program": "xdp-firewall", "state": "loaded" },
+    { "program": "xdp-loadbalancer", "state": "not_loaded" },
+    { "program": "xdp-ratelimit", "state": "loaded" },
+    { "program": "xdp-vip-announcer", "state": "not_loaded" }
   ]
 }
 ```

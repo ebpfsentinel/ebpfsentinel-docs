@@ -299,7 +299,7 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_cpu_usage_percent` | Gauge | - | Process CPU usage |
 | `ebpfsentinel_open_fds` | Gauge | - | Open file descriptors held by the process |
 | `ebpfsentinel_thread_count` | Gauge | - | Threads in the process |
-| `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=failed) |
+| `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=failed). `program` is the artefact name, `xdp-firewall` and not `xdp_firewall`, the same word `/api/v1/ebpf/status` and the fleet API use |
 | `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
 | `ebpfsentinel_xdp_attach_mode` | Gauge | `interface`, `mode` | The XDP mode actually in force (1=in force). `mode` is `native`, `generic`, `offloaded`, `multiple` or `unknown` |
 | `ebpfsentinel_bpf_token_used` | Gauge | - | eBPF loaded through a BPF token (1=token-loaded, 0=API-only or no eBPF) |
