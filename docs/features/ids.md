@@ -17,7 +17,7 @@ The TC classifier program:
 3. **RingBuf backpressure** - `bpf_ringbuf_query` checks buffer fill level; if >75% full, events are skipped
 4. **Event emission** - matching packets are forwarded to userspace via `RingBuf` as `PacketEvent` structures
 
-Protocol detection is userspace-only. The classifier ships the payload and does not match protocol signatures in the kernel; the L7 engine classifies HTTP, TLS, gRPC, SMTP, FTP and SMB from that payload. See [L7 Firewall](l7.md).
+Protocol detection is userspace-only. The classifier ships the payload and does not match protocol signatures in the kernel; the L7 engine classifies HTTP, TLS, gRPC, SMTP, FTP and SMB from that payload. See [L7 Firewall](l7-firewall.md).
 
 ### Userspace Side
 
