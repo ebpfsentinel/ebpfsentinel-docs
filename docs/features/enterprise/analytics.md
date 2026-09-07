@@ -193,7 +193,9 @@ Trend endpoints require a minimum period of **7 days**.
 | `last_flush_ms` | Timestamp of last successful flush |
 | `retention_days` | Configured retention window |
 
-There is no `enabled` field: the analytics routes are mounted only when the license carries the `advanced-analytics` feature and `enterprise.analytics.enabled` is `true`, so a reachable status endpoint is itself the answer.
+There is no `enabled` field: the analytics routes are mounted only when the license carries the `advanced-analytics` feature, `enterprise.analytics.enabled` is `true`, and the store under `data_dir` opened, so a reachable status endpoint is itself the answer.
+
+The third condition is the one that surprises: an agent whose configuration enables analytics still answers `404` on every analytics route if the store could not be opened, and the reason is a startup log line rather than an API field. If this endpoint is missing on an agent you believe is configured for it, look for `Analytics store open failed` in the agent log before rereading the configuration.
 
 ## Configuration
 
