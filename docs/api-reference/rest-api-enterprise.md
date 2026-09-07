@@ -25,10 +25,16 @@ Two facts decide whether a call succeeds, and both are stated per
 endpoint.
 
 **License feature.** The feature the route belongs to. A feature the
-license does not carry is never mounted, so the call answers `404 Not
-Found` rather than `403 Forbidden`: an unlicensed feature is
-indistinguishable from a path that does not exist. `none` means the route
-is mounted whatever the license says.
+license did not carry when the agent started is never mounted, so the call
+answers `404 Not Found` rather than `403 Forbidden`: an unlicensed feature
+is indistinguishable from a path that does not exist. `none` means the
+route is mounted whatever the license says.
+
+A license that expires while the agent is running is the one case where a
+mounted route refuses instead: it answers `403 Forbidden` with the code
+`LICENSE_FEATURE_UNAVAILABLE`, naming the feature. The route was mounted,
+so it exists; the license has since stopped covering it. The datapath is
+unaffected, and the routes listed with `none` keep answering.
 
 **Role.** The least-privileged built-in role whose grants satisfy the
 route. `viewer` reads, `operator` reads and writes, `admin` does both and

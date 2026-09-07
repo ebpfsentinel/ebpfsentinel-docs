@@ -42,7 +42,7 @@ unlimited, so keys generated before the field existed keep working unchanged.
 | `multi-tenancy` | Namespace-scoped policy isolation |
 | `siem-integration` | SIEM export connectors |
 | `compliance-reports` | Automated compliance reporting |
-| `high-availability` | Active-passive clustering |
+| `high-availability` | Active-passive and active-active clustering |
 | `multi-cluster` | Federated policy management |
 | `advanced-rbac` | Per-domain/resource permissions |
 | `air-gap` | Offline operation mode |
@@ -241,9 +241,18 @@ Integrity failure exits with code 2 (no fallback to OSS mode).
 ### Distributed License Checks
 
 License validation occurs at three independent points per feature:
-1. **Init** - feature engine constructor verifies license
-2. **First use** - first data processing call re-verifies
-3. **Periodic** - re-check every 60 minutes
+
+1. **Startup** - the agent reads the key, verifies both signatures and decides
+   which enterprise routers to mount. A feature the key does not carry is a
+   router that was never registered, which is why an unlicensed path answers
+   `404` rather than `403`.
+2. **Every request** - the API asks the license again before running a handler
+   on a route that a feature gates. Validity is computed from `expires_at` at
+   the moment it is asked, so an expiry closes those routes on the day it
+   happens rather than at the next restart.
+3. **Periodic** - a background task re-verifies every active feature on a
+   fifteen-minute tick and writes an ERROR line when the key has run out, so an
+   expiry is visible in the log before anyone calls the API.
 
 ### License-as-Computation-Parameter
 
@@ -282,11 +291,28 @@ export EBPFSENTINEL_LICENSE=/path/to/license.key
 
 ## Graceful Degradation
 
-- Expired license: falls back to OSS mode with WARN log
-- Missing license: runs in OSS mode (all enterprise features disabled)
-- Invalid signature: rejects license, falls back to OSS mode
-- Fingerprint mismatch: rejects license with clear error
-- Host larger than the licensed size band: rejects license, falls back to OSS mode
+What happens at startup, when the agent decides what to run:
+
+- Missing license: runs in OSS mode, every enterprise feature disabled
+- Invalid signature: rejects the license and runs in OSS mode
+- Expired license: rejects the license and runs in OSS mode
+- Fingerprint mismatch: rejects the license with a clear error
+- Host larger than the licensed size band: rejects the license and runs in OSS mode
+
+What happens when a license expires while the agent is running:
+
+- **The datapath keeps running.** The eBPF programs stay loaded and traffic is
+  inspected and enforced exactly as before. An expiry is a commercial event, not
+  a reason to stop protecting a network.
+- **The enterprise API closes.** Every route a license feature gates answers
+  `403` with the code `LICENSE_FEATURE_UNAVAILABLE`, naming the feature the key
+  no longer covers.
+- **`GET /api/v1/license` keeps answering**, along with `/metrics`, the kernel
+  feature probe and the open source alert route, so an operator can read why the
+  rest stopped.
+- **Renewing takes effect on restart.** Losing a feature is enforced live;
+  regaining one is not, because which routers are mounted is decided at startup.
+  Install the new key and restart the agent.
 
 ## REST API
 
