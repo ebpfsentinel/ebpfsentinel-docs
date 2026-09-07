@@ -111,6 +111,7 @@ const sidebars: SidebarsConfig = {
         'configuration/zones',
         'configuration/geoip',
         'configuration/auth',
+        'configuration/telemetry',
         'configuration/tls',
         'configuration/dashboard',
         'configuration/enterprise',
