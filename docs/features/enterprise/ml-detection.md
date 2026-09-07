@@ -4,7 +4,7 @@
 
 ## Overview
 
-Machine learning-based behavioral anomaly detection that identifies threats without signature rules. The ML pipeline combines multiple detection engines - each covering a different class of anomaly - and fuses their results into a single severity score with MITRE ATT&CK-mapped alerts.
+Machine learning-based behavioral anomaly detection that identifies threats without signature rules. The ML pipeline runs several detection engines, each covering a different class of anomaly, and emits MITRE ATT&CK-mapped alerts. The engines that read the same traffic window are fused into one severity score; the engines that read something else alert on their own.
 
 **Detection engines:**
 
@@ -14,12 +14,23 @@ Machine learning-based behavioral anomaly detection that identifies threats with
 | **EWMA** | Gradual drift and short-term spikes (exponential moving average) | None - scores from first sample |
 | **CUSUM** | Sustained mean shifts (slow-ramp DDoS, gradual exfiltration) | None - immediate |
 | **ONNX Model** | Custom anomalies via user-trained autoencoder models | Pre-trained offline |
+| **Random Cut Forest** | Correlated multi-feature anomalies no single feature reveals | None - the forest builds as it observes |
 | **Heavy-Hitter** | Elephant flows / top talkers (Count-Min Sketch) | None - constant memory |
 | **DNS Entropy** | DGA domains and DNS tunneling (Shannon entropy + Markov model) | None - pre-trained bigram model |
 | **TLS Clustering** | Novel/spoofed TLS fingerprints (Mini-Batch K-Means) | None - browser-seeded centroids |
 | **C2 Beaconing** | Repetitive payload patterns in C2 channels (TLSH similarity) | None - per-flow hash ring |
 
-All engines run in parallel. Scores are fused via `max(severity)` across engines.
+**Four of the nine are fused.** Baseline, EWMA, CUSUM and the ONNX model all
+score the same completed feature vector, so their verdicts are combined into one
+alert per window at `max(severity)`.
+
+Every other engine on that list alerts on its own path and is fused with
+nothing, because each reads something different: Random Cut Forest scores the
+same vector but reports the features that made it unusual, which a fused
+severity would discard; Heavy-Hitter counts sources rather than windows; and DNS
+entropy, TLS clustering and beaconing each read a different kind of event
+entirely. An operator counting alerts should expect at most one fused anomaly
+per window plus whatever those five raised.
 
 ---
 
@@ -30,11 +41,17 @@ PacketEvent (eBPF kernel)
   └── MultiWindowAggregator (1min / 5min / 15min)
         │
         ├── FeatureVector (14 features)
-        │     ├── TrafficBaseline → AnomalyScorer (Z-scores)
-        │     ├── EwmaEngine (streaming, per-feature exponential decay)
-        │     ├── CusumEngine (cumulative sum, per-feature drift detection)
-        │     └── Optional: OnnxEngine (model inference)
-        │           └── fuse_scores() → Alert (MITRE ATT&CK mapped)
+        │     │
+        │     ├── fused path
+        │     │     ├── TrafficBaseline → AnomalyScorer (Z-scores)
+        │     │     ├── EwmaEngine (streaming, per-feature exponential decay)
+        │     │     ├── CusumEngine (cumulative sum, per-feature drift detection)
+        │     │     ├── Optional: OnnxEngine (reconstruction error, scored vs its own history)
+        │     │     └── fuse_scores() → one Alert (MITRE ATT&CK mapped)
+        │     │
+        │     └── independent path
+        │           └── Optional: RcfDetector (Random Cut Forest)
+        │                 └── own Alert with per-feature attribution
         │
         └── HeavyHitterTracker (Count-Min Sketch + TopK)
               └── threshold check → Alert
@@ -120,11 +137,66 @@ Per-feature accumulators with configurable slack `k` (default: 0.5) and threshol
 
 ### ONNX Model Inference
 
-Optional user-trained autoencoder model loaded via ONNX Runtime. Computes reconstruction error - high error = anomaly. Models can be hot-swapped at runtime without restart.
+Optional user-trained autoencoder model loaded via ONNX Runtime. The model reconstructs the feature vector and the pipeline takes the mean squared error between input and output: high error = anomaly. Models can be hot-swapped at runtime without restart.
+
+That raw error is in no fixed unit - it depends on the model, on how the features were scaled when it was trained, and on how well it converged - so it is never compared against a constant. It is judged as a Z-score against its own history:
+
+```
+z = |error - mean(error)| / sqrt(variance(error))
+```
+
+with the mean and variance maintained by the same EWMA accumulator used elsewhere on this page. Consequences worth knowing before you deploy a model:
+
+- **The knobs are the EWMA ones.** `ewma_alpha`, `ewma_threshold` and `ewma_warmup_samples` govern the reconstruction score too. There is no separate model threshold, because an operator who slows the moving average down means that for the pipeline rather than for one engine of it.
+- **The model contributes nothing until it is warmed up.** Until `ewma_warmup_samples` reconstruction errors have been observed, the engine scores every window Normal. A brand-new model is silent, not clean.
+- **A hot swap resets the history.** The new model's errors are on a different scale from the old one's, so the warm-up starts again on load.
+- **The model raises severity but attributes nothing.** An autoencoder reconstructs the whole vector at once, so when it is the only engine that scored a window the resulting alert carries an empty `feature_scores` and `top_features`. Use Random Cut Forest below when per-feature attribution is what you need.
+
+`GET /api/v1/enterprise/ml/status` reports both halves of that state as `model_warmed_up` and `model_sample_count`.
 
 ### Score Fusion
 
-All active engines score every completed `FeatureVector`. Final severity = `max(baseline, ewma, cusum, onnx)`. This ensures the most sensitive engine drives the alert.
+Baseline, EWMA, CUSUM and the loaded model score every completed `FeatureVector`, and those four are fused:
+
+```
+final_severity = max(baseline, ewma, cusum, model)
+```
+
+The most sensitive of the four drives the alert. An engine that is not configured, or that has not warmed up, contributes nothing rather than contributing a Normal.
+
+If every engine that scored the window called it Normal, no alert is emitted at all.
+
+Each fused alert carries a label naming **exactly** the engines whose own severity equalled the final severity, joined with `+`:
+
+| Label | Meaning |
+|-------|---------|
+| `baseline` | Only the baseline reached this severity |
+| `ewma+cusum` | EWMA and CUSUM both reached it; baseline and model were lower or absent |
+| `baseline+ewma+cusum+model` | All four agreed on the severity |
+
+An engine that ran and stayed below the final severity is not named, because naming it would say it drove an alert it did not drive.
+
+No other engine on this page is part of that fusion.
+
+### Random Cut Forest
+
+Optional. Random Cut Forest observes the same `FeatureVector` the fused engines do, but reports **which dimensions** made the point unusual, which is what the fused severity cannot carry. It therefore emits its own alert on its own path and is deliberately not folded into `fuse_scores`.
+
+- No learning period: the forest builds as it observes, and scores once it holds enough points.
+- Hyperparameters are validated by `anomstream` against the AWS reference implementation. A rejected configuration logs a warning and disables the detector rather than aborting the service.
+- Attribution is read live from the forest, so an alert raised before the forest can attribute carries an empty `top_features` rather than a guessed one.
+
+**Severity thresholds** (on the RCF score, which is not a Z-score):
+
+| Severity | Threshold |
+|----------|-----------|
+| Normal | < 1.5 |
+| Low | >= 1.5 |
+| Medium | >= 2.0 |
+| High | >= 3.0 |
+| Critical | >= 4.0 |
+
+Scores and attribution are readable directly through `/api/v1/enterprise/ml/rcf/scores` and `/api/v1/enterprise/ml/rcf/attribution`.
 
 ---
 
@@ -297,6 +369,32 @@ enterprise:
 | `GET` | `/api/v1/enterprise/ml/ewma/status` | viewer | ml-detection | EWMA engine status. |
 | `POST` | `/api/v1/enterprise/ml/ewma/reset` | operator | ml-detection | Reset EWMA state. |
 | `POST` | `/api/v1/enterprise/ml/cusum/reset` | operator | ml-detection | Reset CUSUM state. |
+
+**Example: `GET /api/v1/enterprise/ml/status`**
+
+```json
+{
+  "baseline_learning": false,
+  "baseline_sample_count": 10080,
+  "learning_days_configured": 7,
+  "anomaly_count": 42,
+  "suggestion_count": 3,
+  "feedback_count": 17,
+  "model_loaded": true,
+  "model_engine": "onnx",
+  "model_warmed_up": true,
+  "model_sample_count": 3412,
+  "anomaly_threshold": 2.0,
+  "ewma_enabled": true,
+  "ewma_warmed_up": true,
+  "ewma_sample_count": 10080,
+  "cusum_enabled": true,
+  "cusum_active_drifts": 1,
+  "cusum_sample_count": 10080
+}
+```
+
+`model_loaded` says a model is in memory; `model_warmed_up` says it is contributing to the fusion. A model loaded seconds ago reports `true` and `false` respectively, and scores nothing until `model_sample_count` reaches the configured `ewma_warmup_samples`.
 
 ### Streaming Algorithm Endpoints
 

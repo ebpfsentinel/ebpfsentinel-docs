@@ -269,7 +269,25 @@ Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src
 
 ### ONNX TLS Feature Extraction
 
-Vectorizes ClientHello into an 8-dimensional feature vector (cipher set hash, extension set hash, groups hash, ALPN hash, TLS version, dst port, cipher count, extension count) and feeds the existing ONNX inference engine. Anomaly scores above the configured threshold generate alerts.
+Vectorizes ClientHello into an 8-dimensional feature vector and feeds the existing ONNX inference engine. Anomaly scores above the configured threshold generate alerts.
+
+| # | Feature | How it is computed |
+|---|---------|--------------------|
+| 0 | Cipher set hash | Offered cipher suites, sorted, folded with FNV-1a 64 and normalized to `[0, 1]` |
+| 1 | Extension set hash | Offered extension IDs, same treatment |
+| 2 | Groups hash | Supported groups, same treatment |
+| 3 | ALPN hash | Offered ALPN protocols, sorted, each folded with its length before its bytes |
+| 4 | TLS version | Handshake version, normalized |
+| 5 | Destination port | The port the handshake was seen on, normalized |
+| 6 | Cipher count | Number of offered cipher suites, normalized |
+| 7 | Extension count | Number of offered extensions, normalized |
+
+Two properties of that vector matter when you train a model against it:
+
+- **The four hashes are stable across releases.** They are FNV-1a 64, deliberately not the standard library's default hasher, which carries no cross-release stability guarantee: a model trained on one build would read a different vocabulary on the next and mean nothing. The four values a given ClientHello produces are pinned by a test.
+- **The sets are sorted before hashing**, so the same offer in a different order is the same feature, and each ALPN string's length is folded in before its bytes, so `["ab", "c"]` and `["a", "bc"]` do not collapse onto one value.
+
+Feature 5 comes from the `dst_port` on the submitted observation. An estate serving TLS on a port other than 443 must send its real port, or every connection is vectorized as though it went to the same place.
 
 ### Peer-Group Rarity (Container-Aware)
 
@@ -365,6 +383,39 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 | `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | viewer | tls-intelligence | Peer-group rarity status. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/alerts` | viewer | tls-intelligence | List TLS intelligence alerts. |
 | `POST` | `/api/v1/enterprise/tls-intelligence/events` | operator | tls-intelligence | Ingest a TLS handshake observation. |
+
+**Example: `POST /api/v1/enterprise/tls-intelligence/events`**
+
+```json
+{
+  "ja4": "t13d1516h2_8daaf6152771_e5627efa2ab1",
+  "cipher_suites": [4865, 4866, 4867, 49195, 49199],
+  "extensions": [0, 11, 10, 35, 16, 43, 51],
+  "supported_versions": [772, 771],
+  "supported_groups": [29, 23, 24],
+  "signature_algorithms": [1027, 2052, 1025],
+  "sni": "api.example.com",
+  "alpn": ["h2", "http/1.1"],
+  "handshake_version": 771,
+  "src_addr": [167772162, 0, 0, 0],
+  "dst_addr": [167772163, 0, 0, 0],
+  "is_ipv6": false,
+  "dst_port": 8443,
+  "timestamp_ns": 1756900000000000000
+}
+```
+
+`src_addr` and `dst_addr` are four 32-bit words: an IPv4 address occupies the
+first word and the rest are zero, while an IPv6 address fills all four.
+
+`dst_port` is the port the handshake was actually seen on, and it is read by two
+things rather than recorded for display: the TLS ML feature vector carries it as
+a dimension, and beaconing keys its intervals on the destination endpoint. An
+estate whose TLS runs on `8443` and reports `443` is scored and correlated as
+though every connection went to the same place. The field defaults to `443` when
+omitted, so a submitter written against the earlier shape keeps working and a
+caller that genuinely cannot determine the port sends the value the service used
+to assume rather than a zero nothing can interpret.
 
 ## Configuration
 
