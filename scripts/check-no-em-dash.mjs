@@ -34,9 +34,14 @@ const EXEMPT = new Map([
   ],
 ]);
 
+// Written as escapes rather than as the characters themselves: this file is
+// tracked, so a literal here would be an offence the check reports against
+// itself. An exemption would have worked and would have been the wrong shape,
+// since it would exempt the whole file rather than the two declarations that
+// have to name what they hunt.
 const DASHES = [
-  { char: '—', name: 'em dash' },
-  { char: '–', name: 'en dash' },
+  { char: '\u2014', name: 'em dash' },
+  { char: '\u2013', name: 'en dash' },
 ];
 
 // Reading as UTF-8 would turn an arbitrary byte run in an image into
