@@ -59,21 +59,31 @@ what happens to a match from any feed. See
 
 ## QinQ (802.1ad) Double VLAN
 
-When the outer EtherType is `0x88A8` (802.1ad), the eBPF parser recognizes a QinQ frame and parses both the outer S-VLAN and inner C-VLAN tags before reaching the IP header. The outer (service) VLAN ID is available for policy matching, while the inner (customer) VLAN ID is preserved.
+When the EtherType is `0x8100` (802.1Q) or `0x88A8` (802.1ad) the eBPF parser
+walks the tag, and when a second tag follows it walks that one too, so the IP
+header is reached at the right offset on a double-tagged frame.
+
+The **outer** (service) VLAN ID is the one a policy matches on and the one an
+event carries. The inner (customer) VLAN ID is not reported separately: a
+packet event carries a single VLAN ID, and the inner tag is left in the frame
+untouched, because no program adds, removes or rewrites a tag.
 
 ## eBPF Implementation
 
-- Inline `VlanHdr` struct for 802.1Q and 802.1ad header parsing
+- One shared tag parser in `ebpf-helpers`, used by every program that needs a
+  VLAN ID, so all of them report the same tag of a double-tagged frame
 - QinQ support: the parser handles stacked VLAN headers (EtherType `0x8100` for 802.1Q, `0x88A8` for 802.1ad)
 - Read-only: no program calls `bpf_skb_vlan_push` or `bpf_skb_vlan_pop`, so a tag is never added, removed or rewritten
-- `FLAG_VLAN` in `PacketEvent.flags` signals VLAN-tagged packets to userspace
-- `PacketEvent.vlan_id` carries the original VLAN ID
+- `FLAG_VLAN` in `PacketEvent.flags` signals a tagged frame, which is what
+  tells a frame tagged with VLAN 0 apart from an untagged one
+- `PacketEvent.vlan_id` carries the outer VLAN ID
 
 ## Code Architecture
 
 | Layer | Implementation |
 |-------|---------------|
 | `ebpf-common` | `PacketEvent.vlan_id` field, `FLAG_VLAN` flag |
-| `ebpf-programs` | VLAN and QinQ header parsing in `xdp-firewall` and the TC programs |
+| `ebpf-helpers` | `parse_vlan_tags!`, the single 802.1Q and 802.1ad parser |
+| `ebpf-programs` | `xdp-firewall` and the TC programs call that parser |
 | `domain` | VLAN-aware firewall rule matching |
 | `infrastructure` | Config validation for VLAN IDs (0-4094) |
