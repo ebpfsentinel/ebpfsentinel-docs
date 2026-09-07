@@ -27,6 +27,18 @@ carrying the id of the L7 rule it was matched under. That id is what
 submitted payload is scanned, name one id and only payloads submitted
 under a listed id are.
 
+The submitted payload is base64 in `payload_b64` and is held to 64 KiB
+once decoded, which is the whole of the bound on one scan. A larger
+submission is refused with `400` and a message naming the limit:
+
+```json
+{"error": "payload is 131072 bytes decoded, over the 65536 byte limit"}
+```
+
+The consequence for this feature is that the engine sees exactly what a
+caller hands over: it scans no traffic of its own, so a payload nobody
+submits is a payload nobody inspects.
+
 ## Pattern Categories
 
 | Category | Example signatures | Severity range |
@@ -45,7 +57,7 @@ on a roadmap to grow to 120+ patterns.
 ## Architecture
 
 ```
-L7 payload (up to 2 KiB)
+L7 payload (up to 64 KiB decoded, refused above)
   └── L7InspectEngine
         └── CompiledState
               ├── BlockDatabase (Vectorscan - atomically swapped on reload)

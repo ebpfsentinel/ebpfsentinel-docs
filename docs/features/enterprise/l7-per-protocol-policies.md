@@ -4,28 +4,42 @@
 
 ## Overview
 
-The enterprise per-protocol policy engine layer enforces protocol-specific
-access controls and dangerous-operation blocking beyond the OSS L7
-firewall's simple allow/deny rules. It covers the six highest-impact
-server protocols: **Redis**, **MongoDB**, **Kafka**, **MySQL /
-PostgreSQL**, **LDAP**, and **SSH**.
+The enterprise per-protocol policy engine layer judges protocol-specific
+access controls and dangerous operations beyond the OSS L7 firewall's
+simple allow/deny rules. It covers the six highest-impact server
+protocols: **Redis**, **MongoDB**, **Kafka**, **MySQL / PostgreSQL**,
+**LDAP**, and **SSH**.
 
 Every evaluator consumes a pre-parsed request object and returns a
 `PolicyDecision` - one of `Allow`, `Alert(violation)`, or
 `Deny(violation)`. Violations carry a stable machine-readable
 `PolicyCode` (e.g. `redis.dangerous_command`, `sql.ddl_blocked`,
-`ssh.weak_algorithm`) plus a severity that the SIEM exporters will use
-for alert enrichment via the enterprise L7 dispatcher.
+`ssh.weak_algorithm`) plus a severity carried into the SIEM exporters
+when the submission asks for enrichment.
 
-The domain layer is decoupled from the wire parsers by design: the
-enterprise L7 dispatcher extracts request metadata, calls the relevant
-policy, and then decides whether to forward, alert, or drop the flow.
-This keeps the policy engines small, deterministic, and easy to unit
-test.
+## What a decision is, and what it is not
+
+These policies are not attached to the packet path. A decision is
+produced when a caller submits a pre-parsed request to
+`POST /api/v1/enterprise/l7/analyze`, and the answer comes back in the
+`policy` field of that response.
+
+The consequence is specific to this feature: **nothing here forwards,
+drops or resets a connection.** A `Deny` is a verdict, not an
+enforcement. Whatever submitted the request - a proxy, a sidecar, a
+service mesh filter, a broker plugin - is what holds the connection and
+is what must act on the verdict. An operator who reads `Deny` in the
+policy decisions log and expects the traffic to have been stopped is
+reading it wrongly.
+
+The engines being decoupled from the wire parsers is what makes this
+possible: they take a `RedisRequest` or a `SqlRequest`, never bytes off
+an interface, which keeps them small, deterministic and easy to unit
+test - and leaves the parsing, and the acting, to the submitter.
 
 ## Supported Protocols
 
-| Protocol | What gets enforced | Built-in rules |
+| Protocol | What gets judged | Built-in rules |
 |----------|--------------------|----------------|
 | **Redis** | Dangerous command blocking, per-tenant key namespace isolation, per-command rate limits | 15 blocked commands (`EVAL`, `CONFIG`, `KEYS`, `FLUSHALL`, `FLUSHDB`, `DEBUG`, `SHUTDOWN`, `SCRIPT`, `MODULE`, `REPLICAOF`, `SLAVEOF`, `MIGRATE`, `SAVE`, `BGSAVE`, `EVALSHA`) |
 | **MongoDB** | Admin command blocking, collection allow/deny, JavaScript-injection detection | 12 admin commands (`dropDatabase`, `drop`, `createUser`, `dropUser`, `grantRolesToUser`, `revokeRolesFromUser`, `shutdown`, `eval`, `copydb`, `fsync`, `replSetReconfig`, `replSetInitiate`) + `$where` / `$function` / `$accumulator` / `mapReduce` heuristic |
@@ -70,12 +84,44 @@ let req = RedisRequest {
     tenant: Some("tenant-a"),
 };
 
+// The evaluator returns a verdict. Acting on it is the caller's job.
 match policy.evaluate(&req) {
-    PolicyDecision::Allow => forward_request(),
-    PolicyDecision::Alert(v) => emit_alert(v),
-    PolicyDecision::Deny(v)  => drop_connection(v),
+    PolicyDecision::Allow => println!("allow"),
+    PolicyDecision::Alert(v) => println!("alert: {}", v.reason),
+    PolicyDecision::Deny(v) => println!("deny: {}", v.reason),
 }
 ```
+
+The same evaluation reached over HTTP, and what comes back:
+
+```bash
+curl -sk -X POST https://agent:8444/api/v1/enterprise/l7/analyze \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "protocol": "redis",
+        "payload_b64": "",
+        "redis": {"command": "FLUSHALL", "tenant": "tenant-a"}
+      }'
+```
+
+```json
+{
+  "protocol": "redis",
+  "duration_ns": 41200,
+  "inspect_matches": [],
+  "policy": {
+    "outcome": "deny",
+    "code": "redis.dangerous_command",
+    "severity": "high",
+    "reason": "Redis command FLUSHALL blocked by policy"
+  },
+  "enriched_alerts": []
+}
+```
+
+`"outcome": "deny"` says the command would be refused by this policy. The
+agent did not see the command on the wire and has stopped nothing.
 
 ## Example - SQL
 
