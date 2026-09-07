@@ -91,7 +91,7 @@ flowchart TD
 
         IDS["tc-ids"]
         IDS_SAMPLE["Sampling\n(bpf_get_prandom_u32)"]
-        IDS_L7["L7 detection\n(bpf_strncmp)"]
+        IDS_L7["Packet sizing\n(bpf_dynptr_size)"]
         IDS_EMIT["Emit PacketEvent\nto RingBuf"]
         NAT_CSUM --> IDS --> IDS_SAMPLE --> IDS_L7 --> IDS_EMIT
 

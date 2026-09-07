@@ -4,7 +4,7 @@
 
 ## Overview
 
-The IDS inspects packet payloads against regex-based signature rules. The kernel-side TC classifier performs initial filtering - sampling, L7 protocol detection, and backpressure - while the userspace engine runs full regex evaluation and alert generation.
+The IDS inspects packet payloads against regex-based signature rules. The kernel-side TC classifier performs initial filtering - sampling and backpressure - while the userspace engine runs protocol classification, full regex evaluation and alert generation.
 
 ## How It Works
 
@@ -13,9 +13,11 @@ The IDS inspects packet payloads against regex-based signature rules. The kernel
 The TC classifier program:
 
 1. **Sampling** - `bpf_get_prandom_u32` selects packets based on the configured sample rate, reducing userspace load
-2. **L7 protocol detection** - `bpf_strncmp` matches protocol signatures (HTTP, TLS, SSH) in the first bytes of the payload
+2. **Packet sizing** - `bpf_dynptr_from_skb` and `bpf_dynptr_size` measure the full packet, fragments included, so the payload copy is bounded by what the packet actually carries rather than by the linear length
 3. **RingBuf backpressure** - `bpf_ringbuf_query` checks buffer fill level; if >75% full, events are skipped
 4. **Event emission** - matching packets are forwarded to userspace via `RingBuf` as `PacketEvent` structures
+
+Protocol detection is userspace-only. The classifier ships the payload and does not match protocol signatures in the kernel; the L7 engine classifies HTTP, TLS, gRPC, SMTP, FTP and SMB from that payload. See [L7 Firewall](l7.md).
 
 ### Userspace Side
 

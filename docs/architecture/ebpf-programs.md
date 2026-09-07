@@ -116,7 +116,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 ## TC IDS (tc-ids)
 
 - **bpf_get_prandom_u32** for kernel-side sampling
-- **bpf_strncmp** for L7 protocol signature detection (HTTP, TLS, SSH)
+- **bpf_dynptr_from_skb / bpf_dynptr_size** to measure the full packet, fragments included, before the payload copy
 - **bpf_ringbuf_query** for adaptive backpressure (skip at >75% fill)
 - Port-only key for IP-version-agnostic matching
 

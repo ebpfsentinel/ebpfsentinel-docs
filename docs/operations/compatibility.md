@@ -72,7 +72,6 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_xdp_get_xfrm_state` kfunc | 6.8+ | IPsec state lookup for XDP firewall rules |
 | `bpf_iter_css_task_*` / `bpf_iter_css_*` kfuncs | 6.7+ | Cgroup task enumeration for per-container audit |
 | `bpf_loop` | 5.17+ | XDP firewall rule iteration, NAT rule scanning |
-| `bpf_strncmp` | 5.17+ | L7 protocol detection |
 | BPF Bloom filter | 5.16+ | TC threat intel IOC pre-check |
 | `bpf_timer` | 5.15+ | Rate limit bucket expiry |
 | `bpf_for_each_map_elem` | 5.13+ | Kernel-side map iteration |

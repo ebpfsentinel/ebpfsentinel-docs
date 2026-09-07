@@ -329,7 +329,7 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | Feature | Helper | Description |
 |---------|--------|-------------|
 | Random sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Sample N% of packets to reduce userspace load |
-| L7 detection | [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) | Match protocol signatures: `GET ` / `POST ` (HTTP), `\x16\x03` (TLS), `SSH-` (SSH) |
+| Packet sizing | [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) | Measure the full packet, fragments included, so the payload copy is bounded by what the packet carries |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
 | Variable-size events | [`bpf_dynptr`](https://docs.ebpf.io/linux/helper-function/bpf_dynptr_from_mem/) | Reserve only header + actual payload bytes, ~70% ring buffer savings for L7 events |
 | SKB linearization | [`bpf_skb_pull_data`](https://docs.ebpf.io/linux/helper-function/bpf_skb_pull_data/) | Linearize full SKB (`ctx.len()`) before L7 payload capture - handles jumbo frames and GRO aggregates |
