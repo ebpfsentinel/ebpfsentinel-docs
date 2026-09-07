@@ -210,7 +210,7 @@ Controls agent behavior when it loses contact with its peer and enters a degrade
 |--------|----------|
 | `Continue` | Default. Keep running normally with a warning. Accept configuration changes. |
 | `ReadOnly` | Keep current eBPF rules active. Reject configuration changes via the API (returns `503 Service Unavailable`). |
-| `FailClosed` | Block all traffic by loading a deny-all eBPF rule until the peer is restored. |
+| `FailClosed` | Everything `ReadOnly` does, plus a deny-all posture on the datapath. Only the anti-lockout ports stay reachable. |
 
 ### ClusterHealth
 
@@ -222,11 +222,110 @@ Controls agent behavior when it loses contact with its peer and enters a degrade
 
 ### Behavior
 
-- **Degradation entry**: triggered when heartbeat timeout fires and no peer responds. The node transitions `cluster_health` to `Degraded` or `Isolated` and applies the configured `degradation_policy`.
-- **Continue**: logs a warning, no behavioral change. Config updates are accepted.
-- **ReadOnly**: current eBPF programs remain loaded. API mutations (`POST`, `PUT`, `DELETE` on config endpoints) return `503`. Read endpoints remain available.
-- **FailClosed**: a deny-all eBPF rule is loaded, dropping all traffic. This is the most conservative option for security-critical deployments.
-- **Recovery**: when the peer becomes reachable again, the node auto-resyncs state via snapshot replication and exits degraded mode. If `FailClosed` was active, the deny-all rule is removed and normal eBPF programs are restored.
+**Degradation entry** is evaluated at the end of every heartbeat round, so the
+peer failures that round recorded are part of the judgement. The node writes the
+new `cluster_health` and, on a transition out of `Healthy`, applies the
+configured policy.
+
+**Continue** logs a warning and changes nothing. Configuration updates are
+accepted and the datapath is untouched. This is the right answer for a
+deployment that would rather let the two halves diverge than stop, and it is the
+default because stopping is the surprising outcome.
+
+**ReadOnly** refuses every state-changing request for as long as the node is
+degraded. `GET`, `HEAD` and `OPTIONS` are served normally, so an operator
+diagnosing the partition can still read everything. Any other method answers
+`503 Service Unavailable`:
+
+```json
+{
+  "error": "cluster in read-only degraded mode",
+  "code": "HA_READ_ONLY_DEGRADED"
+}
+```
+
+The eBPF programs stay loaded and traffic keeps flowing: only the configuration
+stops moving. The reason to refuse at all is that an isolated node cannot
+replicate, so a rule written to it is a rule the rest of the cluster does not
+have, and when the partition heals the two halves disagree about what the policy
+is. A refusal at the moment of the change beats a divergence discovered later.
+
+Two things are deliberately still writable:
+
+- Everything under `/api/v1/ha/*`, which carries the manual failover command.
+  That is the one write that exists to get a degraded cluster out of the state
+  being reported on, so refusing it would mean the posture had removed its own
+  remedy.
+- Nothing else. Authorization is checked first, so a caller with no permission
+  on a route reads that they have no permission rather than that the cluster is
+  degraded.
+
+**FailClosed** does everything `ReadOnly` does, and additionally closes the
+datapath. It applies only from `Isolated`, never from `Degraded`: a node that can
+still see part of the cluster has not lost its view of the policy.
+
+The posture is not a flip of the default policy. The XDP firewall passes
+`ESTABLISHED` and `RELATED` flows before it consults the default policy, so
+flipping that byte to `drop` would leave every connection that already existed
+running - which is exactly the traffic the policy exists to stop. What is
+installed instead is a pair of stateless catch-all deny rules, one per address
+family, matching every connection state:
+
+| Rule ID | Matches |
+|---------|---------|
+| `fail-closed-deny-all-v4` | `0.0.0.0/0`, any protocol, any connection state |
+| `fail-closed-deny-all-v6` | `::/0`, any protocol, any connection state |
+
+Two rules rather than one, because a rule carrying no address is loaded into the
+IPv4 array only. Both are `system` rules, so the API cannot delete them while the
+posture is in force, and they are named rather than generated so
+`ebpfsentinel-agent firewall list` on a closed node says why nothing is getting
+through. The default policy byte is set to `drop` as well, for the packets that
+reach the datapath before the rule scan.
+
+The posture also forces `firewall.mode` to `block` for its duration. In `alert`
+mode every `deny` is rewritten into a log line on the way to the map, so a node
+configured for alerting would have installed a deny-all that dropped nothing at
+all. The configured mode is restored when the posture is lifted, along with the
+rules that were loaded before it and the anti-lockout setting.
+
+#### Reaching a node that has closed its datapath
+
+A node in the deny-all posture must still be recoverable, so **anti-lockout is
+forced on for the duration of the posture**, whatever
+`firewall.anti_lockout.enabled` says, and restored to its configured value on
+exit. The anti-lockout ports (`22`, `8080` and `50051` by default) keep their
+`pass` rules and stay reachable.
+
+This is forced rather than respected because of who enters the posture. An
+operator who disables anti-lockout and writes a deny-all rule has made a choice
+about their own access. This posture is entered by the cluster, on a schedule,
+in response to a partition nobody was watching - and a node that cut its own
+management access on the way in would need a physical visit to get back.
+
+What is forced is the `enabled` flag alone. The ports and interfaces stay exactly
+as configured, so narrowing the way in is done there rather than by turning
+anti-lockout off:
+
+| `firewall.anti_lockout` | What stays reachable while the posture is in force |
+|---|---|
+| `interfaces: []` (default) | The listed ports, on every interface |
+| `interfaces: [mgmt0]` | The listed ports, on `mgmt0` only |
+| `ports: []` | Nothing. The node closes completely and needs console access |
+
+A deployment that sets `ports: []` has chosen a node it cannot reach over the
+network while partitioned. That is a supportable choice for an appliance with
+out-of-band access, and it is the one case where the posture does not leave a way
+back in.
+
+**Recovery**: when a peer becomes reachable again the node resyncs state via
+snapshot replication and leaves degraded mode. Writes are accepted again, and if
+the deny-all posture was installed it is lifted - the rules, the mode and the
+anti-lockout setting that were in force before it are put back, rather than
+recomputed from configuration, so changes made through the API since boot are not
+lost. Lifting is attempted on every recovery rather than only where this process
+installed the posture, because a node that restarted while closed has no memory
+of installing one and would otherwise never open again.
 
 ### Configuration
 
