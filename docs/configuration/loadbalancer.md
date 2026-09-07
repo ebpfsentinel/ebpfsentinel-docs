@@ -43,14 +43,14 @@ loadbalancer:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | Yes | Unique service identifier (max 64 characters) |
+| `id` | `string` | Yes | Unique service identifier (max 256 characters) |
 | `name` | `string` | Yes | Human-readable service name |
 | `protocol` | `string` | No | `tcp` (default), `udp`, or `tls_passthrough` |
 | `listen_port` | `integer` | Yes | Frontend port to listen on (1-65535) |
 | `algorithm` | `string` | No | `round_robin` (default), `weighted`, `ip_hash`, `least_conn`, `maglev` |
 | `mode` | `string` | No | Forwarding mode: `dnat` (default) or `l2dsr`. Aliases for `l2dsr`: `l2_dsr`, `dsr`. With `l2dsr`, every backend must set `same_segment: true` or config is rejected. |
 | `enabled` | `bool` | No | Enable/disable this service (default: `true`) |
-| `backends` | `[LbBackend]` | Yes | At least one backend required |
+| `backends` | `[LbBackend]` | Yes | At least one backend required, at most 256 |
 | `health_check` | `LbHealthCheck` | No | Optional backend health probe |
 
 ### LbBackend

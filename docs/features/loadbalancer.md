@@ -69,8 +69,13 @@ stateDiagram-v2
 ### Engine Limits
 
 - Maximum 64 services
-- Maximum 16 backends per service (eBPF map constraint)
-- Backend IDs and service IDs: max 64 characters
+- Maximum 256 backends per service, and 65,536 backends across every service
+  (the size of the shared `LB_BACKENDS` map)
+- Backend IDs and service IDs: max 256 characters
+
+A service configured above either backend limit is refused at load, with the
+count it carried and the maximum in the error, rather than being accepted and
+balanced over the first 256.
 
 ## Configuration
 
