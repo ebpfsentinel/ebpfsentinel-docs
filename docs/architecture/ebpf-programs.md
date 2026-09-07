@@ -79,7 +79,7 @@ Key eBPF features:
 - **XDP SYN cookies** — via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
 - **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
-- 5 algorithms: token bucket, fixed window, sliding window, leaky bucket, SYN cookie
+- 4 algorithms: token bucket, fixed window, sliding window, leaky bucket. SYN cookie forging is not one of them: it is configured under `ddos.syn_protection` and `algorithm: syn_cookie` is rejected at config load
 
 ### DDoS Protections (within xdp-ratelimit)
 

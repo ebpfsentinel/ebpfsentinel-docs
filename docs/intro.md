@@ -47,7 +47,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **Shared `ebpf-helpers` crate** — deduplicated network helpers, header parsing, metrics macros across all eBPF programs
 - **Netkit container networking** — auto-attach TC programs to Kubernetes pod interfaces (Cilium 1.16+) with hot-plug detection
 - **RingBuf adaptive backpressure** — skip event emission when buffer >75% full
-- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 65+ endpoints
+- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 89 paths and 105 operations
 - **gRPC streaming** (tonic) for real-time alert subscriptions with severity, component, MITRE filters
 - **JWT / OIDC / API key authentication** with role-based access control (Admin, Operator, Viewer)
 - **TLS 1.3** via rustls + aws-lc-rs, post-quantum ready (X25519MLKEM768 hybrid)
@@ -55,7 +55,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **OTLP export** — alerts as OpenTelemetry Logs (gRPC or HTTP) to any OTLP-compatible collector
 - **Alert pipeline** with routing to email, webhook, log, and OTLP sinks, concurrent sender dispatch
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 26 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
+- **CLI** with 37 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
 - **Helm chart** for Kubernetes DaemonSet deployment with JSON schema validation
 
 ## Who Is This For?

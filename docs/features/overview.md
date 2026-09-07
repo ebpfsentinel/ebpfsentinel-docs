@@ -1,5 +1,30 @@
 # Feature Overview
 
+<!--
+Five counts on this page are read out of the agent tree rather than remembered.
+Each is marked where it is written, and this is where they come from:
+
+  eBPF programs        crates/ebpf-programs/       (one directory per program)
+  REST paths and       openapi.json                (`paths`, and the methods
+  operations                                        declared under each one)
+  CLI subcommands      crates/agent/src/cli.rs     (variants of `enum Command`)
+  Rate limit           crates/domain/src/ratelimit/entity.rs
+  algorithms                                       (`enum RateLimitAlgorithm`)
+  Load balancer        crates/domain/src/loadbalancer/entity.rs
+  algorithms                                       (`enum LbAlgorithm`)
+
+These five went stale together, which is a generation problem rather than five
+typos. Generating them is deliberately not done yet: this page is prose with
+numbers in sentences, so a generator would have to own the sentences too, and
+the three counts that already have a mechanical check elsewhere - the REST
+surface in `scripts/check-rest-routes.mjs`, the CLI tree in
+`scripts/check-cli-invocations.mjs`, the metric families in
+`scripts/check-metric-names.mjs` - are checked against the tree rather than
+written from it. The next count that goes stale is the one that decides it:
+a sixth stale number here means a `scripts/check-feature-counts.mjs` asserting
+each of the five against the file named above, not a sixth correction.
+-->
+
 ## OSS / Enterprise Matrix
 
 All features listed as **OSS** are included in the open-source release (AGPL-3.0). Enterprise features are planned — see the [Enterprise roadmap](enterprise/overview.md).
@@ -12,9 +37,9 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, L7 detection |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
 | [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
-| [Rate Limiting](ratelimit.md) | OSS | XDP | 5 algorithms, per-CPU lock-free, SYN cookie protection |
+| [Rate Limiting](ratelimit.md) | OSS | XDP | 4 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
-| [L4 Load Balancer](loadbalancer.md) | OSS | XDP | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn |
+| [L4 Load Balancer](loadbalancer.md) | OSS | XDP | TCP/UDP/TLS passthrough, 5 algorithms: round-robin, weighted, ip-hash, least-conn, maglev |
 | [Threat Intelligence](threatintel.md) | OSS | TC classifier | OSINT feeds (plaintext, CSV, JSON, STIX 2.1), IOC correlation, multi-engine distribution (IP, domain, URL), per-feed alert or block |
 | [L7 Firewall](l7-firewall.md) | OSS | Userspace | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB protocol-aware rules |
 | [DNS Intelligence](dns-intelligence.md) | OSS | TC classifier | Passive DNS, domain blocklists, feed integration |
@@ -39,7 +64,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 
 | Feature | Edition | Description |
 |---------|---------|-------------|
-| REST API (82 endpoints) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (89 paths, 105 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -49,7 +74,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Auto-Response](operational-essentials.md#auto-response) | OSS | Severity-based auto block/throttle on alerts (max 3 policies, multi-component filter) |
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
-| CLI (25 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
+| CLI (37 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
 ### Enterprise
@@ -81,12 +106,15 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 
 ## eBPF Program Map
 
-Fourteen kernel programs cover all enforcement points (12 main entry points + 2 tail-called programs):
+`crates/ebpf-programs/` holds sixteen program directories: twelve attached at an
+enforcement point, three reached only by tail call from one of those twelve, and
+`xdp-pass`, which is peer-side test scaffolding rather than part of the
+datapath. The twelve enforcement points:
 
 | Program | Hook | Features |
 |---------|------|----------|
 | `xdp-firewall` | XDP | 5-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, policy routing, DEVMAP/CPUMAP, FIB lookup, tail-call to rate limiter, interface groups |
-| `xdp-ratelimit` | XDP | 5 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance, per-country LPM tier lookup, interface groups |
+| `xdp-ratelimit` | XDP | 4 algorithms, PerCPU hash, SYN cookie, `bpf_timer` maintenance, per-country LPM tier lookup, interface groups |
 | `xdp-loadbalancer` | XDP | L4 load balancing, per-service round-robin, MAC swap, backend selection, health-aware routing |
 | `tc-conntrack` | TC classifier | Unified TCP/UDP/ICMP state machine, bidirectional tracking, packet+byte counters, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
@@ -97,5 +125,18 @@ Fourteen kernel programs cover all enforcement points (12 main entry points + 2 
 | `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
+
+The three tail-called programs are attached to no hook of their own. Each is
+entered from the program that needs it, which is why they are counted apart:
+
+| Program | Called from | Purpose |
+|---------|-------------|---------|
+| `xdp-firewall-reject` | `xdp-firewall` | Forges the TCP RST or ICMP unreachable a `reject` rule owes |
+| `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
+| `xdp-vip-announcer` | `xdp-loadbalancer` | Emits the gratuitous ARP that claims a VIP |
+
+`xdp-pass` is the sixteenth directory. It is a no-op XDP program attached to the
+far side of a veth pair in the integration tests, because native XDP_TX on a
+veth needs a program on the peer to be delivered. Nothing deploys it.
 
 All rule-bearing programs (xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos) support **interface groups** — rules can be scoped to named groups of interfaces via a u32 bitmask. Rules with no `interfaces` field are floating (apply everywhere). See [Interface Groups](interface-groups.md).

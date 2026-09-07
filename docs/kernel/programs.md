@@ -133,7 +133,7 @@ Per-IP rate limiting and DDoS protection at XDP speed.
 
 #### Rate Limiting Algorithms
 
-5 algorithms, configurable per-rule. All 4 stateful algorithms share a single consolidated [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) map (`RL_BUCKETS`, 262K entries) using a discriminated union (`RateLimitBucketUnion`, 64 bytes per entry). This consolidation reduces kernel memory by ~75%.
+4 algorithms, configurable per-rule. All 4 share a single consolidated [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) map (`RL_BUCKETS`, 262K entries) using a discriminated union (`RateLimitBucketUnion`, 64 bytes per entry). This consolidation reduces kernel memory by ~75%.
 
 | Algorithm | Union Variant | Behavior |
 |-----------|---------------|----------|
@@ -141,7 +141,8 @@ Per-IP rate limiting and DDoS protection at XDP speed.
 | Fixed Window | `RateLimitBucketUnion::FixedWindow` | Counter resets every interval |
 | Sliding Window | `RateLimitBucketUnion::SlidingWindow` | Weighted average of current + previous window |
 | Leaky Bucket | `RateLimitBucketUnion::LeakyBucket` | Constant drain rate, queued excess |
-| SYN Cookie | — | XDP SYN cookie forging via `XDP_TX` (see below) |
+
+SYN cookie forging is not a fifth algorithm and `algorithm: syn_cookie` is rejected at config load. It is configured under [`ddos.syn_protection`](../features/ddos.md) and runs in the same program, described below.
 
 Per-CPU maps eliminate lock contention: each CPU core maintains independent counters, aggregated at read time.
 

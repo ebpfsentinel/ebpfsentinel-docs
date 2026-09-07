@@ -64,7 +64,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `ips.yaml` | Blacklist config, whitelist, auto-threshold |
 | `dlp.yaml` | Built-in PCI / PII / credential patterns (OSS); custom patterns (Enterprise) |
 | `l7.yaml` | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB rules |
-| `ratelimit.yaml` | 5 algorithms, per-CPU buckets, SYN cookie |
+| `ratelimit.yaml` | 4 algorithms, per-CPU buckets, country tiers |
 | `ddos.yaml` | SYN/ICMP/UDP amplification protection, connection tracking, policies |
 | `loadbalancer.yaml` | TCP/UDP/TLS passthrough services, backend pools, health checks |
 | `threatintel.yaml` | CSV, JSON, STIX feeds, Bloom filter, per-feed alert or block |
