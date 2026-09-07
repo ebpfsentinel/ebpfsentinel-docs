@@ -15,7 +15,7 @@ Gated by the `FleetManagement` license feature.
 | `POST` | `/api/v1/agent/register` | operator | fleet-management | Register agent, get UUIDv7 identity + token. |
 | `POST` | `/api/v1/agent/heartbeat` | operator | fleet-management | Report status, receive aggregated health. |
 | `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
-| `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash + reload timestamp. |
+| `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
 | `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
 
 ### What authenticates what
@@ -170,9 +170,9 @@ Both fields are required. `token` is the value registration returned.
 
 - `status`: The agent's health, judged over its datapath
 - `active_rules`: Live rule counts from each domain engine (firewall, IDS, IPS, L7, ratelimit)
-- `config_version`: SHA-256 hex of serialized YAML config
+- `config_version`: SHA-256 hex of the serialized YAML configuration the running datapath was built from
 - `metrics_snapshot`: Reserved for future enrichment (Prometheus metrics are write-only; scrape `/metrics` for live counters)
-- `pending_changes`: Whether the configuration now held differs from the one the running datapath was built from
+- `pending_changes`: Whether the configuration file on disk has been edited since that datapath was built
 
 Returns 401 with `{"error": "agent identifier or token not recognised"}` when the
 identifier is not the registered one, when the token is not the one registration
@@ -247,7 +247,7 @@ Full introspection of the registered agent.
 
 Each entry carries that program's own state, so a node whose NAT ingress program was rejected while its firewall attached reports `tc-nat-ingress: false` beside `xdp-firewall: true`, and the heartbeat above it reports `degraded`.
 
-The list is what the datapath registered rather than a fixed catalogue: a program this build never attempted is absent rather than reported as `false`, and an agent that loaded nothing returns an empty list. The same states are readable per program on `/metrics` as `ebpfsentinel_ebpf_program_status`, where the names are spelled with underscores.
+The list is what the datapath registered rather than a fixed catalogue: a program this build never attempted is absent rather than reported as `false`, and an agent that loaded nothing returns an empty list. The same states are readable per program on `/metrics` as `ebpfsentinel_ebpf_program_status`, under the same names.
 
 Returns 404 if the agent has not been registered.
 
@@ -267,11 +267,15 @@ Lightweight endpoint (< 100 bytes response) for config drift detection.
 }
 ```
 
-- `config_version`: SHA-256 hex of the serialized YAML config
-- `last_reload`: Unix epoch of when the config was last loaded (startup time)
-- `pending_changes`: Whether the configuration now held differs from the one the running datapath was built from
+- `config_version`: SHA-256 hex of the serialized YAML configuration the running datapath was built from
+- `last_reload`: Unix epoch of when that configuration was applied, which is startup
+- `pending_changes`: Whether the configuration file on disk has been edited since
 
-`pending_changes` means the same thing here as it does on the heartbeat, and both routes compute it the one way. It is `false` on a freshly started agent, because the datapath it is running was built from the configuration it is holding.
+`pending_changes` means the same thing here as it does on the heartbeat, and both routes compute it the one way: the file named by `--config` is loaded at the moment you ask, and its hash compared with the one being enforced. It is `false` on a freshly started agent, and `false` again for a file that no longer parses, because a configuration this agent would refuse is not a change waiting to be applied.
+
+The hash is taken over the configuration the file parses to rather than over its bytes, so reformatting it or adding a comment is not drift.
+
+The enterprise agent applies its configuration once, at startup: unlike the OSS agent it has no file watcher, no `SIGHUP` reload and no `/api/v1/config/reload` route, so `pending_changes: true` means a restart is outstanding rather than a reload.
 
 Fleet managers can poll this endpoint to detect config drift across agents by comparing `config_version` hashes.
 
