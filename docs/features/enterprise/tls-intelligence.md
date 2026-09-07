@@ -159,12 +159,21 @@ Tracks adoption of post-quantum key exchange groups across the network. Identifi
 
 | Code Point | Name | Type |
 |------------|------|------|
-| `0x0200` | ML-KEM-512 | Post-quantum |
-| `0x0201` | ML-KEM-768 | Post-quantum |
-| `0x0202` | ML-KEM-1024 | Post-quantum |
-| `0x6399` | X25519MLKEM768 | Hybrid (classical + PQ) |
-| `0x639A` | SecP256r1MLKEM768 | Hybrid (classical + PQ) |
-| `0x639B` | SecP384r1MLKEM1024 | Hybrid (classical + PQ) |
+| `0x0200` | ML-KEM-512 | Pure post-quantum |
+| `0x0201` | ML-KEM-768 | Pure post-quantum |
+| `0x0202` | ML-KEM-1024 | Pure post-quantum |
+| `0x11EB` | SecP256r1MLKEM768 | Hybrid (classical + PQ) |
+| `0x11EC` | X25519MLKEM768 | Hybrid (classical + PQ) |
+| `0x11ED` | SecP384r1MLKEM1024 | Hybrid (classical + PQ) |
+| `0x6399` | X25519Kyber768Draft00 | Hybrid, retired draft |
+| `0x639A` | P256Kyber768Draft00 | Hybrid, retired draft |
+
+The three hybrid code points in the `0x11EB`-`0x11ED` range are what current
+clients offer: OpenSSL 3.5, BoringSSL, Chrome and rustls all negotiate
+`X25519MLKEM768` at `0x11EC`. The two `0x63xx` entries are the Kyber draft
+hybrids that preceded them; they are still tracked because older clients offer
+them, and a client offering one has migrated in every sense this report
+measures.
 
 ### Per-Destination Breakdown
 
@@ -172,19 +181,31 @@ For each destination (IP or SNI), the engine tracks:
 
 | Field | Description |
 |-------|-------------|
-| `total_handshakes` | Total observed TLS handshakes |
-| `pqc_handshakes` | Handshakes negotiating a PQ or hybrid group |
-| `classical_handshakes` | Handshakes using classical-only key exchange |
-| `compliance_ratio` | `pqc_handshakes / total_handshakes` (0.0 to 1.0) |
-| `groups_seen` | Set of key exchange group code points observed |
+| `destination` | SNI where the handshake carried one, otherwise the destination address |
+| `total` | Total observed TLS handshakes |
+| `pqc_count` | Handshakes offering a pure or hybrid post-quantum group |
+| `classical_count` | Handshakes offering classical-only key exchange |
+
+The report as a whole carries the same counts across every destination, plus the
+split between the two kinds of post-quantum group:
+
+| Field | Description |
+|-------|-------------|
+| `total` | Total observed TLS handshakes |
+| `pqc_compliant` | Handshakes offering a pure or hybrid post-quantum group |
+| `classical_only` | Handshakes offering classical-only key exchange |
+| `pqc_hybrid` | Of the compliant ones, those offering a hybrid group |
+| `pqc_pure` | Of the compliant ones, those offering ML-KEM alone |
+| `pqc_percentage` | `pqc_compliant / total` as a percentage |
+| `per_destination` | The per-destination breakdown above |
 
 ### Compliance Reporting
 
 The compliance ratio enables tracking PQC migration progress:
 
-- **1.0**: fully PQC-compliant destination
-- **0.0**: no PQC support observed
-- **0.0 < ratio < 1.0**: mixed deployment (e.g., partial rollout or client diversity)
+- **100.0**: every observed handshake offered a post-quantum group
+- **0.0**: no post-quantum group observed
+- **0.0 < percentage < 100.0**: mixed deployment (e.g., partial rollout or client diversity)
 
 PQC compliance tracking is a single toggle; the per-destination breakdown, ratios and reporting thresholds are computed internally.
 
