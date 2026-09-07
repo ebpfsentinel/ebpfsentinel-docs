@@ -56,6 +56,14 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:metrics
 
+      # A slot table is prose, so a counter added to a per-CPU map in the
+      # agent went unnoticed until somebody audited the page. This holds every
+      # marked table, and every bullet enumerating a map's slots, to the
+      # agent's own index-to-action table.
+      - name: Check the eBPF metric slot tables
+        working-directory: ebpfsentinel-docs
+        run: npm run check:ebpf-metric-slots
+
       - name: Check the REST reference
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes

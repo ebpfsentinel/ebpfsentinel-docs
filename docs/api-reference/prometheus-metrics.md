@@ -695,6 +695,18 @@ here only as a retired series are listed with their source in
 `scripts/known-metrics.json`. An entry in that list that no page names fails
 the check too, so the exception register shrinks rather than accumulates.
 
-The check runs on every pull request against a fresh checkout of both agents,
+The slot an `action` label names is checked the same way, by
+`npm run check:ebpf-metric-slots`. The per-CPU counter arrays the datapath
+writes are turned into `action` labels by one table in the OSS agent, and that
+table is the source of truth: a feature page carrying a slot table marks it
+with `<!-- ebpf-metric-slots: <map> -->` and every row is held to the agent's
+index, name and order, while a bullet of the form
+`interface="<map>", action}` has to enumerate the whole map, a `*` standing for
+a family of slots. Any `action="name"` written beside an `interface=` is
+checked against that map as well. Slot tables had drifted by a name and by a
+counter across two audits without anything failing, which is why they are
+checked rather than proofread.
+
+Both checks run on every pull request against a fresh checkout of both agents,
 so a family renamed in either one breaks this page's build rather than a
 Grafana panel somebody opens a month later.

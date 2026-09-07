@@ -197,25 +197,31 @@ ebpfsentinel-agent --output json ddos attacks
 
 ### Kernel-Side (eBPF PerCpuArray)
 
+<!-- ebpf-metric-slots: DDOS_METRICS -->
+
 | Slot | Metric | Description |
 |------|--------|-------------|
-| 0 | `SYN_RECEIVED` | SYN packets observed |
-| 1 | `SYN_FLOOD_DROPS` | SYN flood packets dropped (fallback when cookie forging fails) |
-| 2 | `ICMP_PASSED` | ICMP packets passed |
-| 3 | `ICMP_DROPPED` | ICMP packets dropped (rate exceeded or oversized) |
-| 4 | `AMP_PASSED` | Amplification port packets passed |
-| 5 | `AMP_DROPPED` | Amplification port packets dropped |
-| 6 | `OVERSIZED_ICMP` | Oversized ICMP payloads detected |
-| 7 | `ERRORS` | Processing errors |
-| 8 | `EVENTS_DROPPED` | RingBuf events dropped (backpressure) |
-| 9 | `CONN_TRACKED` | TCP connections tracked |
-| 10 | `HALF_OPEN_DROPS` | Half-open connection limit drops |
-| 11 | `RST_FLOOD_DROPS` | RST flood drops |
-| 12 | `FIN_FLOOD_DROPS` | FIN flood drops |
-| 13 | `ACK_FLOOD_DROPS` | ACK flood drops |
-| 14 | `SYNCOOKIE_SENT` | SYN cookies forged and sent via XDP_TX |
-| 15 | `SYNCOOKIE_VALID` | Valid SYN cookie ACKs received (handshake completed) |
-| 16 | `SYNCOOKIE_INVALID` | Invalid SYN cookie ACKs rejected |
+| 0 | `syn_rcv` | SYN packets observed |
+| 1 | `syn_flood_drops` | SYN flood packets dropped (fallback when cookie forging fails) |
+| 2 | `icmp_pass` | ICMP packets passed |
+| 3 | `icmp_drop` | ICMP packets dropped (rate exceeded or oversized) |
+| 4 | `amp_passed` | Amplification port packets passed |
+| 5 | `amp_dropped` | Amplification port packets dropped |
+| 6 | `oversized_icmp` | Oversized ICMP payloads detected |
+| 7 | `errors` | Processing errors |
+| 8 | `events_dropped` | RingBuf events dropped (backpressure) |
+| 9 | `conn_tracked` | TCP connections tracked |
+| 10 | `half_open_drops` | Half-open connection limit drops |
+| 11 | `rst_flood_drops` | RST flood drops |
+| 12 | `fin_flood_drops` | FIN flood drops |
+| 13 | `ack_flood_drops` | ACK flood drops |
+| 14 | `total_seen` | Packets seen, counted unconditionally on the first instruction |
+| 15 | `syncookie_sent` | SYN cookies forged and sent via XDP_TX |
+| 16 | `syncookie_valid` | Valid SYN cookie ACKs received (handshake completed) |
+| 17 | `syncookie_invalid` | Invalid SYN cookie ACKs rejected |
+
+The slot name is the `action` label the agent puts on
+`ebpfsentinel_packets_total`, so a row here is the query somebody writes.
 
 ### Userspace (Prometheus)
 

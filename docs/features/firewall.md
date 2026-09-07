@@ -451,7 +451,7 @@ ebpfsentinel-agent conntrack list
 
 | Crate | Path | Role |
 |-------|------|------|
-| `ebpf-common` | `crates/ebpf-common/src/firewall.rs` | Shared rule entry structs (56B V4, 104B V6) |
+| `ebpf-common` | `crates/ebpf-common/src/firewall.rs` | Shared rule entry structs (64B V4, 112B V6) |
 | `ebpf-common` | `crates/ebpf-common/src/conntrack.rs` | Conntrack shared types |
 | `ebpf-common` | `crates/ebpf-common/src/scrub.rs` | Scrub configuration struct |
 | `ebpf-programs` | `crates/ebpf-programs/xdp-firewall/` | XDP kernel program |
@@ -477,7 +477,7 @@ naming the slot.
 
 - `ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action}` - `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected` (TCP RST or ICMP unreachable sent via XDP_TX), `mtu_exceeded`, `reject_throttled`
 - `ebpfsentinel_packets_total{interface="SCRUB_METRICS", action}` - `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped`
-- `ebpfsentinel_packets_total{interface="CT_METRICS", action}` - `new`, `established`, `closed`, `invalid`, `evicted`, `lookups`, `hits` and the `kfunc_*` slots
+- `ebpfsentinel_packets_total{interface="CT_METRICS", action}` - `new`, `established`, `closed`, `invalid`, `evicted`, `errors`, `lookups`, `hits`, `total_seen` and the `kfunc_*` slots
 - `ebpfsentinel_conntrack_active` - active connections in the conntrack table
 - `ebpfsentinel_rules_loaded{component="firewall"}` - number of loaded firewall rules
 - `ebpfsentinel_packet_processing_duration_seconds{program="firewall"}` - firewall event dispatch latency

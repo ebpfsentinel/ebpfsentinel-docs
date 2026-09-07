@@ -13,6 +13,7 @@
     "check:cli-reference": "node scripts/check-cli-reference.mjs",
     "check:cli-invocations": "node scripts/check-cli-invocations.mjs",
     "check:metrics": "node scripts/check-metric-names.mjs",
+    "check:ebpf-metric-slots": "node scripts/check-ebpf-metric-slots.mjs",
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
     "check:vendored-openapi": "node scripts/check-vendored-openapi.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",

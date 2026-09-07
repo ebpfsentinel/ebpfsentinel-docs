@@ -245,6 +245,8 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 
 ## Metrics
 
+<!-- ebpf-metric-slots: QOS_METRICS -->
+
 | Index | Metric | Description |
 |-------|--------|-------------|
 | 0 | `total_seen` | Total packets evaluated by the QoS classifier |
