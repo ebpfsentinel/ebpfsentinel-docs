@@ -27,7 +27,7 @@ each of the five against the file named above, not a sixth correction.
 
 ## OSS / Enterprise Matrix
 
-All features listed as **OSS** are included in the open-source release (AGPL-3.0). Enterprise features are planned - see the [Enterprise roadmap](enterprise/overview.md).
+All features listed as **OSS** are included in the open-source release (AGPL-3.0). Features listed as Enterprise ship in the enterprise agent and are activated by a licence key - see [Enterprise Features](enterprise/overview.md).
 
 ### Security Domains
 
@@ -97,8 +97,8 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [TLS Intelligence](enterprise/tls-intelligence.md) | JA4+ threat DB, behavior anomaly, PQC compliance, cipher policy |
 | [Network Forensics](enterprise/network-forensics.md) | Ring buffer capture, event-triggered captures, flow timeline |
 | [Automated Response](enterprise/automated-response.md) | Policy engine, SOAR webhook, eBPF enforcement, audit trail |
-| [Dashboard UI](enterprise/dashboard.md) | Web-based management console |
-| [Kubernetes Operator](enterprise/kubernetes-operator.md) | CRD-driven configuration |
+| [Dashboard UI](enterprise/dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
+| [Kubernetes Operator](enterprise/kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
 
 ## Deployment Compatibility
 
