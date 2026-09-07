@@ -83,7 +83,7 @@ A tier is keyed by country, not by source, so it carries no `tenant_id` and alwa
 | Sliding Window | `sliding_window` | Weighted average of current and previous windows |
 | Leaky Bucket | `leaky_bucket` | Packets drain at fixed rate |
 
-> SYN-cookie forging (kernel-issued cookies replayed via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. `algorithm: syn_cookie` is rejected at config load.
+> SYN-cookie forging (kernel-issued cookies replayed via `XDP_TX`) is a SYN-flood mitigation configured under [`ddos.syn_protection`](ddos.md), not a `ratelimit` algorithm. There is no `syn_cookie` value in the `algorithm` vocabulary, so `algorithm: syn_cookie` fails config load as an unknown value rather than through a check written for it.
 
 ## Examples
 

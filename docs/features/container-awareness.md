@@ -80,8 +80,9 @@ observes packets for, so this is usually more than enough.
 container:
   resolver:
     enabled: true          # default: true
-    cache_size: 4096
-    proc_path: /proc        # set to /host/proc in containers
+    cache_size: 4096       # default: 4096
+    proc_path: /proc        # default: /proc, set to /host/proc in containers
+    cgroup_root: /sys/fs/cgroup  # default: /sys/fs/cgroup
 ```
 
 ## Docker Enricher
@@ -293,6 +294,7 @@ container:
     enabled: true
     cache_size: 4096
     proc_path: /proc            # /host/proc inside a container
+    cgroup_root: /sys/fs/cgroup # cgroup v2 hierarchy root, walked to map a cgroup id to a container
   docker:
     enabled: false
     socket: /var/run/docker.sock

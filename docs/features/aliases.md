@@ -46,7 +46,7 @@ firewall:
         - "10.99.0.0/16"
 
     cloud_ranges:
-      type: url_table
+      type: url_table_json
       url: "https://ip-ranges.amazonaws.com/ip-ranges.json"
       json_path: "/prefixes/*/ip_prefix"
       refresh_interval: 3600

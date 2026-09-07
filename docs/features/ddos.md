@@ -85,10 +85,14 @@ policies:
 
 DDoS guards run wherever `xdp-ratelimit` is attached, and a policy carries no interface field of its own: every policy is evaluated on the events raised by all monitored interfaces. To exempt an interface, keep it out of `agent.interfaces`, or scope the rate-limit rules that feed it - see [Interface Groups](interface-groups.md).
 
-**Engine Limits:**
-- Maximum 100 policies
-- Maximum 64 concurrent active attacks
-- Maximum 100 attack history entries
+**Config-load limit:** at most 100 policies, checked when the configuration is
+loaded (`MAX_DDOS_POLICIES` in `crates/infrastructure/src/config/ddos.rs`). A
+101st policy fails the load; the engine itself counts no policies.
+
+**Engine limits:**
+- Maximum 64 concurrent active attacks. A flood detected while 64 are already
+  tracked raises no new attack until one expires.
+- Maximum 100 attack history entries, oldest evicted first.
 
 ## Configuration
 

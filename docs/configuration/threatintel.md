@@ -17,7 +17,7 @@ threatintel:
       enabled: true                # Per-feed enable/disable (default: true)
       refresh_interval_secs: 3600  # Seconds between re-fetches (default: 3600)
       max_iocs: 500000             # Max IOCs to load from this feed (default: 500000)
-      default_action: block        # Per-feed override: "alert" or "block" (inherits global mode)
+      default_action: block        # "alert" or "block". See the note below: the value is validated and not applied
       min_confidence: 0            # Minimum confidence to accept (0-100, default: 0)
       auth_header: "Key: value"    # Optional HTTP header for authenticated feeds
 
@@ -52,9 +52,18 @@ threatintel:
 | `enabled` | `bool` | No | `true` | Enable/disable this feed |
 | `refresh_interval_secs` | `integer` | No | `3600` | Seconds between re-fetches. Must be > 0 |
 | `max_iocs` | `integer` | No | `500000` | Maximum IOCs to load. Excess entries are truncated |
-| `default_action` | `string` | No | inherits `mode` | Per-feed override: `"alert"` or `"block"` |
+| `default_action` | `string` | No | — | `"alert"` or `"block"` (`monitor` and `observe` are accepted as `alert`, `enforce` as `block`). Validated at config load and carried onto the feed, but not applied. See below |
 | `min_confidence` | `integer` | No | `0` | Minimum confidence (0-100). IOCs below this are rejected |
 | `auth_header` | `string` | No | — | HTTP header sent with requests. Format: `"Header-Name: value"` |
+
+Every IOC from every feed is loaded into one kernel map under one enforcement
+flag, which the top-level `mode` sets. There is no per-feed flag in the
+datapath, so `default_action` cannot change what happens to a match: a feed
+carrying `default_action: alert` under `mode: block` is still enforced. Use
+`mode` to decide whether matches are logged or dropped, and set a feed to
+`enabled: false` rather than expecting `default_action` to soften it. The key is
+documented here and nowhere else, since a second statement of it is a second
+place to go stale.
 
 ### Field Mapping (CSV / JSON)
 
@@ -279,7 +288,7 @@ threatintel:
       confidence_field: pulse_count
       category_field: type
       auth_header: "X-OTX-API-KEY: your-key-here"
-      default_action: alert      # Override global "block" for this feed
+      default_action: alert      # Recorded on the feed; the global "block" still governs the match
       min_confidence: 3
       max_iocs: 100000
       refresh_interval_secs: 3600

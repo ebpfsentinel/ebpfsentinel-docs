@@ -40,21 +40,22 @@ The enforcement vocabulary is `alert` or `block` and there is no third value:
 
 ```yaml
 threatintel:
-  mode: alert
+  mode: block               # Enforcement is decided here, for every feed at once
   feeds:
     - id: malware-ips
       name: malware-ips
       url: "https://feeds.example.com/malware.txt"
       format: plaintext
-      default_action: block   # Overrides the global mode for this feed
 ```
 
 There is **no VLAN quarantine action**. `tc-threatintel` is attached to the TC
 ingress hook, where re-tagging a matched packet would move it onto no other
 segment: the frame is already bound for the local stack. Isolating a source by
 VLAN means redirecting it on egress, which is a different program on a different
-hook, and no shipped program does it. Use `default_action: block` to stop the
-traffic, or `alert` to report it and pass it on.
+hook, and no shipped program does it. Use `threatintel.mode: block` to stop the
+traffic, or `alert` to report it and pass it on. The mode is global: it decides
+what happens to a match from any feed. See
+[Configuration: Threat Intelligence](../configuration/threatintel.md).
 
 ## QinQ (802.1ad) Double VLAN
 

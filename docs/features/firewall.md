@@ -284,6 +284,7 @@ A dedicated TC program normalizes packets after XDP processing:
 - **ECN stripping** (`strip_ecn`): Clears ECN bits (CE and ECT) in the IPv4 TOS field and IPv6 Traffic Class.
 - **TOS normalization** (`normalize_tos`): Forces the TOS/DSCP byte to a configured value (default 0), useful for sanitizing upstream QoS markings.
 - **TCP timestamp stripping** (`strip_tcp_timestamps`): Removes TCP timestamp option (kind=8) from packets. This is an anti-fingerprinting measure that prevents OS detection via TCP timestamp analysis.
+- **Fragment dropping** (`drop_fragments`): Drops every IPv4 fragment, meaning any packet with MF set or a non-zero fragment offset. Refusing fragments closes a classic inspection-evasion vector, since a rule engine reading only the first fragment cannot see what the rest carries. Each drop counts on `ebpfsentinel_packets_total{interface="SCRUB_METRICS", action="fragments_dropped"}`. Off by default: a path with a smaller MTU somewhere along it fragments legitimately, so turn it on only where the traffic is known not to.
 
 > **Note:** The `reassemble_fragments` operation that appeared in earlier designs has been removed. Fragment reassembly is infeasible within eBPF program constraints (bounded stack, no dynamic allocation).
 
@@ -301,6 +302,7 @@ firewall:
     normalize_tos: true
     tos_value: 0
     strip_tcp_timestamps: true
+    drop_fragments: false
 ```
 
 ### Policy Routing

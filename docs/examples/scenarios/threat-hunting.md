@@ -13,13 +13,16 @@ agent:
   interfaces: [eth0]
 
 threatintel:
+  # One mode for every feed. Hunt with `alert`, and switch to `block` once the
+  # feeds have been watched long enough to trust. A feed that is not trusted yet
+  # is kept out with `enabled: false`, not softened per feed.
+  mode: alert
   feeds:
     - id: abuse-ch-feodo
       name: "Abuse.ch Feodo Tracker"
       url: "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
       format: plaintext
       refresh_interval_secs: 3600
-      default_action: alert          # Alert first, block after validation
     - id: abuse-ch-urlhaus
       name: "Abuse.ch URLhaus"
       url: "https://urlhaus.abuse.ch/downloads/csv_recent/"
@@ -28,7 +31,6 @@ threatintel:
       category_field: threat
       skip_header: true
       refresh_interval_secs: 1800
-      default_action: alert
     - id: custom-iocs
       name: "Internal IOC Feed"
       url: "https://threat-feeds.internal/iocs.json"
@@ -36,7 +38,6 @@ threatintel:
       ip_field: ioc
       category_field: type
       refresh_interval_secs: 900
-      default_action: block          # Internal feeds are pre-validated
 
 dns:
   cache_size: 200000
