@@ -73,9 +73,17 @@ Only `name` is required. All other fields are optional.
 
 ### Capability Auto-Detection
 
-On registration, the agent introspects its own service state and populates `capabilities`:
+On registration, the agent reads its own configuration and reports the sections it has enabled. A capability is claimed when its section carries `enabled: true`, so the list answers what this agent runs rather than what the product offers, and two agents on the same fleet report different lists.
 
-All 13 OSS domains: `firewall`, `ips`, `l7`, `ratelimit`, `threatintel`, `ids`, `conntrack`, `ddos`, `dlp`, `nat`, `loadbalancer`, `qos`, `dns`.
+One capability per OSS domain: `firewall`, `ids`, `ips`, `l7`, `ratelimit`, `threatintel`, `conntrack`, `ddos`, `dlp`, `nat`, `loadbalancer`, `qos`, `dns`.
+
+An agent running only a firewall and DNS inspection reports two:
+
+```json
+{ "capabilities": ["firewall", "dns"] }
+```
+
+An agent with every section disabled reports an empty list. That is a working agent inspecting nothing, and it is meant to be visible as such.
 
 ### Identity Persistence
 
@@ -125,12 +133,41 @@ Aggregates live agent status in < 5 ms (all in-memory reads).
 }
 ```
 
+- `status`: The agent's health, judged over its datapath
 - `active_rules`: Live rule counts from each domain engine (firewall, IDS, IPS, L7, ratelimit)
 - `config_version`: SHA-256 hex of serialized YAML config
 - `metrics_snapshot`: Reserved for future enrichment (Prometheus metrics are write-only; scrape `/metrics` for live counters)
-- `pending_changes`: Whether config changes are pending application
+- `pending_changes`: Whether the configuration now held differs from the one the running datapath was built from
 
 Returns 401 if `agent_id` does not match the registered identity.
+
+### Health
+
+`status` is one of three words, and it is a judgement over the datapath rather than over the HTTP surface: an agent answering this request while nothing is attached is exactly the failure the word exists to make visible.
+
+| `status` | What it means |
+|----------|---------------|
+| `healthy` | The datapath is loaded and every program that reported a state is attached |
+| `degraded` | The datapath is loaded and at least one program is not attached. The agent is protecting part of what it was asked to protect |
+| `unhealthy` | No datapath. The agent is answering requests and inspecting nothing |
+
+A node whose NAT programs failed to attach reports:
+
+```json
+{
+  "status": "degraded",
+  "ebpf_loaded": true
+}
+```
+
+A node that came up with no datapath at all reports:
+
+```json
+{
+  "status": "unhealthy",
+  "ebpf_loaded": false
+}
+```
 
 ## Agent Identity
 
@@ -148,19 +185,14 @@ Full introspection of the registered agent.
   "api_endpoint": "https://10.0.1.5:8443",
   "agent_version": "0.0.0-dev",
   "enterprise": true,
-  "capabilities": ["firewall", "ips", "ids", "conntrack", "dns"],
+  "capabilities": ["firewall", "ids", "conntrack", "nat", "dns"],
   "ebpf_programs": [
-    { "name": "xdp-firewall", "loaded": true },
-    { "name": "xdp-ratelimit", "loaded": true },
-    { "name": "tc-ids", "loaded": true },
-    { "name": "tc-threatintel", "loaded": true },
-    { "name": "tc-dns", "loaded": true },
     { "name": "tc-conntrack", "loaded": true },
+    { "name": "tc-dns", "loaded": true },
+    { "name": "tc-ids", "loaded": true },
+    { "name": "tc-nat-egress", "loaded": true },
     { "name": "tc-nat-ingress", "loaded": false },
-    { "name": "tc-nat-egress", "loaded": false },
-    { "name": "tc-qos", "loaded": false },
-    { "name": "tc-scrub", "loaded": false },
-    { "name": "uprobe-dlp", "loaded": false }
+    { "name": "xdp-firewall", "loaded": true }
   ],
   "tls": {
     "enabled": true,
@@ -172,8 +204,12 @@ Full introspection of the registered agent.
 ```
 
 - `enterprise`: Always `true` for enterprise agents
-- `ebpf_programs`: All 11 known eBPF programs with their load status
+- `ebpf_programs`: The programs this agent attempted to load, each with its own load state, sorted by name
 - `tls.pq_mode`: Post-quantum TLS mode (`Disabled`, `Preferred`, `Hybrid`, `Required`)
+
+Each entry carries that program's own state, so a node whose NAT ingress program was rejected while its firewall attached reports `tc-nat-ingress: false` beside `xdp-firewall: true`, and the heartbeat above it reports `degraded`.
+
+The list is what the datapath registered rather than a fixed catalogue: a program this build never attempted is absent rather than reported as `false`, and an agent that loaded nothing returns an empty list. The same states are readable per program on `/metrics` as `ebpfsentinel_ebpf_program_status`, where the names are spelled with underscores.
 
 Returns 404 if the agent has not been registered.
 
@@ -195,6 +231,9 @@ Lightweight endpoint (< 100 bytes response) for config drift detection.
 
 - `config_version`: SHA-256 hex of the serialized YAML config
 - `last_reload`: Unix epoch of when the config was last loaded (startup time)
+- `pending_changes`: Whether the configuration now held differs from the one the running datapath was built from
+
+`pending_changes` means the same thing here as it does on the heartbeat, and both routes compute it the one way. It is `false` on a freshly started agent, because the datapath it is running was built from the configuration it is holding.
 
 Fleet managers can poll this endpoint to detect config drift across agents by comparing `config_version` hashes.
 
