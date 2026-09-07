@@ -220,7 +220,7 @@ ML-DSA-65 keys are stored as 32-byte seed files. The full keypair is determinist
 
 **HKDF key derivation:**
 
-The License-as-Computation-Parameter mechanism (AES-256-GCM encryption of enterprise assets) derives keys from the Ed25519 signature bytes via HKDF. The ML-DSA-65 signature is not used for key derivation.
+The License-as-Computation-Parameter mechanism (AES-256-GCM encryption of the ML model file) derives keys from the Ed25519 signature bytes via HKDF. The ML-DSA-65 signature is not used for key derivation.
 
 ## Anti-Tamper Protections
 
@@ -250,19 +250,26 @@ License validation occurs at three independent points per feature:
    on a route that a feature gates. Validity is computed from `expires_at` at
    the moment it is asked, so an expiry closes those routes on the day it
    happens rather than at the next restart.
-3. **Periodic** - a background task re-verifies every active feature on a
-   fifteen-minute tick and writes an ERROR line when the key has run out, so an
-   expiry is visible in the log before anyone calls the API.
+3. **Periodic** - a background task wakes every fifteen minutes and writes an
+   ERROR line when the key has run out, so an expiry is visible in the log
+   before anyone calls the API. On the same tick it asks each active feature to
+   re-verify, and a feature re-verifies at most once an hour: the two intervals
+   are different because the expiry line is a warning that costs nothing to
+   repeat, while re-checking a signature is work worth doing once an hour and
+   not four times.
 
 ### License-as-Computation-Parameter
 
-Enterprise assets (pattern databases, ML models, config blobs) are encrypted with AES-256-GCM using keys derived from the license signature via HKDF:
+One asset ships encrypted: the ONNX model file the ML detectors load. It is
+AES-256-GCM, with the key derived from the license signature via HKDF:
 
 ```
 license_signature → HKDF(SHA-256, salt="ebpfsentinel-enterprise", info=feature_name) → AES-256-GCM key
 ```
 
-Invalid license → decryption failure → feature unavailable.
+Invalid license → decryption failure → the model does not load. Nothing else is
+read through this path: pattern databases and configuration files are plain
+files on disk, gated by whether their feature's router was mounted at all.
 
 ## Configuration
 
