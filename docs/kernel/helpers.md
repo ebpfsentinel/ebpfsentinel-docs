@@ -43,7 +43,7 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 | [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | All programs with events | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
 | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | tc-dns | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
 
-`RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target - see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
+`RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target - see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69---evaluated-not-used).
 
 ### Timing & Randomness
 

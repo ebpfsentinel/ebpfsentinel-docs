@@ -206,7 +206,7 @@ delivery but is **not used**. All programs emit events through `RingBuf`
 exclusively. The arena alloc kfunc returns an untyped scalar on the Rust
 `bpfel` target (the verifier rejects writes through it) and is
 sleepable-only (unavailable in XDP/TC hooks). See
-[KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
+[KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69---evaluated-not-used).
 
 ### Config Maps
 
