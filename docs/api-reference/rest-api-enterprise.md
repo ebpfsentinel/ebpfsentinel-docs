@@ -49,6 +49,54 @@ means the route sits outside RBAC. See
 [Advanced RBAC](../features/enterprise/advanced-rbac.md) for how roles and
 grants are defined.
 
+## Rate limiting
+
+Every request to `8444` is charged to a per-IP token bucket before anything
+else happens to it, `/metrics` and the Swagger UI included. There are two
+buckets and the method picks between them, using the same split as the
+role check: `GET`, `HEAD` and `OPTIONS` pay the read bucket, everything
+else pays the write bucket, and a method the agent does not recognise pays
+the write bucket rather than the cheaper one.
+
+| Tier | Sustained | Burst | Configurable |
+|------|-----------|-------|--------------|
+| Read | 4 requests/second per IP | 200 | No |
+| Write | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#write-api-rate-limit) |
+
+The write tier is the same block the open-source agent reads, so a
+deployment running both ports tunes one thing rather than two. The read
+tier is fixed for the same reason: the configuration carries no read keys,
+and inventing a second pair here would mean an operator tuning this port
+separately from the one they have already tuned.
+
+Over the burst, the request answers `429 Too Many Requests` with a
+`Retry-After` header in seconds and a plain-text body:
+
+```
+HTTP/1.1 429 Too Many Requests
+retry-after: 1
+content-type: text/plain; charset=utf-8
+
+Too Many Requests
+```
+
+Three details a client depends on:
+
+- **Loopback is exempt by default**, through `exempt_loopback`. Same-host
+  tooling and bulk reconfiguration are never throttled; every other peer is.
+- **The bucket is keyed by peer address**, so one noisy client cannot spend
+  another's allowance. A peer whose address the server cannot determine is
+  keyed under a single shared bucket rather than waved through.
+- **Nothing is exempt by path.** Unlike the degraded posture below, the
+  limit has no exempt prefix: the HA control plane, the license endpoint
+  and the scrape endpoint are all charged. A Prometheus scrape needs to
+  fit inside the read tier like any other caller.
+
+The limit sits outside authentication, so a flood that never proves
+anything is refused before it costs a signature verification. That is also
+why a `429` says nothing about whether the credential was valid or the
+route exists.
+
 ## Writes while the cluster is degraded
 
 A node running [high availability](../features/enterprise/high-availability.md)

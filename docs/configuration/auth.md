@@ -82,7 +82,9 @@ Token revocation is built-in using a `sub:iat` (subject + issued-at) pair. Revok
 
 ## Rate Limiting
 
-When authentication is enabled, an additional rate limit of **10 requests per second per IP** sustained, after a burst of 30, is applied to authentication endpoints. This is layered on top of any global rate limiting configured in the `ratelimit` section.
+When authentication is enabled, an additional rate limit of **10 requests per second per IP** sustained, after a burst of 30, wraps the whole protected surface: every route under `/api/v1/`, read and write alike, not only the ones that present a credential. It is there to bound credential guessing, and it applies on top of the read and write tiers those routes already carry, so the tighter of the two is what a caller meets. The public probes and `/metrics` are outside it.
+
+This is the agent's own API limit and has nothing to do with the `ratelimit` section, which is the datapath rate limiter for traffic passing through the host. The full set of API tiers is in [REST API](../api-reference/rest-api.md#rate-limiting).
 
 ## Examples
 

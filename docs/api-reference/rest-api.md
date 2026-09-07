@@ -6,6 +6,41 @@ documented in [Enterprise REST API](rest-api-enterprise.md).
 
 Base URL: `http://localhost:8080` (or `https://` with TLS enabled)
 
+## Rate limiting
+
+Requests are charged to a per-IP token bucket, and which bucket depends on
+what is being called rather than on who is calling.
+
+| Group | Sustained | Burst | Configurable |
+|-------|-----------|-------|--------------|
+| `/healthz`, `/readyz` | not limited | - | No |
+| `/metrics` | 30 requests/minute per IP | 10 | No |
+| Read routes under `/api/v1/` | 200 requests/minute per IP | 200 | No |
+| Write routes under `/api/v1/` | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#write-api-rate-limit) |
+| Every `/api/v1/` route, when `auth.enabled` | 600 requests/minute per IP | 30 | No |
+
+The probes are unlimited on purpose: a kubelet that cannot get a readiness
+answer restarts a healthy agent.
+
+A route counts as a write when it changes state **or reaches out to the
+network**, whatever it costs the agent to serve. `POST /api/v1/threatintel/feeds/refresh`
+is the case that matters: it starts an outbound download of every enabled
+feed, so it is throttled as a write and additionally runs single-flight,
+answering `409 Conflict` with the code `REFRESH_IN_PROGRESS` to a caller
+arriving while a cycle is already fetching.
+
+Over the burst, the request answers `429 Too Many Requests` with a
+`Retry-After` header in seconds. **Loopback is exempt from the write limit
+by default** through `exempt_loopback`, so local CLI tooling is never
+throttled; the read, metrics and auth-enabled limits have no exemption. A
+peer whose address the server cannot determine is keyed under one shared
+bucket rather than waved through.
+
+The enterprise agent listens on a port of its own and limits it its own
+way, reading the same `write_per_second` and `write_burst` so both ports
+are tuned once. See
+[Rate limiting](rest-api-enterprise.md#rate-limiting) for what differs.
+
 ## Public Endpoints
 
 No authentication required.

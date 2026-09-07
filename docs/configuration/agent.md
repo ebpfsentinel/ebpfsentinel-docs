@@ -46,7 +46,7 @@ agent:
 
 ## Write-API rate limit
 
-The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/v1/`) are rate-limited per client IP with a GCRA token bucket, so a leaked token or a runaway client cannot rewrite the firewall, IPS blacklist, NAT, or rate-limit state at high speed. Read endpoints keep a separate, looser limit.
+The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/v1/`) are rate-limited per client IP with a GCRA token bucket, so a leaked token or a runaway client cannot rewrite the firewall, IPS blacklist, NAT, or rate-limit state at high speed. Read endpoints keep a separate, looser limit that is not configurable: 200 requests/minute per IP with a burst of 200 on the open-source port, 4 requests/second per IP with a burst of 200 on the enterprise one. The full set of tiers per port is in [REST API](../api-reference/rest-api.md#rate-limiting) and [Enterprise REST API](../api-reference/rest-api-enterprise.md#rate-limiting).
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
