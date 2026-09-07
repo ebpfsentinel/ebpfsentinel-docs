@@ -337,9 +337,13 @@ Two properties of that vector matter when you train a model against it:
 
 Feature 5 comes from the `dst_port` on the submitted observation. An estate serving TLS on a port other than 443 must send its real port, or every connection is vectorized as though it went to the same place.
 
-### Peer-Group Rarity (Container-Aware)
+### Peer-Group Rarity
 
-Instead of global rarity scoring, clusters fingerprints by peer group (container image + namespace). A binary that deviates from its peer group triggers an alert even if the JA4 is globally common. Requires container resolver integration for `cgroup_id` → pod → image mapping.
+Instead of scoring a fingerprint against the whole estate, rarity is also scored inside the group the client belongs to. A workload whose JA4 is unheard of among its peers is reported even when that JA4 is common everywhere else, which is the case a global score cannot see: a compromised replica in a fleet of identical ones.
+
+The group is a label the submitter puts on the event, on the `peer_group` field. The enterprise agent resolves no container metadata of its own and does not map a `cgroup_id` to a pod or an image, so the grouping is whatever the submitter already knows a workload by - a container image, a Kubernetes namespace, a service name, a deployment. Events carrying no `peer_group` are scored globally only and create no group.
+
+An anomaly needs both halves of the comparison: the fingerprint is rarer inside the group than `rarity_threshold` allows, and rarer than that threshold nowhere else. The group is judged on nothing until it holds `min_group_observations` (default 50), so a group that has only just appeared reports nothing while it fills up. The whole capability is off unless `peer_group_rarity.enabled` is set, because a group label the deployment never explained is a key the engine would accumulate without knowing what it means.
 
 ### Configuration
 
@@ -446,6 +450,7 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
   "signature_algorithms": [1027, 2052, 1025],
   "sni": "api.example.com",
   "ja4s": "t130200_1301_234ea6891581",
+  "peer_group": "prod/checkout-api",
   "alpn": ["h2", "http/1.1"],
   "handshake_version": 771,
   "src_addr": [167772162, 0, 0, 0],
@@ -472,6 +477,10 @@ to assume rather than a zero nothing can interpret.
 handshake was answered with. Sent together with `sni`, it feeds the server
 fingerprint baseline described above; omitted, the rest of the event is
 processed exactly as before.
+
+`peer_group` is optional and names the group this client is scored within,
+as described under [Peer-Group Rarity](#peer-group-rarity). Omitted, the
+observation is scored against the estate only.
 
 ## Configuration
 
