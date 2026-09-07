@@ -181,12 +181,12 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `response_actions_total` | Counter | `action_type`, `outcome` | Response actions executed |
-| `response_policies_evaluated_total` | Counter | - | Alerts evaluated against policies |
-| `response_webhooks_sent_total` | Counter | `success` | Webhook delivery attempts |
-| `response_policies_active` | Gauge | - | Active (enabled) policies |
-| `response_cooldowns_active` | Gauge | - | Currently active cooldowns |
-| `response_audit_trail_depth` | Gauge | - | Audit trail entry count |
+| `ebpfsentinel_ent_response_actions_executed_total` | Counter | `action`, `outcome` | Response actions executed |
+| `ebpfsentinel_ent_response_policy_evaluations_total` | Counter | - | Alerts evaluated against policies |
+| `ebpfsentinel_ent_response_webhooks_sent_total` | Counter | `result` | Webhook delivery attempts |
+| `ebpfsentinel_ent_response_policies_active` | Gauge | - | Active (enabled) policies |
+| `ebpfsentinel_ent_response_cooldowns_active` | Gauge | - | Currently active cooldowns |
+| `ebpfsentinel_ent_response_audit_trail_depth` | Gauge | - | Audit trail entry count |
 
 ## State Persistence
 

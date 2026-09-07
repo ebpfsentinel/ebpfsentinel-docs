@@ -339,23 +339,24 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 
 | Metric | Type | Labels |
 |--------|------|--------|
-| `tls_threat_entries_loaded` | Gauge | -- |
-| `tls_threat_matches` | Counter | threat_id, category |
-| `tls_threat_allowlist_hits` | Counter | -- |
-| `tls_anomaly_alerts` | Counter | -- |
-| `tls_anomaly_fingerprints_tracked` | Gauge | -- |
-| `tls_anomaly_total_handshakes` | Counter | -- |
-| `tls_pqc_handshakes` | Counter | group |
-| `tls_pqc_classical_handshakes` | Counter | -- |
-| `tls_compliance_violations` | Counter | violation_type |
-| `tls_compliance_checks` | Counter | -- |
-| `tls_cipher_downgrade_detected` | Counter | -- |
-| `tls_sni_cert_mismatch` | Counter | -- |
-| `tls_session_resume_anomaly` | Counter | -- |
-| `tls_ml_inference` | Counter | -- |
-| `tls_ml_anomaly` | Counter | -- |
-| `tls_peer_group_anomaly` | Counter | -- |
-| `tls_peer_groups_tracked` | Gauge | -- |
+| `ebpfsentinel_ent_tls_intel_threat_entries_loaded` | Gauge | - |
+| `ebpfsentinel_ent_tls_intel_threat_matches_total` | Counter | `category` |
+| `ebpfsentinel_ent_tls_intel_allowlist_skipped_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_anomalies_detected_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_fingerprints_tracked` | Gauge | - |
+| `ebpfsentinel_ent_tls_intel_events_processed_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_pqc_connections_total` | Counter | `status` |
+| `ebpfsentinel_ent_tls_intel_pqc_compliance_ratio` | Gauge | - |
+| `ebpfsentinel_ent_tls_intel_crypto_violations_total` | Counter | `violation_type` |
+| `ebpfsentinel_ent_tls_intel_weak_protocol_seen_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_clustering_outliers_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_cipher_downgrades_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_sni_cert_mismatches_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_session_resume_anomalies_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_ml_inferences_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_ml_anomalies_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_peer_group_anomalies_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_peer_groups_tracked` | Gauge | - |
 
 ## REST API
 

@@ -277,14 +277,8 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 | `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | multi-tenancy | Get self-service policy. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | multi-tenancy | Check if operation is allowed. |
 
-### Self-Service Metrics
-
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `tenant_added` | Counter | tenant, source | Tenant created |
-| `tenant_suspended` | Counter | tenant | Tenant suspended |
-| `tenant_activated` | Counter | tenant | Tenant reactivated |
-| `self_service_check` | Counter | tenant, operation | Self-service authorization check |
+The series these routes write are in the Prometheus Metrics table below, with
+the names and labels the registry actually carries.
 
 ## DDoS Impact on Shared Interfaces
 

@@ -17,6 +17,13 @@
 // as a retired series cannot be derived from either table, so they are listed
 // with their source in `known-metrics.json`. An entry nothing references is an
 // error too: the list is meant to shrink.
+//
+// A third check reads the metric tables themselves. The two above match a
+// prefixed token anywhere in the prose, so a feature page naming a series
+// without its registry prefix is invisible to them - which is how a page came
+// to carry a whole table of names no agent has ever exposed while this check
+// passed. Every row of a table whose first column is headed `Metric` therefore
+// has to name a series one of the registries carries, prefix included.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -138,6 +145,48 @@ const allowed = new Set(Object.keys(allowList));
 const unknown = new Map();
 const usedFromAllowList = new Set();
 const named = new Set();
+const unprefixed = [];
+
+// A row of a metric table carries the name in its first cell, usually as inline
+// code and sometimes with a label selector or a range attached. What is left
+// after both are stripped either looks like a series name or is prose, and only
+// the first kind is checked, so a table whose first column happens to be headed
+// `Metric` and lists something else is not turned into a failure.
+const NAME_CELL = /^[a-z][a-z0-9_]*$/;
+
+function metricTableRows(lines) {
+  const rows = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const cells = tableCells(lines[index]);
+    if (!cells || cells[0].toLowerCase() !== 'metric') continue;
+    if (!/^\|[\s:|-]+\|$/.test(lines[index + 1] ?? '')) continue;
+    for (let row = index + 2; row < lines.length; row += 1) {
+      const rowCells = tableCells(lines[row]);
+      if (!rowCells) break;
+      rows.push({ cell: rowCells[0], line: row + 1 });
+    }
+  }
+  return rows;
+}
+
+function tableCells(line) {
+  if (typeof line !== 'string') return null;
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return null;
+  return trimmed
+    .slice(1, -1)
+    .split('|')
+    .map((cell) => cell.trim());
+}
+
+function metricNameIn(cell) {
+  const code = cell.match(/`([^`]+)`/);
+  const raw = (code ? code[1] : cell).replace(/\*\*/g, '').trim();
+  return raw
+    .replace(/\{[^}]*\}/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .trim();
+}
 
 for (const file of markdownFiles(docsRoot).sort()) {
   const lines = readFileSync(file, 'utf8').split('\n');
@@ -155,6 +204,13 @@ for (const file of markdownFiles(docsRoot).sort()) {
       unknown.get(token).push(`${relative(repoRoot, file)}:${index + 1}`);
     }
   });
+
+  for (const { cell, line } of metricTableRows(lines)) {
+    const name = metricNameIn(cell);
+    if (!NAME_CELL.test(name)) continue;
+    if (exposed.has(name) || allowed.has(name)) continue;
+    unprefixed.push({ name, place: `${relative(repoRoot, file)}:${line}` });
+  }
 }
 
 const problems = [];
@@ -171,6 +227,19 @@ if (unknown.size > 0) {
     'registry does not carry, so check the exported spelling), or the series',
     'belongs to a third binary and needs an entry in scripts/known-metrics.json',
     'naming the registry it comes from.',
+  );
+}
+
+if (unprefixed.length > 0) {
+  if (problems.length > 0) problems.push('');
+  problems.push(
+    `${unprefixed.length} row(s) of a metric table naming a series no registry exposes:`,
+    '',
+    ...unprefixed.map(({ name, place }) => `  ${name}\n      ${place}`),
+    '',
+    'A metric table names the series as a query carries it: the registry prefix',
+    '(`ebpfsentinel_` or `ebpfsentinel_ent_`) and, for a counter, the `_total`',
+    'suffix the encoder appends. A bare family name is a name nobody can query.',
   );
 }
 

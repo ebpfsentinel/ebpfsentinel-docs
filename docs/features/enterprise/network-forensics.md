@@ -147,15 +147,25 @@ Flow entries group events by `(src_port, dst_port, protocol)` and track first/la
 
 ## Metrics
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `forensics_events_ingested` | Counter | Events ingested into ring buffer |
-| `forensics_ring_buffer_depth` | Gauge | Current ring buffer depth |
-| `forensics_captures_triggered` | Counter | Automatic captures triggered (by component) |
-| `forensics_captures_completed` | Counter | Captures completed successfully |
-| `forensics_captures_failed` | Counter | Captures that failed |
-| `forensics_captures_expired` | Counter | Captures expired by retention policy |
-| `forensics_ingestion_latency_us` | Histogram | Per-event ingestion latency in microseconds |
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_forensics_events_ingested_total` | Counter | - | Events ingested into ring buffer |
+| `ebpfsentinel_ent_forensics_ring_buffer_depth` | Gauge | - | Current ring buffer depth |
+| `ebpfsentinel_ent_forensics_captures_triggered_total` | Counter | `component` | Automatic captures triggered |
+| `ebpfsentinel_ent_forensics_captures_completed_total` | Counter | - | Captures completed successfully |
+| `ebpfsentinel_ent_forensics_captures_failed_total` | Counter | - | Captures that failed |
+| `ebpfsentinel_ent_forensics_captures_expired_total` | Counter | - | Captures expired by retention policy |
+| `ebpfsentinel_ent_forensics_ingestion_seconds_total` | Counter | - | Cumulative seconds spent ingesting events |
+| `ebpfsentinel_ent_forensics_sse_subscribers` | Gauge | - | Live subscribers on the event stream |
+
+Ingestion cost is a **counter of seconds**, not a latency histogram: it carries the
+total time spent ingesting and never a distribution, so there is no percentile to
+read off it. Mean per-event cost is the ratio of the two counters:
+
+```promql
+rate(ebpfsentinel_ent_forensics_ingestion_seconds_total[5m])
+  / rate(ebpfsentinel_ent_forensics_events_ingested_total[5m])
+```
 
 ## Configuration
 

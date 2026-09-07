@@ -329,17 +329,17 @@ Status returns:
 
 | Metric | Type | Labels |
 |--------|------|--------|
-| `ai_providers_loaded` | Gauge | - |
-| `ai_provider_matches` | Counter | provider |
-| `ai_shadow_detections` | Counter | provider, action |
-| `ai_shadow_bytes` | Counter | provider |
-| `ai_dlp_scans` | Counter | - |
-| `ai_dlp_matches` | Counter | pattern_id |
-| `ai_dlp_blocks` | Counter | - |
-| `ai_exfil_detections` | Counter | detection_type |
-| `ai_exfil_bytes` | Counter | provider |
-| `ai_enc_dns_detections` | Counter | resolver, action |
-| `ai_enc_dns_bypassed` | Counter | - |
+| `ebpfsentinel_ent_ai_providers_loaded` | Gauge | - |
+| `ebpfsentinel_ent_ai_provider_matches_total` | Counter | `provider` |
+| `ebpfsentinel_ent_ai_shadow_detections_total` | Counter | `provider`, `action` |
+| `ebpfsentinel_ent_ai_shadow_bytes_total` | Counter | `provider` |
+| `ebpfsentinel_ent_ai_dlp_scans_total` | Counter | - |
+| `ebpfsentinel_ent_ai_dlp_matches_total` | Counter | `pattern_id` |
+| `ebpfsentinel_ent_ai_dlp_blocks_total` | Counter | - |
+| `ebpfsentinel_ent_ai_exfil_detections_total` | Counter | `detection_type` |
+| `ebpfsentinel_ent_ai_exfil_bytes_total` | Counter | `provider` |
+| `ebpfsentinel_ent_ai_enc_dns_detections_total` | Counter | `resolver`, `action` |
+| `ebpfsentinel_ent_ai_enc_dns_bypassed_total` | Counter | - |
 
 ## REST API
 

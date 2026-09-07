@@ -351,13 +351,17 @@ The scan operates on the durable buffer's current contents - its depth depends o
 
 `SiemExportService` tracks:
 
-| Metric | Description |
-|--------|-------------|
-| `events_exported_total` | Lifetime exported count |
-| `events_dropped_total` | Buffer overflow drops |
-| `export_errors_total` | Failed export attempts |
-| `buffer_size_bytes` | Current buffer size |
-| `pending_events` | Events in buffer awaiting delivery |
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ebpfsentinel_ent_siem_events_exported_total` | Counter | Lifetime exported count |
+| `ebpfsentinel_ent_siem_events_dropped_total` | Counter | Buffer overflow drops |
+| `ebpfsentinel_ent_siem_export_errors_total` | Counter | Failed export attempts |
+| `ebpfsentinel_ent_siem_buffer_size_bytes` | Gauge | Current buffer size |
+| `ebpfsentinel_ent_siem_connectors` | Gauge | Configured connectors |
+| `ebpfsentinel_ent_siem_circuit_state` | Gauge | Circuit breaker state |
+
+There is no `pending_events` series: what is awaiting delivery is the buffer, read
+as `ebpfsentinel_ent_siem_buffer_size_bytes`, in bytes rather than in events.
 
 ## Configuration
 
