@@ -67,7 +67,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `ratelimit.yaml` | 5 algorithms, per-CPU buckets, SYN cookie |
 | `ddos.yaml` | SYN/ICMP/UDP amplification protection, connection tracking, policies |
 | `loadbalancer.yaml` | TCP/UDP/TLS passthrough services, backend pools, health checks |
-| `threatintel.yaml` | CSV, JSON, STIX feeds, Bloom filter, VLAN quarantine |
+| `threatintel.yaml` | CSV, JSON, STIX feeds, Bloom filter, per-feed alert or block |
 | `dns.yaml` | Cache tuning, inline blocklist, external feeds |
 | `alerting.yaml` | SMTP email, webhook, log routes, dedup, throttle |
 | `geoip.yaml` | MaxMind account, URL, or local file GeoIP databases |

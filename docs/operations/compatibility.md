@@ -90,7 +90,6 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_get_socket_cookie` | 4.12+ | Flow tracking |
 | `LPM_TRIE` | 4.11+ | CIDR matching |
 | `PERCPU_HASH` | 4.6+ | Lock-free counters |
-| `bpf_skb_vlan_push/pop` | 4.3+ | VLAN rewriting |
 | `PROG_ARRAY` + tail call | 4.2+ | Program chaining |
 | `bpf_get_prandom_u32` | 4.1+ | Sampling |
 | `bpf_csum_diff` | 4.1+ | Checksums |

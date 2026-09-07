@@ -4,7 +4,9 @@
 
 ## Overview
 
-eBPFsentinel supports 802.1Q VLAN filtering, quarantine tagging, and **802.1ad QinQ (double VLAN tagging)** in the kernel-side packet processing path. QinQ allows service providers to encapsulate customer VLAN tags inside a provider VLAN tag (S-VLAN + C-VLAN).
+eBPFsentinel supports 802.1Q VLAN filtering and **802.1ad QinQ (double VLAN tagging)** in the kernel-side packet processing path. QinQ allows service providers to encapsulate customer VLAN tags inside a provider VLAN tag (S-VLAN + C-VLAN).
+
+VLAN tags are **parsed, matched and reported**. No program rewrites a tag: the agent does not push, pop or translate a VLAN header on any hook.
 
 ## Firewall VLAN Filtering
 
@@ -27,19 +29,32 @@ firewall:
       dst_ip: "10.0.0.0/8"
 ```
 
-## VLAN Quarantine
+## VLAN in Threat Intelligence Events
 
-Threat intelligence can tag matching traffic with a quarantine VLAN using `bpf_skb_vlan_push`:
+`tc-threatintel` parses the VLAN tag of every frame it inspects, including the
+outer tag of a QinQ frame, and carries it on the event it emits. A match is
+therefore attributable to the VLAN it arrived on, and alerts can be filtered by
+VLAN downstream.
+
+The enforcement vocabulary is `alert` or `block` and there is no third value:
 
 ```yaml
 threatintel:
-  quarantine_vlan: 999
+  mode: alert
   feeds:
-    - name: malware-ips
+    - id: malware-ips
+      name: malware-ips
       url: "https://feeds.example.com/malware.txt"
       format: plaintext
-      action: quarantine    # Tags with VLAN 999 instead of dropping
+      default_action: block   # Overrides the global mode for this feed
 ```
+
+There is **no VLAN quarantine action**. `tc-threatintel` is attached to the TC
+ingress hook, where re-tagging a matched packet would move it onto no other
+segment: the frame is already bound for the local stack. Isolating a source by
+VLAN means redirecting it on egress, which is a different program on a different
+hook, and no shipped program does it. Use `default_action: block` to stop the
+traffic, or `alert` to report it and pass it on.
 
 ## QinQ (802.1ad) Double VLAN
 
@@ -49,7 +64,7 @@ When the outer EtherType is `0x88A8` (802.1ad), the eBPF parser recognizes a Qin
 
 - Inline `VlanHdr` struct for 802.1Q and 802.1ad header parsing
 - QinQ support: the parser handles stacked VLAN headers (EtherType `0x8100` for 802.1Q, `0x88A8` for 802.1ad)
-- `bpf_skb_vlan_push` / `bpf_skb_vlan_pop` for VLAN rewriting in TC programs
+- Read-only: no program calls `bpf_skb_vlan_push` or `bpf_skb_vlan_pop`, so a tag is never added, removed or rewritten
 - `FLAG_VLAN` in `PacketEvent.flags` signals VLAN-tagged packets to userspace
 - `PacketEvent.vlan_id` carries the original VLAN ID
 
@@ -58,6 +73,6 @@ When the outer EtherType is `0x88A8` (802.1ad), the eBPF parser recognizes a Qin
 | Layer | Implementation |
 |-------|---------------|
 | `ebpf-common` | `PacketEvent.vlan_id` field, `FLAG_VLAN` flag |
-| `ebpf-programs` | VLAN header parsing, `bpf_skb_vlan_push`/`bpf_skb_vlan_pop` |
+| `ebpf-programs` | VLAN and QinQ header parsing in `xdp-firewall` and the TC programs |
 | `domain` | VLAN-aware firewall rule matching |
 | `infrastructure` | Config validation for VLAN IDs (0–4094) |

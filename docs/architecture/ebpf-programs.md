@@ -124,7 +124,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 
 - **BPF_MAP_TYPE_BLOOM_FILTER** for fast IOC pre-check (no false negatives)
 - **BPF_MAP_TYPE_LRU_HASH** for IOC confirmation maps (`THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`) — LRU eviction keeps maps within capacity
-- **bpf_skb_vlan_push/pop** for VLAN quarantine tagging
+- VLAN and QinQ tag parsing, carried onto the event; no tag is rewritten
 - Separate V6 maps for IPv6 IOC lookups
 - RingBuf backpressure
 

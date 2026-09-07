@@ -29,7 +29,7 @@ flowchart TD
         SCRUB["tc-scrub\nTTL / MSS / DF / IP ID"]
         NAT_IN["tc-nat-ingress\nDNAT rewrite\nChecksum update"]
         IDS["tc-ids\nSampling\nL7 signature detection"]
-        THREATINTEL["tc-threatintel\nBloom filter pre-check\nVLAN quarantine"]
+        THREATINTEL["tc-threatintel\nBloom filter pre-check\nLRU hash confirmation"]
         DNS["tc-dns\nUDP:53 capture"]
 
         CONNTRACK --> SCRUB --> NAT_IN --> IDS --> THREATINTEL --> DNS

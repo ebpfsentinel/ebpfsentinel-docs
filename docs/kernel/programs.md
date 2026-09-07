@@ -350,7 +350,7 @@ Threat intelligence IOC matching with two-phase lookup:
 1. **[Bloom filter](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) pre-check** — O(1), no false negatives. If negative → packet is clean, skip.
 2. **[LRU hash map](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) confirmation** — only on Bloom filter positive. Confirms the IOC and retrieves metadata. LRU eviction ensures the map stays within capacity.
 
-VLAN quarantine: matched IOCs can trigger [`bpf_skb_vlan_push`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_push/) to tag the packet with a quarantine VLAN ID, isolating the source without dropping traffic.
+A match is either alerted or dropped, per the matched IOC's action. VLAN and QinQ tags are parsed and carried onto the emitted event so a match is attributable to the VLAN it arrived on; no tag is pushed, popped or rewritten.
 
 Separate V6 maps for IPv6 IOC lookups. Same RingBuf backpressure pattern as tc-ids.
 

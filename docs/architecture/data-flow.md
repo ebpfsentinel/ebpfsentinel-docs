@@ -97,7 +97,7 @@ flowchart TD
 
         TI["tc-threatintel"]
         TI_BLOOM["Bloom filter pre-check"]
-        TI_VLAN["VLAN quarantine\n(bpf_skb_vlan_push)"]
+        TI_VLAN["LRU hash confirmation\n+ VLAN tag on event"]
         TI_EMIT["Emit PacketEvent\nto RingBuf"]
         IDS_EMIT --> TI --> TI_BLOOM --> TI_VLAN --> TI_EMIT
 

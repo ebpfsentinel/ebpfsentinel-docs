@@ -15,7 +15,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Rate Limiting](ratelimit.md) | OSS | XDP | 5 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
 | [L4 Load Balancer](loadbalancer.md) | OSS | XDP | TCP/UDP/TLS passthrough, round-robin, weighted, ip-hash, least-conn |
-| [Threat Intelligence](threatintel.md) | OSS | TC classifier | OSINT feeds (plaintext, CSV, JSON, STIX 2.1), IOC correlation, multi-engine distribution (IP, domain, URL), VLAN quarantine |
+| [Threat Intelligence](threatintel.md) | OSS | TC classifier | OSINT feeds (plaintext, CSV, JSON, STIX 2.1), IOC correlation, multi-engine distribution (IP, domain, URL), per-feed alert or block |
 | [L7 Firewall](l7-firewall.md) | OSS | Userspace | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB protocol-aware rules |
 | [DNS Intelligence](dns-intelligence.md) | OSS | TC classifier | Passive DNS, domain blocklists, feed integration |
 | [Alerting](alerting.md) | OSS | Userspace | Circuit breaker, dedup, routing to email/webhook/log |
@@ -23,7 +23,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Authentication](authentication.md) | OSS | Userspace | JWT (RS256), OIDC (JWKS), API keys, RBAC |
 | [IPv6](ipv6.md) | OSS | All programs | Full dual-stack IPv4/IPv6 across all eBPF programs and engines |
 | [GeoIP Enforcement](geoip.md) | OSS | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
-| [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | XDP, TC | VLAN filtering, QinQ double tagging, quarantine tagging |
+| [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | XDP, TC | VLAN filtering, QinQ double tagging, VLAN ID on every event |
 | [Connection Tracking](conntrack.md) | OSS | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
 | [NAT](nat.md) | OSS | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | XDP | Multi-gateway, weighted selection, health-aware failover |
@@ -93,7 +93,7 @@ Fourteen kernel programs cover all enforcement points (12 main entry points + 2 
 | `tc-nat-ingress` | TC ingress | NPTv6 prefix translation, hairpin NAT, destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure, interface groups |
-| `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN quarantine, backpressure |
+| `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN and QinQ tag parsing, backpressure |
 | `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |

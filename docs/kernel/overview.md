@@ -24,7 +24,7 @@ eBPFsentinel hooks into three kernel subsystems:
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
 | 5 | `tc-nat-egress` | TC egress | SNAT / masquerade (IPv4/IPv6) | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) |
 | 6 | `tc-ids` | TC ingress | Intrusion detection, L7 sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_strncmp`](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) |
-| 7 | `tc-threatintel` | TC ingress | IOC matching, VLAN quarantine | Bloom filter map, LRU hash map (IOC confirmation), [`bpf_skb_vlan_push`](https://docs.ebpf.io/linux/helper-function/bpf_skb_vlan_push/) |
+| 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Bloom filter map, LRU hash map (IOC confirmation), VLAN and QinQ tag parsing |
 | 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP:53 identification, RingBuf emission |
 | 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
 | 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, IPv4/IPv6) | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
@@ -49,7 +49,7 @@ INGRESS:
                     TC ingress (tc-scrub)      → packet normalization
                     TC ingress (tc-nat-ingress) → DNAT rewrite
                     TC ingress (tc-ids)         → sampling + L7 detect
-                    TC ingress (tc-threatintel) → Bloom filter + VLAN quarantine
+                    TC ingress (tc-threatintel) → Bloom filter + IOC confirmation
                     TC ingress (tc-dns)         → DNS capture
                         │
                         ▼
