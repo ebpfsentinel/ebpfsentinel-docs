@@ -64,6 +64,12 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:ebpf-metric-slots
 
+      # Five counts on the overview page went stale together and a sixth went
+      # stale on its own. Each is now held to the file it was counted from.
+      - name: Check the feature counts
+        working-directory: ebpfsentinel-docs
+        run: npm run check:feature-counts
+
       - name: Check the REST reference
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes

@@ -1,8 +1,9 @@
 # Feature Overview
 
 <!--
-Five counts on this page are read out of the agent tree rather than remembered.
-Each is marked where it is written, and this is where they come from:
+Six counts on this page are read out of the agent tree rather than remembered.
+Each carries a `feature-count:` marker on the line above it, and
+`npm run check:feature-counts` holds it to the file it was counted from:
 
   eBPF programs        crates/ebpf-programs/       (one directory per program)
   REST paths and       openapi.json                (`paths`, and the methods
@@ -12,17 +13,20 @@ Each is marked where it is written, and this is where they come from:
   algorithms                                       (`enum RateLimitAlgorithm`)
   Load balancer        crates/domain/src/loadbalancer/entity.rs
   algorithms                                       (`enum LbAlgorithm`)
+  ATT&CK techniques    crates/domain/src/alert/mitre.rs
+                                                   (distinct technique ids)
 
-These five went stale together, which is a generation problem rather than five
-typos. Generating them is deliberately not done yet: this page is prose with
-numbers in sentences, so a generator would have to own the sentences too, and
-the three counts that already have a mechanical check elsewhere - the REST
-surface in `scripts/check-rest-routes.mjs`, the CLI tree in
-`scripts/check-cli-invocations.mjs`, the metric families in
-`scripts/check-metric-names.mjs` - are checked against the tree rather than
-written from it. The next count that goes stale is the one that decides it:
-a sixth stale number here means a `scripts/check-feature-counts.mjs` asserting
-each of the five against the file named above, not a sixth correction.
+The first five went stale together and were corrected by hand; the sixth, the
+technique count, went stale on its own afterwards, which is what settled the
+question this comment used to leave open. The numbers are still written into
+sentences rather than generated into them, so the checker reads the sentence
+and holds the number in it to the tree: the prose stays editable and the fact
+in it cannot drift. The program count is checked as a whole and as its parts,
+because a total that is right while its breakdown is wrong reads as correct.
+
+A marker naming a count the checker does not know, and a count the checker
+knows that no page marks, both fail, so the register of checked numbers cannot
+quietly shrink.
 -->
 
 ## OSS / Enterprise Matrix
@@ -34,11 +38,13 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Enforcement Point | Description |
 |---------|---------|-------------------|-------------|
 | [Firewall](firewall.md) | OSS | XDP | L3/L4 stateful filtering, LPM trie CIDR, TCP flags, ICMP type/code, MAC, DSCP, aliases, conntrack, NAT, zones, scheduling, scrub, policy routing |
-| [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, L7 detection |
+| [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, payload shipped to the userspace L7 engine |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
 | [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
+<!-- feature-count: ratelimit-algorithms -->
 | [Rate Limiting](ratelimit.md) | OSS | XDP | 4 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
+<!-- feature-count: lb-algorithms -->
 | [L4 Load Balancer](loadbalancer.md) | OSS | XDP | TCP/UDP/TLS passthrough, 5 algorithms: round-robin, weighted, ip-hash, least-conn, maglev |
 | [Threat Intelligence](threatintel.md) | OSS | TC classifier | OSINT feeds (plaintext, CSV, JSON, STIX 2.1), IOC correlation, multi-engine distribution (IP, domain, URL), per-feed alert or block |
 | [L7 Firewall](l7-firewall.md) | OSS | Userspace | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB protocol-aware rules |
@@ -56,7 +62,8 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [QoS / Traffic Shaping](qos.md) | OSS | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation |
 | [IP/Port Aliases](aliases.md) | OSS | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
-| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 13 techniques mapped, filter by tactic/technique, coverage dashboard |
+<!-- feature-count: mitre-techniques -->
+| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 36 techniques mapped, filter by tactic/technique, coverage dashboard |
 | [JA4+ Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
 | [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Userspace | DoH/DoT passive detection with built-in resolvers |
 
@@ -64,6 +71,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 
 | Feature | Edition | Description |
 |---------|---------|-------------|
+<!-- feature-count: rest-surface -->
 | REST API (89 paths, 105 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
@@ -74,6 +82,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Auto-Response](operational-essentials.md#auto-response) | OSS | Severity-based auto block/throttle on alerts (max 3 policies, multi-component filter) |
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
+<!-- feature-count: cli-subcommands -->
 | CLI (37 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
@@ -106,6 +115,7 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 
 ## eBPF Program Map
 
+<!-- feature-count: ebpf-programs -->
 `crates/ebpf-programs/` holds sixteen program directories: twelve attached at an
 enforcement point, three reached only by tail call from one of those twelve, and
 `xdp-pass`, which is peer-side test scaffolding rather than part of the
@@ -120,7 +130,7 @@ datapath. The twelve enforcement points:
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
 | `tc-nat-ingress` | TC ingress | NPTv6 prefix translation, hairpin NAT, destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6, interface groups |
-| `tc-ids` | TC classifier | Regex matching, kernel sampling, L7 detection, RingBuf backpressure, interface groups |
+| `tc-ids` | TC classifier | Regex matching, kernel sampling, full packet sizing (`bpf_dynptr_size`), RingBuf backpressure, interface groups |
 | `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN and QinQ tag parsing, backpressure |
 | `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
