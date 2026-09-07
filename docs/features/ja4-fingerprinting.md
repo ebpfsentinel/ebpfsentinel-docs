@@ -62,7 +62,7 @@ t = TCP protocol
 | `extensions` | ServerHello extension type IDs |
 | `selected_group` | KeyShare or ServerKeyExchange group |
 
-The enterprise TLS intelligence engine tracks JA4S per SNI and alerts when a server's fingerprint changes from its established baseline (e.g., certificate rotation, compromise, or MITM).
+The enterprise TLS intelligence engine tracks JA4S per SNI and reports when a server's fingerprint changes from its established baseline (e.g., certificate rotation, compromise, or MITM). It is fed by submitting the JA4S alongside the `ClientHello` that provoked it, on the `ja4s` field of the [TLS intelligence ingest event](enterprise/tls-intelligence.md#ja4s-serverhello-fingerprinting).
 
 ## Session ID Tracking
 

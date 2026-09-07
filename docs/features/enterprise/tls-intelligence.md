@@ -297,7 +297,11 @@ Tracks per-destination cipher baselines. When a client that always used TLS 1.3+
 
 ### JA4S ServerHello Fingerprinting
 
-Server-side fingerprinting complements client-side JA4. Tracks JA4S per SNI and detects server fingerprint changes (certificate rotation, compromise, MITM). Available as OSS (`compute_ja4s()`) and enterprise (server fingerprint change tracking).
+Server-side fingerprinting complements client-side JA4. A destination's first JA4S establishes its baseline, and a later handshake answering with a different JA4S is reported as a change (certificate rotation, compromise, MITM). Baselines expire after seven days without an observation.
+
+The change is tracked only for a submitter that saw both halves of one handshake: the `ja4s` field on the ingest event carries the `ServerHello` hash beside the `ClientHello` that provoked it, and it is keyed by SNI, so an event with no `sni` or no `ja4s` establishes nothing. That is deliberate rather than a limitation of the wire format - whoever parsed the two directions of a conversation knows they belong to the same handshake, and nothing downstream can recover that correlation from two independent submissions. The OSS agent computes JA4S itself (`compute_ja4s()`, served by `/api/v1/fingerprints/ja4s`) and is the expected source of the field.
+
+The change is reported on the response to the event that carried it, listed by `GET /api/v1/enterprise/tls-intelligence/server-fingerprints`, and counted by `ebpfsentinel_ent_tls_intel_server_fingerprint_changes_total`. It raises no alert: a fingerprint moving is a fact worth surfacing, not by itself a verdict, and the deployments where it fires most often are the ones rotating certificates on schedule.
 
 ### SNI / Certificate Mismatch Detection
 
@@ -396,6 +400,7 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 | `ebpfsentinel_ent_tls_intel_clustering_outliers_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_cipher_downgrades_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_sni_cert_mismatches_total` | Counter | - |
+| `ebpfsentinel_ent_tls_intel_server_fingerprint_changes_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_session_resume_anomalies_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_ml_inferences_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_ml_anomalies_total` | Counter | - |
@@ -440,6 +445,7 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
   "supported_groups": [29, 23, 24],
   "signature_algorithms": [1027, 2052, 1025],
   "sni": "api.example.com",
+  "ja4s": "t130200_1301_234ea6891581",
   "alpn": ["h2", "http/1.1"],
   "handshake_version": 771,
   "src_addr": [167772162, 0, 0, 0],
@@ -461,6 +467,11 @@ though every connection went to the same place. The field defaults to `443` when
 omitted, so a submitter written against the earlier shape keeps working and a
 caller that genuinely cannot determine the port sends the value the service used
 to assume rather than a zero nothing can interpret.
+
+`ja4s` is optional and carries the fingerprint of the `ServerHello` this
+handshake was answered with. Sent together with `sni`, it feeds the server
+fingerprint baseline described above; omitted, the rest of the event is
+processed exactly as before.
 
 ## Configuration
 
