@@ -12,11 +12,8 @@ Enterprise replaces the OSS regex-based scanner with [Vectorscan](https://github
 
 Key capabilities:
 - **Block mode scanning** - single contiguous buffer, all patterns in one pass
-- **Streaming mode** - patterns that span multiple SSL/TLS chunks
-- **Vectored mode** - scatter-gather scanning of non-contiguous buffers
 - **Per-pattern flags** - CASELESS, UTF8, SINGLEMATCH, SOM_LEFTMOST, etc.
 - **Early termination** - stop scanning on first block-mode match
-- **Database serialization** - cache compiled pattern databases
 - **Scratch pooling** - zero-allocation scanning in steady state
 
 Architecture:
@@ -30,6 +27,33 @@ HyperscanDlpEngine
 ```
 
 A regex-based fallback is always available for platforms without Vectorscan.
+
+### What block mode means for detection
+
+Scanning is **block mode only**: each event carries one contiguous excerpt and
+that excerpt is scanned on its own, with no state kept between events. Two
+limits follow, and both are worth sizing your expectations against:
+
+- **A secret split across two writes is not detected.** Each `SSL_write` (or
+  equivalent) produces its own event. A credit card number whose first eight
+  digits land in one write and whose last eight land in the next matches
+  neither excerpt, so neither event alerts. Applications that write a payload in
+  small pieces - a chunked HTTP body, a streaming JSON encoder, a line-at-a-time
+  logger - are the ones this affects.
+- **A secret past the excerpt limit is not detected.** The excerpt is capped at
+  4096 bytes per event and the pattern has to match inside that window, so a
+  secret sitting deep in a larger payload is not seen.
+
+Vectorscan itself offers a streaming mode that would carry match state across
+chunks, and a vectored mode for scatter-gather buffers. **Neither is wired into
+the product**: streaming needs per-flow state whose memory has to be bounded and
+evicted on the datapath, which this build does not do. They are listed here as
+absent rather than left out, because a reader who knows Hyperscan would
+otherwise assume the modes are in use.
+
+The practical mitigation is pattern design: prefer patterns that match a
+self-contained token (an API key with its prefix, a full PAN, a private-key
+header line) over patterns that need a long surrounding context to fire.
 
 ## Custom Patterns
 
