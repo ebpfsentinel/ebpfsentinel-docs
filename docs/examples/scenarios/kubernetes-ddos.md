@@ -128,7 +128,7 @@ ebpfsentinel-agent status
 
 # Verify DDoS protection
 ebpfsentinel-agent ddos status
-ebpfsentinel-agent ddos syn-stats
+ebpfsentinel-agent ddos attacks
 
 # Watch live connections with pod enrichment
 ebpfsentinel-agent conntrack watch

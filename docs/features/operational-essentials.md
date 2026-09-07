@@ -94,10 +94,10 @@ DELETE /api/v1/responses/{id}
 ### CLI
 
 ```bash
-ebpfsentinel responses create --action block_ip --target 1.2.3.4 --ttl 1h
-ebpfsentinel responses create --action throttle_ip --target 1.2.3.4 --ttl 30m --rate-pps 10
-ebpfsentinel responses list
-ebpfsentinel responses revoke resp-1234
+ebpfsentinel-agent responses create --action block_ip --target 1.2.3.4 --ttl 1h
+ebpfsentinel-agent responses create --action throttle_ip --target 1.2.3.4 --ttl 30m --rate-pps 10
+ebpfsentinel-agent responses list
+ebpfsentinel-agent responses revoke resp-1234
 ```
 
 ### What is installed
@@ -202,9 +202,9 @@ DELETE /api/v1/captures/{id}
 ### CLI
 
 ```bash
-ebpfsentinel capture start --filter "host 1.2.3.4" --duration 60s --snap-length 1500
-ebpfsentinel capture stop cap-1234
-ebpfsentinel capture list
+ebpfsentinel-agent capture start --filter "host 1.2.3.4" --duration 60s --snap-length 1500
+ebpfsentinel-agent capture stop cap-1234
+ebpfsentinel-agent capture list
 ```
 
 ### Constraints

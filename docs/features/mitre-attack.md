@@ -50,9 +50,9 @@ Returns the full coverage matrix filtered by active components, with per-tactic 
 ## CLI
 
 ```bash
-ebpfsentinel alerts list --tactic exfiltration
-ebpfsentinel alerts list --technique T1041
-ebpfsentinel mitre coverage
+ebpfsentinel-agent alerts list --tactic exfiltration
+ebpfsentinel-agent alerts list --technique T1041
+ebpfsentinel-agent mitre coverage
 ```
 
 ## Prometheus Metrics

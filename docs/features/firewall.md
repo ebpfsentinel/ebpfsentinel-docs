@@ -413,7 +413,7 @@ See [Configuration: Firewall](../configuration/firewall.md) for the full referen
 ## CLI Usage
 
 ```bash
-# List all rules
+# List all rules, with the schedule each one carries
 ebpfsentinel-agent firewall list
 
 # Add a rule
@@ -428,12 +428,9 @@ ebpfsentinel-agent firewall add --json '{
 # Delete a rule
 ebpfsentinel-agent firewall delete block-telnet
 
-# Show schedule status
-ebpfsentinel-agent firewall rules --show-schedule
-
-# Show conntrack status
+# Show conntrack status and the tracked connections
 ebpfsentinel-agent conntrack status
-ebpfsentinel-agent conntrack connections
+ebpfsentinel-agent conntrack list
 ```
 
 ## REST API

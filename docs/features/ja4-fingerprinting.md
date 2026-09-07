@@ -90,5 +90,5 @@ Returns the current cache size and configuration.
 ## CLI
 
 ```bash
-ebpfsentinel fingerprints summary
+ebpfsentinel-agent fingerprints summary
 ```

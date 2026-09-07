@@ -68,6 +68,13 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:cli-reference
 
+      # The reference page is one page; a command is quoted on every page that
+      # explains a feature. This walks all of them and holds each invocation to
+      # the agent's own subcommand tree.
+      - name: Check the documented CLI invocations
+        working-directory: ebpfsentinel-docs
+        run: npm run check:cli-invocations
+
   build:
     name: build
     runs-on: ubuntu-latest
