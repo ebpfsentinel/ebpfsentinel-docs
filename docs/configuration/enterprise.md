@@ -177,7 +177,7 @@ enterprise:
   # ── High Availability ───────────────────────────────────────────
   ha:
     enabled: true
-    peers:                         # other nodes' listen_addr (peer gRPC, default :9443)
+    peers:                         # other nodes' advertised_addr (peer gRPC, default :9443)
       - 10.0.0.2:9443
       - 10.0.0.3:9443
     heartbeat_ms: 1000
@@ -186,12 +186,15 @@ enterprise:
     replication_interval_ms: 200
     split_brain_policy: prefer_active    # prefer_active | prefer_standby | fence
     listen_addr: "0.0.0.0:9443"    # peer gRPC: no auth, no TLS - fence it to the peers
+    advertised_addr: ""            # what peers reach this node on, required in active-active
     data_dir: /var/lib/ebpfsentinel/ha
     mode: active-passive           # active-passive | active-active
-    # interface_assignments required only in active-active mode:
+    # advertised_addr and interface_assignments are required only in
+    # active-active mode, where a node is named by its address:
+    # advertised_addr: "10.0.0.1:9443"
     # interface_assignments:
-    #   - { node_id: node-a, interfaces: [eth0] }
-    #   - { node_id: node-b, interfaces: [eth1] }
+    #   - { address: "10.0.0.1:9443", interfaces: [eth0] }
+    #   - { address: "10.0.0.2:9443", interfaces: [eth1] }
     degradation_policy: continue   # continue | read-only | fail-closed
 
   # ── Multi-Cluster ───────────────────────────────────────────────

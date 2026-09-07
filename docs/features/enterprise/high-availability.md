@@ -168,11 +168,11 @@ Standard HA is active-passive: one leader runs eBPF, followers are standby. Acti
 | Mode | Behavior |
 |------|----------|
 | `ActivePassive` | Default. One leader owns all eBPF programs, followers are standby |
-| `ActiveActive` | Both nodes load eBPF programs for their assigned interfaces |
+| `ActiveActive` | Every node loads eBPF programs for the interfaces assigned to it, leader or not |
 
 ### Interface Assignment
 
-`InterfaceAssignment` maps network interfaces to specific nodes:
+`InterfaceAssignment` maps network interfaces to specific nodes. A node is named by the address its peers reach it on, not by the node identifier the agent mints on first boot: that identifier is a UUID persisted under `data_dir`, so an operator writing this file has no way to know it.
 
 > A mistake in this block stops the agent: an unknown key, a value of the wrong type
 > or a section that fails its own consistency rules is refused by name at startup rather
@@ -184,21 +184,40 @@ Standard HA is active-passive: one leader runs eBPF, followers are standby. Acti
 enterprise:
   ha:
     mode: active-active
+    peers:
+      - 10.0.0.2:9443               # what this node calls its peer
+    listen_addr: "0.0.0.0:9443"     # what this node binds
+    advertised_addr: "10.0.0.1:9443" # what its peers reach this node on
     interface_assignments:          # a list, one entry per node
-      - node_id: node-a
+      - address: "10.0.0.1:9443"
         interfaces: [eth0, eth1]
-      - node_id: node-b
+      - address: "10.0.0.2:9443"
         interfaces: [eth2, eth3]
     takeover_on_failure: true
 ```
 
+The `interface_assignments` block is identical on every node of the cluster. What
+differs per node is `advertised_addr`, which is how a node recognises its own
+entry, and `peers`, which lists the others.
+
+`advertised_addr` is deliberately separate from `listen_addr`: the listener
+usually binds a wildcard, so what a node listens on and what its peers call it
+are different strings, and a node that matched its own assignment against the
+wildcard would match nothing while reporting itself configured.
+
+The agent refuses to start in `active-active` mode if `advertised_addr` is unset,
+if no assignment carries it, or if an assignment names an address that is neither
+this node nor one of `peers`. Each of those is a configuration that would
+otherwise leave a node driving no traffic while reporting itself healthy.
+
 ### Behavior
 
-- On startup in `ActiveActive` mode, each node loads eBPF programs **only** for its assigned interfaces
+- On startup in `ActiveActive` mode, each node loads eBPF programs **only** for its assigned interfaces, whether or not it wins the election: leadership decides which node sends heartbeats, not which node carries traffic
 - The leader still coordinates state replication and elections; both nodes process traffic independently on their interfaces
-- **Peer failure** with `takeover_on_failure: true`: the surviving node activates eBPF on the failed node's interfaces in addition to its own
-- **Peer recovery**: the recovered node reclaims its assigned interfaces; the surviving node releases the taken-over interfaces and detaches their eBPF programs
-- In `active-passive` mode (default), `interface_assignments` is ignored and behavior matches existing leader-only eBPF attachment
+- **Peer failure** with `takeover_on_failure: true`: the surviving node reloads its datapath for its own interfaces plus the failed node's, and records what it borrowed. Repeating the check while the peer stays down changes nothing, so a long outage is one handover rather than one per heartbeat round
+- **Peer recovery**: the surviving node releases only what it recorded as borrowed and reloads for its own interfaces. An interface it owns in its own right is never handed back, and a node that borrowed nothing tears nothing down
+- A change of interface set is a reload of the datapath rather than a per-interface attach, because the eBPF loader owns one pinned generation per host. The interfaces this node owns are detached and re-attached along with the borrowed ones, which costs a sub-second gap on them
+- In `active-passive` mode (default), `interface_assignments` and `advertised_addr` are ignored and behavior matches leader-only eBPF attachment
 
 ## Graceful Degradation
 
@@ -389,12 +408,13 @@ enterprise:
     max_replication_bandwidth: 104857600    # bytes/s (optional)
     replication_interval_ms: 200
     split_brain_policy: prefer_active       # prefer_active | prefer_standby | fence
-    listen_addr: 0.0.0.0:9443
+    listen_addr: 0.0.0.0:9443               # what this node binds
+    advertised_addr: "10.0.0.1:9443"        # what peers reach it on (active-active mode only)
     data_dir: /var/lib/ebpfsentinel/ha
     interface_assignments:                  # active-active mode only (list, one entry per node)
-      - node_id: node-a
+      - address: "10.0.0.1:9443"
         interfaces: [eth0, eth1]
-      - node_id: node-b
+      - address: "10.0.0.2:9443"
         interfaces: [eth2, eth3]
     takeover_on_failure: true               # active-active: take over peer interfaces on failure
     degradation_policy: continue            # continue | read-only | fail-closed
@@ -409,14 +429,15 @@ enterprise:
 | `max_replication_bandwidth` | u64 | - | Optional bandwidth cap in bytes/sec |
 | `replication_interval_ms` | u64 | `200` | Replication tick interval |
 | `split_brain_policy` | enum | `prefer_active` | Split-brain resolution policy |
-| `listen_addr` | string | `0.0.0.0:9443` | gRPC listen address |
+| `listen_addr` | string | `0.0.0.0:9443` | gRPC listen address this node binds |
+| `advertised_addr` | string | `""` | The address peers reach this node on, and the name its assignment carries (required in active-active mode) |
 | `data_dir` | string | `/var/lib/ebpfsentinel/ha` | Persistent state directory |
 | `mode` | enum | `active-passive` | HA mode: `active-passive` or `active-active` |
-| `interface_assignments` | list | `[]` | Per-node `{node_id, interfaces}` entries (active-active mode only) |
+| `interface_assignments` | list | `[]` | Per-node `{address, interfaces}` entries, identical on every node (active-active mode only) |
 | `takeover_on_failure` | bool | `false` | Take over peer interfaces on failure (active-active mode only) |
 | `degradation_policy` | enum | `continue` | Behavior when peer is lost: `continue`, `read-only`, `fail-closed` |
 
-Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty. When `mode` is `active-active`, `interface_assignments` must be non-empty.
+Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when enabled, `listen_addr` and `data_dir` non-empty, and no interface assigned to two nodes. When `mode` is `active-active`, `interface_assignments` and `advertised_addr` must both be set, one assignment must carry this node's `advertised_addr`, and every other assignment address must appear in `peers`.
 
 ## REST API
 
