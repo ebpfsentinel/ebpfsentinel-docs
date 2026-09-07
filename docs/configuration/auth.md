@@ -82,7 +82,7 @@ Token revocation is built-in using a `sub:iat` (subject + issued-at) pair. Revok
 
 ## Rate Limiting
 
-When authentication is enabled, an additional rate limit of **10 requests per second per IP** is applied to authentication endpoints. This is layered on top of any global rate limiting configured in the `ratelimit` section.
+When authentication is enabled, an additional rate limit of **10 requests per second per IP** sustained, after a burst of 30, is applied to authentication endpoints. This is layered on top of any global rate limiting configured in the `ratelimit` section.
 
 ## Examples
 

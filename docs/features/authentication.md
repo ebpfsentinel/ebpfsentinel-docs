@@ -91,7 +91,16 @@ All `/api/v1/*` endpoints require authentication when `auth.enabled: true`.
 
 ### Rate Limiting
 
-When authentication is enabled, auth endpoints are rate-limited to **10 requests per second per source IP**. This applies to all authenticated API paths and prevents brute-force attacks against API keys and tokens.
+When authentication is enabled, auth endpoints are rate-limited to **10 requests per second per source IP** sustained, after a burst of 30. This applies to all authenticated API paths and prevents brute-force attacks against API keys and tokens.
+
+Two further per-IP limits apply whether or not authentication is enabled:
+
+| Surface | Sustained | Burst |
+|---|---|---|
+| Read endpoints (`GET /api/v1/*`) | 200 requests per minute | 200 |
+| `/metrics` | 30 requests per minute | 10 |
+
+A limit refills continuously rather than resetting on a window boundary, so a client staying at or below the sustained rate never spends its burst. Over the limit, the agent answers `429 Too Many Requests` with a `Retry-After` header. Mutating endpoints have their own configurable limit; see [agent configuration](../configuration/agent.md#write-api-rate-limit).
 
 ## Configuration
 

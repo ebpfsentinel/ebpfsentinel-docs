@@ -124,7 +124,7 @@ no `libssl` symbol to probe and are not covered by the OSS agent.
 - REST API listens on `127.0.0.1` by default (not exposed to network)
 - Health endpoints (`/healthz`, `/readyz`) are unauthenticated for probe compatibility
 - All other endpoints require authentication when `auth.enabled: true`
-- Metrics endpoint is rate-limited regardless of authentication state
+- Metrics endpoint is rate-limited regardless of authentication state (30 requests per minute per IP sustained, burst 10)
 - Mutating control-plane endpoints are rate-limited per client IP (configurable; loopback exempt by default) so a leaked token cannot rapidly rewrite enforcement state — see [agent configuration](../configuration/agent.md#write-api-rate-limit)
 - **CORS** — exact `localhost` host matching rejects subdomain bypass attempts (e.g., `localhost.attacker.com` is not treated as localhost)
 - gRPC supports TLS when enabled
