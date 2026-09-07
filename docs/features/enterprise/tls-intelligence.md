@@ -325,7 +325,7 @@ Vectorizes ClientHello into an 8-dimensional feature vector and feeds the existi
 | 1 | Extension set hash | Offered extension IDs, same treatment |
 | 2 | Groups hash | Supported groups, same treatment |
 | 3 | ALPN hash | Offered ALPN protocols, sorted, each folded with its length before its bytes |
-| 4 | TLS version | Handshake version, normalized |
+| 4 | TLS version | Highest version in the `supported_versions` offer, normalized against 0x0304; the handshake version is the fallback when the offer is empty |
 | 5 | Destination port | The port the handshake was seen on, normalized |
 | 6 | Cipher count | Number of offered cipher suites, normalized |
 | 7 | Extension count | Number of offered extensions, normalized |
@@ -334,6 +334,12 @@ Two properties of that vector matter when you train a model against it:
 
 - **The four hashes are stable across releases.** They are FNV-1a 64, deliberately not the standard library's default hasher, which carries no cross-release stability guarantee: a model trained on one build would read a different vocabulary on the next and mean nothing. The four values a given ClientHello produces are pinned by a test.
 - **The sets are sorted before hashing**, so the same offer in a different order is the same feature, and each ALPN string's length is folded in before its bytes, so `["ab", "c"]` and `["a", "bc"]` do not collapse onto one value.
+
+Feature 4 reads the `supported_versions` extension rather than the handshake
+version because a TLS 1.3 ClientHello carries 0x0303 in the handshake field for
+middlebox compatibility, so a feature built on that field would be a constant on
+every modern client. The handshake version is used only when the observation
+carries no `supported_versions` at all, which is a TLS 1.2 or earlier client.
 
 Feature 5 comes from the `dst_port` on the submitted observation. An estate serving TLS on a port other than 443 must send its real port, or every connection is vectorized as though it went to the same place.
 

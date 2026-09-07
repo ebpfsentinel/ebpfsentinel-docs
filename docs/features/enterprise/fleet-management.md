@@ -371,7 +371,8 @@ enterprise-domain/src/fleet/
 ├── entity.rs       # DTOs: RegistrationRequest, HeartbeatResponse, FlowGraph, etc.
 ├── engine.rs       # FleetEngine: registration, idempotency, config hashing
 ├── error.rs        # FleetError: NotRegistered, NotAuthenticated, InvalidRequest
-└── flow_graph.rs   # FlowGraphBuilder: connection aggregation + graph construction
+├── flow_graph.rs   # FlowGraphBuilder: connection aggregation + graph construction
+└── report.rs       # Capability and AgentHealth: what an agent claims to run and how the datapath judges it
 ```
 
 The handler (`enterprise-adapters/src/http/fleet_handler.rs`) bridges domain logic with OSS `ServiceHandles` for live rule counts and conntrack data.
