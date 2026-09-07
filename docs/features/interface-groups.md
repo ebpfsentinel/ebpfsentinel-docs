@@ -118,20 +118,22 @@ if group_mask == 0:
     evaluate rule
 
 else:
-    iface_mask = INTERFACE_GROUPS.lookup(ifindex)
-    if iface_mask is None:
-        skip rule  # interface not in any group
+    # A lookup miss is a membership of zero, not a skip
+    iface_mask = INTERFACE_GROUPS.lookup(ifindex) or 0
 
     invert = group_mask & (1 << 31)
     mask   = group_mask & 0x7FFFFFFF
+    hit    = (iface_mask & mask) != 0
 
-    if invert:
-        if (iface_mask & mask) == 0:
-            evaluate rule   # interface NOT in specified groups
-    else:
-        if (iface_mask & mask) != 0:
-            evaluate rule   # interface IS in specified groups
+    if hit != invert:
+        evaluate rule
 ```
+
+An interface that is in no group therefore has a membership of zero, which is a
+miss for every group a rule can name: a non-inverted rule is skipped on it, and
+an **inverted rule applies** to it. That is what makes `interfaces: ["!wan"]`
+cover an interface nobody put in a group, which is the behaviour the inversion
+section above promises.
 
 This adds one HashMap lookup and one AND + compare per rule — negligible overhead at wire speed.
 

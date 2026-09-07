@@ -16,8 +16,8 @@ Suppressions are visible in `ebpfsentinel_alerts_dropped_total`, labelled
 alerting:
   enabled: true
   dedup_window_secs: 60                    # Seconds to suppress duplicate deliveries
-  throttle_window_secs: 300                # Throttle window per source
-  throttle_max: 100                        # Max alerts per source per window
+  throttle_window_secs: 300                # Throttle window, counted per rule id
+  throttle_max: 100                        # Max alerts per rule id per window
   smtp:                                    # Required for email destinations
     host: "smtp.example.com"
     port: 587
@@ -48,8 +48,8 @@ alerting:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable alerting |
 | `dedup_window_secs` | `integer` | `60` | Seconds during which an identical alert is not delivered again. The dedup key is (rule, source IP, destination IP, destination port, protocol) - source port is excluded |
-| `throttle_window_secs` | `integer` | `300` | Throttle window duration per source |
-| `throttle_max` | `integer` | `100` | Max alerts per source per throttle window |
+| `throttle_window_secs` | `integer` | `300` | Throttle window duration, counted per rule id |
+| `throttle_max` | `integer` | `100` | Max alerts one rule id may raise per throttle window. The counter is keyed on the rule alone, so every source firing the same rule shares it |
 | `smtp` | `SmtpConfig` | - | SMTP configuration (required for email destinations) |
 | `otlp` | `OtlpExportConfig` | - | OpenTelemetry export configuration |
 | `routes` | `[Route]` | `[]` | Alert routing rules |

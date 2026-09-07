@@ -7,7 +7,7 @@
 eBPFsentinel integrates MaxMind GeoLite2/GeoIP2 databases for both **alert enrichment** and **cross-domain enforcement**. GeoIP data is used in two ways:
 
 1. **Alert enrichment** — source and destination IPs are automatically looked up and attached to alerts as `src_geo` / `dst_geo` fields
-2. **Enforcement** — 8 domain engines use GeoIP data for country-aware detection, blocking, and routing decisions, with kernel-side CIDR enforcement via coordinated LPM Trie maps
+2. **Enforcement** — 7 domain engines use GeoIP data for country-aware detection and blocking, with kernel-side CIDR enforcement via coordinated LPM Trie maps. Routing is not one of them: no routing source reads a country
 
 Three provisioning modes are supported:
 
@@ -164,7 +164,7 @@ Private/internal IPs (RFC 1918, link-local, etc.) typically return no GeoIP data
 
 ## Cross-Domain Enforcement
 
-GeoIP data drives enforcement decisions across 8 domain engines. Country-to-CIDR resolution is performed via `AliasResolutionPort`, which resolves ISO 3166-1 alpha-2 country codes (e.g. `RU`, `CN`) to their CIDR ranges from the MaxMind database.
+GeoIP data drives enforcement decisions across 7 domain engines. Country-to-CIDR resolution is performed via `AliasResolutionPort`, which resolves ISO 3166-1 alpha-2 country codes (e.g. `RU`, `CN`) to their CIDR ranges from the MaxMind database.
 
 ### LPM Coordinator
 
@@ -205,8 +205,7 @@ GeoIP Database (MaxMind)
         ├── IDS: country-aware sampling + thresholds
         ├── L7:  src/dst country rule matching
         ├── TI:  confidence boost
-        ├── DNS: reputation scoring
-        └── Routing: gateway selection
+        └── DNS: reputation scoring
 ```
 
 ## Code Architecture

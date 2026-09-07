@@ -75,6 +75,13 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:cli-invocations
 
+      # Sixty-two mappings over twelve components. The page carries them
+      # generated, so a mapping added to the agent fails here rather than
+      # leaving the matrix a partial extract nobody notices is partial.
+      - name: Check the ATT&CK coverage matrix
+        working-directory: ebpfsentinel-docs
+        run: npm run check:mitre-coverage
+
   build:
     name: build
     runs-on: ubuntu-latest

@@ -4,7 +4,7 @@
 
 ## Overview
 
-DLP scans decrypted network traffic for sensitive data patterns — credit card numbers, Social Security Numbers, API keys, JWTs, and more. The `uprobe-dlp` eBPF program attaches to SSL/TLS library functions to capture plaintext before encryption, forwarding it to the userspace DLP engine for pattern matching.
+DLP scans decrypted network traffic for sensitive data patterns - card numbers, US Social Security Numbers, email addresses, AWS keys, GitHub tokens, password assignments and Bearer tokens. The `uprobe-dlp` eBPF program attaches to SSL/TLS library functions to capture plaintext before encryption, forwarding it to the userspace DLP engine for pattern matching.
 
 ## How It Works
 
@@ -67,11 +67,21 @@ The DLP module is available in both editions, with the following differences:
 
 The OSS edition ships with **9 built-in patterns** across 3 categories, covering the most common data loss scenarios:
 
-| Category | Prefix | Patterns |
-|----------|--------|----------|
-| **PCI** (Payment Card) | `dlp-pci-*` | Visa, Mastercard, Amex card numbers |
-| **PII** (Personal Info) | `dlp-pii-*` | SSN, email addresses, phone numbers |
-| **Credentials** | `dlp-cred-*` | AWS keys, API keys, JWT tokens |
+| Category | Rule id | Matches |
+|----------|---------|---------|
+| **PCI** (Payment Card) | `dlp-pci-visa` | Visa card number, 13 or 16 digits starting with 4 |
+| | `dlp-pci-mastercard` | Mastercard number, 16 digits starting with 51-55 |
+| | `dlp-pci-amex` | American Express number, 15 digits starting with 34 or 37 |
+| **PII** (Personal Info) | `dlp-pii-email` | Email address |
+| | `dlp-pii-ssn` | US Social Security Number, `XXX-XX-XXXX` |
+| **Credentials** | `dlp-cred-aws-key` | AWS access key id, `AKIA` followed by 16 characters |
+| | `dlp-cred-github-token` | GitHub personal access token, `ghp_` followed by 36 characters |
+| | `dlp-cred-password` | Password assignment: `password`, `passwd` or `pwd` followed by `:` or `=` and 8 or more non-space characters |
+| | `dlp-cred-bearer` | HTTP `Bearer` authentication token |
+
+There is no phone-number pattern and no JWT pattern. A JWT presented in an
+`Authorization` header is caught by `dlp-cred-bearer`, which matches the header
+value rather than the token's own shape; a bare JWT in a body is not matched.
 
 These patterns are always loaded at startup and cannot be removed. They operate in **alert mode only**.
 

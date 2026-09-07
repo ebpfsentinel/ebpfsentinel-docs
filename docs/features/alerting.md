@@ -68,8 +68,8 @@ GeoIP enrichment is optional — enable it via the [`geoip`](../configuration/ge
 alerting:
   enabled: true
   dedup_window_secs: 300       # Seconds to suppress duplicate deliveries
-  throttle_window_secs: 300    # Throttle window per source
-  throttle_max: 100            # Max alerts per source per window
+  throttle_window_secs: 300    # Throttle window, counted per rule id
+  throttle_max: 100            # Max alerts per rule id per window
   smtp:
     host: "smtp.example.com"
     port: 587
