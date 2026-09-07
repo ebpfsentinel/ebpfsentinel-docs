@@ -4,14 +4,16 @@
 
 ## Overview
 
-Traffic analytics and trend analysis beyond real-time alerting. Ingests events from all security domains (firewall, IDS/IPS, DLP, DNS, DDoS, NAT, load balancer, conntrack), aggregates them at minute granularity, and provides top talker identification, alert summaries, IOC hit tracking, period-over-period deltas, and statistical trend detection with anomaly flagging.
+Traffic analytics and trend analysis beyond real-time alerting. What it measures is the alerts the agent raises: every event reaching the pipeline arrives as an alert, from the local SIEM event stream, from the tenant alert stream or from a member cluster in a federated deployment. There is no direct datapath feed, so a packet that matches no rule is counted nowhere here - use Prometheus metrics for total traffic volume. The pipeline aggregates what it does receive at minute granularity and provides top talker identification, alert summaries, IOC hit tracking, period-over-period deltas, and statistical trend detection with anomaly flagging.
+
+Alerts carry no packet length, so **no byte figure is reported anywhere in this feature**. Counts are packets and connections: `total_packets` is one per alert-bearing packet observed.
 
 ## Architecture
 
 ```
 Security Events (all domains)
   └── AnalyticsEngine (in-memory accumulators)
-        ├── TrafficAccumulator (bytes, packets, connections, IPs, ports, protocols)
+        ├── TrafficAccumulator (packets, connections, IPs, ports, protocols)
         ├── AlertAccumulator (by severity, by component)
         └── IocAccumulator (by threat type)
               │
@@ -29,24 +31,26 @@ Security Events (all domains)
 
 ### Sources
 
-Events are ingested from all eBPFsentinel security domains via component-specific methods:
+Three feeds run in the agent, and they are the whole of what the pipeline sees:
 
-| Method | Source | Event Types |
-|--------|--------|-------------|
-| `ingest_firewall_event` | Firewall | Traffic + alert |
-| `ingest_ratelimit_event` | Rate limiter | Traffic + alert (medium severity) |
-| `ingest_ddos_event` | Anti-DDoS | High severity alert (`ddos:{attack_type}`) |
-| `ingest_dlp_event` | DLP | Alert (`dlp:{pattern_type}`) |
-| `ingest_dns_event` | DNS intelligence | DNS query/block event (port 53) |
-| `ingest_nat_event` | NAT | Alert (`nat:{nat_type}`) |
-| `ingest_lb_event` | Load balancer | Traffic (`lb:{service_id}`) |
-| `ingest_conntrack_event` | Connection tracking | Traffic |
-| `ingest_scrub_event` | Packet scrubbing | Traffic |
+| Feed | What it carries |
+|------|-----------------|
+| Local SIEM event stream | Every alert the agent raises, whatever the component that raised it: firewall, IDS/IPS, rate limiter, DDoS, DLP, DNS, NAT, load balancer, connection tracking, packet scrubbing |
+| Tenant alert stream | Alerts raised inside a tenant in a multi-tenant deployment |
+| Federated alert stream | Alerts forwarded by member clusters in a multi-cluster deployment |
 
-### Cross-Feature Integration
+A SIEM event is decomposed into its sub-events by the ingestion methods below, chosen from the event's component and metadata:
 
-- **SIEM events** - `ingest_from_siem_event()` decomposes a `SiemEvent` into traffic, alert, IOC, DDoS, DLP, and DNS sub-events based on metadata fields
-- **Federated alerts** - `ingest_from_federated_alert()` ingests alerts from member clusters in a multi-cluster deployment
+| Method | Produces |
+|--------|----------|
+| `ingest_traffic` | Traffic event: source and destination address, ports, protocol |
+| `ingest_alert` | Alert counted by severity and component |
+| `ingest_ioc_hit` | IOC hit counted by threat type |
+| `ingest_ddos_event` | High severity alert (`ddos:{attack_type}`) |
+| `ingest_dlp_event` | Alert (`dlp:{pattern_type}`) |
+| `ingest_dns_event` | Alert (`dns:query` or `dns:blocked`) |
+
+Every field of a traffic event is optional and an absent field is counted nowhere: a federated alert carries no ports and no protocol, so it contributes to the source-IP ranking and to nothing else. Ports and protocols are never filled with a placeholder, because a placeholder becomes the top entry of its own table.
 
 ## Time Buckets
 
@@ -66,12 +70,11 @@ Each minute-level `TrafficAggregate` captures:
 
 | Field | Description |
 |-------|-------------|
-| `total_bytes` | Total bytes observed |
-| `total_packets` | Total packets observed |
+| `total_packets` | Alert-bearing packets observed, one per traffic event |
 | `connection_count` | Unique connections (hash-deduplicated) |
-| `top_src_ips` | Top source IPs by volume (up to 50) |
-| `top_dst_ports` | Top destination ports by volume (up to 50) |
-| `protocol_distribution` | Packet counts by protocol (TCP, UDP, ICMP, etc.) |
+| `top_src_ips` | Top source IPs by observed packet count (up to 50) |
+| `top_dst_ports` | Top destination ports by observed packet count (up to 50), counting only events that carried a port |
+| `protocol_distribution` | Packet counts by protocol (TCP, UDP, ICMP, etc.), counting only events that carried a protocol |
 
 Top entries are capped at **50 per bucket** (`MAX_TOP_ENTRIES`) to preserve accuracy during cross-bucket merging.
 
@@ -85,10 +88,9 @@ Delta fields:
 
 | Field | Description |
 |-------|-------------|
-| `bytes_delta` | Byte count change (current - previous) |
-| `packets_delta` | Packet count change |
+| `packets_delta` | Packet count change (current - previous) |
 | `connections_delta` | Connection count change |
-| `bytes_pct_change` | Percentage change in bytes |
+| `packets_pct_change` | Percentage change in packet count |
 
 ## Alert Summary
 
@@ -115,7 +117,7 @@ Statistical trend analysis using **Welford's online algorithm** for numerically 
 
 | Category | Metrics |
 |----------|---------|
-| Traffic | `total_bytes`, `total_packets`, `connection_count` |
+| Traffic | `total_packets`, `connection_count` |
 | Alerts | `total_alerts`, per-severity counts |
 | IOC | `ioc_hits` |
 
@@ -166,6 +168,8 @@ Analytics data is stored in **redb** (embedded key-value store) with three table
 
 Keys are zero-padded for lexicographic ordering, enabling efficient range queries. Retention cleanup runs during each flush cycle, deleting all entries older than `retention_days`.
 
+**Flow records are not persisted.** The individual records served by `/api/v1/analytics/flows` are held in memory only, bounded at **100,000 records** with the oldest dropped once the bound is reached, and lost when the agent restarts. Only the minute-level aggregates above survive a restart, so a flow query never reaches further back than the current process.
+
 ## Query Parameters
 
 All query endpoints accept a `period` parameter:
@@ -185,10 +189,11 @@ Trend endpoints require a minimum period of **7 days**.
 
 | Field | Description |
 |-------|-------------|
-| `enabled` | Whether analytics is active |
 | `events_ingested` | Lifetime event counter |
 | `last_flush_ms` | Timestamp of last successful flush |
 | `retention_days` | Configured retention window |
+
+There is no `enabled` field: the analytics routes are mounted only when the license carries the `advanced-analytics` feature and `enterprise.analytics.enabled` is `true`, so a reachable status endpoint is itself the answer.
 
 ## Configuration
 
@@ -216,14 +221,14 @@ enterprise:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with period-over-period deltas. Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). |
-| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Flow volume aggregates over the requested period. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with period-over-period deltas. Query: `period` (default 24h), `limit` (default 20). |
+| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h), `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order` (`asc` or `desc`, default `desc`). |
 | `GET` | `/api/v1/analytics/status` | viewer | advanced-analytics | Pipeline status. |
-| `GET` | `/api/v1/analytics/trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/csv` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/text` | viewer | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/csv` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/text` | viewer | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). |
 | `GET` | `/api/v1/analytics/trends/history` | viewer | advanced-analytics | Cached daily trend reports (up to 30). |
 
 ## Feature Gating
