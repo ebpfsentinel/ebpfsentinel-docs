@@ -14,7 +14,9 @@ A zone is a named group of network interfaces with a default traffic policy:
 | `interfaces` | list | Network interfaces belonging to this zone |
 | `default_policy` | string | `allow` or `deny` - verdict when nothing more specific matched |
 
-Each interface can belong to only one zone. The maximum is 64 zones.
+Each interface can belong to only one zone. The maximum is 64 zones, refused
+the same way whether the sixty-fifth arrives in a configuration file or
+through `POST /api/v1/zones`.
 
 A packet is attributed to a zone by the interface it arrived on, so an interface
 that no zone claims stays unzoned and is never evaluated against a zone policy.

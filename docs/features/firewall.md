@@ -18,7 +18,8 @@ Firewall rules can be scoped to control where they apply:
 | **Interface(`name`)** | Rule applies only to traffic on the named interface |
 | **Namespace(`name`)** | Rule applies only within the named network namespace |
 
-Scope values are validated at config load and API ingestion:
+Scope values are validated at config load and API ingestion, by one rule
+reached from both:
 
 - **Interface names**: 1-15 characters, restricted to alphanumeric characters plus `_`, `-`, `.`, and `:`.
 - **Namespace names**: 1-63 characters, restricted to lowercase alphanumeric characters plus `-`.
