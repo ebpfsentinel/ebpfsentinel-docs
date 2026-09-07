@@ -113,7 +113,7 @@ TTL elapse, lifts the entry from the data plane.
 
 ### TTL Formats
 
-`30s`, `5m`, `1h`, `1d`, or bare seconds (`3600`). Maximum TTL: 24 hours (configurable).
+`30s`, `5m`, `1h`, `1d`, or bare seconds (`3600`). Maximum TTL: `response.max_ttl_secs`, 24 hours by default.
 
 ---
 
@@ -210,7 +210,7 @@ ebpfsentinel-agent capture list
 ### Constraints
 
 - One capture at a time (concurrent requests return HTTP 409)
-- Maximum duration: 5 minutes (configurable)
+- Maximum duration: `capture.max_duration_secs`, 5 minutes by default
 - Output: `/var/lib/ebpfsentinel/captures/{id}.pcap`. The directory has to exist and be writable by the account the agent runs as, and a container or pod deployment has to mount it, or the capture starts and writes nothing
 - Requires `libpcap-dev` at build time (feature `pcap-capture`, enabled by default)
 

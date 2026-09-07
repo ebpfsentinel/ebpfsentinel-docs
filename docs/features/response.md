@@ -47,7 +47,7 @@ TTL values are specified as human-readable duration strings:
 | Hours | `1h` | 3,600 |
 | Days | `1d` | 86,400 |
 
-The maximum allowed TTL is configurable (default: 24 hours / 86,400 seconds). Requests exceeding the maximum are rejected.
+The maximum allowed TTL is `response.max_ttl_secs`, which defaults to 24 hours (86,400 seconds). Requests exceeding it are rejected rather than clamped.
 
 Each active action tracks:
 

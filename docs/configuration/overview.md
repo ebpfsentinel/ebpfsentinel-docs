@@ -52,6 +52,8 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`qos`](qos.md) | No | QoS pipes, queues, classifiers, traffic shaping |
 | `auto_response` | No | Auto block/throttle on alerts (max 3 severity-based policies) |
 | `auto_capture` | No | Event-triggered PCAP on high-severity alerts (max 60s) |
+| [`response`](response.md) | No | TTL ceiling for manual response actions |
+| [`capture`](capture.md) | No | Duration ceiling for manual packet capture |
 
 ## Per-Feature Examples
 

@@ -107,6 +107,8 @@ const sidebars: SidebarsConfig = {
         'configuration/aliases',
         'configuration/auto-response',
         'configuration/auto-capture',
+        'configuration/response',
+        'configuration/capture',
         'configuration/interface-groups',
         'configuration/zones',
         'configuration/geoip',
