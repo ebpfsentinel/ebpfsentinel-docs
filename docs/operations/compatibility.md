@@ -8,12 +8,12 @@ Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
 The 6.9 floor is driven by two hard kernel dependencies:
 
-- **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) — required
+- **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) - required
   for delegating eBPF load capabilities to unprivileged containers
   without `CAP_BPF`
 - **`bpf_task_get_cgroup1`**, **`bpf_xdp_metadata_rx_vlan_tag`**,
   **`bpf_xdp_get_xfrm_state`**, **`bpf_iter_css_task`** kfuncs
-  (kernel 6.7–6.8) — required for in-kernel container id enrichment,
+  (kernel 6.7-6.8) - required for in-kernel container id enrichment,
   VLAN hardware offload metadata reads, IPsec state lookups, and
   cgroup descendant iteration
 
@@ -22,12 +22,12 @@ The 6.9 floor is driven by two hard kernel dependencies:
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
 | Debian 13 | Yes | Ships 6.12 kernel natively |
-| Debian 12 | No | Ships 6.1 (below 6.9 floor) — use backports kernel or upgrade |
+| Debian 12 | No | Ships 6.1 (below 6.9 floor) - use backports kernel or upgrade |
 | Ubuntu 24.04.2+ | Yes | Use HWE stack (`linux-generic-hwe-24.04` → 6.11) |
-| Ubuntu 24.04 (GA) | No | Ships 6.8 — upgrade to HWE or install 6.9 mainline |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 - upgrade to HWE or install 6.9 mainline |
 | RHEL 10 / Rocky 10 | Yes | Ships 6.12 kernel |
-| RHEL 9.x / Rocky 9.x | No | Stock 5.14 far below floor — requires ELRepo `kernel-ml` 6.9+ |
-| Alpine 3.20+ | Yes | `linux-lts` package (6.6+) — upgrade to edge for 6.9+ |
+| RHEL 9.x / Rocky 9.x | No | Stock 5.14 far below floor - requires ELRepo `kernel-ml` 6.9+ |
+| Alpine 3.20+ | Yes | `linux-lts` package (6.6+) - upgrade to edge for 6.9+ |
 | Fedora 40+ | Yes | Ships 6.8 (F40) / 6.10 (F41) / 6.12 (F42) |
 | Arch Linux | Yes | Rolling, always 6.9+ |
 | NixOS 24.11+ | Yes | Ships 6.11 kernel |
@@ -66,7 +66,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|
 | `BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD` | 6.9+ | Container-aware least-privilege delegation (enterprise) |
-| `BPF_MAP_TYPE_ARENA` + `bpf_arena_alloc_pages` | 6.9+ | Not used — evaluated for zero-copy delivery, unusable on the `bpfel` target (verifier rejects the untyped arena pointer; alloc kfunc is sleepable-only) |
+| `BPF_MAP_TYPE_ARENA` + `bpf_arena_alloc_pages` | 6.9+ | Not used - evaluated for zero-copy delivery, unusable on the `bpfel` target (verifier rejects the untyped arena pointer; alloc kfunc is sleepable-only) |
 | `bpf_task_get_cgroup1` kfunc | 6.8+ | Kernel-side cgroup1 inode enrichment for Docker containers |
 | `bpf_xdp_metadata_rx_vlan_tag` kfunc | 6.8+ | Hardware-offloaded 802.1Q VLAN tag read in XDP |
 | `bpf_xdp_get_xfrm_state` kfunc | 6.8+ | IPsec state lookup for XDP firewall rules |
@@ -77,8 +77,8 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_timer` | 5.15+ | Rate limit bucket expiry |
 | `bpf_for_each_map_elem` | 5.13+ | Kernel-side map iteration |
 | `bpf_check_mtu` | 5.12+ | MTU validation |
-| `bpf_tcp_gen_syncookie` | 5.3+ | Deprecated — replaced by custom FNV-1a SYN cookie forging via `XDP_TX` |
-| BPF ring buffer | 5.8+ | All programs — event emission |
+| `bpf_tcp_gen_syncookie` | 5.3+ | Deprecated - replaced by custom FNV-1a SYN cookie forging via `XDP_TX` |
+| BPF ring buffer | 5.8+ | All programs - event emission |
 | `bpf_ringbuf_query` | 5.8+ | Adaptive backpressure |
 | `bpf_ktime_get_boot_ns` | 5.8+ | Suspend-aware timestamps |
 | CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere |

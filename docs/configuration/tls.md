@@ -19,8 +19,8 @@ agent:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable TLS |
-| `cert_path` | `string` | — | Path to PEM certificate file |
-| `key_path` | `string` | — | Path to PEM private key file |
+| `cert_path` | `string` | - | Path to PEM certificate file |
+| `key_path` | `string` | - | Path to PEM private key file |
 | `allow_tls12` | `bool` | `false` | Allow TLS 1.2 connections. When `false` (default), only TLS 1.3 is accepted |
 | `pq_mode` | `string` | `prefer` | Post-quantum key exchange mode: `prefer`, `require`, or `disable` (see below) |
 

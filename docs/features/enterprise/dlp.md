@@ -11,13 +11,13 @@ Enterprise DLP extends the OSS DLP module with a high-performance Vectorscan sca
 Enterprise replaces the OSS regex-based scanner with [Vectorscan](https://github.com/VectorCamp/vectorscan) (Hyperscan-compatible), providing 10+ Gbps multi-pattern matching throughput.
 
 Key capabilities:
-- **Block mode scanning** — single contiguous buffer, all patterns in one pass
-- **Streaming mode** — patterns that span multiple SSL/TLS chunks
-- **Vectored mode** — scatter-gather scanning of non-contiguous buffers
-- **Per-pattern flags** — CASELESS, UTF8, SINGLEMATCH, SOM_LEFTMOST, etc.
-- **Early termination** — stop scanning on first block-mode match
-- **Database serialization** — cache compiled pattern databases
-- **Scratch pooling** — zero-allocation scanning in steady state
+- **Block mode scanning** - single contiguous buffer, all patterns in one pass
+- **Streaming mode** - patterns that span multiple SSL/TLS chunks
+- **Vectored mode** - scatter-gather scanning of non-contiguous buffers
+- **Per-pattern flags** - CASELESS, UTF8, SINGLEMATCH, SOM_LEFTMOST, etc.
+- **Early termination** - stop scanning on first block-mode match
+- **Database serialization** - cache compiled pattern databases
+- **Scratch pooling** - zero-allocation scanning in steady state
 
 Architecture:
 ```
@@ -233,7 +233,7 @@ bytes + `/proc/{pid}/maps` dump) plus the optional contents of
 orchestrator:
 
 - runs every enabled library detector in priority order (Go → Java →
-  BoringSSL static → GnuTLS) — a binary is classified once and
+  BoringSSL static → GnuTLS) - a binary is classified once and
   subsequent detectors are skipped for that path;
 - aggregates pids per `(library, binary_path)` so probe attachment can
   run once per unique binary;
@@ -275,7 +275,7 @@ enterprise:
       gnutls:          { enabled: true }
 ```
 
-Each per-library block is a flag — set `enabled: false` to skip the
+Each per-library block is a flag - set `enabled: false` to skip the
 corresponding detector entirely. The scan interval minimum of 5s is
 enforced at config load, not silently clamped.
 
@@ -291,7 +291,7 @@ duration gauge. All metrics are registered under the
 | `ebpfsentinel_ent_tls_probes_attached_total` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
 | `ebpfsentinel_ent_tls_probes_attach_failures_total` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
-| `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | — | Most recent `TlsProbeManager::scan` duration in seconds |
+| `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | - | Most recent `TlsProbeManager::scan` duration in seconds |
 | `ebpfsentinel_ent_tls_probes_scan_warnings_total` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
 
 An HA standby holds no datapath, so it discovers libraries but attaches
@@ -332,7 +332,7 @@ license feature. Configuration is managed via the enterprise YAML
 - Kernel 5.11+ for the kTLS kprobe path; older kernels silently skip
   the kTLS hooks
 
-Every hook feeds the same DLP alert/block/per-pattern engine — the
+Every hook feeds the same DLP alert/block/per-pattern engine - the
 extended TLS layer widens the visible surface without changing the
 pattern configuration or the alert schema.
 

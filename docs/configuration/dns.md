@@ -68,8 +68,8 @@ dns:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | Yes | — | Feed identifier |
-| `url` | `string` | Yes | — | Feed source URL |
+| `name` | `string` | Yes | - | Feed identifier |
+| `url` | `string` | Yes | - | Feed source URL |
 | `format` | `string` | No | `plaintext` | `plaintext` (one domain per line) or `hosts` (hosts-file format) |
 | `refresh_interval_secs` | `integer` | No | `3600` | Seconds between refreshes |
 

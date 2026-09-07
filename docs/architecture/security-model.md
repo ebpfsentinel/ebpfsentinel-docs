@@ -6,12 +6,12 @@
 
 | Crate | Policy | Rationale |
 |-------|--------|-----------|
-| `domain` | `#![forbid(unsafe_code)]` | Pure business logic — no justification for unsafe |
+| `domain` | `#![forbid(unsafe_code)]` | Pure business logic - no justification for unsafe |
 | `ports` | `#![forbid(unsafe_code)]` | Trait definitions only |
 | `application` | `#![forbid(unsafe_code)]` | Orchestration only |
 | `infrastructure` | `#![forbid(unsafe_code)]` | Config, logging, metrics |
 | `adapters` | `#![deny(unsafe_code)]` | One targeted `#[allow]` for eBPF ring buffer parsing |
-| `ebpf-common` | `#![deny(unsafe_op_in_unsafe_fn)]` | Shared kernel/userspace types — enforces explicit unsafe blocks inside unsafe fns |
+| `ebpf-common` | `#![deny(unsafe_op_in_unsafe_fn)]` | Shared kernel/userspace types - enforces explicit unsafe blocks inside unsafe fns |
 
 ### UB Detection
 
@@ -67,19 +67,19 @@ All user-supplied regex patterns are compiled with safety limits:
 The agent warns at startup if config or key files are world-readable:
 
 ```
-WARN: config file /etc/ebpfsentinel/config.yaml has mode 0644 — recommend 0640 or stricter
+WARN: config file /etc/ebpfsentinel/config.yaml has mode 0644 - recommend 0640 or stricter
 ```
 
 ## eBPF Safety
 
 eBPF programs are verified by the kernel verifier before loading:
 
-- **Memory safety** — all memory accesses bounds-checked
-- **Termination** — programs must provably terminate (loop bounds, instruction limit)
-- **No arbitrary kernel memory access** — only approved helper functions
-- **Type safety** — BTF provides type information for CO-RE (Compile Once, Run Everywhere)
+- **Memory safety** - all memory accesses bounds-checked
+- **Termination** - programs must provably terminate (loop bounds, instruction limit)
+- **No arbitrary kernel memory access** - only approved helper functions
+- **Type safety** - BTF provides type information for CO-RE (Compile Once, Run Everywhere)
 
-eBPF loads **exclusively** through a BPF token (kernel 6.9+) — there is no
+eBPF loads **exclusively** through a BPF token (kernel 6.9+) - there is no
 capability-based loading path. The privileged launcher
 (`ebpfsentinel-token-launch`) creates the token in a child user namespace and
 execs the agent there, so the long-running agent holds **no host capabilities**.
@@ -89,7 +89,7 @@ The launcher itself consumes `CAP_SYS_ADMIN` only for the bootstrap. See the
 ## Container DLP and host PID visibility
 
 TLS data-loss prevention is a uprobe on `SSL_write`/`SSL_read` inside each
-workload's own `libssl` — the only place TLS plaintext exists. To inspect every
+workload's own `libssl` - the only place TLS plaintext exists. To inspect every
 container on a node (not just the agent's own process), the agent resolves each
 workload's library through the host `/proc` and attaches a uprobe per library.
 
@@ -98,7 +98,7 @@ This requires two privilege expansions, both isolated away from the agent:
 - **Host PID namespace** (`hostPID: true` / `pid: host`) and a read-only
   `/host/proc` mount. The agent reads `/host/proc/<pid>/maps` to find each
   workload's `libssl`. **Security note:** sharing the host PID namespace lets the
-  pod see *every* process on the node — command lines, environment via
+  pod see *every* process on the node - command lines, environment via
   `/proc/<pid>`, and so on. This is the irreducible cost of node-wide DLP. With
   `hostPID` disabled, DLP still works but covers only the libraries the agent
   itself maps (its own container).
@@ -106,18 +106,18 @@ This requires two privilege expansions, both isolated away from the agent:
   container's `/proc/<pid>/root` (`CAP_SYS_PTRACE`) and creating the uprobe link
   (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which
   returns the link descriptor over the control socket. The agent itself stays
-  `cap-drop: ALL` — it never holds a tracing capability.
+  `cap-drop: ALL` - it never holds a tracing capability.
 
 Statically-linked TLS runtimes (Go `crypto/tls`, Rust rustls, Java JSSE) export
 no `libssl` symbol to probe and are not covered by the OSS agent.
 
 ## Authentication Security
 
-- **JWT validation** — RS256 signature, issuer, audience, expiration checks
-- **OIDC** — JWKS key rotation support via discovery URL
-- **API keys** — configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
-- **TLS 1.3** — rustls with aws-lc backend, older protocol versions rejected
-- **CA private key zeroized on drop** — enterprise TLS inspection CA key material is securely erased from memory when no longer needed
+- **JWT validation** - RS256 signature, issuer, audience, expiration checks
+- **OIDC** - JWKS key rotation support via discovery URL
+- **API keys** - configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
+- **TLS 1.3** - rustls with aws-lc backend, older protocol versions rejected
+- **CA private key zeroized on drop** - enterprise TLS inspection CA key material is securely erased from memory when no longer needed
 
 ## Network Security
 
@@ -125,8 +125,8 @@ no `libssl` symbol to probe and are not covered by the OSS agent.
 - Health endpoints (`/healthz`, `/readyz`) are unauthenticated for probe compatibility
 - All other endpoints require authentication when `auth.enabled: true`
 - Metrics endpoint is rate-limited regardless of authentication state (30 requests per minute per IP sustained, burst 10)
-- Mutating control-plane endpoints are rate-limited per client IP (configurable; loopback exempt by default) so a leaked token cannot rapidly rewrite enforcement state — see [agent configuration](../configuration/agent.md#write-api-rate-limit)
-- **CORS** — exact `localhost` host matching rejects subdomain bypass attempts (e.g., `localhost.attacker.com` is not treated as localhost)
+- Mutating control-plane endpoints are rate-limited per client IP (configurable; loopback exempt by default) so a leaked token cannot rapidly rewrite enforcement state - see [agent configuration](../configuration/agent.md#write-api-rate-limit)
+- **CORS** - exact `localhost` host matching rejects subdomain bypass attempts (e.g., `localhost.attacker.com` is not treated as localhost)
 - gRPC supports TLS when enabled
 
 ## Content Security Policy (dashboard)
@@ -169,8 +169,8 @@ With `'strict-dynamic'`, scripts loaded by a nonced script inherit trust without
 
 The Leptos client compiles to WebAssembly. Browsers require an explicit CSP directive to allow WASM execution:
 
-- **`'wasm-eval'`** — the standard directive (CSP Level 3), but not yet shipped in Chrome, Firefox, or Safari as of 2026-04.
-- **`'wasm-unsafe-eval'`** — the interim directive supported by all major browsers. Despite the name, it only permits WASM compilation and does not allow arbitrary `eval()`.
+- **`'wasm-eval'`** - the standard directive (CSP Level 3), but not yet shipped in Chrome, Firefox, or Safari as of 2026-04.
+- **`'wasm-unsafe-eval'`** - the interim directive supported by all major browsers. Despite the name, it only permits WASM compilation and does not allow arbitrary `eval()`.
 
 The dashboard uses `'wasm-unsafe-eval'` until `'wasm-eval'` reaches baseline support. The `scripts/csp-audit.sh` CI script validates that no CSP violations occur across all dashboard routes.
 

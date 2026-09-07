@@ -67,16 +67,16 @@ You should see:
 ## 3. Verify
 
 ```bash
-# Agent dashboard — programs loaded, conntrack, DDoS, recent alerts
+# Agent dashboard - programs loaded, conntrack, DDoS, recent alerts
 ebpfsentinel-agent status
 
 # Watch alerts in real-time (Ctrl+C to stop)
 ebpfsentinel-agent watch
 
-# Top talkers — most active connections by traffic volume
+# Top talkers - most active connections by traffic volume
 ebpfsentinel-agent top
 
-# Network flows — aggregated connection map
+# Network flows - aggregated connection map
 ebpfsentinel-agent flows
 
 # List firewall rules
@@ -88,7 +88,7 @@ curl http://localhost:8080/healthz
 
 ## 4. Add Rules at Runtime
 
-No restart needed — use the REST API or CLI:
+No restart needed - use the REST API or CLI:
 
 ```bash
 # Add a firewall rule via CLI
@@ -167,7 +167,7 @@ alerting:
 
 ## Next Steps
 
-- [Core Concepts](concepts.md) — understand the architecture
-- [Feature Overview](../features/overview.md) — see all available features
-- [Configuration Overview](../configuration/overview.md) — full configuration reference
-- [CLI Reference](../cli-reference/index.md) — all CLI commands
+- [Core Concepts](concepts.md) - understand the architecture
+- [Feature Overview](../features/overview.md) - see all available features
+- [Configuration Overview](../configuration/overview.md) - full configuration reference
+- [CLI Reference](../cli-reference/index.md) - all CLI commands

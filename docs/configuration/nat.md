@@ -33,7 +33,7 @@ nat:
 | `snat_rules` | list | `[]` | Source NAT rules (applied on egress) |
 | `dnat_rules` | list | `[]` | Destination NAT rules (applied on ingress) |
 | `nptv6_rules` | list | `[]` | NPTv6 (RFC 6296) stateless IPv6 prefix translation rules |
-| `hairpin` | object | — | Hairpin NAT (NAT reflection) settings |
+| `hairpin` | object | - | Hairpin NAT (NAT reflection) settings |
 
 Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 
@@ -41,10 +41,10 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | string | — | Unique rule identifier |
+| `id` | string | - | Unique rule identifier |
 | `enabled` | bool | `true` | Enable/disable without deleting |
 | `priority` | u32 | `100` | Lower values match first |
-| `type` | string | — | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
+| `type` | string | - | One of: `snat`, `dnat`, `masquerade`, `one_to_one`, `redirect`, `port_forward` |
 | `interfaces` | list | `[]` | Restrict the rule to specific interfaces or interface groups. Empty = all interfaces |
 | `tenant_id` | u32 | `0` | Tenant this rule belongs to. `0` is global and translates for every tenant. A non-zero value makes the kernel skip the rule for traffic it resolves to any other tenant, which is what lets two tenants keep overlapping private ranges behind separate translations. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
 
@@ -150,8 +150,8 @@ of being short-circuited (which would break the connection via asymmetric routin
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable hairpin NAT |
-| `internal_subnet` | string | — | Internal client subnet (CIDR) eligible for reflection |
-| `hairpin_snat_ip` | string | — | Source IP applied to hairpinned traffic |
+| `internal_subnet` | string | - | Internal client subnet (CIDR) eligible for reflection |
+| `hairpin_snat_ip` | string | - | Source IP applied to hairpinned traffic |
 
 ```yaml
 nat:
@@ -164,17 +164,17 @@ nat:
 
 ### NPTv6 (RFC 6296)
 
-Stateless, bidirectional IPv6-to-IPv6 prefix translation — no conntrack. Egress
+Stateless, bidirectional IPv6-to-IPv6 prefix translation - no conntrack. Egress
 rewrites the source prefix (internal → external); ingress rewrites the destination
 prefix (external → internal), adjusting one IID word for checksum neutrality.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | string | — | Unique rule identifier |
+| `id` | string | - | Unique rule identifier |
 | `enabled` | bool | `true` | Enable/disable without deleting |
-| `internal_prefix` | string | — | Site-local IPv6 prefix (e.g. ULA `fd00:1::`) |
-| `external_prefix` | string | — | Provider-assigned / globally-routable prefix |
-| `prefix_len` | u8 | — | Prefix length in bits (1–64) |
+| `internal_prefix` | string | - | Site-local IPv6 prefix (e.g. ULA `fd00:1::`) |
+| `external_prefix` | string | - | Provider-assigned / globally-routable prefix |
+| `prefix_len` | u8 | - | Prefix length in bits (1-64) |
 | `interfaces` | list | `[]` | Restrict the rule to specific interfaces or groups |
 
 ```yaml

@@ -60,7 +60,7 @@ Only `name` is required. All other fields are optional.
 ```
 
 - `agent_id`: UUIDv7 (time-ordered, globally unique)
-- `token`: SHA-256 of `"{agent_id}:{timestamp}"` — used for heartbeat authentication
+- `token`: SHA-256 of `"{agent_id}:{timestamp}"` - used for heartbeat authentication
 - `registered_at`: Unix epoch seconds
 
 ### Idempotency
@@ -239,7 +239,7 @@ Builds a directed graph of network flows from connection tracking data.
 
 1. Connections are read from the conntrack table (up to `limit`)
 2. Filtered by `protocol` and `min_bytes` if specified
-3. Aggregated by `(src_ip, dst_ip, protocol)` — multiple connections between the same pair are merged
+3. Aggregated by `(src_ip, dst_ip, protocol)` - multiple connections between the same pair are merged
 4. Sorted by bytes descending
 5. Capped at `max_nodes` unique IPs (edges requiring new IPs beyond the cap are dropped)
 

@@ -4,7 +4,7 @@
 
 ## Overview
 
-Threat intelligence integrates external OSINT feeds into the packet processing pipeline for real-time IOC matching at wire speed. Feed configuration is **source-agnostic** — any provider that serves plaintext, CSV, or JSON data works through YAML field mappings, without any provider-specific code.
+Threat intelligence integrates external OSINT feeds into the packet processing pipeline for real-time IOC matching at wire speed. Feed configuration is **source-agnostic** - any provider that serves plaintext, CSV, or JSON data works through YAML field mappings, without any provider-specific code.
 
 ## Architecture
 
@@ -46,13 +46,13 @@ flowchart TD
 
 ### 1. Feed Ingestion
 
-Feeds are fetched via HTTP/HTTPS on a configurable schedule (`refresh_interval_secs`). Each feed is independent — a failed fetch skips that feed without blocking others.
+Feeds are fetched via HTTP/HTTPS on a configurable schedule (`refresh_interval_secs`). Each feed is independent - a failed fetch skips that feed without blocking others.
 
 The fetcher enforces:
 - **30-second timeout** per feed
 - **100 MiB response cap** (prevents memory exhaustion)
 - **Optional auth header** (e.g. `X-OTX-API-KEY: abc123`, `Authorization: Bearer ...`)
-- **SSRF prevention** — only `http://` and `https://` schemes allowed
+- **SSRF prevention** - only `http://` and `https://` schemes allowed
 
 ### 2. Feed Parsing (source-agnostic)
 
@@ -66,8 +66,8 @@ No provider-specific code. The parser dispatches by format, then uses `FieldMapp
 | `stix` | STIX 2.1 bundle, IPs from `ipv4-addr`/`ipv6-addr` indicator patterns (CIDR skipped); domains + URLs to their engines | Per-indicator, filtered by `min_confidence` | From indicator threat type |
 
 Post-parse filters applied in order:
-1. **`min_confidence`** — reject IOCs below this threshold (0 = accept all)
-2. **`max_iocs`** — truncate if the feed returns too many entries (default: 500,000)
+1. **`min_confidence`** - reject IOCs below this threshold (0 = accept all)
+2. **`max_iocs`** - truncate if the feed returns too many entries (default: 500,000)
 
 Category values are normalized: `"malware"/"mal"` → Malware, `"c2"/"c&c"/"botnet"` → C2, `"scanner"/"scan"` → Scanner, `"spam"` → Spam, anything else → Other.
 
@@ -76,7 +76,7 @@ Category values are normalized: `"malware"/"mal"` → Malware, `"c2"/"c&c"/"botn
 The `ThreatIntelEngine` is a `HashMap<IpAddr, Ioc>` keyed by IP:
 
 - **Deduplication**: if the same IP appears in multiple feeds, the highest-confidence entry wins
-- **Atomic reload**: two-phase validation — all IOCs validated, then the entire map is swapped. On any error, the old map remains untouched
+- **Atomic reload**: two-phase validation - all IOCs validated, then the entire map is swapped. On any error, the old map remains untouched
 - **Capacity limit**: `max_iocs` per feed, 1M+ total across all feeds
 
 ### 4. Kernel Sync (userspace → eBPF)
@@ -155,7 +155,7 @@ threatintel:
     KP: 15       # +15 for North Korea
 ```
 
-Values are clamped to the 0–100 range after adjustment. This is useful to prioritize IOCs from known high-risk regions when feeds have variable confidence scores.
+Values are clamped to the 0-100 range after adjustment. This is useful to prioritize IOCs from known high-risk regions when feeds have variable confidence scores.
 
 ## Configuration
 
@@ -165,7 +165,7 @@ threatintel:
   mode: alert          # "alert" or "block"
 
   feeds:
-    # Plaintext — one IP per line
+    # Plaintext - one IP per line
     - id: spamhaus-drop
       name: Spamhaus DROP
       url: https://www.spamhaus.org/drop/drop.txt
@@ -173,7 +173,7 @@ threatintel:
       comment_prefix: ";"
       refresh_interval_secs: 86400
 
-    # CSV — custom field mapping
+    # CSV - custom field mapping
     - id: feodo-tracker
       name: Feodo Tracker Botnet C2
       url: https://feodotracker.abuse.ch/downloads/ipblocklist.csv
@@ -186,7 +186,7 @@ threatintel:
       refresh_interval_secs: 1800
       default_action: block
 
-    # JSON — with auth header
+    # JSON - with auth header
     - id: otx-malicious
       name: AlienVault OTX
       url: https://otx.alienvault.com/api/v1/indicators/export
@@ -205,10 +205,10 @@ See [Configuration: Threat Intelligence](../configuration/threatintel.md) for th
 
 Feed ingestion enforces several hardening measures to prevent abuse:
 
-- **SSRF prevention** — feed URLs are resolved before connection and rejected if the resolved IP falls within private (RFC 1918), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`, `fe80::/10`), or multicast ranges. Only `http://` and `https://` URL schemes are accepted.
-- **No HTTP redirects** — the HTTP client does not follow redirects, preventing redirect-based SSRF bypass.
-- **Auth header CRLF injection prevention** — the `auth_header` value is validated to reject carriage-return and line-feed characters, preventing HTTP header injection.
-- **JSON depth limit** — JSON feed parsing enforces a maximum nesting depth of 64 levels to prevent stack exhaustion from deeply nested payloads.
+- **SSRF prevention** - feed URLs are resolved before connection and rejected if the resolved IP falls within private (RFC 1918), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`, `fe80::/10`), or multicast ranges. Only `http://` and `https://` URL schemes are accepted.
+- **No HTTP redirects** - the HTTP client does not follow redirects, preventing redirect-based SSRF bypass.
+- **Auth header CRLF injection prevention** - the `auth_header` value is validated to reject carriage-return and line-feed characters, preventing HTTP header injection.
+- **JSON depth limit** - JSON feed parsing enforces a maximum nesting depth of 64 levels to prevent stack exhaustion from deeply nested payloads.
 
 ## CLI Usage
 

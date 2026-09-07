@@ -8,10 +8,10 @@ DLP scans decrypted network traffic for sensitive data patterns - card numbers, 
 
 ## How It Works
 
-1. **Per-container discovery** — TLS plaintext only exists inside a userspace
+1. **Per-container discovery** - TLS plaintext only exists inside a userspace
    `libssl` / BoringSSL, and a uprobe fires only for processes mapping that exact
    inode. So the agent parses `/proc/<pid>/maps` for every process on the host,
-   finds each SSL library, and deduplicates by `(device, inode)` — pods of the
+   finds each SSL library, and deduplicates by `(device, inode)` - pods of the
    same image share one overlayfs lower layer, so a single probe covers them all.
    A library whose file was unlinked while still mapped (an in-place package
    upgrade, or an image layer replaced under a running container) is covered too:
@@ -19,22 +19,22 @@ DLP scans decrypted network traffic for sensitive data patterns - card numbers, 
    entry, which points at the inode the process actually mapped rather than at
    whatever now carries the old name. That lookup needs `CAP_SYS_ADMIN`, which the
    warden and the privileged posture both already hold.
-2. **uprobe attachment** — the `uprobe-dlp` program is attached to `SSL_write` /
+2. **uprobe attachment** - the `uprobe-dlp` program is attached to `SSL_write` /
    `SSL_read` (entry + return) once per unique library inode, so the agent sees
    **every container's** TLS, not only its own.
-3. **Lifecycle tracking** — a watcher re-scans periodically, attaching to
+3. **Lifecycle tracking** - a watcher re-scans periodically, attaching to
    libraries newly mapped by appearing containers and detaching a library's
    probes once no process maps it any more.
-4. **Plaintext capture** — decrypted payload bytes are emitted via RingBuf to
+4. **Plaintext capture** - decrypted payload bytes are emitted via RingBuf to
    userspace.
-5. **Pattern matching** — the DLP engine evaluates the payload against the
+5. **Pattern matching** - the DLP engine evaluates the payload against the
    configured regex patterns.
-6. **Source attribution** — the captured event's `cgroup_id` is resolved to the
+6. **Source attribution** - the captured event's `cgroup_id` is resolved to the
    originating container / pod, so the alert names the workload that leaked.
-7. **Alert generation** — matches produce alerts with the pattern ID, severity,
+7. **Alert generation** - matches produce alerts with the pattern ID, severity,
    redacted context, and container provenance.
 
-DLP is **userspace-only** for pattern matching — there is no eBPF map synchronization needed (unlike IDS/IPS where rules are pushed to kernel maps).
+DLP is **userspace-only** for pattern matching - there is no eBPF map synchronization needed (unlike IDS/IPS where rules are pushed to kernel maps).
 
 In the rootless deployment the agent runs `cap-drop: ALL`, so the privileged
 uprobe attach (reading a neighbouring container's `/proc/<pid>/root` and creating
@@ -107,14 +107,14 @@ When the container resolver is enabled (see
 [Container Awareness](container-awareness.md)), every DLP alert is
 automatically enriched with the workload that produced the leak:
 
-- `container` — runtime (`docker`/`containerd`/`crio`/`podman`) and
+- `container` - runtime (`docker`/`containerd`/`crio`/`podman`) and
   canonical container id resolved from the event's `cgroup_id`
-- `container_metadata` — Docker image + labels (Docker enricher) or
+- `container_metadata` - Docker image + labels (Docker enricher) or
   pod name, namespace, labels, service account, and owner reference
   (Kubernetes enricher)
 
 For Kubernetes deployments this means DLP alerts carry the pod and
-namespace that leaked the data — no manual IP-to-workload correlation
+namespace that leaked the data - no manual IP-to-workload correlation
 required downstream. SIEM exports, the gRPC alert stream, the REST API,
 and the audit trail all carry the enrichment.
 
@@ -123,15 +123,15 @@ and the audit trail all carry the enrichment.
 The OSS agent covers **dynamically-linked OpenSSL and BoringSSL** (`libssl.so`,
 `libboringssl.so`) across all containers. The deployment must share the host PID
 namespace and mount the host `/proc` so the agent can resolve neighbouring
-containers' libraries — see the
+containers' libraries - see the
 [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility).
 
 Out of scope for OSS:
 
-- **Statically-linked TLS runtimes** — Go (`crypto/tls`), Rust (rustls), Java
-  (JSSE), or proxies that link BoringSSL statically — export no `libssl` symbol
+- **Statically-linked TLS runtimes** - Go (`crypto/tls`), Rust (rustls), Java
+  (JSSE), or proxies that link BoringSSL statically - export no `libssl` symbol
   to probe. Per-runtime symbol resolution is an **Enterprise** extension.
-- **kTLS kernel-offloaded sockets** — plaintext lives kernel-side, a separate
+- **kTLS kernel-offloaded sockets** - plaintext lives kernel-side, a separate
   hook path.
 
 ## Configuration

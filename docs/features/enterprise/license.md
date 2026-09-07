@@ -9,7 +9,7 @@ The enterprise license system gates feature activation at runtime using Ed25519 
 ## License Key Format
 
 License keys are post-quantum dual-signed (v2) three-line files. Both the
-Ed25519 and ML-DSA-65 signatures must verify — legacy Ed25519-only keys are
+Ed25519 and ML-DSA-65 signatures must verify - legacy Ed25519-only keys are
 not accepted.
 
 **v2 format (Ed25519 + ML-DSA-65):**
@@ -128,7 +128,7 @@ ebpfsentinel-license generate \
   --output license.key
 ```
 
-Both `--signing-key` and `--pq-signing-key` are required — every license is post-quantum dual-signed.
+Both `--signing-key` and `--pq-signing-key` are required - every license is post-quantum dual-signed.
 
 ### Inspect License
 
@@ -146,7 +146,7 @@ ML-DSA-65 signature: VALID
 License version:    2
 ```
 
-Each key flag is optional on its own, and a signature with no key given is reported as `not verified` rather than checked. Pass both — a check that names only the classical key accepts a file carrying one valid signature and one forged, which is the case the second algorithm exists for.
+Each key flag is optional on its own, and a signature with no key given is reported as `not verified` rather than checked. Pass both - a check that names only the classical key accepts a file carrying one valid signature and one forged, which is the case the second algorithm exists for.
 
 **Exit code:** `inspect` exits non-zero if a signature was checked and did not verify, so it can gate a deployment script. A signature that was not checked at all does not fail the command; it is reported as unchecked.
 
@@ -170,14 +170,14 @@ ebpfsentinel-license bundle offline-bundle.json \
 
 Both key flags are required here. A bundle crosses an air gap with no session behind it, so there is nothing else that could vouch for it.
 
-For every key in the bundle the tool recomputes the SHA-256 of the signed document, checks it against the fingerprint the entry declares, verifies both signatures, and reads the terms out of the signed payload rather than out of the entry — a relabelled entry with a good signature is refused. The container itself is deliberately unsigned; each key inside is self-verifying.
+For every key in the bundle the tool recomputes the SHA-256 of the signed document, checks it against the fingerprint the entry declares, verifies both signatures, and reads the terms out of the signed payload rather than out of the entry - a relabelled entry with a good signature is refused. The container itself is deliberately unsigned; each key inside is self-verifying.
 
 | Flag | Effect |
 |---|---|
 | `--against <dir>` | Digests every readable file in the directory and reports any that the bundle lists as revoked |
 | `--output-dir <dir>` | Writes each accepted key as `<fingerprint>.lic`, byte-identical to the signed source |
 
-Every failure in the bundle is reported before the command aborts — an operator across an air gap gets one run. The exit code is non-zero if any key was refused or if a revoked file is still present on disk.
+Every failure in the bundle is reported before the command aborts - an operator across an air gap gets one run. The exit code is non-zero if any key was refused or if a revoked file is still present on disk.
 
 ## Air-Gap Activation Workflow
 
@@ -211,7 +211,7 @@ ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license k
 
 **Verification behavior:**
 
-- Both the Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature — or a missing ML-DSA-65 signature — rejects the license.
+- Both the Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature - or a missing ML-DSA-65 signature - rejects the license.
 - Legacy Ed25519-only (v1) keys are no longer accepted.
 
 **Key storage:**
@@ -241,9 +241,9 @@ Integrity failure exits with code 2 (no fallback to OSS mode).
 ### Distributed License Checks
 
 License validation occurs at three independent points per feature:
-1. **Init** — feature engine constructor verifies license
-2. **First use** — first data processing call re-verifies
-3. **Periodic** — re-check every 60 minutes
+1. **Init** - feature engine constructor verifies license
+2. **First use** - first data processing call re-verifies
+3. **Periodic** - re-check every 60 minutes
 
 ### License-as-Computation-Parameter
 

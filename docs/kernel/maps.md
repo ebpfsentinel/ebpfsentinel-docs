@@ -13,8 +13,8 @@ eBPF maps are the primary data structures shared between kernel programs and use
 General-purpose key/value hash table. Used for:
 - Firewall IP set aliases (named groups of IPs)
 - IDS rule configuration
-- QoS classifier rules (`QOS_CLASSIFIERS` — 5-tuple + DSCP → queue_id, 1024 entries)
-- Interface group membership (`INTERFACE_GROUPS` — ifindex → bitmask, 64 entries, present in 6 programs)
+- QoS classifier rules (`QOS_CLASSIFIERS` - 5-tuple + DSCP → queue_id, 1024 entries)
+- Interface group membership (`INTERFACE_GROUPS` - ifindex → bitmask, 64 entries, present in 6 programs)
 
 #### [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/)
 
@@ -41,7 +41,7 @@ CIDR-only rules (no port/protocol/VLAN filter) are loaded exclusively into LPM t
 | `RL_LPM_SRC_V6` | Source IPv6 country → rate limit tier |
 | `RL_TIER_CONFIG` | Array map (up to 16 entries) mapping tier_id → `RateLimitConfig` |
 
-Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The LPM lookup in xdp-ratelimit runs before per-IP rule matching — if a source IP matches a country tier, that tier's rate/burst/algorithm is used.
+Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The LPM lookup in xdp-ratelimit runs before per-IP rule matching - if a source IP matches a country tier, that tier's rate/burst/algorithm is used.
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
@@ -60,7 +60,7 @@ Hash table with built-in **LRU eviction**. Used for:
 Combines per-CPU value storage with LRU eviction. Each CPU core maintains its own copy of the value (no locking), while the map automatically evicts the least-recently-used entries when capacity is reached. Used for:
 
 - `RL_BUCKETS` (262,144 entries): consolidated rate limit bucket state using a discriminated union (`RateLimitBucketUnion`, 64 bytes). All 4 rate limiting algorithms share one map. LRU eviction handles bucket expiration.
-- `QOS_FLOW_STATE` (65,536 entries): per-flow token bucket state. Each entry stores `tokens_remaining` and `last_refill_ns`. Per-CPU storage avoids contention on the hot path — each core independently tracks token state for flows it processes.
+- `QOS_FLOW_STATE` (65,536 entries): per-flow token bucket state. Each entry stores `tokens_remaining` and `last_refill_ns`. Per-CPU storage avoids contention on the hot path - each core independently tracks token state for flows it processes.
 
 ### Per-CPU Maps
 
@@ -68,7 +68,7 @@ Combines per-CPU value storage with LRU eviction. Each CPU core maintains its ow
 
 **Kernel:** 4.6+ | **Used by:** xdp-ratelimit
 
-Per-CPU hash map providing **lock-free** per-IP rate limiting counters. Each CPU core maintains its own copy of the counter — no atomic operations or spinlocks needed. Values are aggregated when read from userspace.
+Per-CPU hash map providing **lock-free** per-IP rate limiting counters. Each CPU core maintains its own copy of the counter - no atomic operations or spinlocks needed. Values are aggregated when read from userspace.
 
 **Consolidated bucket map:** The 4 separate per-algorithm maps (`RATELIMIT_BUCKETS`, `FIXED_WINDOW_BUCKETS`, `SLIDING_WINDOW_BUCKETS`, `LEAKY_BUCKET_BUCKETS`) are consolidated into a single `RL_BUCKETS` (`LruPerCpuHashMap`, 262K entries) using a discriminated union:
 
@@ -108,7 +108,7 @@ Fixed-size per-CPU array for **metrics counters**. Each program maintains its ow
 | 5 | `AMP_DROPPED` |
 | ... | ... |
 
-Per-CPU arrays avoid contention — each core writes to its own slot, and userspace sums across CPUs when scraping Prometheus metrics.
+Per-CPU arrays avoid contention - each core writes to its own slot, and userspace sums across CPUs when scraping Prometheus metrics.
 
 The `SCRUB_CONFIG` PerCpuArray stores a 14-byte `ScrubConfig` struct (expanded from the original 8 bytes) with fields for: `min_ttl`, `min_hop_limit`, `max_mss`, `clear_df`, `random_ip_id`, `scrub_tcp_flags`, `strip_ecn`, `normalize_tos`, `normalize_tos_value`, and `strip_tcp_timestamps`.
 
@@ -165,7 +165,7 @@ Populated at agent startup with all online CPUs (via `std::thread::available_par
 
 Lock-free, MPSC (multi-producer, single-consumer) ring buffer for **kernel→userspace event streaming**. Replaces the older `perf_event_array` with better performance:
 
-- Single shared buffer (not per-CPU) — less memory waste
+- Single shared buffer (not per-CPU) - less memory waste
 - Variable-length records
 - Supports backpressure queries via [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/)
 
@@ -199,7 +199,7 @@ Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egres
 
 All RingBuf maps implement 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead.
 
-### Arena maps — not used
+### Arena maps - not used
 
 `BPF_MAP_TYPE_ARENA` (kernel 6.9+) was evaluated for zero-copy event
 delivery but is **not used**. All programs emit events through `RingBuf`
@@ -231,8 +231,8 @@ When enabled, `bpf_clone_redirect` clones suspicious packets (those triggering I
 
 Probabilistic data structure for **fast IOC pre-filtering**:
 
-- **No false negatives** — if the Bloom filter says "not present", the IP is definitely clean
-- **Possible false positives** — a positive match triggers a full LRU hash map lookup for confirmation
+- **No false negatives** - if the Bloom filter says "not present", the IP is definitely clean
+- **Possible false positives** - a positive match triggers a full LRU hash map lookup for confirmation
 - O(1) lookup with minimal memory footprint
 
 Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup → confirmed? emit alert`
@@ -245,7 +245,7 @@ Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup 
 
 A HashMap map (key = `u32` ifindex, value = `u32` bitmask, max 64 entries) that stores interface-to-group membership. Pinned to `/sys/fs/bpf/` and shared across all 6 programs. Userspace writes the mapping when configuration is loaded or reloaded.
 
-The bitmask encodes group membership (up to 31 groups, bits 0-30). Each rule carries a `group_mask` field: if `group_mask == 0`, the rule is a **floating rule** and applies to all interfaces. Otherwise, the eBPF program looks up the current interface's ifindex in `INTERFACE_GROUPS`, ANDs the result with the rule's `group_mask`, and skips the rule if the result is zero. Bit 31 is the inversion flag — when set, the match logic is inverted (rule applies to all interfaces *except* those in the specified groups).
+The bitmask encodes group membership (up to 31 groups, bits 0-30). Each rule carries a `group_mask` field: if `group_mask == 0`, the rule is a **floating rule** and applies to all interfaces. Otherwise, the eBPF program looks up the current interface's ifindex in `INTERFACE_GROUPS`, ANDs the result with the rule's `group_mask`, and skips the rule if the result is zero. Bit 31 is the inversion flag - when set, the match logic is inverted (rule applies to all interfaces *except* those in the specified groups).
 
 ## Map Synchronization (Userspace → Kernel)
 
@@ -290,7 +290,7 @@ Several maps are shared across programs via BPF filesystem pinning at `/sys/fs/b
 | `CT_CONFIG` | 1 entry × 72 B | tc-conntrack, xdp-firewall | Conntrack config + thresholds |
 | `CT_NF_CONN_OFFSETS` | 1 entry × 16 B | tc-conntrack, xdp-firewall | Runtime BTF offsets for `nf_conn` |
 
-Connection tracking uses **kernel netfilter** directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs — no userspace shadow tables. The `CT_NF_CONN_OFFSETS` map holds runtime-resolved `nf_conn` field offsets (populated at startup from vmlinux BTF via `bpftool`) so BPF programs can read `nf_conn->status` via `bpf_probe_read_kernel`.
+Connection tracking uses **kernel netfilter** directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs - no userspace shadow tables. The `CT_NF_CONN_OFFSETS` map holds runtime-resolved `nf_conn` field offsets (populated at startup from vmlinux BTF via `bpftool`) so BPF programs can read `nf_conn->status` via `bpf_probe_read_kernel`.
 
 Userspace uses `Map::pin()` at startup and `Map::from_pin()` in subsequent program loads.
 

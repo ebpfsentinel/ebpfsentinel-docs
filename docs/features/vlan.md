@@ -76,4 +76,4 @@ When the outer EtherType is `0x88A8` (802.1ad), the eBPF parser recognizes a Qin
 | `ebpf-common` | `PacketEvent.vlan_id` field, `FLAG_VLAN` flag |
 | `ebpf-programs` | VLAN and QinQ header parsing in `xdp-firewall` and the TC programs |
 | `domain` | VLAN-aware firewall rule matching |
-| `infrastructure` | Config validation for VLAN IDs (0–4094) |
+| `infrastructure` | Config validation for VLAN IDs (0-4094) |

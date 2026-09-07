@@ -21,9 +21,9 @@ SYN-flood mitigation (kernel-issued SYN cookie forging via `XDP_TX`) is configur
 
 ### Kernel-Side Implementation
 
-- **PerCPU Hash maps** — lock-free per-IP counters (no cross-CPU contention)
-- **`bpf_timer`** — periodic bucket expiration and cleanup without userspace intervention
-- **`bpf_get_prandom_u32`** — jitter for timer-based operations to avoid thundering herd
+- **PerCPU Hash maps** - lock-free per-IP counters (no cross-CPU contention)
+- **`bpf_timer`** - periodic bucket expiration and cleanup without userspace intervention
+- **`bpf_get_prandom_u32`** - jitter for timer-based operations to avoid thundering herd
 - **Suspend-aware timestamps** via `bpf_ktime_get_boot_ns`
 
 ### Tail-Call Integration
@@ -48,7 +48,7 @@ The defaults are stored under key `{src_ip: 0}` and cover every source no rule n
 
 ### Per-Country Rate Limit Tiers (LPM)
 
-Country-specific rate limits are enforced via dedicated kernel-side LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). Each tier maps a set of country codes to a rate limit profile (rate, burst, algorithm, action). The LPM lookup runs **before** per-IP rule matching — if a source IP falls within a country tier's CIDR range, the tier's config is used instead.
+Country-specific rate limits are enforced via dedicated kernel-side LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). Each tier maps a set of country codes to a rate limit profile (rate, burst, algorithm, action). The LPM lookup runs **before** per-IP rule matching - if a source IP falls within a country tier's CIDR range, the tier's config is used instead.
 
 Tier configurations are stored in `RL_TIER_CONFIG` (an eBPF Array map, up to 16 tiers). Country CIDRs are resolved from the GeoIP database and loaded at startup and config reload.
 

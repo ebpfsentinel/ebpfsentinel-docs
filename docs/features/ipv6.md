@@ -4,7 +4,7 @@
 
 ## Overview
 
-eBPFsentinel provides full dual-stack IPv4/IPv6 support across all eBPF programs and domain engines. IPv6 is not a bolt-on feature — it is integrated into the core packet processing path.
+eBPFsentinel provides full dual-stack IPv4/IPv6 support across all eBPF programs and domain engines. IPv6 is not a bolt-on feature - it is integrated into the core packet processing path.
 
 ## eBPF Programs
 
@@ -14,22 +14,22 @@ Six header types are walked: Hop-by-Hop (0), Routing (43), Fragment (44), AH (51
 
 The walk is bounded to **six iterations**, which the eBPF verifier requires. A chain of more than six extension headers is not walked to its end: the seventh header's own type is returned as the upper-layer protocol, with the offset pointing at that header rather than at TCP or UDP.
 
-- **Firewall** — separate LPM trie maps for IPv4 and IPv6 (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`)
-- **Conntrack** — `ConnKeyV6` / `ConnValueV6` with 128-bit NAT addresses, shared LRU map between programs
-- **NAT Ingress/Egress** — `NatRuleEntryV6` with per-word mask matching, L4 pseudo-header checksum updates (no `bpf_l3_csum_replace` needed for IPv6), NPTv6 (RFC 6296) stateless prefix translation
-- **Scrub** — hop limit normalization (IPv6 equivalent of TTL), MSS clamping (reused from IPv4 path)
-- **Threat Intel** — separate V6 maps for IOC lookups
-- **Rate Limiting** — IPv6 addresses are XOR-folded to `u32` for per-CPU hash map keys
-- **IDS** — port-only keys (IP version agnostic)
-- **DNS** — captures queries over both IPv4 and IPv6
+- **Firewall** - separate LPM trie maps for IPv4 and IPv6 (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`)
+- **Conntrack** - `ConnKeyV6` / `ConnValueV6` with 128-bit NAT addresses, shared LRU map between programs
+- **NAT Ingress/Egress** - `NatRuleEntryV6` with per-word mask matching, L4 pseudo-header checksum updates (no `bpf_l3_csum_replace` needed for IPv6), NPTv6 (RFC 6296) stateless prefix translation
+- **Scrub** - hop limit normalization (IPv6 equivalent of TTL), MSS clamping (reused from IPv4 path)
+- **Threat Intel** - separate V6 maps for IOC lookups
+- **Rate Limiting** - IPv6 addresses are XOR-folded to `u32` for per-CPU hash map keys
+- **IDS** - port-only keys (IP version agnostic)
+- **DNS** - captures queries over both IPv4 and IPv6
 
 ## PacketEvent Structure
 
 The `PacketEvent` (96 bytes) carries IPv6 addresses natively:
 
-- `src_addr: [u32; 4]` — source address (IPv4 uses index 0 only)
-- `dst_addr: [u32; 4]` — destination address
-- `flags` — `FLAG_IPV6` set for IPv6 packets
+- `src_addr: [u32; 4]` - source address (IPv4 uses index 0 only)
+- `dst_addr: [u32; 4]` - destination address
+- `flags` - `FLAG_IPV6` set for IPv6 packets
 - Domain engines check the flag to interpret the address fields correctly
 
 ## Configuration

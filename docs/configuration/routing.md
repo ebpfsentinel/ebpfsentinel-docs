@@ -47,13 +47,13 @@ Gateway names and ids must be unique, `gateway_ip` must be an IPv4 next hop, and
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | u8 | — | Unique gateway ID (0–255) |
-| `name` | string | — | Human-readable name |
-| `interface` | string | — | Network interface |
-| `gateway_ip` | string | — | Next-hop IP address |
+| `id` | u8 | - | Unique gateway ID (0-255) |
+| `name` | string | - | Human-readable name |
+| `interface` | string | - | Network interface |
+| `gateway_ip` | string | - | Next-hop IP address |
 | `priority` | u32 | `100` | Selection priority (lower = preferred) |
 | `enabled` | bool | `true` | Enable/disable without removing |
-| `health_check` | object | — | Optional health probe |
+| `health_check` | object | - | Optional health probe |
 
 ### Health Check Fields
 

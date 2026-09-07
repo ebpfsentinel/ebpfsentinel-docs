@@ -1,7 +1,7 @@
 # Kubernetes Deployment
 
 > DaemonSet mode supports all features. The agent requires kernel 6.9+
-> and loads eBPF **exclusively** through a **BPF token** — there is no
+> and loads eBPF **exclusively** through a **BPF token** - there is no
 > capability-based fallback. The container entrypoint is the launcher
 > (`ebpfsentinel-token-launch`), which creates the token in a child user
 > namespace and then execs the agent unprivileged; the pod is granted
@@ -10,7 +10,7 @@
 > [deployment compatibility matrix](../../features/deployment-matrix.md)
 > for details.
 
-Deploy eBPFsentinel as a DaemonSet — one agent per node.
+Deploy eBPFsentinel as a DaemonSet - one agent per node.
 
 > **Rootless agent option:** to keep the agent container itself off `CAP_SYS_ADMIN`
 > (non-root + `cap-drop: ALL`), use the **split-broker** layout
@@ -22,7 +22,7 @@ Deploy eBPFsentinel as a DaemonSet — one agent per node.
 
 The agent requires kernel 6.9+ and loads eBPF only through a
 **[BPF token](bpf-token.md)**. Token creation happens **in-process** when
-the container starts — there is **no init container** and no setup script.
+the container starts - there is **no init container** and no setup script.
 The image entrypoint is `ebpfsentinel-token-launch`, which:
 
 1. starts as container root (`CAP_SYS_ADMIN`) and inherits the kernel
@@ -30,7 +30,7 @@ The image entrypoint is `ebpfsentinel-token-launch`, which:
 2. unshares a **child user namespace**, `fsopen("bpf")`s and applies
    `delegate_*=any` to mount the delegated bpffs at
    `/sys/fs/bpf/ebpfsentinel` (`BPF_TOKEN_CREATE` is `EOPNOTSUPP` outside a
-   user namespace — hence the launcher),
+   user namespace - hence the launcher),
 3. pre-opens the `AF_PACKET` pcap sockets, then execs the agent **inside
    that user namespace**, where it calls `BPF_TOKEN_CREATE` and loads every
    program through the token holding no host capabilities.
@@ -39,7 +39,7 @@ So the pod's `securityContext` grants `CAP_SYS_ADMIN` with
 `allowPrivilegeEscalation: true` for the launcher bootstrap; the
 long-running agent is unprivileged. The agent config only needs
 `agent.bpf_token.bpffs_path` to match the launcher's `--bpffs` (both
-default `/sys/fs/bpf/ebpfsentinel`) — see the [ConfigMap](#configmap).
+default `/sys/fs/bpf/ebpfsentinel`) - see the [ConfigMap](#configmap).
 
 > **Note:** nested user namespaces + bpffs delegation inside a pod can
 > require cluster-specific runtime config (the node must allow unprivileged
@@ -70,7 +70,7 @@ spec:
       hostNetwork: true
       hostPID: true                  # needed for uprobe DLP visibility
       dnsPolicy: ClusterFirstWithHostNet
-      # No init container — the image entrypoint (ebpfsentinel-token-launch)
+      # No init container - the image entrypoint (ebpfsentinel-token-launch)
       # sets up the delegated bpffs + token in a child userns, then execs the
       # agent there. The agent's args below are appended to that entrypoint.
       containers:
@@ -150,7 +150,7 @@ spec:
         - name: bpf
           # Real node: the host bpffs is writable, so bind it in. On nested
           # runtimes (kind, minikube) the node's own /sys/fs/bpf may be
-          # read-only — use an in-pod tmpfs instead:
+          # read-only - use an in-pod tmpfs instead:
           #   emptyDir: { medium: Memory }
           hostPath:
             path: /sys/fs/bpf
@@ -211,7 +211,7 @@ subjects:
     namespace: ebpfsentinel
 ```
 
-The OSS agent only reads `pods` — no other API group. You can audit
+The OSS agent only reads `pods` - no other API group. You can audit
 this with `kubectl describe clusterrole ebpfsentinel-pod-reader`.
 
 ## ConfigMap
@@ -294,7 +294,7 @@ clsact qdisc.
 
 No extra configuration is needed: `agent.attach_mode` defaults to `auto`,
 which uses netkit when the interface is a netkit device and falls back to TC
-clsact otherwise — the same DaemonSet works on bare metal, veth, and netkit
+clsact otherwise - the same DaemonSet works on bare metal, veth, and netkit
 clusters. A background watcher polls every 5 s and **hot-plugs** newly
 scheduled pod interfaces, attaching all loaded TC programs without an agent
 restart (and detaching when the pod is deleted). It also correlates each new
@@ -352,7 +352,7 @@ agent:
   eventWorkers: 4
   # BPF token delegation. eBPF loads EXCLUSIVELY through the token; the only
   # knob is where the launcher mounts the delegated bpffs (must match its
-  # --bpffs). There is no enable/fallback toggle — token is the only path.
+  # --bpffs). There is no enable/fallback toggle - token is the only path.
   bpfToken:
     bpffsPath: /sys/fs/bpf/ebpfsentinel
 
@@ -503,36 +503,36 @@ spec:
 ## Requirements
 
 - Kernel 6.9+ with BTF - the agent's minimum (BPF token delegation and the kfunc surface)
-- `hostNetwork: true` — XDP/TC programs attach to host interfaces
-- `hostPID: true` — uprobe DLP visibility across the node
+- `hostNetwork: true` - XDP/TC programs attach to host interfaces
+- `hostPID: true` - uprobe DLP visibility across the node
 - `CAP_SYS_ADMIN` + `allowPrivilegeEscalation: true` on the agent
-  container — consumed by the launcher entrypoint for bpffs delegation;
+  container - consumed by the launcher entrypoint for bpffs delegation;
   the agent it execs is unprivileged. **No init container.**
-- `CAP_NET_RAW` (optional) — lets the launcher pre-open the `AF_PACKET`
+- `CAP_NET_RAW` (optional) - lets the launcher pre-open the `AF_PACKET`
   pcap socket pool; drop it if you never run packet capture
-- `appArmorProfile.type: Unconfined` + `seccompProfile.type: Unconfined` —
+- `appArmorProfile.type: Unconfined` + `seccompProfile.type: Unconfined` -
   the launcher issues `mount`/`move_mount` and writes `/proc/self/uid_map`,
   which the default container AppArmor/seccomp profile blocks on hardened
   nodes (e.g. Ubuntu)
-- The node must **allow unprivileged user namespaces** — the launcher
+- The node must **allow unprivileged user namespaces** - the launcher
   creates the token inside a child userns (`BPF_TOKEN_CREATE` is
   `EOPNOTSUPP` otherwise)
 - `/sys/fs/bpf` hostPath mount (`mountPropagation: HostToContainer` on the
-  agent container) — a container's `/sys` is read-only, so the launcher needs
+  agent container) - a container's `/sys` is read-only, so the launcher needs
   this writable host bpffs to create the delegated mountpoint. On nested
   runtimes (kind, minikube) whose `/sys/fs/bpf` is itself read-only, use an
   in-pod `emptyDir: { medium: Memory }` instead
-- `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) — required
+- `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) - required
   by the container resolver when running inside a pod
 - Helm 3.x
 
 ### When the token cannot be created
 
-There is **no capability-based fallback** — eBPF loads only through the
+There is **no capability-based fallback** - eBPF loads only through the
 token. If the node disallows unprivileged user namespaces, or the runtime
 / Pod Security Admission level blocks `CAP_SYS_ADMIN`, the launcher cannot
 delegate the bpffs and the agent starts in **API-only mode** (no eBPF
 attached, `ebpfsentinel_bpf_token_used` reads `0`). Fix the cluster
-runtime config rather than reaching for a capability set — granting
+runtime config rather than reaching for a capability set - granting
 `CAP_BPF`/`CAP_NET_ADMIN` does **not** create an alternate loading path.
 See the [BPF token guide](bpf-token.md#troubleshooting).

@@ -1,6 +1,6 @@
 # Rate Limiting Configuration
 
-The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) — it is configured under `ddos`, not as a rate-limit algorithm.
+The `ratelimit` section configures DDoS protection rules with four available algorithms. For SYN-flood mitigation (SYN cookies), see [DDoS protection](ddos.md) - it is configured under `ddos`, not as a rate-limit algorithm.
 
 This section also carries the eBPF program the whole [`ddos`](ddos.md) section runs in, so `ratelimit.enabled: false` with `ddos.enabled: true` is refused at startup.
 
@@ -45,13 +45,13 @@ ratelimit:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `id` | `string` | Yes | — | Unique identifier |
-| `rate` | `integer` | Yes | — | Packets per second |
-| `burst` | `integer` | Yes | — | Burst capacity |
+| `id` | `string` | Yes | - | Unique identifier |
+| `rate` | `integer` | Yes | - | Packets per second |
+| `burst` | `integer` | Yes | - | Burst capacity |
 | `algorithm` | `string` | No | `token_bucket` | See algorithms below |
 | `action` | `string` | No | `drop` | Action when the limit is exceeded: `drop` or `pass` |
-| `src_ip` | `string` | Yes | — | Source host this rule limits, as a bare address or a `/32` |
-| `interfaces` | `[string]` | No | — | Restrict the rule to specific interfaces or interface groups |
+| `src_ip` | `string` | Yes | - | Source host this rule limits, as a bare address or a `/32` |
+| `interfaces` | `[string]` | No | - | Restrict the rule to specific interfaces or interface groups |
 | `tenant_id` | `integer` | No | `0` | Tenant this rule belongs to. `0` is global and limits the source address whichever tenant it resolves to. A non-zero value only limits that source inside the named tenant, and takes precedence over a global rule for the same address. An agent without tenant attribution resolves every packet to `0` |
 | `enabled` | `bool` | No | `true` | Enable or disable this rule |
 
@@ -63,7 +63,7 @@ Two rules naming the same source are also refused: one source carries one bucket
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tier_id` | `integer` | Yes | Tier identifier (1–15) |
+| `tier_id` | `integer` | Yes | Tier identifier (1-15) |
 | `country_codes` | `[string]` | Yes | ISO 3166-1 alpha-2 country codes assigned to this tier |
 | `rate` | `integer` | Yes | Packets per second for this tier |
 | `burst` | `integer` | Yes | Burst capacity for this tier |

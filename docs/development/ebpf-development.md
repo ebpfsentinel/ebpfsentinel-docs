@@ -122,9 +122,9 @@ The `ebpf-helpers` crate provides shared utilities for all eBPF programs:
 
 | Module | Contents |
 |--------|----------|
-| `asm` | `copy_mac_asm!` (6-byte MAC), `copy_16b_asm!` (16-byte IPv6 addr) — inline asm to prevent LLVM memcpy outlining |
-| `checksum` | `compute_ipv4_csum`, `compute_tcp_csum_v4/v6`, `compute_icmp_csum`, `compute_icmpv6_csum` — fixed-iteration checksums |
-| `event` | `emit_packet_event!` — shared PacketEvent emission with backpressure (TC and XDP variants) |
+| `asm` | `copy_mac_asm!` (6-byte MAC), `copy_16b_asm!` (16-byte IPv6 addr) - inline asm to prevent LLVM memcpy outlining |
+| `checksum` | `compute_ipv4_csum`, `compute_tcp_csum_v4/v6`, `compute_icmp_csum`, `compute_icmpv6_csum` - fixed-iteration checksums |
+| `event` | `emit_packet_event!` - shared PacketEvent emission with backpressure (TC and XDP variants) |
 | `metrics` | `increment_metric!`, `add_metric!` |
 | `net` | Header structs, constants, `ones_complement_add`, `prefix_to_mask` (NPTv6) |
 | `ringbuf` | `ringbuf_has_backpressure!` |
@@ -133,10 +133,10 @@ The `ebpf-helpers` crate provides shared utilities for all eBPF programs:
 
 ## Common Pitfalls
 
-- **Verifier rejection** — ensure all memory accesses are bounds-checked
-- **Stack overflow** — eBPF stack is 512 bytes; use maps for large data
-- **Loop limits** — use `bpf_loop` (5.17+) for variable-count iterations
-- **Helper availability** — check kernel version for helper functions
-- **LLVM memcpy outlining** — use `copy_mac_asm!` / `copy_16b_asm!` for `[u8; 6]` / `[u8; 16]` copies from packet pointers
-- **Combined stack overflow** — split packet-writing functions into tail-called programs
-- **Division panic at address 0** — guard all map-derived divisors with `!= 0` check
+- **Verifier rejection** - ensure all memory accesses are bounds-checked
+- **Stack overflow** - eBPF stack is 512 bytes; use maps for large data
+- **Loop limits** - use `bpf_loop` (5.17+) for variable-count iterations
+- **Helper availability** - check kernel version for helper functions
+- **LLVM memcpy outlining** - use `copy_mac_asm!` / `copy_16b_asm!` for `[u8; 6]` / `[u8; 16]` copies from packet pointers
+- **Combined stack overflow** - split packet-writing functions into tail-called programs
+- **Division panic at address 0** - guard all map-derived divisors with `!= 0` check

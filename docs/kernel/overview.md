@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel ships 16 eBPF programs that run in the Linux kernel to inspect, filter, and forward network packets at wire speed — before they ever reach the userspace TCP/IP stack. Fifteen make up the production datapath; the sixteenth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 16 eBPF programs that run in the Linux kernel to inspect, filter, and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack. Fifteen make up the production datapath; the sixteenth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -66,13 +66,13 @@ XDP programs can be attached in three modes, controlled by [`agent.xdp_mode`](..
 
 | Mode | Where it runs | `sk_buff` allocated? | Performance | Kernel requirement |
 |------|--------------|---------------------|-------------|-------------------|
-| **Native** (`drv`) | Inside the NIC driver's receive path | No | Fastest — zero-copy packet access | Driver must implement `ndo_bpf` |
-| **Generic** (`skb`) | After the kernel allocates an `sk_buff` | Yes | Slower — same as TC hook | Any interface (universal) |
+| **Native** (`drv`) | Inside the NIC driver's receive path | No | Fastest - zero-copy packet access | Driver must implement `ndo_bpf` |
+| **Generic** (`skb`) | After the kernel allocates an `sk_buff` | Yes | Slower - same as TC hook | Any interface (universal) |
 | **Offloaded** (`hw`) | On the NIC hardware itself | No | Line-rate, zero CPU | SmartNIC required (Netronome NFP) |
 
 In **auto** mode (default), the kernel tries native first, then falls back to generic. If native is explicitly requested but unsupported, eBPFsentinel falls back to auto and logs a warning.
 
-> **Performance impact**: native XDP on `virtio_net` (common in VMs) processes packets before any kernel allocation. Generic XDP loses this advantage — packets are already wrapped in `sk_buff` when the program runs. On a 4 vCPU VM, the difference is typically 2-3x throughput for pure XDP_DROP workloads.
+> **Performance impact**: native XDP on `virtio_net` (common in VMs) processes packets before any kernel allocation. Generic XDP loses this advantage - packets are already wrapped in `sk_buff` when the program runs. On a 4 vCPU VM, the difference is typically 2-3x throughput for pure XDP_DROP workloads.
 
 ## Dynamic Program Lifecycle
 

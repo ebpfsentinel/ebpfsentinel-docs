@@ -13,7 +13,7 @@ eBPFsentinel supports GDPR Article 32 technical measures for network security.
 | Art. 33 | Breach notification | Alerting pipeline |
 | Art. 35 | DPIA | Audit trail, monitoring evidence |
 
-## Art. 32(1)(a) — Encryption
+## Art. 32(1)(a) - Encryption
 
 ```yaml
 tls:
@@ -31,7 +31,7 @@ Encryption and key management hardening:
 - **Token revocation** allows immediate invalidation of compromised credentials
 - **Auth rate limiting** protects against brute-force attempts on authentication endpoints
 
-## Art. 32(1)(b) — Confidentiality
+## Art. 32(1)(b) - Confidentiality
 
 ```yaml
 firewall:
@@ -47,7 +47,7 @@ dlp:
   enabled: true    # OSS built-in patterns detect PII automatically
 ```
 
-## Art. 33 — Breach Notification
+## Art. 33 - Breach Notification
 
 Configure alerting for potential data breach detection:
 
@@ -65,7 +65,7 @@ alerting:
 
 eBPFsentinel supports data minimization principles:
 
-- eBPF programs process packets in-kernel — only events matching rules are forwarded to userspace
+- eBPF programs process packets in-kernel - only events matching rules are forwarded to userspace
 - IDS sampling reduces the volume of inspected traffic
 - DNS cache TTLs ensure data is not retained indefinitely
 - Audit trail retention is configurable

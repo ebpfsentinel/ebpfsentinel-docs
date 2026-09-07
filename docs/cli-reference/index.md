@@ -84,7 +84,7 @@ Severity levels are color-coded: **critical** = red, **high** = yellow, **medium
 
 ### score
 
-Network risk score — single 0-10 metric summarizing security posture based on alert severity, DDoS activity, blacklisted IPs, threat intel IOCs, and connection count.
+Network risk score - single 0-10 metric summarizing security posture based on alert severity, DDoS activity, blacklisted IPs, threat intel IOCs, and connection count.
 
 ```bash
 ebpfsentinel-agent score
@@ -118,7 +118,7 @@ Example output:
 
 ### investigate
 
-Correlate all data about an IP address — alerts, connections, DNS, blacklist, and threat intel IOCs. Supports both IPv4 and IPv6.
+Correlate all data about an IP address - alerts, connections, DNS, blacklist, and threat intel IOCs. Supports both IPv4 and IPv6.
 
 ```bash
 # Investigate an IPv4 address
@@ -164,7 +164,7 @@ Example output:
 
 ### status
 
-Enhanced agent dashboard — shows version, uptime, eBPF programs, conntrack, DDoS status, and recent alerts in one view.
+Enhanced agent dashboard - shows version, uptime, eBPF programs, conntrack, DDoS status, and recent alerts in one view.
 
 ```bash
 ebpfsentinel-agent status
@@ -189,7 +189,7 @@ eBPFsentinel v0.1.0 -- up 3h 12m 05s -- 24 rules loaded
 
 ### top
 
-Top talkers — live view of the most active connections sorted by traffic volume.
+Top talkers - live view of the most active connections sorted by traffic volume.
 
 ```bash
 # Default: top 20 by bytes
@@ -221,7 +221,7 @@ SOURCE                  PORT  DESTINATION            PORT  PROTO  STATE   BYTES 
 
 ### flows
 
-Network flows — aggregated connection map from conntrack, grouped by /24 subnet (IPv4) or /48 (IPv6).
+Network flows - aggregated connection map from conntrack, grouped by /24 subnet (IPv4) or /48 (IPv6).
 
 ```bash
 # Default: aggregate up to 1000 connections

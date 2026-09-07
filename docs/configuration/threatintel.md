@@ -1,6 +1,6 @@
 # Threat Intelligence Configuration
 
-The `threatintel` section configures external OSINT feeds for IOC-based threat detection. Feeds are **source-agnostic** — any HTTP/HTTPS endpoint serving indicators in plaintext, CSV, JSON, or STIX 2.1 bundle format works through field mappings.
+The `threatintel` section configures external OSINT feeds for IOC-based threat detection. Feeds are **source-agnostic** - any HTTP/HTTPS endpoint serving indicators in plaintext, CSV, JSON, or STIX 2.1 bundle format works through field mappings.
 
 ## Reference
 
@@ -38,23 +38,23 @@ threatintel:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable/disable threat intelligence |
 | `mode` | `string` | `"alert"` | Global enforcement mode. `"alert"` = log matches, pass traffic. `"block"` = drop traffic to/from IOC-listed IPs |
-| `country_confidence_boost` | `map<string, integer>` | `{}` | Per-country confidence adjustment (ISO 3166-1 alpha-2 → signed integer). Positive values increase IOC confidence for traffic from listed countries, negative values decrease it. Values are clamped to 0–100 after adjustment |
+| `country_confidence_boost` | `map<string, integer>` | `{}` | Per-country confidence adjustment (ISO 3166-1 alpha-2 → signed integer). Positive values increase IOC confidence for traffic from listed countries, negative values decrease it. Values are clamped to 0-100 after adjustment |
 | `feeds` | `[Feed]` | `[]` | List of feed configurations |
 
 ### Feed
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `id` | `string` | Yes | — | Unique feed identifier |
-| `name` | `string` | Yes | — | Human-readable feed name |
-| `url` | `string` | Yes | — | Feed URL. Must use `http://` or `https://` (SSRF prevention) |
+| `id` | `string` | Yes | - | Unique feed identifier |
+| `name` | `string` | Yes | - | Human-readable feed name |
+| `url` | `string` | Yes | - | Feed URL. Must use `http://` or `https://` (SSRF prevention) |
 | `format` | `string` | No | `"plaintext"` | Data format: `plaintext`, `txt`, `text`, `csv`, `json`, `stix` |
 | `enabled` | `bool` | No | `true` | Enable/disable this feed |
 | `refresh_interval_secs` | `integer` | No | `3600` | Seconds between re-fetches. Must be > 0 |
 | `max_iocs` | `integer` | No | `500000` | Maximum IOCs to load. Excess entries are truncated |
-| `default_action` | `string` | No | — | `"alert"` or `"block"` (`monitor` and `observe` are accepted as `alert`, `enforce` as `block`). Validated at config load and carried onto the feed, but not applied. See below |
+| `default_action` | `string` | No | - | `"alert"` or `"block"` (`monitor` and `observe` are accepted as `alert`, `enforce` as `block`). Validated at config load and carried onto the feed, but not applied. See below |
 | `min_confidence` | `integer` | No | `0` | Minimum confidence (0-100). IOCs below this are rejected |
-| `auth_header` | `string` | No | — | HTTP header sent with requests. Format: `"Header-Name: value"` |
+| `auth_header` | `string` | No | - | HTTP header sent with requests. Format: `"Header-Name: value"` |
 
 Every IOC from every feed is loaded into one kernel map under one enforcement
 flag, which the top-level `mode` sets. There is no per-feed flag in the
@@ -72,10 +72,10 @@ These fields configure how the parser extracts IOC data from structured feeds. T
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `ip_field` | `string` | `"ip"` | Column name (CSV) or field name (JSON) containing the IP address |
-| `confidence_field` | `string` | — | Column/field for confidence score. If absent, confidence defaults to 100 |
-| `category_field` | `string` | — | Column/field for threat category (see values below). If absent, defaults to `other` |
+| `confidence_field` | `string` | - | Column/field for confidence score. If absent, confidence defaults to 100 |
+| `category_field` | `string` | - | Column/field for threat category (see values below). If absent, defaults to `other` |
 | `separator` | `char` | `","` | Field separator for CSV feeds |
-| `comment_prefix` | `string` | — | Lines starting with this prefix are skipped (e.g. `"#"`, `";"`) |
+| `comment_prefix` | `string` | - | Lines starting with this prefix are skipped (e.g. `"#"`, `";"`) |
 | `skip_header` | `bool` | `false` | Skip the first line (CSV column header) |
 
 ### Category Values
@@ -99,7 +99,7 @@ One IP per line. Lines starting with `comment_prefix` (default: `#`) are skipped
 ```
 # This is a comment
 192.168.1.1         # Inline comment OK
-10.0.0.0/8          # CIDR — skipped
+10.0.0.0/8          # CIDR - skipped
 203.0.113.42
 ```
 
@@ -235,7 +235,7 @@ threatintel:
 
 ## Examples
 
-### Minimal — single plaintext feed
+### Minimal - single plaintext feed
 
 ```yaml
 agent:
@@ -260,7 +260,7 @@ threatintel:
   mode: block
 
   feeds:
-    # Plaintext — IP blocklist, daily refresh
+    # Plaintext - IP blocklist, daily refresh
     - id: spamhaus-drop
       name: Spamhaus DROP
       url: https://www.spamhaus.org/drop/drop.txt
@@ -268,7 +268,7 @@ threatintel:
       comment_prefix: ";"
       refresh_interval_secs: 86400
 
-    # CSV — botnet C2 tracker, high confidence only
+    # CSV - botnet C2 tracker, high confidence only
     - id: feodo-tracker
       name: Feodo Tracker Botnet C2
       url: https://feodotracker.abuse.ch/downloads/ipblocklist.csv
@@ -279,7 +279,7 @@ threatintel:
       min_confidence: 75
       refresh_interval_secs: 1800
 
-    # JSON — authenticated API, alert-only override
+    # JSON - authenticated API, alert-only override
     - id: otx-malicious
       name: AlienVault OTX
       url: https://otx.alienvault.com/api/v1/indicators/export

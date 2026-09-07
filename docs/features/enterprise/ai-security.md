@@ -97,7 +97,7 @@ PUT /api/v1/enterprise/ai-security/shadow-ai/policy
 
 ## AI-aware DLP
 
-Regex-based payload scanning applied when traffic is destined for an AI provider. Separate from the Vectorscan-based enterprise DLP — this is a lightweight, AI-context-specific scanner.
+Regex-based payload scanning applied when traffic is destined for an AI provider. Separate from the Vectorscan-based enterprise DLP - this is a lightweight, AI-context-specific scanner.
 
 ```yaml
 enterprise:
@@ -263,17 +263,17 @@ Status returns:
 
 | Metric | Type | Labels |
 |--------|------|--------|
-| `ai_providers_loaded` | Gauge | — |
+| `ai_providers_loaded` | Gauge | - |
 | `ai_provider_matches` | Counter | provider |
 | `ai_shadow_detections` | Counter | provider, action |
 | `ai_shadow_bytes` | Counter | provider |
-| `ai_dlp_scans` | Counter | — |
+| `ai_dlp_scans` | Counter | - |
 | `ai_dlp_matches` | Counter | pattern_id |
-| `ai_dlp_blocks` | Counter | — |
+| `ai_dlp_blocks` | Counter | - |
 | `ai_exfil_detections` | Counter | detection_type |
 | `ai_exfil_bytes` | Counter | provider |
 | `ai_enc_dns_detections` | Counter | resolver, action |
-| `ai_enc_dns_bypassed` | Counter | — |
+| `ai_enc_dns_bypassed` | Counter | - |
 
 ## REST API
 

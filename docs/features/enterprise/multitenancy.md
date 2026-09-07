@@ -4,7 +4,7 @@
 
 ## Overview
 
-Hybrid tenant identification for multi-tenant environments. Supports three isolation modes — interface-based (containers/namespaces), subnet-based (bare-metal shared interfaces), and VLAN-based — all combinable per tenant. Enforcement happens at the eBPF kernel level with per-tenant rule scoping, resource quotas, tenant-aware RBAC, and scoped alert/audit streams.
+Hybrid tenant identification for multi-tenant environments. Supports three isolation modes - interface-based (containers/namespaces), subnet-based (bare-metal shared interfaces), and VLAN-based - all combinable per tenant. Enforcement happens at the eBPF kernel level with per-tenant rule scoping, resource quotas, tenant-aware RBAC, and scoped alert/audit streams.
 
 ## Tenant Model
 
@@ -17,7 +17,7 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `subnets` | IP subnets assigned to this tenant (bare-metal mode, IPv4 + IPv6 CIDR) |
 | `vlans` | VLAN IDs assigned to this tenant (bare-metal mode) |
 | `description` | Optional description |
-| `tenant_id` | Numeric tenant identifier — allocated once (`max + 1`) and **stable** for the life of the tenant; adding/suspending/removing other tenants never renumbers it. The default tenant is always `0`. |
+| `tenant_id` | Numeric tenant identifier - allocated once (`max + 1`) and **stable** for the life of the tenant; adding/suspending/removing other tenants never renumbers it. The default tenant is always `0`. |
 | `quota` | Per-tenant resource limits |
 | `status` | `Active` or `Suspended`|
 | `source` | `Config` (YAML) or `Api` (dynamic creation) |
@@ -56,12 +56,12 @@ Resolution runs in all 6 eBPF programs that enforce rules: xdp-firewall, xdp-rat
 
 Containers on a shared bridge carry no VLAN tag, sit behind no dedicated interface, and usually share one subnet, so the first three modes cannot tell them apart. The remaining signal is the cgroup the traffic originated from.
 
-Unlike VLANs, interfaces and subnets, a cgroup id is not something an operator declares: the kernel mints one per container at creation and recycles it after destruction. The agent therefore discovers the mapping at runtime — it polls the cgroup v2 hierarchy, reads each container's labels from the runtime, resolves a tenant, and writes `TENANT_CGROUP_MAP`. When a container exits its entry is removed in the same pass, so a recycled id can never inherit the previous tenant.
+Unlike VLANs, interfaces and subnets, a cgroup id is not something an operator declares: the kernel mints one per container at creation and recycles it after destruction. The agent therefore discovers the mapping at runtime - it polls the cgroup v2 hierarchy, reads each container's labels from the runtime, resolves a tenant, and writes `TENANT_CGROUP_MAP`. When a container exits its entry is removed in the same pass, so a recycled id can never inherit the previous tenant.
 
 A container is attributed to a tenant by:
 
-1. **Explicit claim** — the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
-2. **Kubernetes namespace** — when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
+1. **Explicit claim** - the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
+2. **Kubernetes namespace** - when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
 
 Labels are read over the Docker Engine API, which also serves Podman's compatible socket. Nodes running a CRI runtime with no Docker-compatible socket keep using VLAN, interface or subnet attribution. Attribution is disabled by default because it requires the runtime socket and the host cgroup hierarchy to be visible to the agent.
 
@@ -81,7 +81,7 @@ Labels are read over the Docker Engine API, which also serves Podman's compatibl
 - By tenant ID (`id_to_index`)
 - By namespace (`namespace_to_tenant`)
 - By interface (`interface_to_tenant`)
-- By IP subnet (`parsed_subnets` — longest prefix match, IPv4 + IPv6)
+- By IP subnet (`parsed_subnets` - longest prefix match, IPv4 + IPv6)
 - By VLAN ID (`vlan_to_tenant`)
 - Fallback to default tenant for unmatched traffic
 
@@ -161,7 +161,7 @@ Each tenant has configurable resource limits (0 = unlimited):
 - `check_quota()` uses `saturating_add` to prevent overflow
 - `check_and_record()` performs **atomic check+record** under write lock to prevent TOCTOU races
 - `release_usage()` decrements usage on resource deletion (saturating)
-- Runtime quota updates via `PUT /api/v1/tenants/{id}/quota` with reduction protection — returns HTTP 429 if new limit would be below current usage
+- Runtime quota updates via `PUT /api/v1/tenants/{id}/quota` with reduction protection - returns HTTP 429 if new limit would be below current usage
 
 ## Tenant-Aware RBAC
 
@@ -179,13 +179,13 @@ Access control is scoped per tenant using JWT claims or API key headers.
 
 Identity is resolved from a **verified principal only**:
 
-1. **JWT claims** — `namespaces[0]` as tenant_id, `role` claim, `sub` as subject.
+1. **JWT claims** - `namespaces[0]` as tenant_id, `role` claim, `sub` as subject.
    The auth layer populates these for both a validated JWT **and** a validated
    API key.
 
 A request without a verified principal is treated as **unauthenticated**: it
 resolves to no tenant and the `Viewer` role. The `X-Tenant-Id` / `X-Tenant-Role`
-headers are **not** trusted to assert tenant or role — honouring them would let
+headers are **not** trusted to assert tenant or role - honouring them would let
 any client claim any tenant at any privilege. (`X-API-Key` is still read as the
 subject for audit only and confers no access.)
 
@@ -214,10 +214,10 @@ Error codes: `MISSING_TENANT_CLAIM`, `TENANT_MISMATCH`, `INSUFFICIENT_PERMISSION
 
 Userspace resolution complements the eBPF kernel resolution:
 
-- `resolve_tenant_for_interface(interface)` — by interface name
-- `resolve_tenant_for_ifindex(ifindex)` — by kernel interface index
-- `resolve_tenant_for_ip(ip)` — by IP address (subnet longest prefix match)
-- `resolve_tenant_for_vlan(vlan_id)` — by VLAN ID
+- `resolve_tenant_for_interface(interface)` - by interface name
+- `resolve_tenant_for_ifindex(ifindex)` - by kernel interface index
+- `resolve_tenant_for_ip(ip)` - by IP address (subnet longest prefix match)
+- `resolve_tenant_for_vlan(vlan_id)` - by VLAN ID
 
 ### Effective Tenant Filtering
 
@@ -232,7 +232,7 @@ Userspace resolution complements the eBPF kernel resolution:
 
 Tenants can be created, suspended, and reactivated dynamically via the REST API (in addition to YAML configuration). Dynamic tenants created via the API are automatically persisted to a **redb** state store and restored on agent restart.
 
-The tenant registry uses **ArcSwap** for lock-free reads on the hot path — tenant lookups (which happen on every packet in eBPF userspace fallback) never block, even during concurrent write operations like add/suspend/activate.
+The tenant registry uses **ArcSwap** for lock-free reads on the hot path - tenant lookups (which happen on every packet in eBPF userspace fallback) never block, even during concurrent write operations like add/suspend/activate.
 
 Dynamic tenant changes propagate to the kernel **live, without a restart**: after every create/suspend/activate the agent recomputes the VLAN→tenant, interface→tenant and subnet→tenant (IPv4/IPv6) resolution maps from the registry and pushes them into the loaded eBPF programs. Interfaces cross that boundary by name and are resolved to an ifindex on the node that writes the map, since an ifindex means nothing on any other node; a tenant interface absent from a given node is logged and skipped rather than failing the propagation. On an HA pair only the active (datapath-loaded) node writes the maps; a standby node's push is a no-op until it is promoted. Numeric `tenant_id` values are stable across these changes, so the maps and historical alerts stay consistent.
 
@@ -305,7 +305,7 @@ enterprise:
   tenants:
     enabled: true
     tenants:
-      # Container mode — dedicated interface per tenant
+      # Container mode - dedicated interface per tenant
       - id: team-alpha
         namespaces: [alpha, alpha-staging]
         interfaces: [veth-alpha]
@@ -314,21 +314,21 @@ enterprise:
           max_rules: 500
           max_alert_rate: 5000
 
-      # Bare-metal mode — subnet-based isolation (shared interface)
+      # Bare-metal mode - subnet-based isolation (shared interface)
       - id: client-a
         subnets: ["10.1.0.0/16", "172.16.1.0/24"]
 
-      # Bare-metal mode — VLAN-based isolation
+      # Bare-metal mode - VLAN-based isolation
       - id: client-b
         vlans: [100, 200]
 
-      # Hybrid mode — interface + subnet + VLAN
+      # Hybrid mode - interface + subnet + VLAN
       - id: client-c
         interfaces: [eth2]
         subnets: ["10.3.0.0/16", "fd00:abcd::/48"]
         vlans: [300]
 
-    # Cgroup mode — attribute containers from their labels
+    # Cgroup mode - attribute containers from their labels
     cgroup_attribution:
       enabled: true
       poll_interval_seconds: 10

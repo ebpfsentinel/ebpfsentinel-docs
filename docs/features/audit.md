@@ -8,7 +8,7 @@ The audit trail records all rule changes (create, update, delete) with timestamp
 
 ## How It Works
 
-Every modification to security rules — firewall, IDS/IPS, L7, rate limiting — generates an audit entry:
+Every modification to security rules - firewall, IDS/IPS, L7, rate limiting - generates an audit entry:
 
 ```json
 {

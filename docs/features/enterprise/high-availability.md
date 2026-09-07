@@ -301,7 +301,7 @@ enterprise:
 | `peers` | list | `[]` | Peer addresses (required when enabled) |
 | `heartbeat_ms` | u64 | `1000` | Heartbeat interval (must be > 0) |
 | `failure_threshold` | u32 | `3` | Missed heartbeats before failover (must be > 0) |
-| `max_replication_bandwidth` | u64 | — | Optional bandwidth cap in bytes/sec |
+| `max_replication_bandwidth` | u64 | - | Optional bandwidth cap in bytes/sec |
 | `replication_interval_ms` | u64 | `200` | Replication tick interval |
 | `split_brain_policy` | enum | `prefer_active` | Split-brain resolution policy |
 | `listen_addr` | string | `0.0.0.0:9443` | gRPC listen address |

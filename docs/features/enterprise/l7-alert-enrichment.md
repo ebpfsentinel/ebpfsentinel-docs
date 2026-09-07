@@ -4,9 +4,9 @@
 
 ## Overview
 
-The enterprise `L7Enricher` turns raw L7 detection signals — a
+The enterprise `L7Enricher` turns raw L7 detection signals - a
 Vectorscan inspect match from the deep content inspection engine or a
-per-protocol policy violation — into a fully-formed alert payload carrying the framework
+per-protocol policy violation - into a fully-formed alert payload carrying the framework
 references SOC analysts, SIEM pipelines, and compliance engines need:
 
 - **OWASP Top 10 (2021)** category
@@ -16,7 +16,7 @@ references SOC analysts, SIEM pipelines, and compliance engines need:
   command + target, trimmed query fragment)
 
 The enricher is stateless and deterministic, so it sits happily on the
-hot path of the enterprise L7 dispatcher — no locks, no allocations
+hot path of the enterprise L7 dispatcher - no locks, no allocations
 beyond the returned `L7EnrichedAlert`.
 
 ## Mapping tables
@@ -47,7 +47,7 @@ beyond the returned `L7EnrichedAlert`.
 
 `L7Enricher::http_fingerprint(method, path)` returns a stable 16-char
 hex string suitable for SIEM de-duplication and alert clustering. It
-is deterministic across a process run but not cryptographic — avoid
+is deterministic across a process run but not cryptographic - avoid
 using it for security decisions.
 
 `L7Enricher::trim_query_fragment(query)` clips any `SQL` / `NoSQL`

@@ -11,7 +11,7 @@ server protocols: **Redis**, **MongoDB**, **Kafka**, **MySQL /
 PostgreSQL**, **LDAP**, and **SSH**.
 
 Every evaluator consumes a pre-parsed request object and returns a
-`PolicyDecision` — one of `Allow`, `Alert(violation)`, or
+`PolicyDecision` - one of `Allow`, `Alert(violation)`, or
 `Deny(violation)`. Violations carry a stable machine-readable
 `PolicyCode` (e.g. `redis.dangerous_command`, `sql.ddl_blocked`,
 `ssh.weak_algorithm`) plus a severity that the SIEM exporters will use
@@ -55,7 +55,7 @@ suitable for SIEM indexing and dashboards. `PolicySeverity` maps to
 Low / Medium / High / Critical, feeding the standard alert severity
 pipeline.
 
-## Example — Redis
+## Example - Redis
 
 ```rust
 use enterprise_domain::l7_policy::{RedisPolicy, RedisRequest};
@@ -77,7 +77,7 @@ match policy.evaluate(&req) {
 }
 ```
 
-## Example — SQL
+## Example - SQL
 
 ```rust
 use enterprise_domain::l7_policy::{SqlPolicy, SqlRequest};
@@ -129,8 +129,8 @@ A `PUT` replaces the policy for one protocol as a whole; there is no partial upd
 ## Feature Gating
 
 The per-protocol policy layer requires a valid enterprise license with
-the `advanced-dlp` feature flag — the same gate as the existing
-Vectorscan DLP engine and the L7 deep-content-inspection engine — so
+the `advanced-dlp` feature flag - the same gate as the existing
+Vectorscan DLP engine and the L7 deep-content-inspection engine - so
 that all enterprise L7 security capabilities light up together. Without
 a license the engines stay idle and the OSS L7 firewall operates
 unchanged.

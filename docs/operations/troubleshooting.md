@@ -18,7 +18,7 @@ Error: BTF not found at /sys/kernel/btf/vmlinux
 
 Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled kernel for your distribution.
 
-### eBPF fails to load / "BPF token unavailable — API-only mode"
+### eBPF fails to load / "BPF token unavailable - API-only mode"
 
 ```
 Error: permission denied loading eBPF program
@@ -122,7 +122,7 @@ sudo mount -t bpf bpf /sys/fs/bpf
    ebpfsentinel-agent ips list
    ```
 
-2. Check sampling — if `sample_rate` is high, most packets are skipped:
+2. Check sampling - if `sample_rate` is high, most packets are skipped:
    ```bash
    curl http://localhost:8080/metrics | grep sampled
    ```
@@ -133,7 +133,7 @@ sudo mount -t bpf bpf /sys/fs/bpf
    curl http://target-host/ -d "union select * from users"
    ```
 
-4. Check threshold settings — `threshold` mode requires N matches before alerting.
+4. Check threshold settings - `threshold` mode requires N matches before alerting.
 
 ## High CPU Usage
 
@@ -183,7 +183,7 @@ sudo mount -t bpf bpf /sys/fs/bpf
    journalctl -u ebpfsentinel -f
    ```
 
-3. Validate the config file manually — look for YAML syntax errors, invalid CIDRs, or invalid regex patterns.
+3. Validate the config file manually - look for YAML syntax errors, invalid CIDRs, or invalid regex patterns.
 
 ## Debugging Tools
 

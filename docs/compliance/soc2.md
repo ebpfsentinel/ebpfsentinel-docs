@@ -6,17 +6,17 @@ eBPFsentinel supports SOC 2 Trust Service Categories for network security contro
 
 | Category | Control | eBPFsentinel Feature |
 |----------|---------|---------------------|
-| **Security (CC)** | CC6.1 — Access Control | Firewall, Authentication, RBAC |
-| | CC6.6 — Incident Detection | IDS, Threat Intelligence, DNS Intelligence |
-| | CC6.7 — Incident Response | IPS (auto-block), Alerting |
-| | CC6.8 — Audit | Audit Trail |
-| **Availability (A)** | A1.2 — Recovery | Hot reload, systemd restart |
-| | A1.3 — Monitoring | Prometheus metrics, health checks |
-| **Processing Integrity (PI)** | PI1.1 — Data Accuracy | IDS (tampering detection) |
-| **Confidentiality (C)** | C1.1 — Secrets Protection | DLP (API key, credential detection) |
-| **Privacy (P)** | P4.2 — Personal Information | DLP (PII patterns) |
+| **Security (CC)** | CC6.1 - Access Control | Firewall, Authentication, RBAC |
+| | CC6.6 - Incident Detection | IDS, Threat Intelligence, DNS Intelligence |
+| | CC6.7 - Incident Response | IPS (auto-block), Alerting |
+| | CC6.8 - Audit | Audit Trail |
+| **Availability (A)** | A1.2 - Recovery | Hot reload, systemd restart |
+| | A1.3 - Monitoring | Prometheus metrics, health checks |
+| **Processing Integrity (PI)** | PI1.1 - Data Accuracy | IDS (tampering detection) |
+| **Confidentiality (C)** | C1.1 - Secrets Protection | DLP (API key, credential detection) |
+| **Privacy (P)** | P4.2 - Personal Information | DLP (PII patterns) |
 
-## CC6.1 — Access Control
+## CC6.1 - Access Control
 
 ```yaml
 auth:
@@ -47,7 +47,7 @@ Additional access-control hardening:
 - **RSA 2048-bit minimum** enforced for JWT signing keys (RS256)
 - **CA private key zeroization** ensures signing material is scrubbed from memory after use
 
-## CC6.6 — Incident Detection
+## CC6.6 - Incident Detection
 
 ```yaml
 ids:
@@ -69,7 +69,7 @@ threatintel:
       default_action: block
 ```
 
-## CC6.7 — Incident Response
+## CC6.7 - Incident Response
 
 ```yaml
 ips:
@@ -84,7 +84,7 @@ alerting:
       webhook_url: "https://hooks.pagerduty.com/your-endpoint"
 ```
 
-## CC6.8 — Audit
+## CC6.8 - Audit
 
 ```yaml
 audit:

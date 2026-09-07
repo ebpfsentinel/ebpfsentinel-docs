@@ -22,26 +22,26 @@ therefore reduce *notification volume*, never the audit trail.
 
 ### Alert Processing
 
-1. **Deduplication** — an alert identical to a recent one (same rule, source IP, destination IP, destination port and protocol; source port ignored) is not delivered again within the window. It is still stored and streamed, and increments `ebpfsentinel_alerts_dropped_total{reason="dedup"}`
-2. **Throttling** — per-rule rate limiting prevents alert storms; excess alerts increment `ebpfsentinel_alerts_dropped_total{reason="throttle"}`
-3. **Routing** — alerts are matched to routes by severity and/or component
-4. **Circuit breaker** — if a sender fails repeatedly, it is temporarily disabled to avoid blocking the pipeline
+1. **Deduplication** - an alert identical to a recent one (same rule, source IP, destination IP, destination port and protocol; source port ignored) is not delivered again within the window. It is still stored and streamed, and increments `ebpfsentinel_alerts_dropped_total{reason="dedup"}`
+2. **Throttling** - per-rule rate limiting prevents alert storms; excess alerts increment `ebpfsentinel_alerts_dropped_total{reason="throttle"}`
+3. **Routing** - alerts are matched to routes by severity and/or component
+4. **Circuit breaker** - if a sender fails repeatedly, it is temporarily disabled to avoid blocking the pipeline
 
 ### Alert Fields
 
 Each alert includes:
 
-- `id` — unique alert identifier
+- `id` - unique alert identifier
 - `timestamp` - event time in nanoseconds since the Unix epoch. Kernel events are stamped with `bpf_ktime_get_boot_ns()`, which is suspend-aware but counts from boot; userspace converts that to an epoch stamp as the record leaves the ring buffer, so a kernel alert and a userspace alert raised a second apart are a second apart.
-- `component` — source domain (firewall, ids, ips, dlp, threatintel, dns, l7, loadbalancer)
-- `severity` — critical, high, medium, low, info
-- `rule_id` — the rule that triggered the alert
-- `src_addr`, `dst_addr` — source and destination addresses
-- `src_domain`, `dst_domain` — reverse DNS lookups (from passive DNS cache)
-- `src_domain_score`, `dst_domain_score` — domain reputation scores (0.0=clean, 1.0=malicious)
-- `src_geo`, `dst_geo` — GeoIP location and ASN (e.g. `FR/Paris (ASN: AS3215 Orange S.A.)`)
-- `description` — human-readable alert message
-- `metadata` — additional context (matched pattern, domain reputation, etc.)
+- `component` - source domain (firewall, ids, ips, dlp, threatintel, dns, l7, loadbalancer)
+- `severity` - critical, high, medium, low, info
+- `rule_id` - the rule that triggered the alert
+- `src_addr`, `dst_addr` - source and destination addresses
+- `src_domain`, `dst_domain` - reverse DNS lookups (from passive DNS cache)
+- `src_domain_score`, `dst_domain_score` - domain reputation scores (0.0=clean, 1.0=malicious)
+- `src_geo`, `dst_geo` - GeoIP location and ASN (e.g. `FR/Paris (ASN: AS3215 Orange S.A.)`)
+- `description` - human-readable alert message
+- `metadata` - additional context (matched pattern, domain reputation, etc.)
 
 ### Alert Enrichment
 
@@ -60,7 +60,7 @@ DnsAlertEnricher
 Enriched alert → AlertRouter → Senders
 ```
 
-GeoIP enrichment is optional — enable it via the [`geoip`](../configuration/geoip.md) configuration section. When disabled, `src_geo` and `dst_geo` fields are `null`.
+GeoIP enrichment is optional - enable it via the [`geoip`](../configuration/geoip.md) configuration section. When disabled, `src_geo` and `dst_geo` fields are `null`.
 
 ## Configuration
 

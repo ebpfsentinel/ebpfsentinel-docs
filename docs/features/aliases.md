@@ -18,7 +18,7 @@ eBPFsentinel supports 11 alias types:
 | `interface_group` | Addresses currently assigned to named interfaces | The agent's own addresses on `eth0`, `eth1` |
 | `mac_set` | MAC addresses for L2 filtering | Known device MAC addresses |
 | `bgp_asn` | IPs belonging to BGP AS numbers via MaxMind ASN database | AS15169 (Google), AS13335 (Cloudflare) |
-| `external` | Empty placeholder — content pushed via REST API | Integration with external CMDB or IPAM |
+| `external` | Empty placeholder - content pushed via REST API | Integration with external CMDB or IPAM |
 
 ## Configuration
 
@@ -142,7 +142,7 @@ new DHCP address reaches the kernel without a rule change.
 
 Nested aliases are resolved recursively with cycle detection. If alias A references B which references A, validation fails with a circular reference error.
 
-Exclusions are applied after resolution — an `ip_set` with `exclude` removes matching CIDRs from the resolved set.
+Exclusions are applied after resolution - an `ip_set` with `exclude` removes matching CIDRs from the resolved set.
 
 ## External Aliases
 

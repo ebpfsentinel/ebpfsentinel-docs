@@ -60,11 +60,11 @@ dlp:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `id` | `string` | Yes | — | Unique identifier. OSS only accepts built-in prefixes (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`) |
-| `name` | `string` | Yes | — | Human-readable pattern name |
-| `regex` | `string` | Yes | — | Regex pattern (validated with ReDoS protection limits) |
-| `severity` | `string` | Yes | — | `low`, `medium`, `high`, or `critical` |
-| `data_type` | `string` | Yes | — | Category: `pci`, `pii`, `credentials`, or custom |
+| `id` | `string` | Yes | - | Unique identifier. OSS only accepts built-in prefixes (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`) |
+| `name` | `string` | Yes | - | Human-readable pattern name |
+| `regex` | `string` | Yes | - | Regex pattern (validated with ReDoS protection limits) |
+| `severity` | `string` | Yes | - | `low`, `medium`, `high`, or `critical` |
+| `data_type` | `string` | Yes | - | Category: `pci`, `pii`, `credentials`, or custom |
 | `mode` | `string` | No | inherits global | Per-pattern mode override (`alert` or `block`, enterprise only) |
 | `description` | `string` | No | `""` | Human-readable description |
 | `enabled` | `bool` | No | `true` | Enable or disable this specific pattern |

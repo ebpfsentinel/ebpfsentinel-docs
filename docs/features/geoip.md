@@ -6,8 +6,8 @@
 
 eBPFsentinel integrates MaxMind GeoLite2/GeoIP2 databases for both **alert enrichment** and **cross-domain enforcement**. GeoIP data is used in two ways:
 
-1. **Alert enrichment** — source and destination IPs are automatically looked up and attached to alerts as `src_geo` / `dst_geo` fields
-2. **Enforcement** — 7 domain engines use GeoIP data for country-aware detection and blocking, with kernel-side CIDR enforcement via coordinated LPM Trie maps. Routing is not one of them: no routing source reads a country
+1. **Alert enrichment** - source and destination IPs are automatically looked up and attached to alerts as `src_geo` / `dst_geo` fields
+2. **Enforcement** - 7 domain engines use GeoIP data for country-aware detection and blocking, with kernel-side CIDR enforcement via coordinated LPM Trie maps. Routing is not one of them: no routing source reads a country
 
 Three provisioning modes are supported:
 
@@ -69,7 +69,7 @@ Two MaxMind database types are used:
 | **City** | Country, city, coordinates | `GeoLite2-City.mmdb` or `GeoIP2-City.mmdb` |
 | **ASN** | AS number, organization | `GeoLite2-ASN.mmdb` or `GeoIP2-ASN.mmdb` |
 
-Both are optional — if only the City database is available, ASN fields will be empty and vice versa. At minimum, the City database is required for `is_ready()` to return true.
+Both are optional - if only the City database is available, ASN fields will be empty and vice versa. At minimum, the City database is required for `is_ready()` to return true.
 
 ## Provisioning Modes
 
@@ -108,7 +108,7 @@ geoip:
 
 ### Mode 3: File (local path)
 
-Point directly to pre-downloaded `.mmdb` files. No network access required — suitable for air-gapped environments.
+Point directly to pre-downloaded `.mmdb` files. No network access required - suitable for air-gapped environments.
 
 ```yaml
 geoip:
@@ -160,7 +160,7 @@ See [Configuration: GeoIP](../configuration/geoip.md) for the full reference.
 }
 ```
 
-Private/internal IPs (RFC 1918, link-local, etc.) typically return no GeoIP data — `src_geo` / `dst_geo` will be `null`.
+Private/internal IPs (RFC 1918, link-local, etc.) typically return no GeoIP data - `src_geo` / `dst_geo` will be `null`.
 
 ## Cross-Domain Enforcement
 
@@ -176,11 +176,11 @@ Kernel-side enforcement uses a shared `LpmCoordinator` that manages the firewall
 |--------|---------------|-------------|
 | **DDoS** | Per-country detection thresholds (`country_thresholds`). When an attack from a high-risk country is active with `block` action, all CIDRs for that country are auto-injected into the LPM maps | Kernel (LPM) |
 | **IPS** | Per-country blacklist thresholds (`country_thresholds`). When a high-risk country IP is blacklisted, the /24 (v4) or /48 (v6) subnet is injected into the LPM maps | Kernel (LPM) |
-| **IDS** | Country-based sampling (`country_based` mode) — full inspection for high-risk countries, reduced rate for others. Per-country threshold overrides on rules | Userspace |
+| **IDS** | Country-based sampling (`country_based` mode) - full inspection for high-risk countries, reduced rate for others. Per-country threshold overrides on rules | Userspace |
 | **L7 Firewall** | Source and destination country matching (`src_country_codes`, `dst_country_codes`) on rules | Userspace |
 | **Threat Intel** | Confidence boost for IOCs from high-risk source countries (`country_confidence_boost`) | Userspace |
-| **DNS** | High-risk country reputation factor (`high_risk_countries`) — domains resolving to IPs in listed countries receive a `HighRiskCountry` factor (weight 0.4) | Userspace |
-| **Rate Limit** | Per-country rate limit tiers via dedicated kernel LPM maps (`RL_LPM_SRC_V4/V6`, `RL_TIER_CONFIG`) — country CIDRs mapped to tier profiles | Kernel (LPM) |
+| **DNS** | High-risk country reputation factor (`high_risk_countries`) - domains resolving to IPs in listed countries receive a `HighRiskCountry` factor (weight 0.4) | Userspace |
+| **Rate Limit** | Per-country rate limit tiers via dedicated kernel LPM maps (`RL_LPM_SRC_V4/V6`, `RL_TIER_CONFIG`) - country CIDRs mapped to tier profiles | Kernel (LPM) |
 
 ### Enforcement Flow
 
@@ -194,9 +194,9 @@ GeoIP Database (MaxMind)
     │   └── src_ip/dst_ip → src_geo/dst_geo on alerts
     │
     ├── LpmCoordinator (firewall LPM maps)
-    │   ├── source: "alias"     — GeoIP alias rules
-    │   ├── source: "ddos:<CC>" — DDoS country auto-block
-    │   └── source: "ips"       — IPS /24 subnet injection
+    │   ├── source: "alias"     - GeoIP alias rules
+    │   ├── source: "ddos:<CC>" - DDoS country auto-block
+    │   └── source: "ips"       - IPS /24 subnet injection
     │
     ├── RateLimitLpmManager (dedicated RL LPM maps)
     │   └── Country → tier_id → rate/burst/algorithm

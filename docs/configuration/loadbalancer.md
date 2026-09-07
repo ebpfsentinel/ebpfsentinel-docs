@@ -66,7 +66,7 @@ loadbalancer:
 
 ### LbHealthCheck
 
-The probe targets each backend's own `addr:port` — there is no separate target field.
+The probe targets each backend's own `addr:port` - there is no separate target field.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -78,7 +78,7 @@ The probe targets each backend's own `addr:port` — there is no separate target
 
 Every enabled backend of the service is probed on the interval configured
 here. A backend that fails `unhealthy_threshold` probes in a row leaves the
-balancing set — in userspace and in the eBPF backend map — and rejoins it
+balancing set - in userspace and in the eBPF backend map - and rejoins it
 after `healthy_threshold` successes in a row. Omit the whole `health_check`
 block and the service's backends are never probed; they stay in the
 balancing set until an operator disables them.
@@ -101,12 +101,12 @@ probed.
 
 `mode` selects how the selected backend is reached. It is independent of the balancing algorithm.
 
-- **`dnat`** (default) — destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Unchanged from prior releases.
-- **`l2dsr`** — Direct Server Return: only the destination MAC is rewritten to the backend's resolved MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
+- **`dnat`** (default) - destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Unchanged from prior releases.
+- **`l2dsr`** - Direct Server Return: only the destination MAC is rewritten to the backend's resolved MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
 
 ## Examples
 
-### HTTPS load balancer — TLS passthrough
+### HTTPS load balancer - TLS passthrough
 
 ```yaml
 loadbalancer:
@@ -138,7 +138,7 @@ loadbalancer:
         healthy_threshold: 3
 ```
 
-### DNS cluster — UDP round-robin
+### DNS cluster - UDP round-robin
 
 ```yaml
 loadbalancer:
@@ -158,7 +158,7 @@ loadbalancer:
           port: 53
 ```
 
-### Database pool — TCP least-connections
+### Database pool - TCP least-connections
 
 ```yaml
 loadbalancer:
@@ -190,7 +190,7 @@ loadbalancer:
         healthy_threshold: 2
 ```
 
-### Sticky sessions — IP hash
+### Sticky sessions - IP hash
 
 ```yaml
 loadbalancer:
@@ -280,14 +280,14 @@ loadbalancer:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `role` | string | `disabled` | `primary` = elected speaker (answers ARP, emits gratuitous ARP). `standby` = silent until promoted. `disabled` = announcer off. Aliases: `speaker`/`active`, `passive`/`backup`, `off`/`none`. |
-| `interface` | string | — | Interface whose NIC MAC is used as the ARP `sha`. Required unless `role: disabled`. |
+| `interface` | string | - | Interface whose NIC MAC is used as the ARP `sha`. Required unless `role: disabled`. |
 | `vips` | list | `[]` | VIPs to announce. Required unless `role: disabled`. |
-| `vips[].name` | string | — | Unique label, surfaced as the `{vip}` metric label. |
-| `vips[].addr` | string | — | Unique IPv4 address. IPv6 entries are ignored (ARP is IPv4-only). |
+| `vips[].name` | string | - | Unique label, surfaced as the `{vip}` metric label. |
+| `vips[].addr` | string | - | Unique IPv4 address. IPv6 entries are ignored (ARP is IPv4-only). |
 
 Only the node with `role: primary` ever populates the kernel `VIP_SET`;
 `standby` and `disabled` nodes stay completely silent, so a misconfigured
-pair cannot both answer ARP. Promotion is config-driven — change `role`
+pair cannot both answer ARP. Promotion is config-driven - change `role`
 to `primary` on the surviving node and reload. A Kubernetes `Lease`-based
 election is a documented seam, not yet implemented.
 

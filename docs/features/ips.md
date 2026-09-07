@@ -30,7 +30,7 @@ The listing says so too, so a conflict does not have to be caught in the boot lo
 
 ### Per-Country Blacklist Thresholds
 
-The IPS supports `country_thresholds` — per-country overrides of `auto_blacklist_threshold`. IPs from high-risk countries can be blacklisted after fewer detections:
+The IPS supports `country_thresholds` - per-country overrides of `auto_blacklist_threshold`. IPs from high-risk countries can be blacklisted after fewer detections:
 
 ```yaml
 ips:

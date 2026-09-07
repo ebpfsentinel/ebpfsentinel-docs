@@ -4,7 +4,7 @@
 
 ## Overview
 
-The IDS inspects packet payloads against regex-based signature rules. The kernel-side TC classifier performs initial filtering — sampling, L7 protocol detection, and backpressure — while the userspace engine runs full regex evaluation and alert generation.
+The IDS inspects packet payloads against regex-based signature rules. The kernel-side TC classifier performs initial filtering - sampling, L7 protocol detection, and backpressure - while the userspace engine runs full regex evaluation and alert generation.
 
 ## How It Works
 
@@ -12,10 +12,10 @@ The IDS inspects packet payloads against regex-based signature rules. The kernel
 
 The TC classifier program:
 
-1. **Sampling** — `bpf_get_prandom_u32` selects packets based on the configured sample rate, reducing userspace load
-2. **L7 protocol detection** — `bpf_strncmp` matches protocol signatures (HTTP, TLS, SSH) in the first bytes of the payload
-3. **RingBuf backpressure** — `bpf_ringbuf_query` checks buffer fill level; if >75% full, events are skipped
-4. **Event emission** — matching packets are forwarded to userspace via `RingBuf` as `PacketEvent` structures
+1. **Sampling** - `bpf_get_prandom_u32` selects packets based on the configured sample rate, reducing userspace load
+2. **L7 protocol detection** - `bpf_strncmp` matches protocol signatures (HTTP, TLS, SSH) in the first bytes of the payload
+3. **RingBuf backpressure** - `bpf_ringbuf_query` checks buffer fill level; if >75% full, events are skipped
+4. **Event emission** - matching packets are forwarded to userspace via `RingBuf` as `PacketEvent` structures
 
 ### Userspace Side
 
@@ -49,11 +49,11 @@ Three threshold modes control alert volume:
 | `hash` | Hash-based consistent sampling on flow tuple |
 | `country_based` | Full inspection for high-risk countries, reduced rate for others |
 
-**Country-Based Sampling** — Sources from `high_risk_countries` (e.g. `[RU, CN, KP, IR]`) are inspected at `high_risk_rate` (default: 1.0 = 100%), while all other sources use `default_rate` (e.g. 0.1 = 10%). This focuses IDS resources on traffic from high-risk regions without dropping inspection entirely for the rest.
+**Country-Based Sampling** - Sources from `high_risk_countries` (e.g. `[RU, CN, KP, IR]`) are inspected at `high_risk_rate` (default: 1.0 = 100%), while all other sources use `default_rate` (e.g. 0.1 = 10%). This focuses IDS resources on traffic from high-risk regions without dropping inspection entirely for the rest.
 
 ### Per-Country Threshold Overrides
 
-Each IDS rule supports `country_thresholds` — per-country threshold configuration that overrides the rule's default threshold. This allows stricter detection for traffic from specific countries:
+Each IDS rule supports `country_thresholds` - per-country threshold configuration that overrides the rule's default threshold. This allows stricter detection for traffic from specific countries:
 
 ```yaml
 rules:
@@ -81,7 +81,7 @@ ids:
   mode: alert           # alert or block (block requires IPS)
   sampling:
     mode: random        # none, random, hash, or country_based
-    rate: 0.01          # fraction sampled, 0.0–1.0 (0.01 = 1-in-100)
+    rate: 0.01          # fraction sampled, 0.0-1.0 (0.01 = 1-in-100)
   rules:
     - id: detect-sql-injection
       protocol: tcp
@@ -113,7 +113,7 @@ See [Configuration: IDS](../configuration/ids.md) for the full reference.
 ## CLI Usage
 
 ```bash
-# List IDS rules (via IPS endpoint — IDS and IPS share rule management)
+# List IDS rules (via IPS endpoint - IDS and IPS share rule management)
 ebpfsentinel-agent ips list
 
 # View alerts

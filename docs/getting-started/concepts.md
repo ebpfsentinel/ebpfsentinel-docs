@@ -4,15 +4,15 @@
 
 eBPFsentinel is a single binary that runs two layers:
 
-1. **Kernel-space eBPF programs** — attached at XDP, TC, and uprobe hook points for wire-speed packet processing
-2. **Userspace Rust agent** — receives events via RingBuf, runs domain engines, serves the REST/gRPC API
+1. **Kernel-space eBPF programs** - attached at XDP, TC, and uprobe hook points for wire-speed packet processing
+2. **Userspace Rust agent** - receives events via RingBuf, runs domain engines, serves the REST/gRPC API
 
 ```mermaid
 graph TD
     subgraph Kernel["Kernel"]
         direction TB
 
-        subgraph XDP["XDP Layer — Tail-Call Chain via PROG_ARRAY"]
+        subgraph XDP["XDP Layer - Tail-Call Chain via PROG_ARRAY"]
             XDP_FW["<b>xdp-firewall</b><br/>LPM Trie<br/>DEVMAP / CPUMAP"]
             XDP_RL["<b>xdp-ratelimit</b><br/>PerCPU Hash<br/>SYN Cookie"]
             XDP_LB["<b>xdp-loadbalancer</b><br/>Consistent Hash<br/>Backend Pool"]
@@ -27,7 +27,7 @@ graph TD
             DLP["<b>uprobe-dlp</b><br/>SSL/TLS interception"]
         end
 
-        subgraph TC_layer["TC Layer — after SKB allocation"]
+        subgraph TC_layer["TC Layer - after SKB allocation"]
             TC_IDS["<b>tc-ids</b><br/>tc-threatintel<br/>tc-scrub"]
             TC_CT["<b>tc-conntrack</b><br/>tc-qos"]
             TC_NAT["<b>tc-nat-ingress/egress</b><br/>tc-dns<br/>Bloom Filter"]
@@ -45,7 +45,7 @@ graph TD
         DLP --> RB
     end
 
-    subgraph Userspace["Userspace — Rust Agent"]
+    subgraph Userspace["Userspace - Rust Agent"]
         direction TB
 
         ED["EventDispatcher"]
@@ -56,16 +56,16 @@ graph TD
 
         subgraph AlertPipeline["Alert Pipeline"]
             DEDUP["Dedup"] --> THROTTLE["Throttle"] --> ROUTE["Route"]
-            ROUTE --> EMAIL["Email — SMTP"]
-            ROUTE --> WEBHOOK["Webhook — HTTP"]
-            ROUTE --> LOG["Log — file"]
+            ROUTE --> EMAIL["Email - SMTP"]
+            ROUTE --> WEBHOOK["Webhook - HTTP"]
+            ROUTE --> LOG["Log - file"]
         end
 
         AR --> DEDUP
 
         subgraph APIs["Interfaces"]
-            REST["REST API — Axum"]
-            GRPC["gRPC — tonic"]
+            REST["REST API - Axum"]
+            GRPC["gRPC - tonic"]
             PROM["Prometheus"]
         end
     end
@@ -81,13 +81,13 @@ eBPFsentinel uses three types of eBPF hooks:
 
 | Hook | Speed | Use Case | Programs |
 |------|-------|----------|----------|
-| **XDP** (eXpress Data Path) | Fastest — before the kernel network stack | Firewall, rate limiting, load balancing | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer` |
-| **TC** (Traffic Control) | Fast — after SKB allocation | IDS, threat intel, DNS, conntrack, NAT, QoS, DDoS scrubbing | `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-qos`, `tc-scrub` |
+| **XDP** (eXpress Data Path) | Fastest - before the kernel network stack | Firewall, rate limiting, load balancing | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer` |
+| **TC** (Traffic Control) | Fast - after SKB allocation | IDS, threat intel, DNS, conntrack, NAT, QoS, DDoS scrubbing | `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-qos`, `tc-scrub` |
 | **uprobe** | Per-function call | SSL/TLS interception for DLP | `uprobe-dlp` |
 
 XDP programs can **drop, pass, redirect, or tail-call** into other XDP programs. The firewall tail-calls into the rate limiter via `PROG_ARRAY`, meaning only one XDP program needs to be attached per interface.
 
-XDP supports three attachment modes: **native** (fastest — runs in the NIC driver), **generic** (universal — runs after SKB allocation), and **offloaded** (runs on SmartNIC hardware). The mode is configurable via [`agent.xdp_mode`](../configuration/agent.md#xdp-attachment-mode). Default is `auto` (kernel picks best available).
+XDP supports three attachment modes: **native** (fastest - runs in the NIC driver), **generic** (universal - runs after SKB allocation), and **offloaded** (runs on SmartNIC hardware). The mode is configurable via [`agent.xdp_mode`](../configuration/agent.md#xdp-attachment-mode). Default is `auto` (kernel picks best available).
 
 ## Tail-Call Chaining
 
@@ -113,7 +113,7 @@ All eBPF programs emit events to userspace via BPF ring buffers. The `PacketEven
 - Protocol, flags (`FLAG_IPV6`, `FLAG_VLAN`)
 - VLAN ID, CPU ID, timestamp
 
-The ring buffer implements **adaptive backpressure** — when the buffer exceeds 75% capacity (`bpf_ringbuf_query`), programs skip event emission to prevent userspace from falling behind.
+The ring buffer implements **adaptive backpressure** - when the buffer exceeds 75% capacity (`bpf_ringbuf_query`), programs skip event emission to prevent userspace from falling behind.
 
 ## Domain Engines
 
@@ -149,12 +149,12 @@ domain ← ports ← application
                 ← adapters ← agent (binary)
 ```
 
-- **domain** — pure business logic, depends on nothing, `#![forbid(unsafe_code)]`
-- **ports** — trait definitions consumed and implemented by adapters
-- **application** — orchestrates domain engines via port traits
-- **infrastructure** — config parsing, logging, metrics setup
-- **adapters** — HTTP, gRPC, eBPF, redb storage implementations
-- **agent** — binary entry point, wires everything together
+- **domain** - pure business logic, depends on nothing, `#![forbid(unsafe_code)]`
+- **ports** - trait definitions consumed and implemented by adapters
+- **application** - orchestrates domain engines via port traits
+- **infrastructure** - config parsing, logging, metrics setup
+- **adapters** - HTTP, gRPC, eBPF, redb storage implementations
+- **agent** - binary entry point, wires everything together
 
 This means the domain logic is fully testable without any infrastructure, eBPF, or network code.
 
@@ -195,7 +195,7 @@ agent:
 
 **Precedence:** CLI flags > environment variables > YAML file > defaults
 
-The agent supports **hot reload** — configuration changes are applied without restart via SIGHUP, file watching, or the REST API.
+The agent supports **hot reload** - configuration changes are applied without restart via SIGHUP, file watching, or the REST API.
 
 ## Authentication Model
 
@@ -222,6 +222,6 @@ Each route specifies a `destination` type (`log`, `email`, or `webhook`) and a `
 
 ## Next Steps
 
-- [Feature Overview](../features/overview.md) — see what each domain does
-- [Architecture Overview](../architecture/overview.md) — deep dive into the codebase
-- [Configuration Overview](../configuration/overview.md) — configure the agent
+- [Feature Overview](../features/overview.md) - see what each domain does
+- [Architecture Overview](../architecture/overview.md) - deep dive into the codebase
+- [Configuration Overview](../configuration/overview.md) - configure the agent

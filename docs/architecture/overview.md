@@ -2,14 +2,14 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** — 16 eBPF programs attached at XDP, TC, and uprobe hook points
-2. **Userspace** — Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
+1. **Kernel-space** - 16 eBPF programs attached at XDP, TC, and uprobe hook points
+2. **Userspace** - Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
 flowchart TB
     subgraph kernel["Linux Kernel (16 eBPF programs)"]
         direction TB
-        subgraph xdp["XDP — wire-speed packet processing"]
+        subgraph xdp["XDP - wire-speed packet processing"]
             fw["xdp-firewall\n(stateful L3/L4)"]
             fw_rej["xdp-firewall-reject\n(TCP RST / ICMP)"]
             rl["xdp-ratelimit\n(DDoS / rate limit)"]
@@ -18,7 +18,7 @@ flowchart TB
             vip["xdp-vip-announcer\n(VIP ARP reply)"]
             pass["xdp-pass\n(veth peer · test rig)"]
         end
-        subgraph tc["TC — deep packet inspection & rewriting"]
+        subgraph tc["TC - deep packet inspection & rewriting"]
             ct[tc-conntrack]
             scrub[tc-scrub]
             nat_i[tc-nat-ingress]
@@ -139,16 +139,16 @@ ebpfsentinel/
 
 ## Key Design Decisions
 
-- **100% Rust** — kernel programs and userspace, no C, no Go
-- **Aya framework** — compile-once eBPF with CO-RE/BTF support
-- **Hexagonal/DDD** — domain logic has zero external dependencies
+- **100% Rust** - kernel programs and userspace, no C, no Go
+- **Aya framework** - compile-once eBPF with CO-RE/BTF support
+- **Hexagonal/DDD** - domain logic has zero external dependencies
 - **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure crates
-- **Single binary** — no sidecar processes, no daemon dependencies
-- **Source-agnostic feeds** — threat intel feeds are configured in YAML, no provider-specific code
-- **MITRE ATT&CK mapping** — every alert tagged with tactic + technique ID
-- **GeoIP enforcement** — MaxMind-backed country resolution shared across all engines
-- **Hot reload** — configuration updates without restart (file watcher, SIGHUP, or API)
-- **JWT/OIDC/API key auth** — role-based access control (Admin, Operator, Viewer)
-- **TLS 1.3** — REST and gRPC secured with rustls + aws_lc_rs
-- **OTLP export** — alerts as OpenTelemetry Logs to any OTLP-compatible collector
-- **CLI** — 37 subcommands covering all endpoints
+- **Single binary** - no sidecar processes, no daemon dependencies
+- **Source-agnostic feeds** - threat intel feeds are configured in YAML, no provider-specific code
+- **MITRE ATT&CK mapping** - every alert tagged with tactic + technique ID
+- **GeoIP enforcement** - MaxMind-backed country resolution shared across all engines
+- **Hot reload** - configuration updates without restart (file watcher, SIGHUP, or API)
+- **JWT/OIDC/API key auth** - role-based access control (Admin, Operator, Viewer)
+- **TLS 1.3** - REST and gRPC secured with rustls + aws_lc_rs
+- **OTLP export** - alerts as OpenTelemetry Logs to any OTLP-compatible collector
+- **CLI** - 37 subcommands covering all endpoints

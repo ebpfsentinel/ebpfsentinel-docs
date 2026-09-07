@@ -53,10 +53,10 @@ The ring buffer is evicted both by capacity (oldest dropped when full) and by ag
 
 When an alert matches the trigger policy, the engine automatically:
 
-1. **Freezes context** — extracts all ring buffer events matching the same flow (bidirectional 5-tuple match) within a 30-second pre-event window
-2. **Registers a capture** — creates a `ForensicCapture` record with the trigger alert metadata and pre-context event count
-3. **Transitions state** — `Running` → `Completed` (or `Failed` on error)
-4. **Emits metrics** — trigger count, completion count, failure count
+1. **Freezes context** - extracts all ring buffer events matching the same flow (bidirectional 5-tuple match) within a 30-second pre-event window
+2. **Registers a capture** - creates a `ForensicCapture` record with the trigger alert metadata and pre-context event count
+3. **Transitions state** - `Running` → `Completed` (or `Failed` on error)
+4. **Emits metrics** - trigger count, completion count, failure count
 
 ### Trigger Policy
 
@@ -73,7 +73,7 @@ The component match is exact and case-sensitive, so use the names alerts actuall
 
 ### Flow Matching
 
-Flow matching is **bidirectional** — a flow tuple `(A:port1 → B:port2, TCP)` also matches events in the reverse direction `(B:port2 → A:port1, TCP)`. This ensures both sides of a conversation are captured in the pre-event context.
+Flow matching is **bidirectional** - a flow tuple `(A:port1 → B:port2, TCP)` also matches events in the reverse direction `(B:port2 → A:port1, TCP)`. This ensures both sides of a conversation are captured in the pre-event context.
 
 ## Forensic Captures
 
@@ -96,8 +96,8 @@ Captures are automatically cleaned up after `retention_days` (default: 7 days).
 
 The timeline engine reconstructs network activity around any alert or flow:
 
-- **By alert ID** — `GET /timeline/{alert_id}?window_before_secs=3600&window_after_secs=3600` returns all flows and related alerts within the time window centered on the specified alert
-- **By flow tuple** — `GET /timeline/flow?src_addr=...&dst_addr=...&from_ns=...&to_ns=...` returns the timeline for a specific flow over a time range
+- **By alert ID** - `GET /timeline/{alert_id}?window_before_secs=3600&window_after_secs=3600` returns all flows and related alerts within the time window centered on the specified alert
+- **By flow tuple** - `GET /timeline/flow?src_addr=...&dst_addr=...&from_ns=...&to_ns=...` returns the timeline for a specific flow over a time range
 
 Each timeline contains:
 

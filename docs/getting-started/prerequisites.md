@@ -8,27 +8,27 @@ eBPFsentinel requires **Linux kernel 6.9+** with BTF (BPF Type Format) support.
 
 The 6.9 floor is driven by:
 
-- **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`) — container-aware least-privilege mode
+- **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`) - container-aware least-privilege mode
 - Kfuncs `bpf_task_get_cgroup1` (6.8), `bpf_xdp_metadata_rx_vlan_tag` (6.8), `bpf_xdp_get_xfrm_state` (6.8), `bpf_iter_css_task` (6.7)
 
 Verify your system:
 
 ```bash
-# Kernel version — must be >= 6.9
+# Kernel version - must be >= 6.9
 uname -r
 
-# BTF support — this file must exist
+# BTF support - this file must exist
 ls /sys/kernel/btf/vmlinux
 
-# BPF filesystem — must be mounted
+# BPF filesystem - must be mounted
 mount | grep bpf
 ```
 
-BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmlinux` does not exist, your kernel was built without `CONFIG_DEBUG_INFO_BTF=y` — you'll need to install a BTF-enabled kernel or rebuild.
+BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmlinux` does not exist, your kernel was built without `CONFIG_DEBUG_INFO_BTF=y` - you'll need to install a BTF-enabled kernel or rebuild.
 
 ### Capabilities
 
-eBPF loads **exclusively** through a BPF token — there is no `CAP_BPF`/`setcap`
+eBPF loads **exclusively** through a BPF token - there is no `CAP_BPF`/`setcap`
 loading path. The agent is started via the privileged launcher
 (`ebpfsentinel-token-launch`), which creates the token in a child user namespace
 and execs the agent unprivileged. The launcher needs `CAP_SYS_ADMIN` (i.e. root,
@@ -50,9 +50,9 @@ outside a user namespace) and fall back to API-only mode. See the
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
 | Debian 13+ | Yes | Ships 6.12 kernel natively |
-| Debian 12 | No | Ships 6.1 — install mainline 6.9+ or upgrade to Debian 13 |
+| Debian 12 | No | Ships 6.1 - install mainline 6.9+ or upgrade to Debian 13 |
 | Ubuntu 24.04.2+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.11 |
-| Ubuntu 24.04 (GA) | No | Ships 6.8 — below floor, use HWE or 6.9 mainline |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 - below floor, use HWE or 6.9 mainline |
 | RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
 | RHEL 9.x / Rocky 9.x | No | Requires ELRepo `kernel-ml` 6.9+ |
 | Alpine Edge | Yes | `linux-edge` tracks mainline 6.9+ |
@@ -90,8 +90,8 @@ rustup toolchain install nightly --component rust-src
 
 ## Runtime Dependencies
 
-- `iproute2` — for interface management
-- `bpftool` — for eBPF program inspection and debugging (optional but recommended)
+- `iproute2` - for interface management
+- `bpftool` - for eBPF program inspection and debugging (optional but recommended)
 
 ## Test Requirements
 

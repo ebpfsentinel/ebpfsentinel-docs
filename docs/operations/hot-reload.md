@@ -1,6 +1,6 @@
 # Hot Reload
 
-eBPFsentinel supports zero-downtime configuration changes. When the YAML config file is modified, the agent detects the change, validates the new configuration, and applies it — including loading or unloading eBPF kernel programs — without restarting the process.
+eBPFsentinel supports zero-downtime configuration changes. When the YAML config file is modified, the agent detects the change, validates the new configuration, and applies it - including loading or unloading eBPF kernel programs - without restarting the process.
 
 ## Trigger Methods
 
@@ -33,13 +33,13 @@ These apply immediately with no kernel interaction:
 
 These kernel-side data structures are updated in-place without reloading the eBPF program:
 
-- `CONFIG_FLAGS` — per-feature enabled/disabled flags read by `tc-ids`, `tc-threatintel`, `xdp-firewall`
-- `L7_PORTS` — ports inspected by the IDS L7 engine
-- `INTERFACE_GROUPS` — interface-to-group membership bitmask
+- `CONFIG_FLAGS` - per-feature enabled/disabled flags read by `tc-ids`, `tc-threatintel`, `xdp-firewall`
+- `L7_PORTS` - ports inspected by the IDS L7 engine
+- `INTERFACE_GROUPS` - interface-to-group membership bitmask
 
 ### eBPF programs (loaded/unloaded dynamically)
 
-When a feature's `enabled` flag changes from `false` to `true` (or vice versa), the corresponding eBPF program is loaded into the kernel and attached to the configured interfaces — or detached and unloaded.
+When a feature's `enabled` flag changes from `false` to `true` (or vice versa), the corresponding eBPF program is loaded into the kernel and attached to the configured interfaces - or detached and unloaded.
 
 | Program | Config Key | Hook | Dynamic Load | Dynamic Unload |
 |---------|-----------|------|:---:|:---:|
@@ -83,8 +83,8 @@ eBPF maps are pinned to `/sys/fs/bpf/ebpfsentinel/`. When a program is unloaded 
 
 Configuration is validated in two phases before any change is applied:
 
-1. **YAML parsing** — syntax, types, missing fields
-2. **Domain validation** — CIDR formats, regex compilation, rule limits, mode values
+1. **YAML parsing** - syntax, types, missing fields
+2. **Domain validation** - CIDR formats, regex compilation, rule limits, mode values
 
 If either phase fails, the reload is rejected and the previous configuration remains active. The error is logged:
 
@@ -162,7 +162,7 @@ The agent detects the file change and:
 6. Starts the event reader for IDS detections
 7. Updates `CONFIG_FLAGS` so other eBPF programs see IDS as active
 
-No packets are lost during this process — the TC program is attached atomically by the kernel.
+No packets are lost during this process - the TC program is attached atomically by the kernel.
 
 ## Limitations
 

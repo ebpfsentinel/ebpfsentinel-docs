@@ -73,11 +73,11 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Requirement 1 — Network Security | 4 | Firewall rules, segmentation, traffic restrictions, trusted/untrusted connections |
-| Requirement 3 — Data Protection | 4 | Retention policies, unnecessary storage, data masking, transit encryption |
-| Requirement 6 — Secure Systems | 4 | Vulnerability management, patching, secure development, change management |
-| Requirement 10 — Logging/Monitoring | 5 | Audit trail, automated alerting, log integrity, time sync, log retention |
-| Requirement 11 — Security Testing | 4 | IDS/IPS, vulnerability scanning, pen testing, change detection |
+| Requirement 1 - Network Security | 4 | Firewall rules, segmentation, traffic restrictions, trusted/untrusted connections |
+| Requirement 3 - Data Protection | 4 | Retention policies, unnecessary storage, data masking, transit encryption |
+| Requirement 6 - Secure Systems | 4 | Vulnerability management, patching, secure development, change management |
+| Requirement 10 - Logging/Monitoring | 5 | Audit trail, automated alerting, log integrity, time sync, log retention |
+| Requirement 11 - Security Testing | 4 | IDS/IPS, vulnerability scanning, pen testing, change detection |
 
 ### HIPAA (3 sections, 13 controls)
 
@@ -108,37 +108,37 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Article 21 — Risk Management Measures | 5 | Network monitoring, incident handling, cryptography, supply chain security, access control |
-| Article 23 — Incident Reporting | 3 | 24h early warning detection, 72h incident notification, final report generation |
+| Article 21 - Risk Management Measures | 5 | Network monitoring, incident handling, cryptography, supply chain security, access control |
+| Article 23 - Incident Reporting | 3 | 24h early warning detection, 72h incident notification, final report generation |
 
 ### DORA (3 sections, 7 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Chapter II — ICT Risk Management | 3 | Risk management tools, ICT systems, protection and prevention |
-| Chapter III — Incident Management | 3 | Detection capabilities, incident classification, incident reporting |
-| Chapter IV — Resilience Testing | 1 | Testing requirements, MITRE coverage validation |
+| Chapter II - ICT Risk Management | 3 | Risk management tools, ICT systems, protection and prevention |
+| Chapter III - Incident Management | 3 | Detection capabilities, incident classification, incident reporting |
+| Chapter IV - Resilience Testing | 1 | Testing requirements, MITRE coverage validation |
 
 ### SecNumCloud (5 sections, 14 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Ch.8 — Access Control | 2 | Authentication (JWT/OIDC/API key), authorization (RBAC) |
-| Ch.9 — Network Security | 3 | Segmentation, flow filtering, flow monitoring |
-| Ch.10 — Operations and Monitoring | 3 | Logging, monitoring/detection, event correlation |
-| Ch.12 — Cryptography | 2 | TLS configuration, post-quantum readiness |
-| Ch.14 — Incident Management | 2 | Incident detection, forensics |
+| Ch.8 - Access Control | 2 | Authentication (JWT/OIDC/API key), authorization (RBAC) |
+| Ch.9 - Network Security | 3 | Segmentation, flow filtering, flow monitoring |
+| Ch.10 - Operations and Monitoring | 3 | Logging, monitoring/detection, event correlation |
+| Ch.12 - Cryptography | 2 | TLS configuration, post-quantum readiness |
+| Ch.14 - Incident Management | 2 | Incident detection, forensics |
 
 ### HDS (6 sections, 11 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| ISO 27001 A.13 — Communications Security | 2 | Network security management, information transfer |
-| ISO 27001 A.10 — Cryptography | 1 | Cryptographic controls |
-| ISO 27001 A.12.4 — Logging/Monitoring | 2 | Event logging, log protection |
-| ISO 27001 A.16 — Incident Management | 2 | Incident response, ARS notification (Art. R.1111-9) |
-| ISO 27018 — PII Protection | 1 | Health data DLP (NIR, RPPS, IPP, FINESS patterns recommended) |
-| Art. R.1111-10 — Traceability | 1 | Access audit trail |
+| ISO 27001 A.13 - Communications Security | 2 | Network security management, information transfer |
+| ISO 27001 A.10 - Cryptography | 1 | Cryptographic controls |
+| ISO 27001 A.12.4 - Logging/Monitoring | 2 | Event logging, log protection |
+| ISO 27001 A.16 - Incident Management | 2 | Incident response, ARS notification (Art. R.1111-9) |
+| ISO 27018 - PII Protection | 1 | Health data DLP (NIR, RPPS, IPP, FINESS patterns recommended) |
+| Art. R.1111-10 - Traceability | 1 | Access audit trail |
 
 ### Enterprise Infrastructure Sections
 
@@ -175,8 +175,8 @@ The scheduler runs as a background tokio task, generating reports for all config
 
 Each scheduled report can be delivered over two optional channels, configured under `schedule`:
 
-- **Email (SMTP)** — when `schedule.smtp` is set, the report is emailed to every address in `email_recipients` with the JSON report attached. Submission uses STARTTLS (port 587) by default, or implicit TLS when `starttls: false` (port 465); TLS runs over the agent's rustls stack. Optional SMTP AUTH via `username`/`password`.
-- **Webhook** — when `schedule.webhook_url` is set, a JSON summary (`framework`, `report_id`, `format`, `summary`) is POSTed to the URL on each run, for SOAR/automation pipelines.
+- **Email (SMTP)** - when `schedule.smtp` is set, the report is emailed to every address in `email_recipients` with the JSON report attached. Submission uses STARTTLS (port 587) by default, or implicit TLS when `starttls: false` (port 465); TLS runs over the agent's rustls stack. Optional SMTP AUTH via `username`/`password`.
+- **Webhook** - when `schedule.webhook_url` is set, a JSON summary (`framework`, `report_id`, `format`, `summary`) is POSTed to the URL on each run, for SOAR/automation pipelines.
 
 Both channels are best-effort: a delivery failure is logged and never aborts report generation or the scheduler loop.
 
@@ -191,7 +191,7 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
 
 | Format | Endpoint Suffix | Content-Type | Description |
 |--------|----------------|--------------|-------------|
-| JSON | — | `application/json` | Full structured report with all sections and evidence |
+| JSON | - | `application/json` | Full structured report with all sections and evidence |
 | CSV | `/csv` | `text/csv` | Columns: section_id, section_title, control_id, control_name, status, evidence_count, recommendations |
 | Text | `/text` | `text/plain` | Structured text with title, metadata, summary table, section details |
 | PDF | `/pdf` | `application/pdf` | Branded PDF with company logo, cross-reference matrix, and compliance score summary |
@@ -200,11 +200,11 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
 
 PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla) library and include:
 
-- **Company branding** — configurable company name displayed in the header
-- **Cross-reference matrix** — maps each control to framework requirements
-- **Compliance score** — visual summary with pass/fail/partial counts
-- **Section details** — per-control status, evidence, and remediation guidance
-- **Embedded fonts** — Liberation Sans family for consistent rendering across systems
+- **Company branding** - configurable company name displayed in the header
+- **Cross-reference matrix** - maps each control to framework requirements
+- **Compliance score** - visual summary with pass/fail/partial counts
+- **Section details** - per-control status, evidence, and remediation guidance
+- **Embedded fonts** - Liberation Sans family for consistent rendering across systems
 
 ## Configuration
 
@@ -234,11 +234,11 @@ enterprise:
 | `enabled` | bool | `true` | Enable compliance reporting |
 | `frameworks` | list | all 8 | Frameworks to evaluate (accepts `pci_dss4`, `hipaa`, `gdpr_art32`, `soc2`, `nis2`, `dora`, `secnumcloud`, `hds`) |
 | `retention_days` | u32 | `90` | Days to retain generated reports |
-| `output_dir` | string | — | Optional directory for disk persistence |
-| `schedule` | object | — | Optional automated generation config |
-| `schedule.email_recipients` | list | — | Addresses emailed each scheduled report (requires `schedule.smtp`) |
-| `schedule.smtp` | object | — | SMTP server for email delivery (`host`, `port`, `from`, `username?`, `password?`, `starttls`) |
-| `schedule.webhook_url` | string | — | URL POSTed a JSON report summary on each scheduled run |
+| `output_dir` | string | - | Optional directory for disk persistence |
+| `schedule` | object | - | Optional automated generation config |
+| `schedule.email_recipients` | list | - | Addresses emailed each scheduled report (requires `schedule.smtp`) |
+| `schedule.smtp` | object | - | SMTP server for email delivery (`host`, `port`, `from`, `username?`, `password?`, `starttls`) |
+| `schedule.webhook_url` | string | - | URL POSTed a JSON report summary on each scheduled run |
 
 ## REST API
 

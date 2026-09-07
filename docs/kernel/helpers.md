@@ -26,7 +26,7 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
 | [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-firewall, xdp-loadbalancer | Redirect using DevMap (wire-speed LB forwarding) or CpuMap (DDoS CPU steering) |
-| [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding — drops oversized packets |
+| [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding - drops oversized packets |
 
 ### Tail Call & Program Chaining
 
@@ -43,7 +43,7 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 | [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | All programs with events | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
 | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | tc-dns | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
 
-`RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target — see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
+`RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target - see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69--evaluated-not-used).
 
 ### Timing & Randomness
 
@@ -97,7 +97,7 @@ All event-emitting programs implement adaptive backpressure to avoid overwhelmin
 
 ```
 if bpf_ringbuf_query(BPF_RB_AVAIL_DATA) > capacity * 0.75 {
-    // Buffer >75% full — skip event emission
+    // Buffer >75% full - skip event emission
     metrics.events_dropped += 1;
     return TC_ACT_OK;
 }
@@ -133,5 +133,5 @@ XDP program:
 TC program:
   struct metadata *md = (void *)(long)ctx->data_meta
   if (md + 1 > data) return TC_ACT_OK;
-  // Use md->rule_id directly — no re-parsing needed
+  // Use md->rule_id directly - no re-parsing needed
 ```

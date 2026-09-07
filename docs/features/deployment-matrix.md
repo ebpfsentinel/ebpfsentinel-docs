@@ -55,12 +55,12 @@ This page documents which features are fully supported, partially supported, or 
 
 ### XDP/TC Programs (Firewall, NAT, Conntrack, Rate Limiting, DDoS, Load Balancer, Scrub)
 
-These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine. **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets — see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
+These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine. **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets - see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
 
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
 
-**Requirements**: kernel 6.9+ with a BPF token (the only loading path; the launcher entrypoint sets up the delegated bpffs and creates the token in a child user namespace, then execs the agent unprivileged — the long-running agent holds no host capabilities); `--network host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: kernel 6.9+ with a BPF token (the only loading path; the launcher entrypoint sets up the delegated bpffs and creates the token in a child user namespace, then execs the agent unprivileged - the long-running agent holds no host capabilities); `--network host` (container), `hostNetwork: true` (Kubernetes).
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 
@@ -76,16 +76,16 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 |------|----------|
 | **Bare metal** | Attaches to all host processes using `libssl.so.3`. Full visibility. |
 | **Container** (`--pid=host`) | Attaches to all host processes. Full visibility with container-level enrichment. |
-| **Container** (no `--pid=host`) | Only attaches to processes inside the container. Limited — use `--pid=host` for production. |
+| **Container** (no `--pid=host`) | Only attaches to processes inside the container. Limited - use `--pid=host` for production. |
 | **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility with pod-level enrichment (see below). |
-| **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Limited — use `hostPID: true` for production. |
+| **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Limited - use `hostPID: true` for production. |
 | **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it uses `libssl.so.3` in the same shared PID namespace. |
 
-**Container/pod enrichment**: DLP events carry `cgroup_id` (via `bpf_get_current_cgroup_id` in the uprobe), which the container resolver maps to the owning container or pod. Combined with the Docker enricher or Kubernetes metadata enricher, every DLP alert includes container/pod name, namespace, and labels — enabling per-workload DLP policy enforcement.
+**Container/pod enrichment**: DLP events carry `cgroup_id` (via `bpf_get_current_cgroup_id` in the uprobe), which the container resolver maps to the owning container or pod. Combined with the Docker enricher or Kubernetes metadata enricher, every DLP alert includes container/pod name, namespace, and labels - enabling per-workload DLP policy enforcement.
 
 **Key constraint (OSS)**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. The OSS uprobe-dlp only hooks OpenSSL's `libssl.so.3`.
 
-**Enterprise extends this coverage** via additional uprobe targets — Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS — so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
+**Enterprise extends this coverage** via additional uprobe targets - Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS - so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
 **Recommended K8s deployment** for full DLP coverage (BPF token, default):
 
@@ -93,7 +93,7 @@ DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` 
 spec:
   hostPID: true
   hostNetwork: true
-  # No init container — the image entrypoint (ebpfsentinel-token-launch) creates
+  # No init container - the image entrypoint (ebpfsentinel-token-launch) creates
   # the token in a child userns and execs the agent unprivileged.
   containers:
     - name: agent
@@ -115,16 +115,16 @@ spec:
 Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes). It requires access to the **host routing table** to apply policy routing decisions.
 
 - **Bare metal / Container** (`--network host`, `CAP_NET_ADMIN`): full support. The container shares the host network namespace and has direct access to `ip route` / `ip rule`.
-- **K8s DaemonSet** (`hostNetwork: true`): the pod shares the host network namespace, but policy routing (`ip rule add` / `ip route`) goes through **netlink**, which re-checks `CAP_NET_ADMIN` against the *sending* task on every message. The launcher runs the agent in a child user namespace, and a descendant namespace is never privileged over the host netns it manipulates — so adding `CAP_NET_ADMIN` to `capabilities.add` does **not** make Multi-WAN route changes take effect (same limitation as `conntrack -D` flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)). Gateway health checks (ICMP/TCP probes) still run; the route application is what is constrained.
+- **K8s DaemonSet** (`hostNetwork: true`): the pod shares the host network namespace, but policy routing (`ip rule add` / `ip route`) goes through **netlink**, which re-checks `CAP_NET_ADMIN` against the *sending* task on every message. The launcher runs the agent in a child user namespace, and a descendant namespace is never privileged over the host netns it manipulates - so adding `CAP_NET_ADMIN` to `capabilities.add` does **not** make Multi-WAN route changes take effect (same limitation as `conntrack -D` flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)). Gateway health checks (ICMP/TCP probes) still run; the route application is what is constrained.
 
   > **CNI compatibility note**: eBPFsentinel adds policy routes (`ip rule`) to the host routing table. Most CNIs are unaffected because they use separate routing tables or eBPF-based routing:
-  > - **Flannel, Calico (iptables mode), kube-router**: compatible — these use standard routing tables that don't conflict with policy routing rules.
-  > - **Cilium (eBPF routing mode)**: compatible — Cilium uses eBPF for pod routing and doesn't rely on `ip rule`.
-  > - **Calico (BGP mode)**: test before production — Calico BGP injects routes into the default table. Policy routing rules take precedence (`ip rule` is evaluated before the main table), so conflicts are unlikely but environment-specific.
+  > - **Flannel, Calico (iptables mode), kube-router**: compatible - these use standard routing tables that don't conflict with policy routing rules.
+  > - **Cilium (eBPF routing mode)**: compatible - Cilium uses eBPF for pod routing and doesn't rely on `ip rule`.
+  > - **Calico (BGP mode)**: test before production - Calico BGP injects routes into the default table. Policy routing rules take precedence (`ip rule` is evaluated before the main table), so conflicts are unlikely but environment-specific.
   >
   > If in doubt, run `ip rule list` and `ip route show table all` on a node to check for overlapping rules before enabling multi-WAN.
 
-- **Sidecar**: not supported — the pod has an isolated network namespace and cannot modify the host routing table.
+- **Sidecar**: not supported - the pod has an isolated network namespace and cannot modify the host routing table.
 
 ### Userspace-Only Features (Alert Pipeline, Metrics, API, CLI)
 
@@ -139,7 +139,7 @@ independently after the packet pipeline.
 | Block | Requires | Notes |
 |-------|----------|-------|
 | **Container Resolver** | read access to host `/proc` (bind-mount `/proc:/host/proc:ro` when containerised) | Works anywhere a process is reachable via `/proc/{pid}/cgroup`; sidecar mode sees only pods in the shared PID namespace |
-| **Docker Enricher** | `/var/run/docker.sock:/var/run/docker.sock:ro` bind-mount | Non-Docker hosts disable the enricher at startup — zero runtime cost |
+| **Docker Enricher** | `/var/run/docker.sock:/var/run/docker.sock:ro` bind-mount | Non-Docker hosts disable the enricher at startup - zero runtime cost |
 | **Kubernetes Enricher** | in-cluster service account with `pods` `get/list/watch` | Auto-disables when `KUBERNETES_SERVICE_HOST` is absent; not useful on bare metal |
 
 See the full reference at [Container Awareness](container-awareness.md).
@@ -147,7 +147,7 @@ See the full reference at [Container Awareness](container-awareness.md).
 ## Loading mode: BPF token (default)
 
 The agent requires **kernel 6.9+** and loads eBPF **exclusively** through
-[**BPF token delegation**](../operations/deployment/bpf-token.md) — there
+[**BPF token delegation**](../operations/deployment/bpf-token.md) - there
 is no capability-based loading path. The privileged launcher
 (`ebpfsentinel-token-launch`, the systemd `ExecStart` and the container
 image entrypoint) sets up a delegated bpffs **inside a child user
@@ -158,8 +158,8 @@ consumes `CAP_SYS_ADMIN` for the bootstrap; the long-running agent holds
 (`dist/ebpfsentinel.service`) and the Helm chart ship.
 
 Because the agent runs in a child user namespace, host-netns operations
-that re-check capabilities per syscall are unavailable to it — `conntrack -D`
-teardown, Multi-WAN route application, and VIP gratuitous ARP — and granting
+that re-check capabilities per syscall are unavailable to it - `conntrack -D`
+teardown, Multi-WAN route application, and VIP gratuitous ARP - and granting
 the agent extra capabilities does not change that. pcap capture is the
 exception: the launcher pre-opens the `AF_PACKET` sockets (cap checked only
 at `socket()`) and passes the fds. The in-kernel equivalents (IPS_DYING

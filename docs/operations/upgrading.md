@@ -34,11 +34,11 @@ kubectl apply -f daemonset.yaml
 kubectl -n ebpfsentinel rollout status daemonset/ebpfsentinel
 ```
 
-The DaemonSet performs a rolling update — one node at a time. During the upgrade, each node has a brief window (~1-2 seconds) where eBPF programs are not attached.
+The DaemonSet performs a rolling update - one node at a time. During the upgrade, each node has a brief window (~1-2 seconds) where eBPF programs are not attached.
 
 ## Configuration Changes
 
-Most configuration changes don't require a restart — including enabling or disabling entire features, which dynamically loads or unloads the corresponding eBPF programs:
+Most configuration changes don't require a restart - including enabling or disabling entire features, which dynamically loads or unloads the corresponding eBPF programs:
 
 ```bash
 # Edit config

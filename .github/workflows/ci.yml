@@ -94,6 +94,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # The punctuation rule is a cross-repository invariant and was held here
+      # by being read, so a hundred files had drifted. This reads the tracked
+      # tree and needs no dependency, so it runs before the install rather than
+      # after a build that would have passed anyway.
+      - name: Check for typographic dashes
+        run: npm run check:no-em-dash
+
       - run: npm ci
 
       - run: npm run typecheck

@@ -14,12 +14,12 @@ The TC classifier identifies DNS traffic (UDP and TCP port 53) and emits DNS que
 
 ### Userspace Side
 
-1. **DNS parsing** — wire-format DNS packets are parsed to extract query names, response addresses, TTLs
-2. **Domain-to-IP cache** — maintains a mapping of domains to resolved IPs (used for alert enrichment across all domains)
-3. **Blocklist evaluation** — queries are checked against inline patterns and external feed-sourced blocklists
-4. **Threat intel injection** — when a blocked domain resolves to an IP, that IP is automatically injected into the threat intel kernel map (`THREATINTEL_IOCS`). The IP is removed when the DNS TTL expires (+grace period). This bridges domain-level blocklists with IP-level kernel enforcement
-5. **Domain reputation integration** — DNS data feeds into the domain reputation scoring engine. CTI matches contribute a `CtiMatch` factor (weight 0.8) to the score; domains exceeding the `auto_block_threshold` are auto-blocked
-6. **GeoIP reputation scoring** — domains resolving to IPs in `high_risk_countries` receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold
+1. **DNS parsing** - wire-format DNS packets are parsed to extract query names, response addresses, TTLs
+2. **Domain-to-IP cache** - maintains a mapping of domains to resolved IPs (used for alert enrichment across all domains)
+3. **Blocklist evaluation** - queries are checked against inline patterns and external feed-sourced blocklists
+4. **Threat intel injection** - when a blocked domain resolves to an IP, that IP is automatically injected into the threat intel kernel map (`THREATINTEL_IOCS`). The IP is removed when the DNS TTL expires (+grace period). This bridges domain-level blocklists with IP-level kernel enforcement
+5. **Domain reputation integration** - DNS data feeds into the domain reputation scoring engine. CTI matches contribute a `CtiMatch` factor (weight 0.8) to the score; domains exceeding the `auto_block_threshold` are auto-blocked
+6. **GeoIP reputation scoring** - domains resolving to IPs in `high_risk_countries` receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold
 
 ### High-Risk Country Reputation
 
@@ -35,8 +35,8 @@ dns:
 
 ### Blocklist Matching
 
-- **Exact match** — `malware.example.com`, case-insensitive
-- **Wildcard** — `*.ad-network.com` matches subdomains up to five levels deep
+- **Exact match** - `malware.example.com`, case-insensitive
+- **Wildcard** - `*.ad-network.com` matches subdomains up to five levels deep
 
 A pattern reaches the blocklist from one of two places: the `domains` list in
 the configuration file, or an external feed. Feed patterns are refreshed on a
@@ -168,11 +168,11 @@ All DNS enforcement actions emit security alerts through the unified alert pipel
 
 | Event | Severity | MITRE ATT&CK | Rule ID Format |
 |-------|----------|---------------|----------------|
-| Blocklist match (block) | High | T1071.004 — DNS | `dns-blocklist:{pattern}` |
-| Blocklist match (alert) | Medium | T1071.004 — DNS | `dns-blocklist:{pattern}` |
-| Blocklist match (log) | Low | T1071.004 — DNS | `dns-blocklist:{pattern}` |
-| Reputation auto-block | High | T1568 — Dynamic Resolution | `dns-reputation:{score}` |
-| Encrypted DNS (DoH/DoT) | Medium | T1071.004 — DNS | `dns-encrypted:{protocol}:{resolver}` |
+| Blocklist match (block) | High | T1071.004 - DNS | `dns-blocklist:{pattern}` |
+| Blocklist match (alert) | Medium | T1071.004 - DNS | `dns-blocklist:{pattern}` |
+| Blocklist match (log) | Low | T1071.004 - DNS | `dns-blocklist:{pattern}` |
+| Reputation auto-block | High | T1568 - Dynamic Resolution | `dns-reputation:{score}` |
+| Encrypted DNS (DoH/DoT) | Medium | T1071.004 - DNS | `dns-encrypted:{protocol}:{resolver}` |
 
 Alerts include `matched_domain` for correlation and are routed through the same dedup/throttle/route matching as all other alert types.
 

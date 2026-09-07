@@ -22,7 +22,7 @@ Linux kernel **6.9 or later** with BTF support (`/sys/kernel/btf/vmlinux` must e
 
 ### Does it require kernel modules?
 
-No. eBPF programs are loaded by the userspace agent at runtime — no kernel module compilation, no DKMS.
+No. eBPF programs are loaded by the userspace agent at runtime - no kernel module compilation, no DKMS.
 
 ### Does it support ARM64?
 
@@ -30,7 +30,7 @@ Yes. x86_64 is the primary platform; aarch64/ARM64 is cross-tested.
 
 ### What capabilities does it need?
 
-eBPF loads **exclusively** through a BPF token (kernel 6.9+), so the agent is started by the privileged launcher (`ebpfsentinel-token-launch`), which needs `CAP_SYS_ADMIN` and unprivileged user namespaces to create the token — then execs the agent **unprivileged** (no host capabilities). There is no `CAP_BPF`/`setcap` loading path. In Docker: `--network host --cap-add SYS_ADMIN --security-opt apparmor=unconfined` (the launcher is the image entrypoint); add `--pid host` for host-process uprobe DLP. See the [BPF token guide](operations/deployment/bpf-token.md).
+eBPF loads **exclusively** through a BPF token (kernel 6.9+), so the agent is started by the privileged launcher (`ebpfsentinel-token-launch`), which needs `CAP_SYS_ADMIN` and unprivileged user namespaces to create the token - then execs the agent **unprivileged** (no host capabilities). There is no `CAP_BPF`/`setcap` loading path. In Docker: `--network host --cap-add SYS_ADMIN --security-opt apparmor=unconfined` (the launcher is the image entrypoint); add `--pid host` for host-process uprobe DLP. See the [BPF token guide](operations/deployment/bpf-token.md).
 
 ## Performance
 
@@ -40,12 +40,12 @@ XDP programs run before the kernel network stack, adding minimal overhead. The e
 
 ### How fast is the firewall?
 
-XDP runs at the earliest possible hook point — packets can be dropped before the kernel allocates an SKB. CIDR-only rules use LPM tries for O(log n) matching.
+XDP runs at the earliest possible hook point - packets can be dropped before the kernel allocates an SKB. CIDR-only rules use LPM tries for O(log n) matching.
 
 ### How do I reduce CPU usage?
 
 1. Enable IDS sampling: `ids.sample_rate: 100` (inspect 1-in-100)
-2. Use CIDR-only firewall rules (LPM trie — faster than port/protocol rules)
+2. Use CIDR-only firewall rules (LPM trie - faster than port/protocol rules)
 3. Reduce log verbosity: `agent.log_level: "warn"`
 
 ## Features
@@ -109,7 +109,7 @@ Yes. The kernel eBPF verifier validates all programs before loading:
 
 ### What if an eBPF program crashes?
 
-eBPF programs cannot crash — the verifier ensures safety at load time. If the userspace agent crashes, eBPF programs continue running in the kernel until the agent is restarted.
+eBPF programs cannot crash - the verifier ensures safety at load time. If the userspace agent crashes, eBPF programs continue running in the kernel until the agent is restarted.
 
 ### How are API keys secured?
 
@@ -123,7 +123,7 @@ Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled k
 
 ### Agent fails to start with "permission denied" / no eBPF attached
 
-Start it via the launcher so the BPF token is created — running the agent binary directly fails `BPF_TOKEN_CREATE` outside a user namespace: `sudo ebpfsentinel-token-launch --bpffs /sys/fs/bpf/ebpfsentinel ./ebpfsentinel-agent --config config/ebpfsentinel.yaml`. The launcher needs `CAP_SYS_ADMIN` + unprivileged user namespaces; there is no `setcap` fallback.
+Start it via the launcher so the BPF token is created - running the agent binary directly fails `BPF_TOKEN_CREATE` outside a user namespace: `sudo ebpfsentinel-token-launch --bpffs /sys/fs/bpf/ebpfsentinel ./ebpfsentinel-agent --config config/ebpfsentinel.yaml`. The launcher needs `CAP_SYS_ADMIN` + unprivileged user namespaces; there is no `setcap` fallback.
 
 ### No alerts are generated
 

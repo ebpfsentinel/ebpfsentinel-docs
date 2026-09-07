@@ -25,11 +25,11 @@ firewall:
       priority: 10                      # Lower number = higher precedence
       action: allow                     # allow, deny, log, or reject
       protocol: tcp                     # tcp, udp, icmp, or any
-      src_ip: "10.0.0.0/8"              # Source CIDR (optional — omit to match any)
+      src_ip: "10.0.0.0/8"              # Source CIDR (optional - omit to match any)
       dst_ip: "192.168.1.0/24"          # Destination CIDR (optional)
       src_port: "1024-65535"            # Source port or range (optional)
       dst_port: "80-443"                # Destination port or range (optional)
-      vlan_id: 100                      # 802.1Q VLAN ID (optional — omit to match any, 0 = untagged only)
+      vlan_id: 100                      # 802.1Q VLAN ID (optional - omit to match any, 0 = untagged only)
       scope: global                     # global, a bare interface name (eth0), or a map (optional)
       flags: "S/SA"                     # TCP flags match/mask notation (optional)
       icmp_type: 8                      # ICMP type number or name (optional)
@@ -320,7 +320,7 @@ firewall:
 ### Policy routing (multi-WAN)
 
 Multi-WAN gateway selection is configured in the dedicated [`routing`](routing.md)
-section (gateways, health checks, and GeoIP preference) — there is no per-firewall-rule
+section (gateways, health checks, and GeoIP preference) - there is no per-firewall-rule
 `route_to` field. The firewall and the policy router are independent: the firewall
 filters, the router picks the egress gateway.
 

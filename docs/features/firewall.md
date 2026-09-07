@@ -4,7 +4,7 @@
 
 ## Overview
 
-The eBPFsentinel firewall provides L3/L4 packet filtering at XDP speed — the earliest possible hook point in the Linux network stack, before the kernel allocates an SKB. Packets are matched against rules using a multi-phase lookup combining LPM trie CIDR matching (O(log n)) with priority-based linear evaluation, stateful connection tracking, IP/port aliases, and policy routing.
+The eBPFsentinel firewall provides L3/L4 packet filtering at XDP speed - the earliest possible hook point in the Linux network stack, before the kernel allocates an SKB. Packets are matched against rules using a multi-phase lookup combining LPM trie CIDR matching (O(log n)) with priority-based linear evaluation, stateful connection tracking, IP/port aliases, and policy routing.
 
 ## How It Works
 
@@ -22,14 +22,14 @@ Scope values are validated at config load and API ingestion:
 
 - **Interface names**: 1-15 characters, restricted to alphanumeric characters plus `_`, `-`, `.`, and `:`.
 - **Namespace names**: 1-63 characters, restricted to lowercase alphanumeric characters plus `-`.
-- **`namespace: None`** in RBAC claims means **deny-all** (not unrestricted) — an operator without an explicit namespace grant cannot modify rules in any namespace.
+- **`namespace: None`** in RBAC claims means **deny-all** (not unrestricted) - an operator without an explicit namespace grant cannot modify rules in any namespace.
 
 ### Firewall Mode
 
 The firewall operates in one of two modes:
 
-- **block** (default) — `deny` rules drop packets (`XDP_DROP`)
-- **alert** — `deny` rules log the packet but pass it through (`XDP_PASS` + RingBuf event)
+- **block** (default) - `deny` rules drop packets (`XDP_DROP`)
+- **alert** - `deny` rules log the packet but pass it through (`XDP_PASS` + RingBuf event)
 
 Alert mode is useful for testing rules in production before enforcing them.
 
@@ -37,15 +37,15 @@ Alert mode is useful for testing rules in production before enforcing them.
 
 The XDP firewall processes packets through five phases:
 
-1. **Phase 0 — Conntrack fast-path**: Overload check (IP set 255), then connection tracking lookup. Established connections are fast-tracked without rule evaluation.
-2. **Phase 1 — LPM Trie** (O(log n)): CIDR-only rules (source/destination subnet) in four tries: `FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`.
-3. **Phase 2 — Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP, MAC, DSCP, aliases, or negation filters are evaluated in priority order (lowest number = highest precedence). First matching rule wins.
-4. **Phase 3 — Connection limits**: Per-source and per-rule state limits are checked for new connections. Overloaded sources are added to the blacklist.
-5. **Phase 4 — Routing actions**: Policy routing (route-to, reply-to, dup-to) is applied to matched packets.
+1. **Phase 0 - Conntrack fast-path**: Overload check (IP set 255), then connection tracking lookup. Established connections are fast-tracked without rule evaluation.
+2. **Phase 1 - LPM Trie** (O(log n)): CIDR-only rules (source/destination subnet) in four tries: `FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`.
+3. **Phase 2 - Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP, MAC, DSCP, aliases, or negation filters are evaluated in priority order (lowest number = highest precedence). First matching rule wins.
+4. **Phase 3 - Connection limits**: Per-source and per-rule state limits are checked for new connections. Overloaded sources are added to the blacklist.
+5. **Phase 4 - Routing actions**: Policy routing (route-to, reply-to, dup-to) is applied to matched packets.
 
 ### Rule Matching
 
-Each rule field is optional — omitted fields act as wildcards:
+Each rule field is optional - omitted fields act as wildcards:
 
 | Field | Wildcard | Match Logic |
 |-------|----------|-------------|
@@ -71,17 +71,17 @@ Each rule field is optional — omitted fields act as wildcards:
 
 ### XDP Actions
 
-- **allow** — `XDP_PASS` the packet into the kernel network stack
-- **deny** — `XDP_DROP` the packet (never reaches the kernel)
-- **reject** — forge and send an active refusal via `XDP_TX`, then drop the original packet:
+- **allow** - `XDP_PASS` the packet into the kernel network stack
+- **deny** - `XDP_DROP` the packet (never reaches the kernel)
+- **reject** - forge and send an active refusal via `XDP_TX`, then drop the original packet:
   - **TCP packets**: sends a TCP RST with correct sequence/acknowledgment numbers per RFC 793
-  - **UDP/other IPv4**: sends an ICMP Destination Unreachable (type 3, code 3 — port unreachable)
+  - **UDP/other IPv4**: sends an ICMP Destination Unreachable (type 3, code 3 - port unreachable)
   - **IPv6 + TCP**: sends a TCP RST with IPv6 headers
-  - **IPv6 + UDP**: sends an ICMPv6 Destination Unreachable (type 1, code 4 — port unreachable)
+  - **IPv6 + UDP**: sends an ICMPv6 Destination Unreachable (type 1, code 4 - port unreachable)
   - Falls back to silent `XDP_DROP` if response packet construction fails (e.g., insufficient headroom)
   - Config value: `action: reject` (alias: `reset`)
   - Wire conformance: an integration suite exercises this path on a real network, asserting that the forged RST/ICMP carries valid checksums, has src/dst swapped vs the original SYN, and is suppressed for whitelisted sources.
-- **log** — `XDP_PASS` + emit event to RingBuf for userspace logging
+- **log** - `XDP_PASS` + emit event to RingBuf for userspace logging
 
 ### Stateful Inspection (Connection Tracking)
 
@@ -280,7 +280,7 @@ A dedicated TC program normalizes packets after XDP processing:
 - **MSS clamping**: Clamp TCP MSS option on SYN packets (IPv4/IPv6)
 - **DF bit clearing**: Clear the Don't Fragment flag (IPv4 only)
 - **IP ID randomization**: Randomize the IP identification field (IPv4 only)
-- **TCP flags scrubbing** (`scrub_tcp_flags`): Clears TCP reserved, NS, CWR, and ECE bits for anti-fingerprinting. ECN negotiation on SYN packets is preserved — only non-SYN packets have ECE/CWR cleared.
+- **TCP flags scrubbing** (`scrub_tcp_flags`): Clears TCP reserved, NS, CWR, and ECE bits for anti-fingerprinting. ECN negotiation on SYN packets is preserved - only non-SYN packets have ECE/CWR cleared.
 - **ECN stripping** (`strip_ecn`): Clears ECN bits (CE and ECT) in the IPv4 TOS field and IPv6 Traffic Class.
 - **TOS normalization** (`normalize_tos`): Forces the TOS/DSCP byte to a configured value (default 0), useful for sanitizing upstream QoS markings.
 - **TCP timestamp stripping** (`strip_tcp_timestamps`): Removes TCP timestamp option (kind=8) from packets. This is an anti-fingerprinting measure that prevents OS detection via TCP timestamp analysis.
@@ -308,7 +308,7 @@ firewall:
 ### Policy Routing
 
 Multi-WAN and traffic engineering are handled by the dedicated [`routing`](routing.md)
-section — gateway selection, health checks, and GeoIP preference. Firewall rules
+section - gateway selection, health checks, and GeoIP preference. Firewall rules
 do not carry per-rule routing actions; the firewall filters and the policy router
 picks the egress gateway independently.
 
@@ -346,7 +346,7 @@ The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule
 - **Packet mirroring** via `DEVMAP` + `bpf_redirect` to monitoring interfaces
 - **CPU steering** via `CPUMAP` for NUMA-aware packet distribution
 - **FIB routing enrichment** via `bpf_fib_lookup` for next-hop and routing anomaly detection
-- **MTU validation** via `bpf_check_mtu` before pass and redirect operations — drops oversized packets and increments `mtu_exceeded` Prometheus metric
+- **MTU validation** via `bpf_check_mtu` before pass and redirect operations - drops oversized packets and increments `mtu_exceeded` Prometheus metric
 - **Checksum offload** via `bpf_csum_diff` / `bpf_l3_csum_replace` / `bpf_l4_csum_replace`
 
 ## Configuration

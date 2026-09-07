@@ -1,6 +1,6 @@
 # Agent Configuration
 
-The `agent` section configures the core agent behavior — network interfaces, API ports, and logging.
+The `agent` section configures the core agent behavior - network interfaces, API ports, and logging.
 
 ## Reference
 
@@ -28,13 +28,13 @@ agent:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `interfaces` | `[string]` | Yes | — | Network interfaces to monitor |
+| `interfaces` | `[string]` | Yes | - | Network interfaces to monitor |
 | `xdp_mode` | `string` | No | `auto` | XDP attachment mode (see below) |
 | `bind_address` | `string` | No | `127.0.0.1` | REST API listen address |
 | `allow_unauthenticated_api` | `bool` | No | `false` | Safety override. With `auth.enabled: false` the agent **refuses to start** when `bind_address` is non-loopback, because that would expose the control plane (firewall, IPS, NAT, config reload) to anyone who can reach the port. Set `true` only when the API is fenced off by other means (network policy, mTLS-terminating proxy). Leaving auth enabled, or binding to `127.0.0.1`/`::1`, is the safe default. |
 | `http_port` | `integer` | No | `8080` | REST API port |
 | `grpc_port` | `integer` | No | `50051` | gRPC streaming port |
-| `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security — exposes service definitions |
+| `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security - exposes service definitions |
 | `metrics_port` | `integer` | No | `9090` | Prometheus metrics port |
 | `ebpf_program_dir` | `Option<string>` | No | `None` | Directory for eBPF binaries. When `None`, the agent uses embedded programs |
 | `event_workers` | `usize` | No | `4` | Number of parallel event dispatcher workers |
@@ -98,7 +98,7 @@ The `attach_mode` field controls how TC programs (tc-ids, tc-conntrack, tc-dns, 
 
 ### Netkit attach
 
-**Netkit** devices (kernel **6.7+**) replace veth pairs for container networking and let BPF programs attach natively — no TC qdisc overhead. eBPFsentinel detects them by reading `/sys/class/net/{iface}/type` (netkit reports `ARPHRD_NONE` / `65534`) and attaches each TC program with a `BPF_LINK_CREATE` syscall using `BPF_NETKIT_PRIMARY` (the ingress side of the netkit pair).
+**Netkit** devices (kernel **6.7+**) replace veth pairs for container networking and let BPF programs attach natively - no TC qdisc overhead. eBPFsentinel detects them by reading `/sys/class/net/{iface}/type` (netkit reports `ARPHRD_NONE` / `65534`) and attaches each TC program with a `BPF_LINK_CREATE` syscall using `BPF_NETKIT_PRIMARY` (the ingress side of the netkit pair).
 
 The programs eligible for netkit attach are the TC datapath: `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-qos`. XDP programs (`xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`) keep their own [XDP attach mode](#xdp-attachment-mode).
 
@@ -170,7 +170,7 @@ agent:
   interfaces: [bond0]
 ```
 
-**VLAN trunk interfaces**: attach to the parent interface. VLAN-tagged traffic passes through XDP/TC on the physical NIC before VLAN decapsulation. eBPFsentinel parses 802.1Q/802.1ad headers natively — firewall rules can match on `vlan_id`:
+**VLAN trunk interfaces**: attach to the parent interface. VLAN-tagged traffic passes through XDP/TC on the physical NIC before VLAN decapsulation. eBPFsentinel parses 802.1Q/802.1ad headers natively - firewall rules can match on `vlan_id`:
 
 ```yaml
 # Physical interface carrying tagged VLANs
@@ -198,8 +198,8 @@ interface_groups:
 ```
 
 **What NOT to do**:
-- Do not list both a bond master and its members (`[bond0, eth0, eth1]`) — traffic would be processed twice.
-- Do not list VLAN sub-interfaces (`eth0.100`) — attach to the parent (`eth0`) and use `vlan_id` in rules.
+- Do not list both a bond master and its members (`[bond0, eth0, eth1]`) - traffic would be processed twice.
+- Do not list VLAN sub-interfaces (`eth0.100`) - attach to the parent (`eth0`) and use `vlan_id` in rules.
 
 ### Debug logging with text format
 
@@ -218,8 +218,8 @@ fields default to absent / `false` and are hot-reloadable.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `operator_managed` | bool | `false` | When `true`, the dashboard locks its config-edit UI on this agent — the Kubernetes operator (CRD) owns the configuration and writes back from the dashboard would drift. |
-| `operator_endpoint` | string (URL) | unset | Optional absolute `http://` or `https://` URL pointing at the operator's UI. The dashboard deep-links from the "operator-managed" badge. Validated at config load — malformed or non-`http(s)` URLs reject the reload. |
+| `operator_managed` | bool | `false` | When `true`, the dashboard locks its config-edit UI on this agent - the Kubernetes operator (CRD) owns the configuration and writes back from the dashboard would drift. |
+| `operator_endpoint` | string (URL) | unset | Optional absolute `http://` or `https://` URL pointing at the operator's UI. The dashboard deep-links from the "operator-managed" badge. Validated at config load - malformed or non-`http(s)` URLs reject the reload. |
 
 ```yaml
 management:

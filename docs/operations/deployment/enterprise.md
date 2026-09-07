@@ -3,7 +3,7 @@
 The enterprise agent ships in the same **rootless split** posture as the OSS
 agent: a fully unprivileged agent (uid 65534, every capability dropped) paired
 with a privileged **enterprise-warden** broker. The warden is the OSS warden plus
-one addition — it serves the enterprise **proc-TLS scan** (extended-TLS discovery
+one addition - it serves the enterprise **proc-TLS scan** (extended-TLS discovery
 of Go / Java / static BoringSSL / kTLS / GnuTLS usage) over the same socket. A
 single privileged daemon therefore backs the whole rootless enterprise agent.
 
@@ -23,7 +23,7 @@ whenever the socket is set, so the rootless agent never needs `CAP_SYS_PTRACE`.
 - Unprivileged user namespaces enabled. On kernels that gate them behind AppArmor
   (`kernel.apparmor_restrict_unprivileged_userns=1`, the Ubuntu 24.04+ default)
   the agent (uid 65534) cannot self-unshare a userns. This is a **host-level**
-  gate — an in-container/in-pod Unconfined profile does **not** lift it. Either:
+  gate - an in-container/in-pod Unconfined profile does **not** lift it. Either:
   - set `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`
     (persist via `/etc/sysctl.d/`), or
   - load a per-binary AppArmor profile granting `userns` (the bundled
@@ -81,7 +81,7 @@ journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
 
 The agent unit `Wants` (not `Requires`) the warden and waits for its socket before
 starting; a warden restart does not tear the agent down. On bare metal the two
-share the host PID namespace, so the warden reads `/proc` directly — no
+share the host PID namespace, so the warden reads `/proc` directly - no
 `/host/proc` mount is needed.
 
 ## Docker Compose
@@ -89,7 +89,7 @@ share the host PID namespace, so the warden reads `/proc` directly — no
 `docker-compose.yml` defines the two services sharing a socket volume:
 
 ```bash
-# Place a signed license next to the compose file (the file MUST exist — Docker
+# Place a signed license next to the compose file (the file MUST exist - Docker
 # creates a directory in its place if absent), then bring the stack up:
 cp my-license.key ./license.key
 sudo chown 65534:65534 ./config/ebpfsentinel.yaml && sudo chmod 640 ./config/ebpfsentinel.yaml

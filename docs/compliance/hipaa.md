@@ -14,7 +14,7 @@ eBPFsentinel supports HIPAA Security Rule safeguards for network-level controls.
 | §164.312(e)(1) | Transmission Security | DLP (PHI patterns), TLS |
 | §164.308(a)(1)(ii)(D) | Activity Review | Alerting, Prometheus metrics |
 
-## §164.312(a)(1) — Access Control
+## §164.312(a)(1) - Access Control
 
 ```yaml
 firewall:
@@ -29,7 +29,7 @@ firewall:
       dst_port: "443"
 ```
 
-## §164.312(b) — Audit Controls
+## §164.312(b) - Audit Controls
 
 HIPAA requires 6-year retention:
 
@@ -39,7 +39,7 @@ audit:
   retention_days: 2190          # 6 years
 ```
 
-## §164.312(e)(1) — Transmission Security
+## §164.312(e)(1) - Transmission Security
 
 Configure DLP to detect PHI patterns:
 

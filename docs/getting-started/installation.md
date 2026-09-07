@@ -36,7 +36,7 @@ docker build -t ebpfsentinel .
 eBPF loads only through a BPF token (kernel 6.9+). The image entrypoint is the
 launcher (`ebpfsentinel-token-launch`); it creates the token in a child user
 namespace and execs the agent unprivileged, so the container only needs
-`CAP_SYS_ADMIN` for that bootstrap — no separate setup step:
+`CAP_SYS_ADMIN` for that bootstrap - no separate setup step:
 
 ```bash
 docker run --network host \
@@ -47,7 +47,7 @@ docker run --network host \
   ebpfsentinel
 ```
 
-`docker compose up -d` wires the same single service automatically — see
+`docker compose up -d` wires the same single service automatically - see
 [Docker deployment](../operations/deployment/docker.md).
 
 ### Docker Compose
@@ -83,7 +83,7 @@ spec:
         app: ebpfsentinel
     spec:
       hostNetwork: true
-      # No init container — the image entrypoint (ebpfsentinel-token-launch)
+      # No init container - the image entrypoint (ebpfsentinel-token-launch)
       # sets up the delegated bpffs + token in a child userns, then execs the
       # agent there. CAP_SYS_ADMIN is for that bootstrap; the agent is rootless.
       containers:
@@ -128,4 +128,4 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/api/v1/ebpf/status
 ```
 
-Next: [Quickstart](quickstart.md) — configure your first security rules.
+Next: [Quickstart](quickstart.md) - configure your first security rules.

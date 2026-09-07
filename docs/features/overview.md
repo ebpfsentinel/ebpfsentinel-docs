@@ -27,7 +27,7 @@ each of the five against the file named above, not a sixth correction.
 
 ## OSS / Enterprise Matrix
 
-All features listed as **OSS** are included in the open-source release (AGPL-3.0). Enterprise features are planned — see the [Enterprise roadmap](enterprise/overview.md).
+All features listed as **OSS** are included in the open-source release (AGPL-3.0). Enterprise features are planned - see the [Enterprise roadmap](enterprise/overview.md).
 
 ### Security Domains
 
@@ -139,4 +139,4 @@ entered from the program that needs it, which is why they are counted apart:
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 
-All rule-bearing programs (xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos) support **interface groups** — rules can be scoped to named groups of interfaces via a u32 bitmask. Rules with no `interfaces` field are floating (apply everywhere). See [Interface Groups](interface-groups.md).
+All rule-bearing programs (xdp-firewall, xdp-ratelimit, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos) support **interface groups** - rules can be scoped to named groups of interfaces via a u32 bitmask. Rules with no `interfaces` field are floating (apply everywhere). See [Interface Groups](interface-groups.md).

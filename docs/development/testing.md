@@ -35,16 +35,16 @@ mod tests {
 
 | Suite | Description |
 |-------|-------------|
-| 01 | Agent lifecycle — start, stop, SIGHUP reload, invalid config |
-| 02 | REST API health — healthz, readyz, status, metrics, OpenAPI |
-| 03 | Firewall CRUD — create, list, delete rules via REST |
-| 04 | Domain APIs — IPS, L7, rate limit, threat intel, alerts, audit |
-| 05 | gRPC streaming — health, reflection, alert subscriptions |
-| 06 | eBPF programs — veth pair setup, program attachment (needs root) |
-| 07 | Authentication — JWT, OIDC, RBAC roles, token expiry |
-| 08 | TLS — HTTPS, gRPC-TLS, certificate validation |
-| 09 | Docker — image build, compose up/down, healthcheck |
-| 10 | Kubernetes — Minikube DaemonSet, liveness probes |
+| 01 | Agent lifecycle - start, stop, SIGHUP reload, invalid config |
+| 02 | REST API health - healthz, readyz, status, metrics, OpenAPI |
+| 03 | Firewall CRUD - create, list, delete rules via REST |
+| 04 | Domain APIs - IPS, L7, rate limit, threat intel, alerts, audit |
+| 05 | gRPC streaming - health, reflection, alert subscriptions |
+| 06 | eBPF programs - veth pair setup, program attachment (needs root) |
+| 07 | Authentication - JWT, OIDC, RBAC roles, token expiry |
+| 08 | TLS - HTTPS, gRPC-TLS, certificate validation |
+| 09 | Docker - image build, compose up/down, healthcheck |
+| 10 | Kubernetes - Minikube DaemonSet, liveness probes |
 | 11-30 | DDoS, load balancer, NAT, QoS, conntrack, DNS, zones, aliases, GeoIP, DLP, routing, scrub, interface groups, config reload, benchmarks, and more |
 
 ```bash

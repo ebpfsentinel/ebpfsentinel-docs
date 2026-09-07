@@ -83,7 +83,7 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `url` | — | HTTP POST endpoint URL |
+| `url` | - | HTTP POST endpoint URL |
 | `headers` | `[]` | Custom headers (e.g., `Authorization: Bearer <token>`) |
 | `max_retries` | 3 | Retries with exponential backoff (500ms x attempt) |
 | `timeout_ms` | 5000 | Per-request timeout |
@@ -182,19 +182,19 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `response_actions_total` | Counter | `action_type`, `outcome` | Response actions executed |
-| `response_policies_evaluated_total` | Counter | — | Alerts evaluated against policies |
+| `response_policies_evaluated_total` | Counter | - | Alerts evaluated against policies |
 | `response_webhooks_sent_total` | Counter | `success` | Webhook delivery attempts |
-| `response_policies_active` | Gauge | — | Active (enabled) policies |
-| `response_cooldowns_active` | Gauge | — | Currently active cooldowns |
-| `response_audit_trail_depth` | Gauge | — | Audit trail entry count |
+| `response_policies_active` | Gauge | - | Active (enabled) policies |
+| `response_cooldowns_active` | Gauge | - | Currently active cooldowns |
+| `response_audit_trail_depth` | Gauge | - | Audit trail entry count |
 
 ## State Persistence
 
 Response policies, webhook endpoints, and the audit trail are persisted to a **redb** key-value store. This ensures:
 
-- **Policies survive restarts** — API-created policies and webhooks are restored on startup
-- **Audit trail durability** — action records are not lost on agent restart
-- **Consistent enforcement** — active block/rate-limit actions remain effective across restarts
+- **Policies survive restarts** - API-created policies and webhooks are restored on startup
+- **Audit trail durability** - action records are not lost on agent restart
+- **Consistent enforcement** - active block/rate-limit actions remain effective across restarts
 
 The state store path is configured via `enterprise.state_store_path` (default: `/var/lib/ebpfsentinel/state.redb`).
 

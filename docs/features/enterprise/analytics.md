@@ -45,8 +45,8 @@ Events are ingested from all eBPFsentinel security domains via component-specifi
 
 ### Cross-Feature Integration
 
-- **SIEM events** — `ingest_from_siem_event()` decomposes a `SiemEvent` into traffic, alert, IOC, DDoS, DLP, and DNS sub-events based on metadata fields
-- **Federated alerts** — `ingest_from_federated_alert()` ingests alerts from member clusters in a multi-cluster deployment
+- **SIEM events** - `ingest_from_siem_event()` decomposes a `SiemEvent` into traffic, alert, IOC, DDoS, DLP, and DNS sub-events based on metadata fields
+- **Federated alerts** - `ingest_from_federated_alert()` ingests alerts from member clusters in a multi-cluster deployment
 
 ## Time Buckets
 
@@ -96,8 +96,8 @@ Delta fields:
 
 Aggregated alert counts broken down by:
 
-- **Severity** — low, medium, high, critical
-- **Component** — firewall, ids, ips, dlp, dns, ddos, nat, lb, ratelimit, conntrack, scrub, etc.
+- **Severity** - low, medium, high, critical
+- **Component** - firewall, ids, ips, dlp, dns, ddos, nat, lb, ratelimit, conntrack, scrub, etc.
 
 ## IOC Summary
 
@@ -139,8 +139,8 @@ Statistical trend analysis using **Welford's online algorithm** for numerically 
 ### Automatic Report Generation
 
 A background flush loop runs continuously:
-- **Every 60 seconds** — flush in-memory accumulators to persistent storage
-- **Every 24 hours** — auto-generate a 7-day trend report and cache it
+- **Every 60 seconds** - flush in-memory accumulators to persistent storage
+- **Every 24 hours** - auto-generate a 7-day trend report and cache it
 
 Up to **30 daily reports** are retained in memory and accessible via the history endpoint.
 

@@ -66,10 +66,10 @@ ddos:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable DDoS protection. Requires `ratelimit.enabled` and at least one guard |
-| `syn_protection` | `SynProtection` | — | SYN flood kernel-side protection |
-| `icmp_protection` | `IcmpProtection` | — | ICMP flood kernel-side protection |
-| `amplification_protection` | `AmplificationProtection` | — | UDP amplification kernel-side protection |
-| `connection_tracking` | `ConnectionTracking` | — | TCP connection tracking |
+| `syn_protection` | `SynProtection` | - | SYN flood kernel-side protection |
+| `icmp_protection` | `IcmpProtection` | - | ICMP flood kernel-side protection |
+| `amplification_protection` | `AmplificationProtection` | - | UDP amplification kernel-side protection |
+| `connection_tracking` | `ConnectionTracking` | - | TCP connection tracking |
 | `policies` | `[DdosPolicy]` | `[]` | Userspace detection policies, evaluated on the events the guards raise |
 
 ### SynProtection

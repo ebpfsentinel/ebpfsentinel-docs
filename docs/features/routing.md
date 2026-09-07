@@ -8,13 +8,13 @@ Each gateway represents an outbound network path:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | u8 | — | Unique gateway ID (0–255) |
-| `name` | string | — | Human-readable name (e.g., `wan1`) |
-| `interface` | string | — | Network interface (e.g., `eth1`) |
-| `gateway_ip` | string | — | Next-hop IP address |
+| `id` | u8 | - | Unique gateway ID (0-255) |
+| `name` | string | - | Human-readable name (e.g., `wan1`) |
+| `interface` | string | - | Network interface (e.g., `eth1`) |
+| `gateway_ip` | string | - | Next-hop IP address |
 | `priority` | u32 | 100 | Lower values preferred |
 | `enabled` | bool | true | Enable/disable without removing |
-| `health_check` | object | — | Optional health probe configuration |
+| `health_check` | object | - | Optional health probe configuration |
 
 ## Health Checks
 
@@ -43,7 +43,7 @@ The routing engine automatically fails over to the next-priority healthy gateway
 
 Electing a gateway is only half the job: the agent then rewrites the host default route (`0.0.0.0/0 via <gateway_ip> dev <interface>` in the main table) so the kernel forwards through the elected path. Writing the routing table needs `CAP_NET_ADMIN`; a rootless agent asks its warden to perform the write instead.
 
-The route is written only when the election changes, and a write that fails (missing capability, unreachable warden, unknown interface) is logged and retried on the next probe. When every gateway is down the last programmed route is left in place — there is no better path to switch to — and a `WAN_ALL_DOWN` alert is raised.
+The route is written only when the election changes, and a write that fails (missing capability, unreachable warden, unknown interface) is logged and retried on the next probe. When every gateway is down the last programmed route is left in place - there is no better path to switch to - and a `WAN_ALL_DOWN` alert is raised.
 
 Selection is health and priority only. Per-destination or per-country gateway choice is not part of the OSS routing engine.
 

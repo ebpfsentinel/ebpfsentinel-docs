@@ -54,10 +54,10 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Port-only hash entries | 16,384 | `FW_HASH_PORT` (HashMap, `MAX_FW_HASH_PORT`) |
 | LPM CIDR entries (per direction per family) | 131,072 | `FW_LPM_SRC_V4` / `FW_LPM_DST_V4` / `FW_LPM_SRC_V6` / `FW_LPM_DST_V6` (LPM Trie, `MAX_LPM_RULES`) |
 | IP set entries (IPv4) | 65,536 | `FW_IPSET_V4` (HashMap, `MAX_IPSET_ENTRIES_V4`) |
-| IP set aliases | 255 | Set ids 1–255 (id 0 means the rule matches no set) |
+| IP set aliases | 255 | Set ids 1-255 (id 0 means the rule matches no set) |
 | Per-source state counters | 65,536 | `CT_SRC_COUNTERS` (HashMap, `CT_SRC_COUNTER_MAX`) |
 | Per-rule state counters | 4,096 | `FW_RULE_STATE_COUNT` (Array, `MAX_FIREWALL_RULES`) |
-| Interface groups | 31 | Bits 0–30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |
+| Interface groups | 31 | Bits 0-30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |
 | Conntrack entries | Kernel-managed | Kernel netfilter (no BPF shadow tables) |
 | DEVMAP redirect targets | 64 | `DEVMAP` |
 | CPUMAP CPU targets | 64 | `CPUMAP` |
@@ -109,7 +109,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Conntrack entries | Kernel-managed | Kernel netfilter via `bpf_skb_ct_lookup` kfunc |
 | Per-source connection counters | 65,536 | `CT_SRC_COUNTER` (`CT_SRC_COUNTER_MAX`) |
 
-LRU eviction handles overflow — oldest connections are evicted automatically. No RingBuf.
+LRU eviction handles overflow - oldest connections are evicted automatically. No RingBuf.
 
 ### tc-scrub
 
@@ -154,7 +154,7 @@ No RingBuf.
 | IDS patterns | 10,240 | `IDS_PATTERNS` (HashMap, port+protocol key) |
 | L7 inspection ports | 256 | `L7_PORTS` (HashMap, `MAX_L7_PORTS`) |
 | L7 payload capture | 2,048 bytes | `MAX_L7_PAYLOAD` (compact: 512 bytes `SMALL_L7_PAYLOAD`) |
-| Sampling rate | 0–100% | `IDS_SAMPLING_CONFIG` (Array) |
+| Sampling rate | 0-100% | `IDS_SAMPLING_CONFIG` (Array) |
 | L7 signatures detected | 4 | HTTP GET, HTTP POST, TLS, SSH |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 4 MB | `EVENTS` (variable-size via `bpf_dynptr`) |
@@ -164,7 +164,7 @@ No RingBuf.
 headers, TLS ClientHello with SNI + ALPN + supported_groups +
 signature_algorithms, gRPC HEADERS frames, and most database query
 statements all fit below 2 KiB. The small-tier (512 B) still covers
-HTTP request lines, TLS record headers, and protocol signatures —
+HTTP request lines, TLS record headers, and protocol signatures -
 it is selected when the TCP payload is ≤ 512 bytes, saving 1 536 B
 per RingBuf entry. The 4 MiB ring buffer absorbs the larger events
 without backpressure drops at typical enterprise rates.
@@ -220,7 +220,7 @@ Larger RingBuf because DLP events carry L7 payload content.
 
 | Resource | Limit | Notes |
 |----------|-------|-------|
-| Interface groups | 31 | Bits 0–30 in bitmask, shared across 6 programs |
+| Interface groups | 31 | Bits 0-30 in bitmask, shared across 6 programs |
 | Interfaces tracked | 64 | `INTERFACE_GROUPS` max entries |
 | Zones | 256 | `MAX_ZONE_ENTRIES` |
 | Zone policies | 64 | `MAX_ZONE_POLICIES` |

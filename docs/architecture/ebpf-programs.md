@@ -29,9 +29,9 @@ eBPFsentinel includes 16 eBPF kernel programs, all written in Rust using the [Ay
 
 Six programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`, `tc-ids`, `tc-qos`) share a common **interface group** mechanism. Each program has an `INTERFACE_GROUPS` HashMap (key = `u32` ifindex, value = `u32` bitmask, max 64 entries). Rule structs in these programs include a `group_mask` field:
 
-- `group_mask == 0` — **floating rule**, applies to all interfaces (backward compatible default)
-- `group_mask != 0` — rule applies only when the interface's bitmask ANDed with `group_mask` is non-zero
-- Bit 31 — **inversion flag**: when set, the match is inverted (rule applies to interfaces *not* in the specified groups)
+- `group_mask == 0` - **floating rule**, applies to all interfaces (backward compatible default)
+- `group_mask != 0` - rule applies only when the interface's bitmask ANDed with `group_mask` is non-zero
+- Bit 31 - **inversion flag**: when set, the match is inverted (rule applies to interfaces *not* in the specified groups)
 
 Up to 31 named interface groups are supported. The bitmask check adds negligible overhead (one map lookup + one AND + one compare per rule).
 
@@ -39,7 +39,7 @@ Up to 31 named interface groups are supported. The bitmask check adds negligible
 
 All programs share types via `crates/ebpf-common/`:
 
-- `PacketEvent` (64 bytes) — the standard event emitted to userspace via RingBuf
+- `PacketEvent` (64 bytes) - the standard event emitted to userspace via RingBuf
 - `#[repr(C)]` structs for eBPF map keys and values
 - Shared constants (`FLAG_IPV6`, `FLAG_VLAN`, etc.)
 
@@ -47,11 +47,11 @@ All programs share types via `crates/ebpf-common/`:
 
 The most feature-rich eBPF program. Processes packets through a 5-phase pipeline:
 
-1. **Phase 0 — Conntrack fast-path**: Overload check (IP set 255), connection tracking lookup. Established connections skip rule evaluation.
-2. **Phase 1 — LPM Trie** (O(log n)): CIDR-only rules in four tries (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`).
-3. **Phase 2 — Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP type/code, MAC, DSCP, aliases, negation. Priority order, first match wins.
-4. **Phase 3 — Connection limits**: Per-source and per-rule state limits. Overloaded sources added to blacklist.
-5. **Phase 4 — Routing actions**: Policy routing (`route-to`, `reply-to`, `dup-to`).
+1. **Phase 0 - Conntrack fast-path**: Overload check (IP set 255), connection tracking lookup. Established connections skip rule evaluation.
+2. **Phase 1 - LPM Trie** (O(log n)): CIDR-only rules in four tries (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`).
+3. **Phase 2 - Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP type/code, MAC, DSCP, aliases, negation. Priority order, first match wins.
+4. **Phase 3 - Connection limits**: Per-source and per-rule state limits. Overloaded sources added to blacklist.
+5. **Phase 4 - Routing actions**: Policy routing (`route-to`, `reply-to`, `dup-to`).
 
 Key eBPF features:
 
@@ -69,14 +69,14 @@ Key eBPF features:
 - MAC address matching (L2), DSCP classification
 - IP set maps for aliases and overload blacklist
 - Per-source state counters for connection limit enforcement
-- **Reject action** via tail-call to `xdp-firewall-reject` (slot 1) — forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable in a separate program with its own 512-byte stack budget, then transmits back via `XDP_TX`
+- **Reject action** via tail-call to `xdp-firewall-reject` (slot 1) - forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable in a separate program with its own 512-byte stack budget, then transmits back via `XDP_TX`
 
 ## XDP Rate Limiter (xdp-ratelimit)
 
-- **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching — if a source IP falls within a country tier's CIDR range, the tier config is used
+- **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching - if a source IP falls within a country tier's CIDR range, the tier config is used
 - **PerCPU Hash** maps for lock-free per-IP counters
 - **bpf_timer** for periodic bucket expiration
-- **XDP SYN cookies** — via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
+- **XDP SYN cookies** - via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
 - **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
 - 4 algorithms: token bucket, fixed window, sliding window, leaky bucket. SYN cookie forging is not one of them: it is configured under `ddos.syn_protection` and `algorithm: syn_cookie` is rejected at config load
@@ -85,10 +85,10 @@ Key eBPF features:
 
 The xdp-ratelimit program also hosts DDoS-specific protections:
 
-- **SYN protection (SYN cookies)** — forges SYN+ACK responses with cryptographic cookies via `XDP_TX` instead of dropping SYNs; ACK validation checks cookie against current and previous minute windows
-- **ICMP protection** — rate limiting + oversized payload detection (potential tunneling)
-- **UDP amplification protection** — per-source-per-port rate limiting on configurable amplification ports (DNS/53, NTP/123, SSDP/1900, etc.)
-- **TCP connection tracking** — half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
+- **SYN protection (SYN cookies)** - forges SYN+ACK responses with cryptographic cookies via `XDP_TX` instead of dropping SYNs; ACK validation checks cookie against current and previous minute windows
+- **ICMP protection** - rate limiting + oversized payload detection (potential tunneling)
+- **UDP amplification protection** - per-source-per-port rate limiting on configurable amplification ports (DNS/53, NTP/123, SSDP/1900, etc.)
+- **TCP connection tracking** - half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
 - **17-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS, SYNCOOKIE_SENT, SYNCOOKIE_VALID, SYNCOOKIE_INVALID
 
 ## XDP Load Balancer (xdp-loadbalancer)
@@ -107,7 +107,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 ## XDP VIP Announcer (xdp-vip-announcer)
 
 - **Tail-call target**: `xdp-firewall` dispatches ARP frames to it via `XDP_PROG_ARRAY` slot 3; the LB hot path is never touched
-- **Forged ARP reply**: for an ARP "who-has" targeting an owned VIP, rewrites a fixed 28 bytes (`sha` = this node's NIC MAC) and `XDP_TX`s the reply out the receiving interface — bounded, no loop, no SKB
+- **Forged ARP reply**: for an ARP "who-has" targeting an owned VIP, rewrites a fixed 28 bytes (`sha` = this node's NIC MAC) and `XDP_TX`s the reply out the receiving interface - bounded, no loop, no SKB
 - **Speaker election**: userspace populates the `VIP_SET` map **only** while this node is the elected speaker; a standby node keeps it empty and never answers (split-brain safe)
 - **Gratuitous ARP on takeover**: emitted by userspace over a raw `AF_PACKET` socket (not eBPF), so upstream switches relearn the MAC immediately
 - **Metrics**: `ebpfsentinel_lb_vip_arp_replies`, `ebpfsentinel_lb_vip_takeovers_total`
@@ -123,7 +123,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 ## TC Threat Intel (tc-threatintel)
 
 - **BPF_MAP_TYPE_BLOOM_FILTER** for fast IOC pre-check (no false negatives)
-- **BPF_MAP_TYPE_LRU_HASH** for IOC confirmation maps (`THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`) — LRU eviction keeps maps within capacity
+- **BPF_MAP_TYPE_LRU_HASH** for IOC confirmation maps (`THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`) - LRU eviction keeps maps within capacity
 - VLAN and QinQ tag parsing, carried onto the event; no tag is rewritten
 - Separate V6 maps for IPv6 IOC lookups
 - RingBuf backpressure
@@ -197,7 +197,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel **6.9+** with BTF. The 6.9 floor covers BPF token delegation and the 6.7–6.8 kfunc batch (`bpf_task_get_cgroup1`, `bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, `bpf_iter_css_task`). See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel **6.9+** with BTF. The 6.9 floor covers BPF token delegation and the 6.7-6.8 kfunc batch (`bpf_task_get_cgroup1`, `bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, `bpf_iter_css_task`). See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 

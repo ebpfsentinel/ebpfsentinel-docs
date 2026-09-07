@@ -66,7 +66,7 @@ Stateless, bidirectional IPv6-to-IPv6 Network Prefix Translation per [RFC 6296](
 
 Key properties:
 
-- **Stateless**: no connection tracking required — each packet is translated independently
+- **Stateless**: no connection tracking required - each packet is translated independently
 - **Bidirectional**: egress rewrites `internal_prefix → external_prefix` (source in `tc-nat-egress`), ingress rewrites `external_prefix → internal_prefix` (destination in `tc-nat-ingress`)
 - **No port rewriting**: only the network prefix is modified, L4 headers are untouched
 - **Checksum-neutral**: a pre-computed adjustment word ensures the IPv6 pseudo-header checksum remains valid without per-packet recalculation
@@ -121,7 +121,7 @@ When an internal client sends traffic to the external IP and a matching DNAT rul
    - Both translations are reversed: destination → original client IP, source → external IP
    - The client receives the reply from the expected external IP
 
-Both forward and return paths are handled entirely in `tc-nat-ingress`. This is IPv4 only — IPv6 uses globally routable addresses, making hairpin NAT unnecessary.
+Both forward and return paths are handled entirely in `tc-nat-ingress`. This is IPv4 only - IPv6 uses globally routable addresses, making hairpin NAT unnecessary.
 
 ### Configuration
 
@@ -133,4 +133,4 @@ nat:
     hairpin_snat_ip: "192.168.1.1"
 ```
 
-Hairpin NAT supports hot reload — changes take effect without restarting the agent.
+Hairpin NAT supports hot reload - changes take effect without restarting the agent.

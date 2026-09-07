@@ -10,8 +10,8 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 
 ### Two-Layer Architecture
 
-1. **Kernel-side (eBPF)** — An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the destination MAC is rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
-2. **Userspace (LB Engine)** — Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
+1. **Kernel-side (eBPF)** - An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the destination MAC is rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
+2. **Userspace (LB Engine)** - Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
 
 ### Protocols
 
@@ -19,21 +19,21 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 |----------|----------|
 | **TCP** | Full L4 load balancing with connection tracking |
 | **UDP** | Stateless per-packet distribution |
-| **TLS Passthrough** | Forwards encrypted TLS traffic without termination — backends handle TLS |
+| **TLS Passthrough** | Forwards encrypted TLS traffic without termination - backends handle TLS |
 
 ### Balancing Algorithms
 
 | Algorithm | Description |
 |-----------|-------------|
 | **Round Robin** | Per-service index cycles through healthy backends sequentially |
-| **Weighted** | Cumulative weight distribution — higher weight = more traffic |
+| **Weighted** | Cumulative weight distribution - higher weight = more traffic |
 | **IP Hash** | FNV-1a hash of client address for sticky sessions |
 | **Least Connections** | Selects the healthy backend with the fewest active connections |
-| **Maglev** | Consistent hashing via a precomputed permutation ring (prime size 65537). O(1) lookup with no per-packet state; only ~1/N flows are remapped when the backend set changes. Deterministic across nodes — required for L2 DSR / multi-node ECMP. |
+| **Maglev** | Consistent hashing via a precomputed permutation ring (prime size 65537). O(1) lookup with no per-packet state; only ~1/N flows are remapped when the backend set changes. Deterministic across nodes - required for L2 DSR / multi-node ECMP. |
 
 ### Forwarding Modes
 
-The selected backend is reached using one of two forwarding modes, set per service via the `mode` field. The forwarding mode is orthogonal to the balancing algorithm — backend selection is identical in both modes; only the L2/L3 rewrite differs.
+The selected backend is reached using one of two forwarding modes, set per service via the `mode` field. The forwarding mode is orthogonal to the balancing algorithm - backend selection is identical in both modes; only the L2/L3 rewrite differs.
 
 | Mode | Value | Behavior |
 |------|-------|----------|
@@ -43,7 +43,7 @@ The selected backend is reached using one of two forwarding modes, set per servi
 L2 DSR requirements:
 
 - Every backend in an `l2dsr` service must be on the **same L2 segment** as the load balancer and flagged with `same_segment: true`. Configuration is rejected with a clear error otherwise.
-- Backend MACs are resolved by userspace (neighbor / ARP for IPv4, ND for IPv6) and pushed into the `LB_BACKEND_MAC` eBPF map. If a backend MAC cannot be resolved, that packet **falls back to the DNAT path** automatically — no traffic is dropped due to an unresolved MAC.
+- Backend MACs are resolved by userspace (neighbor / ARP for IPv4, ND for IPv6) and pushed into the `LB_BACKEND_MAC` eBPF map. If a backend MAC cannot be resolved, that packet **falls back to the DNAT path** automatically - no traffic is dropped due to an unresolved MAC.
 - The backend must have the VIP configured (typically on a loopback alias) and must suppress ARP for the VIP.
 
 ### Backend Health Checks
@@ -156,7 +156,7 @@ ebpfsentinel-agent --output json lb services
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/xdp-loadbalancer/` | XDP kernel-side packet rewriting |
 | `ebpf-common` | `crates/ebpf-common/src/loadbalancer.rs` | Shared `#[repr(C)]` types (service/backend map entries) |
-| `domain` | `crates/domain/src/loadbalancer/` | LB engine (entity, engine, error) — selection algorithms + health |
+| `domain` | `crates/domain/src/loadbalancer/` | LB engine (entity, engine, error) - selection algorithms + health |
 | `ports` | `crates/ports/src/secondary/loadbalancer_map_port.rs` | eBPF map port trait |
 | `application` | `crates/application/src/lb_service_impl.rs` | App service (engine + eBPF sync) |
 | `adapters` | `crates/adapters/src/ebpf/lb_map_manager.rs` | eBPF map adapter |
@@ -170,7 +170,7 @@ The load balancer eBPF program emits events via RingBuf, consumed by an `EventRe
 | Action | Description |
 |--------|-------------|
 | `forward` | Packet successfully rewritten and forwarded to a backend |
-| `no_backend` | No healthy backend available — packet dropped |
+| `no_backend` | No healthy backend available - packet dropped |
 
 Per-CPU metrics are collected via a `MetricsReader` on the `LB_METRICS` PerCpuArray map.
 
@@ -200,9 +200,9 @@ re-announces ownership on failover with gratuitous ARP.
   prefers this per-VIP MAC when forging the reply `sha` (multi-homed
   VIPs answer with the right MAC), falling back to `IFACE_MAC` when no
   binding is present. Every binding is removed on speaker loss, so a
-  standby node owns nothing — split-brain safe.
+  standby node owns nothing - split-brain safe.
 - On speaker takeover the userspace agent emits one **gratuitous ARP**
-  per owned VIP via a raw socket — a rare event, never done in eBPF.
+  per owned VIP via a raw socket - a rare event, never done in eBPF.
 
 ### Single-speaker election (split-brain safe)
 
@@ -225,5 +225,5 @@ for the `announce` block.
 - `ebpfsentinel_rules_loaded{component="loadbalancer"}` - number of loaded services
 - `ebpfsentinel_packets_total{interface="LB_METRICS", action="forwarded"}` - packets forwarded to backends
 - `ebpfsentinel_packets_total{interface="LB_METRICS", action="no_backend"}` - packets with no available backend
-- `ebpfsentinel_lb_vip_arp_replies{vip}` — forged ARP replies per VIP (speaker only)
-- `ebpfsentinel_lb_vip_takeovers_total{vip}` — gratuitous-ARP takeovers per VIP
+- `ebpfsentinel_lb_vip_arp_replies{vip}` - forged ARP replies per VIP (speaker only)
+- `ebpfsentinel_lb_vip_takeovers_total{vip}` - gratuitous-ARP takeovers per VIP

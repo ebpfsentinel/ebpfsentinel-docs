@@ -1,6 +1,6 @@
 # Dashboard Accessibility
 
-The eBPFsentinel dashboard targets **WCAG 2.2 Level AA** conformance. SOC analysts using screen readers, keyboard-only navigation, or high-contrast modes can perform all critical actions — from triaging alerts to blocking IPs — without a mouse.
+The eBPFsentinel dashboard targets **WCAG 2.2 Level AA** conformance. SOC analysts using screen readers, keyboard-only navigation, or high-contrast modes can perform all critical actions - from triaging alerts to blocking IPs - without a mouse.
 
 ## Conformance Level
 
@@ -8,7 +8,7 @@ The eBPFsentinel dashboard targets **WCAG 2.2 Level AA** conformance. SOC analys
 |----------|-------|--------|
 | WCAG 2.2 | AA | Tested |
 | WCAG 2.2 | AAA | Not targeted |
-| Section 508 | — | Covered by AA |
+| Section 508 | - | Covered by AA |
 
 ## What We Test
 

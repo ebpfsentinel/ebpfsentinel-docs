@@ -16,6 +16,7 @@
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",
     "check:grpc-reference": "node scripts/generate-grpc-reference.mjs --check",
+    "check:no-em-dash": "node scripts/check-no-em-dash.mjs",
     "generate:mitre-coverage": "node scripts/generate-mitre-coverage.mjs",
     "check:mitre-coverage": "node scripts/generate-mitre-coverage.mjs --check"
   },

@@ -16,7 +16,7 @@ crates/domain/src/<name>/
 └── mod.rs        # Re-exports
 ```
 
-**entity.rs** — define your domain types:
+**entity.rs** - define your domain types:
 
 ```rust
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ pub struct MyRule {
 }
 ```
 
-**engine.rs** — pure stateless evaluation:
+**engine.rs** - pure stateless evaluation:
 
 ```rust
 pub struct MyEngine;
@@ -41,7 +41,7 @@ impl MyEngine {
 }
 ```
 
-**error.rs** — domain errors:
+**error.rs** - domain errors:
 
 ```rust
 #[derive(Debug, thiserror::Error)]
@@ -55,7 +55,7 @@ pub enum MyError {
 
 Add port traits in `crates/ports/src/`:
 
-**`secondary/<name>_port.rs`** — trait the app service calls and an adapter implements, one per outbound need (eBPF map writes, storage, metrics, an external lookup):
+**`secondary/<name>_port.rs`** - trait the app service calls and an adapter implements, one per outbound need (eBPF map writes, storage, metrics, an external lookup):
 
 ```rust
 pub trait MyMapPort: Send + Sync {
@@ -129,7 +129,7 @@ Initialize in `crates/agent/src/startup.rs`:
 
 Add tests at each layer:
 
-- **Domain:** inline `#[cfg(test)]` in `engine.rs` — test pure logic
+- **Domain:** inline `#[cfg(test)]` in `engine.rs` - test pure logic
 - **Application:** test with `TestMetrics` mock
 - **Integration:** add BATS test cases if needed
 

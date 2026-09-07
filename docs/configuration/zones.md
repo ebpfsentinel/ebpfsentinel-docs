@@ -52,17 +52,17 @@ zones:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | string | — | Unique zone name |
-| `interfaces` | list | — | Network interfaces (at least one required) |
+| `id` | string | - | Unique zone name |
+| `interfaces` | list | - | Network interfaces (at least one required) |
 | `default_policy` | string | `deny` | Intra-zone default: `allow` or `deny` |
 
 ### Policy Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `from` | string | — | Source zone (must exist in `zones`) |
-| `to` | string | — | Destination zone (must differ from `from`) |
-| `policy` | string | — | `allow`/`permit`/`accept` or `deny`/`drop`/`reject` |
+| `from` | string | - | Source zone (must exist in `zones`) |
+| `to` | string | - | Destination zone (must differ from `from`) |
+| `policy` | string | - | `allow`/`permit`/`accept` or `deny`/`drop`/`reject` |
 
 ## Validation Rules
 

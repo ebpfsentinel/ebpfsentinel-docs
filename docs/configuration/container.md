@@ -27,7 +27,7 @@ container:
 
 Resolves `cgroup_id` from eBPF events to container identity. Process-context events (uprobe DLP) resolve via `/proc/{pid}/cgroup`; datapath events carry no pid, so they resolve by matching the `cgroup_id` against the cgroup v2 hierarchy under `cgroup_root`. Always available, no external dependencies.
 
-Attributing locally-originated traffic (for example a container's outbound connections) requires the IDS classifier to observe the egress hook, where the kernel has bound the originating socket to the packet — enable [`ids.inspect_egress`](ids.md). On ingress the originating socket is not yet attached, so cgroup attribution is unavailable there.
+Attributing locally-originated traffic (for example a container's outbound connections) requires the IDS classifier to observe the egress hook, where the kernel has bound the originating socket to the packet - enable [`ids.inspect_egress`](ids.md). On ingress the originating socket is not yet attached, so cgroup attribution is unavailable there.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

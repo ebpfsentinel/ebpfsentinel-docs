@@ -19,12 +19,12 @@ All CI jobs use **composite actions** (`.github/actions/`) to deduplicate setup 
 
 The primary CI pipeline runs on every PR:
 
-1. **Format** — `cargo fmt --check`
-2. **Clippy** — `cargo clippy -- -D warnings` (zero-warning policy)
-3. **Tests** — `cargo test` (all crates)
-4. **Deny** — `cargo deny check` (license, advisory, ban, source)
-5. **Coverage** — `cargo llvm-cov` with per-crate floors (domain >= 90%, application >= 80%, adapters >= 60%)
-6. **Build** — `cargo build --release`
+1. **Format** - `cargo fmt --check`
+2. **Clippy** - `cargo clippy -- -D warnings` (zero-warning policy)
+3. **Tests** - `cargo test` (all crates)
+4. **Deny** - `cargo deny check` (license, advisory, ban, source)
+5. **Coverage** - `cargo llvm-cov` with per-crate floors (domain >= 90%, application >= 80%, adapters >= 60%)
+6. **Build** - `cargo build --release`
 
 ## integration.yml
 

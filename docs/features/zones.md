@@ -1,6 +1,6 @@
 # Zone Segmentation
 
-Zone segmentation groups network interfaces into logical security zones (WAN, LAN, DMZ, etc.) and enforces inter-zone traffic policies. This is the classic DMZ-firewall pattern — define zones by interface membership, then declare which zone pairs allow or deny traffic.
+Zone segmentation groups network interfaces into logical security zones (WAN, LAN, DMZ, etc.) and enforces inter-zone traffic policies. This is the classic DMZ-firewall pattern - define zones by interface membership, then declare which zone pairs allow or deny traffic.
 
 ## Concepts
 
@@ -12,7 +12,7 @@ A zone is a named group of network interfaces with a default traffic policy:
 |-------|------|-------------|
 | `id` | string | Unique zone name (e.g., `wan`, `lan`, `dmz`) |
 | `interfaces` | list | Network interfaces belonging to this zone |
-| `default_policy` | string | `allow` or `deny` — verdict when nothing more specific matched |
+| `default_policy` | string | `allow` or `deny` - verdict when nothing more specific matched |
 
 Each interface can belong to only one zone. The maximum is 64 zones.
 
@@ -40,7 +40,7 @@ Zone policies define what happens when traffic crosses zone boundaries:
 | `to` | string | Destination zone |
 | `policy` | string | `allow` or `deny` |
 
-Policies are directional — a policy from `lan` to `wan` does not imply the reverse. You must explicitly define both directions if needed.
+Policies are directional - a policy from `lan` to `wan` does not imply the reverse. You must explicitly define both directions if needed.
 
 ### Policy Aliases
 
@@ -98,13 +98,13 @@ The zone configuration is validated at load time:
 ## Integration
 
 - **Firewall**: zones decide the packets no firewall rule matched, so they set the posture the rule set carves exceptions out of
-- **Aliases**: Zones complement [IP aliases](aliases.md) — zones group interfaces while aliases group addresses
+- **Aliases**: Zones complement [IP aliases](aliases.md) - zones group interfaces while aliases group addresses
 
 ## Metrics
 
 Per-zone counters are exported as `ebpfsentinel_zone_packets_total{zone, action}`
 with `action` being `passed` or `dropped`. Traffic on interfaces no zone claims
-is counted under `zone="unzoned"` — a non-zero value there is traffic that
+is counted under `zone="unzoned"` - a non-zero value there is traffic that
 escaped the segmentation entirely.
 
 ## REST API

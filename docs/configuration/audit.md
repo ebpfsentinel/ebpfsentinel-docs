@@ -23,8 +23,8 @@ audit:
 
 ## Compliance Notes
 
-- **PCI-DSS Requirement 10** — 90-day minimum retention recommended
-- **HIPAA §164.312(b)** — 6-year (2190-day) retention required
-- **SOC 2 CC6.8** — audit evidence for security operations
+- **PCI-DSS Requirement 10** - 90-day minimum retention recommended
+- **HIPAA §164.312(b)** - 6-year (2190-day) retention required
+- **SOC 2 CC6.8** - audit evidence for security operations
 
 Adjust `retention_days` to meet your compliance requirements.

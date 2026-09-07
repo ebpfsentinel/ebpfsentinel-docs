@@ -4,7 +4,7 @@
 
 ## Overview
 
-eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcement** (eBPF/XDP) with **userspace detection** (EWMA-based anomaly detection and attack state machine). This is a separate domain from rate limiting — rate limiting controls per-IP traffic rates, while DDoS protection detects and mitigates coordinated attack patterns.
+eBPFsentinel provides dedicated DDoS protection combining **kernel-side enforcement** (eBPF/XDP) with **userspace detection** (EWMA-based anomaly detection and attack state machine). This is a separate domain from rate limiting - rate limiting controls per-IP traffic rates, while DDoS protection detects and mitigates coordinated attack patterns.
 
 The two share one kernel program: the guards described below live inside `xdp-ratelimit`, which is only loaded when `ratelimit.enabled` is `true`. DDoS protection therefore requires rate limiting to be enabled, plus at least one guard - policies alone raise nothing, since it is the guards that report the flood a policy measures. The agent refuses to start on a `ddos` section that neither condition satisfies.
 
@@ -12,8 +12,8 @@ The two share one kernel program: the guards described below live inside `xdp-ra
 
 ### Two-Layer Defense
 
-1. **Kernel-side (eBPF)** — XDP programs enforce immediate protections: SYN rate tracking, ICMP rate limiting, UDP amplification filtering, and TCP connection tracking. These run at wire speed before the kernel allocates an SKB.
-2. **Userspace (DDoS Engine)** — Analyzes traffic patterns with Exponentially Weighted Moving Average (EWMA, α=0.3), manages attack state transitions, and applies policy-based mitigation decisions.
+1. **Kernel-side (eBPF)** - XDP programs enforce immediate protections: SYN rate tracking, ICMP rate limiting, UDP amplification filtering, and TCP connection tracking. These run at wire speed before the kernel allocates an SKB.
+2. **Userspace (DDoS Engine)** - Analyzes traffic patterns with Exponentially Weighted Moving Average (EWMA, α=0.3), manages attack state transitions, and applies policy-based mitigation decisions.
 
 ### Attack Types
 
@@ -31,13 +31,13 @@ The two share one kernel program: the guards described below live inside `xdp-ra
 
 Four independent protection subsystems run in XDP:
 
-**SYN Protection (SYN Cookies)** — Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses at XDP speed via `XDP_TX`. The cookie itself is issued by the kernel through the `bpf_tcp_raw_gen_syncookie_ipv4` / `_ipv6` helpers, so there is no userspace secret to seed and no custom cookie algorithm to keep in sync: a legitimate client that completes the handshake produces an ACK the kernel validates on its own and turns into an established socket, provided `net.ipv4.tcp_syncookies` is enabled on the host. Spoofed sources never complete the handshake and consume no server resources. If forging the SYN+ACK fails (for example, insufficient headroom), the program falls back to `XDP_DROP`.
+**SYN Protection (SYN Cookies)** - Instead of simply dropping excess SYN packets, eBPFsentinel forges SYN+ACK responses at XDP speed via `XDP_TX`. The cookie itself is issued by the kernel through the `bpf_tcp_raw_gen_syncookie_ipv4` / `_ipv6` helpers, so there is no userspace secret to seed and no custom cookie algorithm to keep in sync: a legitimate client that completes the handshake produces an ACK the kernel validates on its own and turns into an established socket, provided `net.ipv4.tcp_syncookies` is enabled on the host. Spoofed sources never complete the handshake and consume no server resources. If forging the SYN+ACK fails (for example, insufficient headroom), the program falls back to `XDP_DROP`.
 
-**ICMP Protection** — Enforces a maximum ICMP packet rate and detects oversized ICMP payloads (potential tunneling or amplification).
+**ICMP Protection** - Enforces a maximum ICMP packet rate and detects oversized ICMP payloads (potential tunneling or amplification).
 
-**UDP Amplification Protection** — Per-source-per-port rate limiting on known amplification ports (DNS/53, NTP/123, SSDP/1900, etc.). Each port has an independent PPS threshold.
+**UDP Amplification Protection** - Per-source-per-port rate limiting on known amplification ports (DNS/53, NTP/123, SSDP/1900, etc.). Each port has an independent PPS threshold.
 
-**Connection Tracking** — Monitors TCP connection state to detect half-open connection floods and abnormal RST/FIN/ACK rates. Thresholds are independently configurable.
+**Connection Tracking** - Monitors TCP connection state to detect half-open connection floods and abnormal RST/FIN/ACK rates. Thresholds are independently configurable.
 
 ### Userspace Detection Engine
 
@@ -58,13 +58,13 @@ stateDiagram-v2
 ```
 
 **Mitigation Actions:**
-- **Alert** — log the attack, no enforcement
-- **Throttle** — reduce traffic rate from the source
-- **Block** — drop all traffic from the source for `auto_block_duration_secs`
+- **Alert** - log the attack, no enforcement
+- **Throttle** - reduce traffic rate from the source
+- **Block** - drop all traffic from the source for `auto_block_duration_secs`
 
 ### Per-Country Detection Thresholds
 
-Each policy supports `country_thresholds` — a map of ISO 3166-1 alpha-2 country codes to per-country PPS thresholds. When traffic from a specific country exceeds its threshold (instead of the global `detection_threshold_pps`), the attack state machine activates.
+Each policy supports `country_thresholds` - a map of ISO 3166-1 alpha-2 country codes to per-country PPS thresholds. When traffic from a specific country exceeds its threshold (instead of the global `detection_threshold_pps`), the attack state machine activates.
 
 When a policy has `mitigation_action: block` and the attack source country is identified, all CIDRs for that country are **automatically injected into the firewall LPM Trie maps** for kernel-side blocking via the `LpmCoordinator`. When the attack expires, the CIDRs are removed.
 
@@ -186,7 +186,7 @@ ebpfsentinel-agent --output json ddos attacks
 | Crate | Path | Role |
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/xdp-ratelimit/` | XDP kernel-side protections (SYN, ICMP, UDP amp, conntrack) |
-| `domain` | `crates/domain/src/ddos/` | DDoS engine (entity, engine, error) — attack detection + state machine |
+| `domain` | `crates/domain/src/ddos/` | DDoS engine (entity, engine, error) - attack detection + state machine |
 | `ports` | `crates/ports/src/secondary/lpm_coordinator_port.rs` | Kernel LPM writes behind auto-CIDR blocking |
 | `ports` | `crates/ports/src/secondary/alias_resolution_port.rs` | Alias expansion for policy match fields |
 | `application` | `crates/application/src/ddos_service_impl.rs` | App service |

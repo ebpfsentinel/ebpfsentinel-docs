@@ -48,7 +48,7 @@ on a roadmap to grow to 120+ patterns.
 L7 payload (up to 2 KiB)
   └── L7InspectEngine
         └── CompiledState
-              ├── BlockDatabase (Vectorscan — atomically swapped on reload)
+              ├── BlockDatabase (Vectorscan - atomically swapped on reload)
               └── ScratchPool (pre-allocated, acquire/release)
         └── Vec<InspectPattern>  // parallel metadata array
               │
@@ -75,7 +75,7 @@ maps Vectorscan IDs back to the pattern metadata in a single pass, so
 the full-text pattern identifier (`"sqli-union-select"`) travels with
 the match for alert enrichment.
 
-The `confidence()` helper turns severity into a 0–100 score ready for
+The `confidence()` helper turns severity into a 0-100 score ready for
 SIEM export:
 
 | Severity | Confidence |

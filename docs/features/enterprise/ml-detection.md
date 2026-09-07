@@ -4,20 +4,20 @@
 
 ## Overview
 
-Machine learning-based behavioral anomaly detection that identifies threats without signature rules. The ML pipeline combines multiple detection engines — each covering a different class of anomaly — and fuses their results into a single severity score with MITRE ATT&CK-mapped alerts.
+Machine learning-based behavioral anomaly detection that identifies threats without signature rules. The ML pipeline combines multiple detection engines - each covering a different class of anomaly - and fuses their results into a single severity score with MITRE ATT&CK-mapped alerts.
 
 **Detection engines:**
 
 | Engine | What it catches | Learning period |
 |--------|----------------|-----------------|
 | **Baseline** | Deviations from learned normal traffic behavior (Z-score) | 7 days (configurable) |
-| **EWMA** | Gradual drift and short-term spikes (exponential moving average) | None — scores from first sample |
-| **CUSUM** | Sustained mean shifts (slow-ramp DDoS, gradual exfiltration) | None — immediate |
+| **EWMA** | Gradual drift and short-term spikes (exponential moving average) | None - scores from first sample |
+| **CUSUM** | Sustained mean shifts (slow-ramp DDoS, gradual exfiltration) | None - immediate |
 | **ONNX Model** | Custom anomalies via user-trained autoencoder models | Pre-trained offline |
-| **Heavy-Hitter** | Elephant flows / top talkers (Count-Min Sketch) | None — constant memory |
-| **DNS Entropy** | DGA domains and DNS tunneling (Shannon entropy + Markov model) | None — pre-trained bigram model |
-| **TLS Clustering** | Novel/spoofed TLS fingerprints (Mini-Batch K-Means) | None — browser-seeded centroids |
-| **C2 Beaconing** | Repetitive payload patterns in C2 channels (TLSH similarity) | None — per-flow hash ring |
+| **Heavy-Hitter** | Elephant flows / top talkers (Count-Min Sketch) | None - constant memory |
+| **DNS Entropy** | DGA domains and DNS tunneling (Shannon entropy + Markov model) | None - pre-trained bigram model |
+| **TLS Clustering** | Novel/spoofed TLS fingerprints (Mini-Batch K-Means) | None - browser-seeded centroids |
+| **C2 Beaconing** | Repetitive payload patterns in C2 channels (TLSH similarity) | None - per-flow hash ring |
 
 All engines run in parallel. Scores are fused via `max(severity)` across engines.
 
@@ -59,7 +59,7 @@ Each `FeatureVector` contains 14 numeric features computed from aggregated traff
 |---|---------|-------------|
 | 0 | `packet_rate` | Packets per second |
 | 1 | `byte_rate` | Bytes per second |
-| 2 | `tcp_ratio` | TCP fraction (0.0–1.0) |
+| 2 | `tcp_ratio` | TCP fraction (0.0-1.0) |
 | 3 | `udp_ratio` | UDP fraction |
 | 4 | `icmp_ratio` | ICMP fraction |
 | 5 | `other_ratio` | Other protocols fraction |
@@ -72,7 +72,7 @@ Each `FeatureVector` contains 14 numeric features computed from aggregated traff
 | 12 | `dst_ip_cardinality` | HyperLogLog estimate of unique destination IPs |
 | 13 | `flow_cardinality` | HyperLogLog estimate of unique (src, dst, port) tuples |
 
-Features 12–13 use **HyperLogLog** counters (precision=12, ~1.5 KB each, <1.6% error) for memory-efficient cardinality estimation.
+Features 12-13 use **HyperLogLog** counters (precision=12, ~1.5 KB each, <1.6% error) for memory-efficient cardinality estimation.
 
 ---
 
@@ -96,7 +96,7 @@ Learns normal traffic behavior over a configurable period (default: 7 days) usin
 
 ### EWMA Streaming
 
-Exponentially Weighted Moving Average with adaptive variance. No learning period — catches drift the baseline adapts to.
+Exponentially Weighted Moving Average with adaptive variance. No learning period - catches drift the baseline adapts to.
 
 ```
 mean     <- alpha * value + (1 - alpha) * mean
@@ -120,7 +120,7 @@ Per-feature accumulators with configurable slack `k` (default: 0.5) and threshol
 
 ### ONNX Model Inference
 
-Optional user-trained autoencoder model loaded via ONNX Runtime. Computes reconstruction error — high error = anomaly. Models can be hot-swapped at runtime without restart.
+Optional user-trained autoencoder model loaded via ONNX Runtime. Computes reconstruction error - high error = anomaly. Models can be hot-swapped at runtime without restart.
 
 ### Score Fusion
 
@@ -145,8 +145,8 @@ Statistical detection of Domain Generation Algorithm (DGA) domains and DNS tunne
 
 **Two scoring methods combined:**
 
-1. **Shannon entropy** per second-level domain label — high entropy (>3.5 bits/char) indicates random generation
-2. **Character bigram Markov model** — 37x37 transition matrix (a-z, 0-9, hyphen) scoring domain plausibility by log-likelihood. Pre-trained on common domain name patterns (~5.3 KB model)
+1. **Shannon entropy** per second-level domain label - high entropy (>3.5 bits/char) indicates random generation
+2. **Character bigram Markov model** - 37x37 transition matrix (a-z, 0-9, hyphen) scoring domain plausibility by log-likelihood. Pre-trained on common domain name patterns (~5.3 KB model)
 
 **DGA verdict:** entropy > threshold AND Markov log-likelihood < threshold.
 
@@ -174,7 +174,7 @@ Detects command-and-control beaconing channels by identifying repetitive payload
 - TLSH hash computed per flow payload (minimum 50 bytes)
 - Per-tuple `(src_ip, dst_ip, dst_port)` hash ring with LRU eviction
 - Beaconing alert: >= N similar payloads (TLSH distance < threshold) within time window
-- **Periodicity estimation:** inter-arrival time variance — low variance = regular beaconing interval
+- **Periodicity estimation:** inter-arrival time variance - low variance = regular beaconing interval
 - Allowlist for known repetitive protocols (NTP, DNS, mDNS)
 
 ---

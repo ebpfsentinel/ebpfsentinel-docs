@@ -14,7 +14,7 @@ service account, namespace, …).
 When alerts are generated, the enriched context is embedded in the alert
 payload, the SIEM export, the audit trail, and the gRPC/REST API
 responses. SOC analysts no longer need to correlate IP addresses back to
-workloads manually — the workload identity travels with every event.
+workloads manually - the workload identity travels with every event.
 
 Container awareness is composed of four independent building blocks:
 
@@ -23,7 +23,7 @@ Container awareness is composed of four independent building blocks:
 | Container Resolver | OSS | cgroup → `ContainerInfo` (runtime + container id) |
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
-| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked BoringSSL, kTLS, GnuTLS — background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS and statically linked BoringSSL are attached at the resolved offsets; Go, Java JSSE and kTLS are discovered and reported without being probed |
+| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked BoringSSL, kTLS, GnuTLS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS and statically linked BoringSSL are attached at the resolved offsets; Go, Java JSSE and kTLS are discovered and reported without being probed |
 
 Each block is opt-in: a bare-metal agent can stay lean, a Docker host
 turns on the Docker enricher, a Kubernetes DaemonSet turns on the K8s
@@ -136,7 +136,7 @@ The Kubernetes enricher runs a `kube-rs` reflector on the `Pod`
 resource, scoped to the **current node** via the
 `spec.nodeName` field selector, and maintains an in-memory reverse
 index from `containerID` to the owning pod. Lookups are served entirely
-from memory — no API call per alert.
+from memory - no API call per alert.
 
 ### Metadata fields
 
@@ -167,7 +167,7 @@ credentials.
 
 Looked up in this order:
 
-1. `EBPFSENTINEL_NODE_NAME` env var (recommended — set from `fieldRef`)
+1. `EBPFSENTINEL_NODE_NAME` env var (recommended - set from `fieldRef`)
 2. `HOSTNAME` env var
 3. `/proc/sys/kernel/hostname`
 
@@ -314,9 +314,9 @@ container:
 | `CAP_BPF` + `CAP_NET_ADMIN` (existing) | ✅ | ✅ | ✅ |
 | `CAP_SYS_PTRACE` (for `/proc` introspection) | ✅ | ✅ | ✅ |
 | `/proc` mount (read-only) | ✅ | ✅ | ✅ |
-| Docker socket mount | — | ✅ | — |
-| In-cluster service account | — | — | ✅ |
-| ClusterRole on `pods` get/list/watch | — | — | ✅ |
+| Docker socket mount | - | ✅ | - |
+| In-cluster service account | - | - | ✅ |
+| ClusterRole on `pods` get/list/watch | - | - | ✅ |
 | Kernel version | any | any | any |
 
 See [least-privilege deployment](../operations/deployment/kubernetes.md)
@@ -342,7 +342,7 @@ eBPF (cgroup_id in PacketEvent)
 ## Related
 
 - [Extended TLS Library Hooking (Enterprise)](enterprise/dlp.md#extended-tls-library-coverage)
-- [TC attach mode & netkit hot-plug](../configuration/agent.md#tc-attachment-mode) — how TC programs attach to Cilium netkit pod interfaces
+- [TC attach mode & netkit hot-plug](../configuration/agent.md#tc-attachment-mode) - how TC programs attach to Cilium netkit pod interfaces
 - [Deployment Matrix](deployment-matrix.md)
 - [Kubernetes Deployment](../operations/deployment/kubernetes.md)
 - [Docker Deployment](../operations/deployment/docker.md)

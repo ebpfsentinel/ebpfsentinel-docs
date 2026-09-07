@@ -1,6 +1,6 @@
 # Configuration Overview
 
-eBPFsentinel is configured via a single YAML file. Only `agent.interfaces` is required — everything else is optional and defaults to sensible values.
+eBPFsentinel is configured via a single YAML file. Only `agent.interfaces` is required - everything else is optional and defaults to sensible values.
 
 ## Configuration Precedence
 
@@ -80,7 +80,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | `zones.yaml` | Network zone definitions, inter-zone policies |
 | `qos.yaml` | Pipes, queues, classifiers, traffic shaping profiles |
 
-Each file is a standalone, valid configuration — copy one and customize it.
+Each file is a standalone, valid configuration - copy one and customize it.
 
 ## Environment Variables
 
@@ -104,7 +104,7 @@ Per-module log filtering: `RUST_LOG=domain=debug,adapters::http=trace`
 
 ## Hot Reload
 
-The agent watches the config file for changes and applies them without restart — including dynamically loading and unloading eBPF kernel programs when features are enabled or disabled:
+The agent watches the config file for changes and applies them without restart - including dynamically loading and unloading eBPF kernel programs when features are enabled or disabled:
 
 ```bash
 # Send SIGHUP

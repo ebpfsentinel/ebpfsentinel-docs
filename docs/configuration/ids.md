@@ -11,7 +11,7 @@ ids:
   inspect_egress: false               # also classify on the egress hook
   sampling:                           # optional packet sampling
     mode: none                        # none, random, hash, or country_based
-    rate: 1.0                         # sample rate 0.0–1.0 (random/hash modes)
+    rate: 1.0                         # sample rate 0.0-1.0 (random/hash modes)
   rules:
     - id: "rule-id"
       severity: high                  # critical, high, medium, low, info
@@ -34,7 +34,7 @@ ids:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable or disable the IDS module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (requires IPS) |
-| `sampling` | `Sampling` | — | Sampling configuration (see below) |
+| `sampling` | `Sampling` | - | Sampling configuration (see below) |
 | `inspect_egress` | `bool` | `false` | Also run the classifier on the egress hook. Enables cgroup/container attribution of locally-originated (e.g. container outbound) traffic, since on egress the originating socket is bound to the packet |
 | `rules` | `[Rule]` | `[]` | Detection rules |
 
@@ -43,7 +43,7 @@ ids:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `mode` | `string` | `none` | `none`, `random`, `hash`, or `country_based` |
-| `rate` | `float` | `1.0` | Sample rate 0.0–1.0 (for `random`/`hash` modes) |
+| `rate` | `float` | `1.0` | Sample rate 0.0-1.0 (for `random`/`hash` modes) |
 | `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 codes for full inspection (`country_based` mode). Max 250 codes |
 | `high_risk_rate` | `float` | `1.0` | Sample rate for high-risk countries (default: 100%) |
 | `default_rate` | `float` | `0.1` | Sample rate for all other countries |

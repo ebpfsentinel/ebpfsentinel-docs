@@ -8,7 +8,7 @@ Connection tracking (conntrack) provides stateful packet inspection by querying 
 2. `nf_conn->status` and `nf_conn->mark` are read via `bpf_probe_read_kernel` at runtime BTF-resolved offsets
 3. The firewall fast-path uses conntrack state to skip full rule evaluation for established connections
 4. Userspace queries kernel CT state via `/proc/net/nf_conntrack` parsing for the REST API and SSE event stream
-5. Kernel netfilter manages all timeouts, state transitions, and eviction — no BPF-side state machine
+5. Kernel netfilter manages all timeouts, state transitions, and eviction - no BPF-side state machine
 
 ## Connection States
 

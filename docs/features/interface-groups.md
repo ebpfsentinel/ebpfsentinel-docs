@@ -6,7 +6,7 @@
 
 Interface groups allow rules to be scoped to specific network interfaces or groups of interfaces. This enables per-zone policies (e.g., different firewall rules for LAN vs WAN, stricter rate limiting on public-facing interfaces, separate NAT policies per network segment) without duplicating rules or maintaining per-interface configuration files.
 
-Rules without an `interfaces` field are **floating rules** — they apply to all interfaces, preserving full backward compatibility.
+Rules without an `interfaces` field are **floating rules** - they apply to all interfaces, preserving full backward compatibility.
 
 ## How It Works
 
@@ -83,7 +83,7 @@ interfaces: ["!wan"]    # Matches LAN, DMZ, and any other non-WAN interface
 
 ### Floating Rules
 
-Rules without an `interfaces` field (or with an empty list) are floating — they apply to all interfaces regardless of group membership. This is the default behavior and ensures backward compatibility with configurations that predate interface groups.
+Rules without an `interfaces` field (or with an empty list) are floating - they apply to all interfaces regardless of group membership. This is the default behavior and ensures backward compatibility with configurations that predate interface groups.
 
 ## Supported Domains
 
@@ -114,7 +114,7 @@ Userspace writes the mapping at configuration load and reload. Each rule struct 
 
 ```
 if group_mask == 0:
-    # Floating rule — always matches
+    # Floating rule - always matches
     evaluate rule
 
 else:
@@ -135,7 +135,7 @@ an **inverted rule applies** to it. That is what makes `interfaces: ["!wan"]`
 cover an interface nobody put in a group, which is the behaviour the inversion
 section above promises.
 
-This adds one HashMap lookup and one AND + compare per rule — negligible overhead at wire speed.
+This adds one HashMap lookup and one AND + compare per rule - negligible overhead at wire speed.
 
 ## Limits
 
@@ -146,4 +146,4 @@ This adds one HashMap lookup and one AND + compare per rule — negligible overh
 
 ## Metrics
 
-Interface group configuration is included in the standard config reload metrics. No additional per-group metrics are emitted — rule match counters already reflect per-rule hit rates regardless of interface scoping.
+Interface group configuration is included in the standard config reload metrics. No additional per-group metrics are emitted - rule match counters already reflect per-rule hit rates regardless of interface scoping.

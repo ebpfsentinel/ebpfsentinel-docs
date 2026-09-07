@@ -31,8 +31,8 @@ auth:
 | `metrics_auth_required` | `bool` | `true` | Whether `/metrics` requires authentication when auth is enabled |
 | `api_keys` | `[ApiKey]` | `[]` | Static API keys |
 | `api_key_salt` | `string` | random | Salt for API key hashing. A random 32-byte value is generated if omitted |
-| `jwt` | `JwtConfig` | — | JWT (RS256) settings |
-| `oidc` | `OidcConfig` | — | OIDC (JWKS) settings |
+| `jwt` | `JwtConfig` | - | JWT (RS256) settings |
+| `oidc` | `OidcConfig` | - | OIDC (JWKS) settings |
 
 ### ApiKey
 
@@ -41,7 +41,7 @@ auth:
 | `name` | `string` | Yes | Key identifier (for audit/logging) |
 | `key` | `string` | Yes | Secret key value |
 | `role` | `string` | Yes | RBAC role: `admin`, `operator`, `viewer` |
-| `namespaces` | `[string]` | No | Namespaces this key may access when `role: operator` (see [Namespace Scoping](#namespace-scoping)). Empty or omitted means **deny-all** for operators — it does not grant unrestricted access. Ignored for `admin`/`viewer` |
+| `namespaces` | `[string]` | No | Namespaces this key may access when `role: operator` (see [Namespace Scoping](#namespace-scoping)). Empty or omitted means **deny-all** for operators - it does not grant unrestricted access. Ignored for `admin`/`viewer` |
 
 ### JwtConfig
 

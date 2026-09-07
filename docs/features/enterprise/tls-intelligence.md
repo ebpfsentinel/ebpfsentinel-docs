@@ -259,7 +259,7 @@ Tracks TLS session ticket reuse across destinations. If the same session ticket 
 
 ### Beaconing-TLS Bridge
 
-Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, ja4)` — same TLS fingerprint to the same destination at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
+Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, ja4)` - same TLS fingerprint to the same destination at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
 
 ### ONNX TLS Feature Extraction
 

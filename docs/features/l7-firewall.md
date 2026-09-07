@@ -10,10 +10,10 @@ The L7 firewall provides application-layer filtering with protocol-aware rules. 
 
 The L7 firewall operates in userspace. Packets forwarded from TC programs are parsed by protocol-specific parsers, then evaluated against L7 rules:
 
-1. **Protocol detection** — identify the application protocol from the payload
-2. **Field extraction** — parse protocol-specific fields (HTTP path, TLS SNI, gRPC method, etc.)
-3. **Rule evaluation** — match extracted fields against configured rules in priority order
-4. **Action** — record the decision, and for `deny` raise an alert
+1. **Protocol detection** - identify the application protocol from the payload
+2. **Field extraction** - parse protocol-specific fields (HTTP path, TLS SNI, gRPC method, etc.)
+3. **Rule evaluation** - match extracted fields against configured rules in priority order
+4. **Action** - record the decision, and for `deny` raise an alert
 
 The payload reaching step 1 is a copy: the packet that carried it has
 already been forwarded by the time the parser sees it. A `deny` therefore
@@ -21,7 +21,7 @@ marks the flow as denied in the audit trail and raises an alert an automated
 response can act on; it does not drop that packet in the data path. Dropping
 traffic at line rate is the job of the L3/L4 firewall and the IPS.
 
-### Supported Protocols — OSS
+### Supported Protocols - OSS
 
 | Protocol | Detection | Matchable Fields |
 |----------|-----------|-----------------|
@@ -39,7 +39,7 @@ traffic at line rate is the job of the L3/L4 firewall and the IPS.
 | **IMAP** | Tagged commands (LOGIN/SELECT/LIST/FETCH/…) or untagged `* OK`/`* BAD` | Command verb |
 | **POP3** | Server `+OK` / `-ERR` response (client commands collide with FTP; use port 110/995 to disambiguate) | Command verb |
 
-### Supported Protocols — Enterprise (extension port)
+### Supported Protocols - Enterprise (extension port)
 
 The enterprise edition registers an `L7ExtendedParser` on the dispatcher. It is consulted when the built-in detector returns `Unknown`, so enabling the enterprise crate never shadows an OSS protocol.
 
@@ -48,7 +48,7 @@ The enterprise edition registers an `L7ExtendedParser` on the dispatcher. It is 
 | **MQTT** (v3.1.1 / v5) | CONNECT packet with literal `MQTT` or `MQIsdp` protocol name | Packet type, remaining length, client id (CONNECT), topic (PUBLISH) |
 | **AMQP 0-9-1** | 8-byte literal `AMQP\x00\x00\x09\x01` header | Major / minor / revision |
 | **NATS** | Line-prefixed verb (CONNECT / INFO / PUB / HPUB / SUB / UNSUB / MSG / HMSG / PING / PONG / +OK / -ERR) | Command verb, first subject |
-| **Cassandra CQL v3/v4/v5** | 9-byte frame header with version 0x03–0x05 and opcode ≤ 0x10 | Version, opcode, stream, body length, CQL query text (opcode QUERY) |
+| **Cassandra CQL v3/v4/v5** | 9-byte frame header with version 0x03-0x05 and opcode ≤ 0x10 | Version, opcode, stream, body length, CQL query text (opcode QUERY) |
 
 Only label detection is wired today (enterprise tier). Per-protocol matcher evaluation for MQTT/AMQP/NATS/Cassandra rules ships in a follow-up release.
 
@@ -164,21 +164,21 @@ l7:
 
 ### Matcher field mapping
 
-Every L7 protocol reuses a fixed set of YAML fields on the rule — the
+Every L7 protocol reuses a fixed set of YAML fields on the rule - the
 field interpretation depends on the `protocol` string:
 
 | Protocol | `command` | `path` (substring) | `host` | `service` | `method` | `smb_command` |
 |----------|-----------|--------------------|--------|-----------|----------|---------------|
-| http | — | request path | Host header | — | HTTP method | — |
-| tls | — | — | SNI | — | — | — |
-| grpc | — | — | — | service | gRPC method | — |
-| smtp / ftp / imap / pop3 | command verb | — | — | — | — | — |
-| smb | — | — | — | — | — | SMB command id |
-| ssh | — | — | — | software banner substring | — | — |
-| redis | command verb | key substring | — | — | — | — |
-| mysql | — | SQL substring | — | — | — | command byte override |
-| postgres | message type byte | SQL substring | — | — | — | — |
-| dns-tcp | — | — | QNAME substring | — | — | — |
+| http | - | request path | Host header | - | HTTP method | - |
+| tls | - | - | SNI | - | - | - |
+| grpc | - | - | - | service | gRPC method | - |
+| smtp / ftp / imap / pop3 | command verb | - | - | - | - | - |
+| smb | - | - | - | - | - | SMB command id |
+| ssh | - | - | - | software banner substring | - | - |
+| redis | command verb | key substring | - | - | - | - |
+| mysql | - | SQL substring | - | - | - | command byte override |
+| postgres | message type byte | SQL substring | - | - | - | - |
+| dns-tcp | - | - | QNAME substring | - | - | - |
 
 See [Configuration: L7 Firewall](../configuration/l7.md) for the full reference.
 

@@ -1,4 +1,4 @@
-/* eBPFsentinel docs theme — maps the product design tokens (ebpfsentinel-ui/UI_pages/tokens.css)
+/* eBPFsentinel docs theme - maps the product design tokens (ebpfsentinel-ui/UI_pages/tokens.css)
  * onto Infima so the docs site tracks the dashboard brand. */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');

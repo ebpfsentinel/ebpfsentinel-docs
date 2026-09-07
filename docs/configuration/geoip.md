@@ -26,7 +26,7 @@ geoip:
 | `refresh_interval_hours` | `integer` | `24` | Hours between auto-refresh downloads (0 = disabled) |
 | `database_dir` | `string` | `/var/lib/ebpfsentinel/geoip` | Directory for storing downloaded databases |
 
-### GeoIpSource — Mode: `maxmind_account`
+### GeoIpSource - Mode: `maxmind_account`
 
 Auto-download databases from the MaxMind API using account credentials.
 
@@ -37,7 +37,7 @@ Auto-download databases from the MaxMind API using account credentials.
 | `license_key` | `string` | Yes | MaxMind license key |
 | `edition_ids` | `[string]` | No | Database editions to download (default: `["GeoLite2-City", "GeoLite2-ASN"]`) |
 
-### GeoIpSource — Mode: `url`
+### GeoIpSource - Mode: `url`
 
 Download databases from arbitrary URLs. Supports raw `.mmdb` files and `.tar.gz` archives (auto-extracted).
 
@@ -47,7 +47,7 @@ Download databases from arbitrary URLs. Supports raw `.mmdb` files and `.tar.gz`
 | `city_url` | `string` | Yes | URL for the City database |
 | `asn_url` | `string` | No | URL for the ASN database |
 
-### GeoIpSource — Mode: `file`
+### GeoIpSource - Mode: `file`
 
 Load databases from local `.mmdb` files. No network access required.
 
@@ -125,7 +125,7 @@ Alerts will include country/city information but no ASN data.
 
 ## Cross-Domain Integration
 
-When GeoIP is enabled, other domains can use country information for enforcement decisions. No additional GeoIP configuration is needed — each domain configures its own country-aware features:
+When GeoIP is enabled, other domains can use country information for enforcement decisions. No additional GeoIP configuration is needed - each domain configures its own country-aware features:
 
 | Domain | Config Key | Description |
 |--------|-----------|-------------|

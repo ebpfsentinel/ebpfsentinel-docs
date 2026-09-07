@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel follows hexagonal architecture (ports & adapters) with Domain-Driven Design. The core business logic in `domain` has zero external dependencies — it can be tested without any infrastructure, eBPF, or network code.
+eBPFsentinel follows hexagonal architecture (ports & adapters) with Domain-Driven Design. The core business logic in `domain` has zero external dependencies - it can be tested without any infrastructure, eBPF, or network code.
 
 ## Dependency Rules
 
@@ -35,8 +35,8 @@ crates/domain/src/<domain>/
 
 **Trait definitions.** Consumed by application code, implemented by adapters.
 
-- `secondary/` — traits that adapters implement (e.g., storage, metrics, alert senders). This is where every port in the tree lives.
-- `primary/` — reserved for traits the application layer would expose to a driving adapter. It holds no trait: HTTP handlers hold the app services as concrete types on `AppState`, so there is nothing to invert yet. Add a trait here only when a caller needs one, not because the layer exists.
+- `secondary/` - traits that adapters implement (e.g., storage, metrics, alert senders). This is where every port in the tree lives.
+- `primary/` - reserved for traits the application layer would expose to a driving adapter. It holds no trait: HTTP handlers hold the app services as concrete types on `AppState`, so there is nothing to invert yet. Add a trait here only when a caller needs one, not because the layer exists.
 
 ### application
 
@@ -49,7 +49,7 @@ crates/domain/src/<domain>/
 
 **Config, logging, metrics setup.** Parses YAML config into domain-specific structs.
 
-- `config.rs` — domain config structs with `validate()` + `to_domain_*()` methods
+- `config.rs` - domain config structs with `validate()` + `to_domain_*()` methods
 - Logging setup (tracing + JSON/text formatters)
 - Metrics registry (Prometheus)
 
@@ -57,11 +57,11 @@ crates/domain/src/<domain>/
 
 **Port implementations.** HTTP handlers, gRPC services, eBPF loader, redb storage.
 
-- `http/` — Axum handlers for REST API
-- `grpc/` — tonic services for alert streaming
-- `ebpf/` — Aya program loader and map management
-- `storage/` — redb persistence
-- `geoip/` — MaxMind `.mmdb` adapter for GeoIP lookups
+- `http/` - Axum handlers for REST API
+- `grpc/` - tonic services for alert streaming
+- `ebpf/` - Aya program loader and map management
+- `storage/` - redb persistence
+- `geoip/` - MaxMind `.mmdb` adapter for GeoIP lookups
 
 ### agent
 
@@ -80,7 +80,7 @@ The hexagonal architecture enables testing at each layer:
 
 | Layer | Test Type | Dependencies |
 |-------|-----------|-------------|
-| `domain` | Unit tests (inline `#[cfg(test)]`) | None — pure functions |
+| `domain` | Unit tests (inline `#[cfg(test)]`) | None - pure functions |
 | `application` | Unit tests with `TestMetrics` mock | Mock implementations of ports |
 | `adapters` | Integration tests | Real HTTP server, real eBPF (optional) |
 | `agent` | BATS integration tests | Full running binary |

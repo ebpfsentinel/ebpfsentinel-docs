@@ -8,7 +8,7 @@
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Privileges | Launcher needs `CAP_SYS_ADMIN` + unprivileged user namespaces enabled (creates the BPF token); the agent it execs runs unprivileged. No `CAP_BPF`/`setcap` path. |
 
-The 6.9 floor is enforced at agent startup before any BPF program is loaded — there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation.
+The 6.9 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The minimum is driven by the kfunc surface eBPFsentinel relies on (see [KFuncs](kfuncs.md)) plus BPF token delegation.
 
 Verify on your system:
 
@@ -137,7 +137,7 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya still
 
 | Feature | Min Kernel | Description |
 |---------|-----------|-------------|
-| CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere — portable eBPF binaries |
+| CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere - portable eBPF binaries |
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
 | BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
@@ -183,7 +183,7 @@ Scales from 64 services × 16 backends to 4096 services × 256 backends.
 
 **Programs:** `tc-conntrack`, `xdp-firewall`
 
-Connection tracking uses kernel netfilter directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs (kernel 5.18+). No BPF-side shadow tables — kernel manages all CT state. `nf_conn` field offsets are resolved at startup from vmlinux BTF and pushed to the `CT_NF_CONN_OFFSETS` Array map. The `INTERFACE_GROUPS` map (6 programs) is pinned to `/sys/fs/bpf/`.
+Connection tracking uses kernel netfilter directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs (kernel 5.18+). No BPF-side shadow tables - kernel manages all CT state. `nf_conn` field offsets are resolved at startup from vmlinux BTF and pushed to the `CT_NF_CONN_OFFSETS` Array map. The `INTERFACE_GROUPS` map (6 programs) is pinned to `/sys/fs/bpf/`.
 
 ### Variable-Size RingBuf Events (`bpf_dynptr`)
 
