@@ -200,11 +200,13 @@ Dynamic per-SNI certificate generation:
 > be probed and verify the resolved offsets against the build they
 > belong to.
 
-The OSS `uprobe-dlp` program only hooks OpenSSL's `libssl.so.3`
-(`SSL_write` / `SSL_read`). Any application that manages TLS outside of
-OpenSSL is invisible to OSS DLP. Enterprise widens coverage to five
-more TLS implementations so decrypted plaintext can be scanned
-regardless of the TLS library the workload links against.
+The OSS `uprobe-dlp` program hooks `SSL_write` / `SSL_read` in a mapped
+`libssl.so` or `libboringssl.so`, so it covers dynamically-linked OpenSSL and
+dynamically-linked BoringSSL. An application that manages TLS with no such
+shared object mapped - a static link, or a runtime with its own stack - is
+invisible to OSS DLP. Enterprise widens coverage to five more TLS
+implementations so decrypted plaintext can be scanned regardless of the TLS
+library the workload links against.
 
 ### Supported libraries
 

@@ -219,9 +219,20 @@ ebpfsentinel-agent threatintel status
 # List loaded IOCs (all feeds)
 ebpfsentinel-agent threatintel iocs
 
+# List URL IOCs (the ones the IP and domain lists cannot carry)
+ebpfsentinel-agent threatintel urls
+
 # List configured feeds
 ebpfsentinel-agent threatintel feeds
+
+# Refresh feeds now
+ebpfsentinel-agent threatintel feeds refresh
 ```
+
+`--feed-id` is accepted for forward compatibility and does not narrow the
+cycle: the fetcher refreshes every enabled feed. One cycle runs at a time, so
+a second caller is told a refresh is already running rather than queued behind
+the first.
 
 ## REST API
 
@@ -229,7 +240,9 @@ ebpfsentinel-agent threatintel feeds
 |--------|------|-------------|
 | GET | `/api/v1/threatintel/status` | Feed status (last refresh, IOC count per feed) |
 | GET | `/api/v1/threatintel/iocs` | List loaded IOCs |
+| GET | `/api/v1/threatintel/urls` | List loaded URL IOCs |
 | GET | `/api/v1/threatintel/feeds` | List configured feeds |
+| POST | `/api/v1/threatintel/feeds/refresh` | Refresh feeds now (not available to the `viewer` role) |
 
 ## Code Architecture
 

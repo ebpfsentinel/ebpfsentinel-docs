@@ -70,20 +70,27 @@ These TC classifier programs also attach to host interfaces but generate **event
 
 ### DLP (Data Loss Prevention)
 
-DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in `libssl.so.3` (OpenSSL). Unlike network hooks, uprobes target **processes**, not interfaces.
+DLP uses **uprobes** that attach to `SSL_write` and `SSL_read` in any mapped
+`libssl.so` or `libboringssl.so`, which covers dynamically-linked OpenSSL and
+dynamically-linked BoringSSL. `libcrypto` is deliberately not a target: it
+carries the primitives, not the `SSL_*` record functions. Unlike network
+hooks, uprobes target **processes**, not interfaces.
 
 | Mode | Behavior |
 |------|----------|
-| **Bare metal** | Attaches to all host processes using `libssl.so.3`. Full visibility. |
+| **Bare metal** | Attaches to all host processes mapping a matching SSL library. Full visibility. |
 | **Container** (`--pid=host`) | Attaches to all host processes. Full visibility with container-level enrichment. |
 | **Container** (no `--pid=host`) | Only attaches to processes inside the container. Limited - use `--pid=host` for production. |
 | **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility with pod-level enrichment (see below). |
 | **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Limited - use `hostPID: true` for production. |
-| **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it uses `libssl.so.3` in the same shared PID namespace. |
+| **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it links a matching SSL library dynamically in the same shared PID namespace. |
 
 **Container/pod enrichment**: DLP events carry `cgroup_id` (via `bpf_get_current_cgroup_id` in the uprobe), which the container resolver maps to the owning container or pod. Combined with the Docker enricher or Kubernetes metadata enricher, every DLP alert includes container/pod name, namespace, and labels - enabling per-workload DLP policy enforcement.
 
-**Key constraint (OSS)**: if the application manages TLS internally (e.g., Go's `crypto/tls`, Java's JSSE, or a sidecar proxy like Envoy with BoringSSL), the uprobe on `libssl.so.3` will not intercept that traffic. The OSS uprobe-dlp only hooks OpenSSL's `libssl.so.3`.
+**Key constraint (OSS)**: the uprobe needs a shared object to attach to, so a
+runtime that manages TLS internally is not intercepted - Go's `crypto/tls`,
+Java's JSSE, and a proxy like Envoy that links BoringSSL statically rather
+than mapping `libboringssl.so`.
 
 **Enterprise extends this coverage** via additional uprobe targets - Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS - so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 

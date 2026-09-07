@@ -48,12 +48,13 @@ stateDiagram-v2
     [*] --> Detecting : Rate exceeds threshold
     Detecting --> Active : Rate sustained > 3 seconds
     Active --> Mitigated : Rate below threshold > 30 seconds
+    Mitigated --> Active : Rate sustained > 3 seconds again
     Mitigated --> Expired : Rate below threshold > 5 minutes
     Expired --> [*]
 
     note right of Detecting : Initial state
     note right of Active : Mitigation action applied
-    note right of Mitigated : Attack subsiding
+    note right of Mitigated : Attack subsiding, reopens on a fresh burst
     note right of Expired : Entry cleaned up
 ```
 
@@ -186,6 +187,7 @@ ebpfsentinel-agent --output json ddos attacks
 | Crate | Path | Role |
 |-------|------|------|
 | `ebpf-programs` | `crates/ebpf-programs/xdp-ratelimit/` | XDP kernel-side protections (SYN, ICMP, UDP amp, conntrack) |
+| `ebpf-programs` | `crates/ebpf-programs/xdp-ratelimit-syncookie/` | SYN cookie forging on XDP_TX, tail-called from `xdp-ratelimit`, which validates the returning ACK itself |
 | `domain` | `crates/domain/src/ddos/` | DDoS engine (entity, engine, error) - attack detection + state machine |
 | `ports` | `crates/ports/src/secondary/lpm_coordinator_port.rs` | Kernel LPM writes behind auto-CIDR blocking |
 | `ports` | `crates/ports/src/secondary/alias_resolution_port.rs` | Alias expansion for policy match fields |

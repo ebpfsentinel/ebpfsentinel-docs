@@ -344,11 +344,21 @@ The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule
 
 ### Advanced XDP Features
 
-- **Packet mirroring** via `DEVMAP` + `bpf_redirect` to monitoring interfaces
 - **CPU steering** via `CPUMAP` for NUMA-aware packet distribution
 - **FIB routing enrichment** via `bpf_fib_lookup` for next-hop and routing anomaly detection
 - **MTU validation** via `bpf_check_mtu` before pass and redirect operations - drops oversized packets and increments `mtu_exceeded` Prometheus metric
-- **Checksum offload** via `bpf_csum_diff` / `bpf_l3_csum_replace` / `bpf_l4_csum_replace`
+
+Two capabilities often read as the firewall's belong to other programs:
+
+- **Packet mirroring** is the IDS program's. `tc-ids` clones a matched packet
+  to a monitoring interface with `bpf_clone_redirect`, gated by a config map
+  the userspace side writes. `DEVMAP` redirect is the load balancer's, used to
+  reach a backend interface at wire speed. See [IDS](ids.md) and
+  [Load Balancer](loadbalancer.md).
+- **Checksum fixups** via `bpf_csum_diff`, `bpf_l3_csum_replace` and
+  `bpf_l4_csum_replace` are called by the NAT and scrubbing programs, which
+  are the ones that rewrite header fields. See [NAT](nat.md) and the
+  [packet normalization](#packet-normalization-scrub) section above.
 
 ## Configuration
 
