@@ -424,4 +424,7 @@ enterprise:
 
 ## Feature Gating
 
-ML Anomaly Detection requires a valid license with the `ml-detection` feature. Without a license, all ML endpoints return 402.
+ML Anomaly Detection requires a valid license with the `ml-detection` feature.
+Gating is by route merge rather than by a check inside the handler: without the
+feature the ML routes are never mounted, so every ML path answers `404 Not
+Found` rather than `402 Payment Required`.

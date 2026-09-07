@@ -16,7 +16,7 @@ Native connectors for 10 enterprise SIEM and data lake platforms with durable bu
 | **Wazuh** | REST API | ECS + agent_name | JWT auth (auto-refresh on 401), agent-based integration |
 | **Microsoft Sentinel** | CEF over Syslog | CEF | RFC 5424 syslog, TLS/TCP transport, 6 custom extension fields |
 | **IBM QRadar** | LEEF over Syslog | LEEF 2.0 | Tab-delimited fields, TLS/TCP transport |
-| **Generic Syslog** | JSON over Syslog | JSON + RFC 5424 | TLS/TCP/UDP transport, all optional fields |
+| **Generic Syslog** | JSON over Syslog | JSON + RFC 5424 | TLS or TCP transport, all optional fields |
 | **OTLP** | HTTP JSON | OTLP Logs | At-least-once delivery, retry with exponential backoff |
 | **S3** | HTTP PUT | NDJSON (gzip) | Date-partitioned keys, S3/MinIO/R2 compatible, optional gzip compression |
 | **ClickHouse** | HTTP POST | JSONEachRow | Retry with exponential backoff, basic auth, configurable database/table |
@@ -177,7 +177,12 @@ Used by Sentinel, QRadar, and generic Syslog connectors:
 
 - **Persistent connection**: TCP or TLS, lazily established, Tokio Mutex-protected
 - **Reconnection**: one retry on I/O error
-- **Framing**: octet-counting format (`{len} {message}\n`, per RFC 3164)
+- **Framing**: octet-counting format (`{len} {message}\n`, per RFC 6587), which
+  is what makes a stream transport unambiguous; the message inside the frame is
+  RFC 5424
+- **Transport**: TCP or TLS only. There is no UDP sender: a datagram carries no
+  delivery signal, and the export path retries on write failure, which needs a
+  stream
 - **TLS**: rustls with configurable CA cert, optional `verify_tls=false`
 
 ## OTLP Enterprise Connector

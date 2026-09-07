@@ -4,7 +4,7 @@
 
 ## Overview
 
-Leader-based clustering with state replication for failover. Agents form a cluster with one leader and N followers using a modified Bully election algorithm. The leader owns eBPF programs and coordinates state replication across 13 domain categories via gRPC streaming. Split-brain detection and resolution ensure consistent behavior during network partitions.
+Leader-based clustering with state replication for failover. Agents form a cluster with one leader and N followers using a modified Bully election algorithm. The leader owns eBPF programs and coordinates state replication across 13 domain categories over unary gRPC calls. Split-brain detection and resolution ensure consistent behavior during network partitions.
 
 ## Cluster Roles
 
@@ -50,7 +50,11 @@ Modified **Bully algorithm** with monotonic `Term(u64)` counter:
 
 ## State Replication
 
-The leader replicates state to followers via gRPC streaming across **13 domain categories**:
+The leader replicates state to followers across **13 domain categories**. Every
+call on the peer service is unary - a delta or a snapshot goes out as one request
+and the follower answers with one acknowledgement - so a replication round is a
+sequence of calls rather than an open stream, and a follower that dropped off
+rejoins by asking for a snapshot rather than by resuming a channel:
 
 | Category | Replicated State |
 |----------|-----------------|

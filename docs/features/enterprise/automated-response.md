@@ -190,13 +190,23 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50
 
 ## State Persistence
 
-Response policies, webhook endpoints, and the audit trail are persisted to a **redb** key-value store. This ensures:
+Response policies and webhook endpoints are persisted to a **redb** key-value
+store, in the `response_policies` and `response_webhooks` tables, and are
+restored on startup. The state store path is configured via
+`enterprise.state_store_path` (default: `/var/lib/ebpfsentinel/state.redb`).
 
-- **Policies survive restarts** - API-created policies and webhooks are restored on startup
-- **Audit trail durability** - action records are not lost on agent restart
-- **Consistent enforcement** - active block/rate-limit actions remain effective across restarts
+Two things are deliberately not in that store, and an operator planning a restart
+has to count on neither:
 
-The state store path is configured via `enterprise.state_store_path` (default: `/var/lib/ebpfsentinel/state.redb`).
+- **The audit trail is in memory.** It is a bounded ring of the most recent
+  action results, capped by `audit_max`, and it is empty after a restart. Export
+  it to a SIEM if the record has to outlive the process.
+- **Containment does not survive a restart.** An active block, rate limit or flow
+  isolation lives in an eBPF map with a TTL, and nothing replays those entries
+  into the maps on startup, so an agent that restarts mid-containment comes back
+  with the maps empty. The policy that produced the action is restored, so the
+  next matching alert re-arms it; what is lost is the remainder of the TTL on
+  whatever was already blocked.
 
 ## eBPF Enforcement
 

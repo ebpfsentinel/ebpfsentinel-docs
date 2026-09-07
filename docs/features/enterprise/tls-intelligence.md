@@ -10,22 +10,27 @@ Four sub-capabilities:
 
 | Capability | Description |
 |-----------|-------------|
-| JA4+ Threat Database | Fingerprint-based threat detection with 20+ built-in C2/malware signatures |
+| JA4+ Threat Database | Fingerprint-based threat detection with 14 built-in C2, malware and scanner signatures |
 | TLS Behavior Anomaly | Statistical rarity scoring of TLS fingerprints over a sliding window |
 | PQC Compliance Detection | Track ML-KEM and hybrid key exchange adoption per destination |
 | Cipher/Protocol Compliance | Enforce minimum TLS versions, block weak ciphers and signature algorithms |
 
 ## JA4+ Threat Database
 
-20+ built-in threat fingerprint entries covering common offensive tools:
+Fourteen built-in threat fingerprints ship with the agent:
 
-| Category | Tools |
-|----------|-------|
-| C2 frameworks | Cobalt Strike, Metasploit, Sliver, Havoc, Mythic, Brute Ratel |
-| RATs | AsyncRAT, Quasar RAT, DarkComet, NanoCore, njRAT |
-| Loaders/Droppers | IcedID, QakBot, BumbleBee, Emotet |
-| Implants | Merlin, PoshC2, Covenant, SilentTrinity |
-| Tunneling | Chisel, ligolo-ng |
+| Category | Entries | Threats |
+|----------|---------|---------|
+| `c2` | 8 | Cobalt Strike (three versions), Metasploit Meterpreter, Metasploit over TLS 1.2, Sliver, Havoc, Brute Ratel C4 |
+| `malware` | 4 | Emotet (two variants), Trickbot, IcedID |
+| `scanner` | 2 | Nmap TLS probe, Masscan TLS probe |
+
+The list is short on purpose. A JA4 fingerprint is a truncated SHA-256 of the
+handshake, so an entry whose hash was written by hand rather than observed on the
+wire matches nothing while still counting towards a number a reader compares.
+Every entry above is a fingerprint that can be seen. Two categories the
+vocabulary carries, `botnet` and `exploit_tool`, ship no built-in entry today and
+exist for entries a deployment adds.
 
 Each entry contains:
 
@@ -33,8 +38,12 @@ Each entry contains:
 |-------|-------------|
 | `ja4_hash` | JA4+ fingerprint hash (identity of the entry) |
 | `threat_name` | Human-readable threat name |
-| `category` | Threat category (c2, rat, loader, implant, tunneling) |
+| `category` | One of `c2`, `malware`, `exploit_tool`, `scanner`, `botnet`, `custom` |
 | `confidence` | Match confidence 0-100 (default 80) |
+
+A `category` outside that vocabulary is refused by name at startup rather than
+filed under `custom`, so a typo in a feed stops the agent instead of producing
+entries in a category nobody wrote.
 
 ### Custom Threat Entries
 
@@ -53,7 +62,7 @@ enterprise:
       custom_entries:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
           threat_name: Internal Red Team Implant
-          category: c2                # c2 | rat | loader | implant | tunneling
+          category: c2                # c2 | malware | exploit_tool | scanner | botnet | custom
           confidence: 90              # 0-100 (default 80)
 ```
 
@@ -96,7 +105,12 @@ For each observed JA4+ fingerprint, the rarity score is calculated as:
 rarity = 1.0 - (occurrences / total_handshakes)
 ```
 
-A fingerprint seen once out of 100,000 handshakes has a rarity score of 0.99999. Common browsers (Chrome, Firefox) typically score below 0.001.
+The score is the share of the window's handshakes that were **not** this
+fingerprint, so it rises as a fingerprint gets rarer. A fingerprint seen once out
+of 100,000 handshakes scores 0.99999. A browser fingerprint carrying half the
+traffic scores 0.5, and one carrying 99 per cent of it still scores 0.01: a low
+score means a fingerprint is most of what the estate does, not that it is a
+common browser. In an estate with a dozen client types, everything scores high.
 
 ### Sliding Window
 
@@ -104,13 +118,22 @@ Observations are tracked over a **7-day sliding window**. Expired entries are ga
 
 ### Alert Threshold
 
-Fingerprints with a rarity score above the configured threshold generate anomaly alerts:
+A fingerprint whose rarity score is greater than or equal to the configured
+threshold generates an anomaly alert. The comparison is inclusive, so a score
+landing exactly on the threshold alerts:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `rarity_threshold` | `0.01` | Minimum rarity score (must be in `(0, 1)`) to trigger an alert |
+| `rarity_threshold` | `0.01` | Rarity score (must be in `(0, 1)`) at or above which a fingerprint alerts |
 
-`rarity_threshold` is the only tunable; the sliding window (7 days) and garbage-collection cadence are fixed internally. Setting `rarity_threshold` to `0.001` reduces noise in high-traffic environments. Setting it to `0.1` is more aggressive and catches moderately uncommon fingerprints.
+`rarity_threshold` is the only tunable; the sliding window (7 days) and garbage-collection cadence are fixed internally.
+
+Because the score rises with rarity, **a higher threshold is quieter**. The
+default of `0.01` alerts on every fingerprint accounting for less than 99 per
+cent of the window's handshakes, which in practice is nearly all of them, so it
+is a setting for a first look at an estate rather than one to leave running.
+`0.99` alerts on fingerprints under 1 per cent of the handshakes and `0.999` on
+those under a tenth of a per cent, which is where a large estate usually ends up.
 
 ```yaml
 enterprise:

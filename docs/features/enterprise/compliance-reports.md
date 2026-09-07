@@ -10,14 +10,14 @@ Automated compliance report generation for 8 regulatory frameworks including EU/
 
 | Framework | Sections | Controls | Description |
 |-----------|----------|----------|-------------|
-| **PCI-DSS 4** | 5 | 21 | Payment Card Industry Data Security Standard v4.0 |
+| **PCI-DSS 4** | 5 | 24 | Payment Card Industry Data Security Standard v4.0 |
 | **HIPAA** | 3 | 13 | Health Insurance Portability and Accountability Act Security Rule |
 | **GDPR Art 32** | 3 | 8 | General Data Protection Regulation Article 32 technical measures |
 | **SOC 2** | 4 | 12 | Service Organization Control 2 Trust Service Categories |
 | **NIS2** | 2 | 8 | EU Network and Information Security Directive 2 (Articles 21, 23) |
 | **DORA** | 3 | 7 | EU Digital Operational Resilience Act (Chapters II, III, IV) |
-| **SecNumCloud** | 5 | 14 | ANSSI cloud security qualification (Ch.8-14) |
-| **HDS** | 6 | 11 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
+| **SecNumCloud** | 5 | 12 | ANSSI cloud security qualification (Ch.8-14) |
+| **HDS** | 6 | 9 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
 
 Plus up to **5 enterprise infrastructure sections** (9 additional controls including segmentation) appended dynamically.
 
@@ -69,13 +69,13 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 
 ## Framework Controls
 
-### PCI-DSS 4 (5 sections, 21 controls)
+### PCI-DSS 4 (5 sections, 24 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
 | Requirement 1 - Network Security | 4 | Firewall rules, segmentation, traffic restrictions, trusted/untrusted connections |
 | Requirement 3 - Data Protection | 4 | Retention policies, unnecessary storage, data masking, transit encryption |
-| Requirement 6 - Secure Systems | 4 | Vulnerability management, patching, secure development, change management |
+| Requirement 6 - Secure Systems | 7 | Vulnerability management, patching, secure development, change management |
 | Requirement 10 - Logging/Monitoring | 5 | Audit trail, automated alerting, log integrity, time sync, log retention |
 | Requirement 11 - Security Testing | 4 | IDS/IPS, vulnerability scanning, pen testing, change detection |
 
@@ -119,7 +119,7 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 | Chapter III - Incident Management | 3 | Detection capabilities, incident classification, incident reporting |
 | Chapter IV - Resilience Testing | 1 | Testing requirements, MITRE coverage validation |
 
-### SecNumCloud (5 sections, 14 controls)
+### SecNumCloud (5 sections, 12 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
@@ -129,7 +129,7 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 | Ch.12 - Cryptography | 2 | TLS configuration, post-quantum readiness |
 | Ch.14 - Incident Management | 2 | Incident detection, forensics |
 
-### HDS (6 sections, 11 controls)
+### HDS (6 sections, 9 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
@@ -142,7 +142,7 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 
 ### Enterprise Infrastructure Sections
 
-Four optional sections appended based on runtime status:
+Five optional sections appended based on runtime status:
 
 | Section | Controls | Condition |
 |---------|----------|-----------|
@@ -269,4 +269,7 @@ enterprise:
 
 ## Feature Gating
 
-Compliance Reports requires a valid license with the `compliance-reports` feature. Without a license, report generation endpoints return 402.
+Compliance Reports requires a valid license with the `compliance-reports`
+feature. Gating is by route merge rather than by a check inside the handler:
+without the feature the reporting routes are never mounted, so every path answers
+`404 Not Found` rather than `402 Payment Required`.
