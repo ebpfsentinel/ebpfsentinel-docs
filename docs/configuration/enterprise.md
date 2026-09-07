@@ -6,6 +6,30 @@
 
 Enterprise-specific configuration is nested under the `enterprise:` key in the agent YAML config file. OSS builds ignore this section entirely.
 
+## What happens when the section is wrong
+
+The agent refuses to start, naming the file and the key.
+
+There is no fall-back to defaults, because a fall-back is indistinguishable from success: an agent that answered a mistyped key by loading the defaults would start, pass its health check, and run with every feature configured in that file switched off. A refusal at boot is loud; a silently disabled DLP engine is not.
+
+Four things are refused:
+
+| What is wrong | What the agent says |
+|---|---|
+| The file exists and cannot be read | `cannot read the agent configuration at <path>: <reason>` |
+| The file is not YAML | `<path> is not valid YAML: <reason>` |
+| A key is not one this build knows, or a value is the wrong type | ``the `enterprise:` section of <path> is not a valid enterprise configuration: unknown field `enabeld`, expected one of `enabled`, ...`` |
+| The section parses and then fails its own consistency rules | ``the `enterprise:` section of <path> is invalid: enterprise.portal.base_url must be https`` |
+
+An unknown key is an error rather than an ignored line. A typo, a key renamed by an upgrade, or a key copied from a different product all read the same way to the agent: something was asked for that this build cannot do. The message names the offending key and lists the keys that section accepts, so the correction is on the screen that reported the problem.
+
+Two states are **not** errors, because neither of them asks for anything:
+
+- The configuration file does not exist. The agent runs with no enterprise feature configured.
+- The file exists and has no `enterprise:` key, or the key is present with nothing under it. Same outcome.
+
+The agent reads this section exactly once, at startup, before it loads the licence or touches the kernel. Changing the file underneath a running agent changes nothing until it is restarted; there is no reload signal.
+
 ## Full Reference
 
 ```yaml

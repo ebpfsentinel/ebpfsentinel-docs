@@ -35,6 +35,12 @@ A regex-based fallback is always available for platforms without Vectorscan.
 
 Define organization-specific patterns with arbitrary IDs:
 
+> A mistake in this block stops the agent: an unknown key, a value of the wrong type
+> or a section that fails its own consistency rules is refused by name at startup rather
+> than answered with defaults, because defaults would leave the feature off in an agent
+> that reports itself healthy. See
+> [what happens when the section is wrong](../../configuration/enterprise.md#what-happens-when-the-section-is-wrong).
+
 ```yaml
 enterprise:
   advanced_dlp:
