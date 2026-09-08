@@ -4,7 +4,7 @@
 
 ## Overview
 
-XDP-based rate limiting provides DDoS protection with four algorithms, per-CPU lock-free buckets, and kernel-side timer maintenance. The rate limiter runs at XDP speed and is typically invoked via tail-call from the firewall, avoiding a separate program attachment.
+XDP-based rate limiting provides DDoS protection with four algorithms and per-CPU lock-free buckets that are reset on the next packet and evicted by the kernel when the map fills. The rate limiter runs at XDP speed and is typically invoked via tail-call from the firewall, avoiding a separate program attachment.
 
 ## How It Works
 
@@ -21,9 +21,9 @@ SYN-flood mitigation (kernel-issued SYN cookie forging via `XDP_TX`) is configur
 
 ### Kernel-Side Implementation
 
-- **PerCPU Hash maps** - lock-free per-IP counters (no cross-CPU contention)
-- **`bpf_timer`** - periodic bucket expiration and cleanup without userspace intervention
-- **`bpf_get_prandom_u32`** - jitter for timer-based operations to avoid thundering herd
+- **Per-CPU LRU hash maps** - lock-free per-IP counters (no cross-CPU contention)
+- **Lazy window reset** - a bucket whose window has elapsed is rewritten by the packet that finds it, so an idle source costs nothing between packets
+- **LRU eviction** - the bucket map holds 262,144 sources per CPU and the kernel drops the least recently used entry when it is full, so a source that stops sending is forgotten without any periodic sweep. There is no `bpf_timer`, and nothing in userspace walks the map to expire entries
 - **Suspend-aware timestamps** via `bpf_ktime_get_boot_ns`
 
 ### Tail-Call Integration
