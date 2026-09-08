@@ -281,6 +281,40 @@ The change is never refused because the trail could not be written: an agent
 whose audit store is unavailable still applies the assignment and records the
 line to its log.
 
+### What survives a restart
+
+Built-in roles are rebuilt by the engine at every start, and custom roles named
+in `enterprise.advanced_rbac.custom_roles` are read back out of the
+configuration file, so neither depends on any stored state.
+
+Everything created through the API - a custom role, and a subject-to-role
+assignment - is written to a redb file beside the response and tenant state,
+`/var/lib/ebpfsentinel/rbac_state.redb`, and read back at startup. Two rules
+apply to that reading:
+
+- A configured role wins over a persisted one carrying the same id, because the
+  file is what the operator edits and the store is what the API wrote. The
+  shadowed row is logged.
+- An assignment naming a role the registry no longer holds is dropped rather
+  than restored, so recreating a deleted role id cannot revive the access that
+  went with it.
+
+A write the store refuses is rolled back before the caller is answered and the
+call returns `503`, so a role the API said it created is a role the next start
+will still have. An agent with no writable state directory logs that roles and
+assignments created through the API will not survive a restart, and otherwise
+serves normally.
+
+### Deleting a role
+
+A role another role inherits from cannot be deleted. Grant resolution walks
+parent ids, so removing a parent would leave every child resolving to nothing
+and denying in silence; the deletion is refused with `409` naming the children
+instead. Remove or reparent them first.
+
+Deleting a role also removes it from every subject it was assigned to, in the
+same change, so the assignment cannot outlive the role it names.
+
 ### Error Response
 
 ```json
@@ -300,7 +334,7 @@ line to its log.
 | `POST` | `/api/v1/rbac/roles` | admin | advanced-rbac | Create custom role (201). |
 | `GET` | `/api/v1/rbac/roles/{id}` | viewer | advanced-rbac | Role details (404 if not found). |
 | `PUT` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Update custom role (403 for built-in). |
-| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
+| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Delete custom role (403 for built-in, 409 if another role inherits from it, 204 on success). Assignments naming it go with it. |
 | `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
 | `PUT` | `/api/v1/rbac/roles` | admin | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
 | `POST` | `/api/v1/rbac/roles/reload` | admin | advanced-rbac | Bulk reload all custom roles (atomic). |

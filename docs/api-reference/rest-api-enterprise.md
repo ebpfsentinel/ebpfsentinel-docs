@@ -209,7 +209,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/rbac/roles/reload` | admin | `config:admin` | advanced-rbac | Bulk reload all custom roles (atomic). |
 | `GET` | `/api/v1/rbac/roles/{id}` | viewer | `config:read` | advanced-rbac | Role details (404 if not found). |
 | `PUT` | `/api/v1/rbac/roles/{id}` | admin | `config:admin` | advanced-rbac | Update custom role (403 for built-in). |
-| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | `config:admin` | advanced-rbac | Delete custom role (403 for built-in, 204 on success). |
+| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | `config:admin` | advanced-rbac | Delete custom role (403 for built-in, 409 if another role inherits from it, 204 on success). Assignments naming it go with it. |
 | `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | `config:read` | advanced-rbac | Resolved grants with inheritance. |
 
 ## AI and LLM security
