@@ -123,6 +123,18 @@ z_score  = |value - mean| / sqrt(variance)
 
 Defaults: `alpha=0.01`, `threshold=3.0`, `warmup_samples=100`.
 
+**Severity thresholds** (multiples of `ewma_threshold`, so they move when you tune it):
+
+| Severity | Threshold | At the default `threshold=3.0` |
+|----------|-----------|-------------------------------|
+| Normal | < `threshold` | < 3.0 |
+| Low | >= `threshold` | >= 3.0 |
+| Medium | >= 1.5x `threshold` | >= 4.5 |
+| High | >= 2x `threshold` | >= 6.0 |
+| Critical | >= 2.5x `threshold` | >= 7.5 |
+
+This is a different scale from the baseline's fixed 2 / 3 / 4 / 5, and the ONNX model below uses this one too. See [Score Fusion](#score-fusion) for what that means when the two disagree.
+
 ### CUSUM Change-Point Detection
 
 Two-sided Cumulative Sum detects sustained mean shifts. Catches slow-ramp DDoS and gradual exfiltration that EWMA adapts to over time.
@@ -134,6 +146,16 @@ Alert when S+ > h or S- > h
 ```
 
 Per-feature accumulators with configurable slack `k` (default: 0.5) and threshold `h` (default: 5.0). Reports drift direction, magnitude, and duration.
+
+**Severity thresholds** (on the normalised score, which is the largest accumulator divided by `h`, so 1.0 is exactly at threshold):
+
+| Severity | Threshold |
+|----------|-----------|
+| Normal | < 1.0 |
+| Low | >= 1.0 |
+| Medium | >= 2.0 |
+| High | >= 3.0 |
+| Critical | >= 4.0 |
 
 ### ONNX Model Inference
 
@@ -163,6 +185,8 @@ final_severity = max(baseline, ewma, cusum, model)
 ```
 
 The most sensitive of the four drives the alert. An engine that is not configured, or that has not warmed up, contributes nothing rather than contributing a Normal.
+
+**The four severities are not on one scale, and that is what decides which engine wins.** The baseline classifies an absolute Z-score against fixed bands; EWMA and the model classify a Z-score against multiples of `ewma_threshold`; CUSUM classifies a magnitude against multiples of `h`. At the defaults a Z-score of 5 is Critical to the baseline and only Medium to EWMA, so the baseline is the sensitive one and raising `anomaly_threshold` is what moves the fused severity. Lowering `ewma_threshold` below 2.0 flips it the other way, at which point EWMA drives most alerts. Tune the two together, and read the engine label on the alert to see which one actually settled the severity.
 
 If every engine that scored the window called it Normal, no alert is emitted at all.
 

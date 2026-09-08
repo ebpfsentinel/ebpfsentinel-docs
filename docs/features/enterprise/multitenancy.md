@@ -96,7 +96,9 @@ Labels are read over the Docker Engine API, which also serves Podman's compatibl
 - No subnet overlaps (no two tenants claim overlapping CIDRs)
 - No VLAN overlaps (each VLAN ID owned by exactly one tenant)
 - Valid CIDR format for subnets
-- Auto-assigns sequential `tenant_id` values (1, 2, 3, ...)
+- Auto-assigns each new `tenant_id` as one past the highest ever used, and never
+  reuses one: delete tenant 2 of three and the next tenant is 4, so an id that
+  appears in an old alert, an eBPF map or an export always means the same tenant
 - Auto-adds default tenant with `tenant_id=0`
 
 ## eBPF Rule Matching
