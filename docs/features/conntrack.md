@@ -27,10 +27,12 @@ Connection limits are enforced in `xdp-firewall` (not tc-conntrack) via per-sour
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `max_src_states` | 0 (unlimited) | Max connections per source IP |
+| `max_src_states` | 0 (unlimited) | Max connections per source address |
 | `max_src_conn_rate` | 0 (unlimited) | Max new connections per source per window |
 | `conn_rate_window_secs` | 5 | Connection rate measurement window |
-| `overload_ttl_secs` | 3600 | Duration to track overloaded sources |
+| `overload_ttl_secs` | 3600 | How long an overloaded source stays refused (0 = until restart) |
+
+All four are `conntrack:` keys. A source that exceeds the rate is refused on the XDP fast path until its overload window has passed. See [Connection Tracking Configuration](../configuration/conntrack.md).
 
 ## Kernel CT Configuration
 

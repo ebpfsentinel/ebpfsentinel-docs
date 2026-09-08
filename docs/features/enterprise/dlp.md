@@ -178,8 +178,12 @@ Domains and IPs can be exempted from inspection:
 Dynamic per-SNI certificate generation:
 - Leaf certificates signed by the configured CA
 - Certificate chain: leaf + CA cert
-- Thread-safe cache per domain (generate once, reuse)
-- Short-lived certificates (24h) for MITM
+- Thread-safe cache per domain (generate once, reuse until it expires)
+- Short-lived certificates (24h) for MITM, backdated five minutes so a client whose clock is
+  slightly behind still accepts them
+- The cache holds at most 1024 certificates, and so at most 1024 live private keys. An entry is
+  dropped once its own certificate has expired, and when the bound is reached the entry closest to
+  expiring goes first. `ebpfsentinel_ent_tls_cert_cache_size` is how many are held right now
 
 **Privacy Note:** TLS deep inspection requires explicit opt-in. The CA certificate must be deployed to all monitored endpoints.
 
