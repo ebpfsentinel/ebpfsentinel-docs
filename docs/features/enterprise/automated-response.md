@@ -85,7 +85,7 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 |-------|---------|-------------|
 | `url` | - | HTTP POST endpoint URL |
 | `headers` | `[]` | Custom headers (e.g., `Authorization: Bearer <token>`) |
-| `max_retries` | 3 | Retries with exponential backoff (500ms x attempt) |
+| `max_retries` | 3 | Retries with exponential backoff (500 ms doubling per retry: 500 ms, 1 s, 2 s, ..., capped at 30 s) |
 | `timeout_ms` | 5000 | Per-request timeout |
 | `enabled` | true | Enable/disable without deleting |
 
@@ -134,7 +134,7 @@ curl -X POST http://agent:8080/api/v1/enterprise/response/policies \
 
 ## Audit Trail
 
-Every executed response action is recorded in a bounded audit trail (default: 10,000 entries). Each record includes:
+Every executed response action is recorded in a bounded audit trail (default: 10,000 entries), and the trail is returned newest first, so the default limit of 100 answers what the agent has just done rather than what it did after boot. Each record includes:
 
 | Field | Description |
 |-------|-------------|
@@ -163,6 +163,8 @@ curl "http://agent:8080/api/v1/enterprise/response/audit?action_type=webhook_not
 # Filter by outcome
 curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50"
 ```
+
+Filters are applied before the limit, and the limit keeps the most recent matches.
 
 ## REST API
 

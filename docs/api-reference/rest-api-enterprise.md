@@ -277,7 +277,7 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/response/audit` | viewer | `config:read` | automated-response | Query the audit trail. |
+| `GET` | `/api/v1/enterprise/response/audit` | viewer | `config:read` | automated-response | Query the audit trail, newest first. |
 | `GET` | `/api/v1/enterprise/response/policies` | viewer | `config:read` | automated-response | List all response policies. |
 | `POST` | `/api/v1/enterprise/response/policies` | operator | `config:write` | automated-response | Create a response policy. |
 | `DELETE` | `/api/v1/enterprise/response/policies/{id}` | operator | `config:write` | automated-response | Delete a response policy. |
