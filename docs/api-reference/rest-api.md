@@ -1001,7 +1001,7 @@ Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` 
 | `priority` | integer | Failover priority (lower is preferred) |
 | `weight` | integer | Alias of `priority`, exposed as a routing weight |
 | `enabled` | boolean | Whether the gateway is eligible for selection |
-| `status` | string | Health-check observed status (`healthy`, `degraded`, `down`) |
+| `status` | string | Health-check observed status (`healthy`, `down`) |
 | `health_status` | string | Alias of `status` for clients expecting a `health_status` field |
 
 #### DELETE /api/v1/routing/gateways/{id}

@@ -34,8 +34,11 @@ Each gateway can have an independent health probe:
 | State | Description |
 |-------|-------------|
 | `healthy` | All probes passing |
-| `degraded` | Partial packet loss detected (includes loss percentage) |
 | `down` | Failed health checks exceed threshold |
+
+A probe either answers or it does not, and nothing measures how much of the
+traffic a gateway is losing, so there is no state between the two: a gateway
+carrying loss is healthy until `failure_threshold` consecutive probes fail.
 
 The routing engine automatically fails over to the next-priority healthy gateway when a gateway goes down, and fails back when it recovers.
 
