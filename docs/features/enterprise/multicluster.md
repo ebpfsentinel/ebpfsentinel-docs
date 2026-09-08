@@ -172,9 +172,18 @@ to the default tenant (`__default__`), never dropped. Older payloads without a
 ### Deduplication
 
 - Each alert has a UUIDv7 `event_id` for deduplication
+- Deduplication runs against the seen set **and** within the incoming batch, so one request carrying the same id twice is stored, buffered and remembered once
 - Seen set capacity: **100,000** event IDs (FIFO eviction when exceeded)
 - Rolling alert buffer: **10,000** alerts in memory (FIFO eviction)
 - Broadcast channel (capacity 1,024) for real-time subscribers
+
+An id is remembered only once the alert is stored. `POST /api/v1/federation/alerts`
+persists the batch first and updates the seen set, the broadcast and the rolling
+buffer afterwards, so a store that refused answers **503** with nothing
+remembered and the sending cluster resends the same batch rather than having it
+deduplicated away against ids recorded for alerts that were never written. With
+no persistent store configured there is nothing to fail and the batch is
+accepted as before.
 
 ### Persistent Alert Store
 
@@ -362,7 +371,7 @@ after upgrade. To migrate without downtime:
 | `GET` | `/api/v1/federation/overview` | viewer | multi-cluster | Federation-wide status. |
 | `POST` | `/api/v1/federation/policies/push` | operator | multi-cluster | Distribute policy (with dry_run, overrides). |
 | `GET` | `/api/v1/federation/policies/history` | viewer | multi-cluster | Distribution history (last 1,000). |
-| `POST` | `/api/v1/federation/alerts` | operator | multi-cluster | Ingest alerts from members. |
+| `POST` | `/api/v1/federation/alerts` | operator | multi-cluster | Ingest alerts from members; 503 when the store refused, so the batch is resendable. |
 | `GET` | `/api/v1/federation/alerts` | viewer | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
 | `GET` | `/api/v1/federation/alerts/stream` | viewer | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
 

@@ -447,7 +447,7 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `GET` | `/api/v1/federation/alerts` | viewer | `config:read` | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
-| `POST` | `/api/v1/federation/alerts` | operator | `config:write` | multi-cluster | Ingest alerts from members. |
+| `POST` | `/api/v1/federation/alerts` | operator | `config:write` | multi-cluster | Ingest alerts from members; 503 when the store refused, so the batch is resendable. |
 | `GET` | `/api/v1/federation/alerts/stream` | viewer | `config:read` | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
 | `GET` | `/api/v1/federation/clusters` | viewer | `config:read` | multi-cluster | List member clusters (summaries). |
 | `POST` | `/api/v1/federation/clusters` | operator | `config:write` | multi-cluster | Register member cluster (201, 409 on duplicate endpoint). |
