@@ -253,10 +253,16 @@ License validation occurs at three independent points per feature:
 3. **Periodic** - a background task wakes every fifteen minutes and writes an
    ERROR line when the key has run out, so an expiry is visible in the log
    before anyone calls the API. On the same tick it asks each active feature to
-   re-verify, and a feature re-verifies at most once an hour: the two intervals
-   are different because the expiry line is a warning that costs nothing to
-   repeat, while re-checking a signature is work worth doing once an hour and
-   not four times.
+   re-check its entitlement, and that check is throttled to at most once an
+   hour, so its effective interval is one hour and the fifteen-minute tick is
+   what carries the expiry line.
+
+   That periodic check is an expiry and feature check and nothing more: **no
+   signature is re-verified and the key file is not read again**. Both
+   signatures are checked once, when the key is loaded at startup, and the
+   licence is held in memory for the life of the process. A key file replaced
+   on disk therefore takes effect at the next restart, which is also when the
+   set of mounted routers is decided.
 
 ### License-as-Computation-Parameter
 
