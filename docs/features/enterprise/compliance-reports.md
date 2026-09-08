@@ -142,7 +142,10 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 
 ### Enterprise Infrastructure Sections
 
-Five optional sections appended based on runtime status:
+Five optional sections appended based on runtime status. The estate is read once per report, at
+the moment the report is generated, so a report asserts what was running when it was asked for
+rather than what was running when the agent started. A section is absent when there is nothing
+to read it from, which is a different statement from a section reporting zero.
 
 | Section | Controls | Condition |
 |---------|----------|-----------|
@@ -184,7 +187,10 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
 
 - **In-memory**: up to 100 reports (oldest dropped on overflow)
 - **Disk persistence**: optional, saves each report as `{id}.json` in `output_dir` (pretty-printed JSON)
-- **Retention**: reports older than `retention_days` cleaned up during each scheduler tick
+- **Retention**: reports older than `retention_days` are removed at each scheduler tick, from memory
+  and from `output_dir`. The disk half scans the directory rather than walking the in-memory list, so
+  a report already evicted by the 100-report cap is still deleted at its retention date. A file that
+  cannot be read or parsed is left alone, because a corrupt file must not be mistaken for an expired one
 - **Startup recovery**: loads existing reports from disk if `output_dir` configured
 
 ## Export Formats
