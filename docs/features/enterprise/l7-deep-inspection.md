@@ -80,6 +80,14 @@ full recompile of the Vectorscan database. The old `BlockDatabase` and
 its scratch pool are kept alive until no scanner still references them
 so in-flight scans finish on the old state without locking.
 
+The pattern list and the database are installed together or not at all.
+A match is resolved by using the database's own pattern id as an index
+into the list, so the two must always come from the same compile. A
+pattern the compiler refuses is an error the caller sees, and the engine
+is left exactly as it was: the refused pattern is not in the set, the
+previous patterns keep matching, and the next unrelated change still
+takes effect.
+
 ## Matching
 
 Every scan returns zero or more `InspectMatch` records. The engine

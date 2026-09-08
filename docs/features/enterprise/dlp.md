@@ -28,6 +28,12 @@ HyperscanDlpEngine
 
 A regex-based fallback is always available for platforms without Vectorscan.
 
+The compiled database and the map that turns a database id back into a pattern
+are installed together or not at all. A pattern the compiler refuses is an error
+the caller sees, and the scanner is left exactly as it was: the previous
+patterns keep matching with their own indices, and the next valid reload takes
+effect normally.
+
 ### What block mode means for detection
 
 Scanning is **block mode only**: each event carries one contiguous excerpt and
