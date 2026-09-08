@@ -345,7 +345,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/ha/health` | viewer | `config:read` | high-availability | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded). |
 | `GET` | `/api/v1/ha/interfaces` | viewer | `config:read` | high-availability | Interface assignments and ownership status (active_active mode). |
 | `GET` | `/api/v1/ha/peers` | viewer | `config:read` | high-availability | Peer list with addresses. |
-| `GET` | `/api/v1/ha/replication` | viewer | `config:read` | high-availability | Per-category replication status (leader_seq, synced flag). |
+| `GET` | `/api/v1/ha/replication` | viewer | `config:read` | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
 | `GET` | `/api/v1/ha/status` | viewer | `config:read` | high-availability | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded). |
 
 ## L7 alert enrichment

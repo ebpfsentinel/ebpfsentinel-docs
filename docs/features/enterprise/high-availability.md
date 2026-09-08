@@ -74,26 +74,31 @@ rejoins by asking for a snapshot rather than by resuming a channel:
 
 ### Replication Model
 
-- **StateDelta**: incremental update with `ReplicationHeader(leader_id, term, category, sequence_number, timestamp_ms)` + payload
-- **StateSnapshot**: full state dump for initial sync or recovery
-- **SequenceNumber(u64)**: monotonic per `(term, category)`
-- **Change detection**: providers track content hash (`DefaultHasher`) to emit deltas only on actual changes
+- **StateDelta**: a `ReplicationHeader(leader_id, term, category, sequence_number, timestamp_ms)` plus a payload. Every state provider that ships with the product answers with the **whole state of its category**, not with the rows that changed since a sequence: the `since_seq` argument is accepted and ignored. A delta is therefore a state dump that carries a sequence number, and applying one replaces the follower's copy of that category rather than amending it. That is what makes a missed delta recoverable without a snapshot, and it is why a follower behind by ten deltas is behind by one payload's worth of work.
+- **StateSnapshot**: the same full state dump, sent on initial sync or recovery, and the thing that unlocks delta acceptance for a category.
+- **SequenceNumber(u64)**: monotonic per `(term, category)`, and it counts deltas a follower took rather than deltas the leader built.
+- **Change detection**: providers keep a content hash of the payload they last got a peer to accept, and stay silent while the state hashes the same. The hash moves on acceptance, so a send that failed is offered again on the next tick instead of being suppressed as unchanged.
 
 ### Replication Flow
 
-1. **Leader**: collects deltas from `ReplicableStateProvider` instances (one per category)
-2. For each delta: check bandwidth limit → increment sequence → send to all followers via `HaReplicationTransport`
-3. **Follower**: validates delta (snapshot received, non-stale term, sequence ordering) → applies via `ReplicableStateConsumer`
+1. **Leader**: collects state from `ReplicableStateProvider` instances (one per category)
+2. For each payload: check the bandwidth limit, number it as the next sequence, and send it to all followers via `HaReplicationTransport`
+3. **Follower**: validates the delta (snapshot received, non-stale term, no sequence gap inside the term) then applies it via `ReplicableStateConsumer`
 4. Returns `ReplicationAck(node_id, term, category, applied_seq)`
+5. The leader advances the sequence and moves the provider's hash **only when at least one peer acknowledged**. The rule is one peer rather than a majority because this is state replication to N followers rather than a consensus log: a leader that numbered a delta nobody took would leave every follower permanently behind a sequence describing nothing. A round in which no peer accepted logs a warning, leaves the sequence where it was, and offers the same payload again on the next tick.
+
+A follower that missed entries is told so rather than left to guess: a delta whose sequence jumps past the next expected one **inside the same term** is refused with a sequence-gap error, the way a stale term already is. A jump under a new term is accepted, because a new leader restarts the numbering.
 
 ### Initial Sync
 
 When a follower joins:
 
-1. For each category without `snapshot_received`: request snapshot from leader
-2. Leader provides full state via `ReplicableStateProvider::snapshot()`
-3. Follower applies snapshot, marks `snapshot_received = true`
-4. Now accepts incremental deltas for that category
+1. For each category without `snapshot_received`: request a snapshot from a peer
+2. The peer provides full state via `ReplicableStateProvider::snapshot()`
+3. Follower applies the snapshot and marks `snapshot_received = true`
+4. It now accepts deltas for that category
+
+Initial sync counts as done only when at least one peer answered with a snapshot. Reaching no peer at all is an error, logged at ERROR and returned to the caller, and the node keeps reporting itself unsynced; a partial answer is logged at WARN and also leaves the node unsynced. `GET /api/v1/ha/replication` carries this as `initial_sync_complete`, and its `synced` flag is false while no category has any progress at all rather than reading true off an empty map.
 
 ### Bandwidth Limiting
 
@@ -473,7 +478,7 @@ Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when 
 | `GET` | `/api/v1/ha/status` | viewer | high-availability | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded). |
 | `GET` | `/api/v1/ha/peers` | viewer | high-availability | Peer list with addresses. |
 | `POST` | `/api/v1/ha/failover` | operator | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
-| `GET` | `/api/v1/ha/replication` | viewer | high-availability | Per-category replication status (leader_seq, synced flag). |
+| `GET` | `/api/v1/ha/replication` | viewer | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
 | `GET` | `/api/v1/ha/interfaces` | viewer | high-availability | Interface assignments and ownership status (active_active mode). |
 | `GET` | `/api/v1/ha/health` | viewer | high-availability | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded). |
 
