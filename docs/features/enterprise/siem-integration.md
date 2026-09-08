@@ -95,11 +95,19 @@ Key properties:
 
 - **Persistence** - events survive agent restart (redb transactions)
 - **FIFO eviction** - oldest events dropped when buffer cap exceeded
-- **Dropped counter** - `dropped_total` metric incremented on overflow
-- **At-least-once delivery** - events acked only after successful export
+- **Dropped counter** - `dropped_total` is read from the buffer itself, so it
+  counts the events FIFO eviction discarded as well as the ones an enqueue
+  refused outright. An eviction is the buffer working as designed and the
+  submitting call still succeeds, so a figure counted from failed submissions
+  alone would read zero during exactly the condition it exists to report.
+- **At-least-once delivery** - a batch is acknowledged by the sequence numbers
+  it was read under, and only after a successful export. An eviction that
+  happens while a batch is in flight moves the head of the buffer, so an
+  acknowledgement by position would retire whatever had arrived at the head
+  instead of what was actually sent.
 - **Recovery** - on startup, scans stored events to rebuild sequence positions
 
-Batches are flushed when either the batch size or flush interval is reached, whichever comes first.
+Batches are flushed when either the batch size or flush interval is reached, whichever comes first. A submission that fills a batch wakes the export loop immediately rather than leaving the burst to wait out the interval.
 
 ## Circuit Breaker
 
@@ -118,7 +126,7 @@ Three-state circuit breaker protects against cascading failures:
 
 ## Fan-Out
 
-Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` sends every batch to ALL wrapped exporters **concurrently**. Returns `Ok(())` only if all succeed; returns first error on partial failure.
+Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` sends every batch to ALL wrapped exporters **concurrently**: the destinations are polled together, so N of them cost the slowest rather than the sum, and one slow endpoint does not delay the others. Every exporter is driven to completion even when one of them fails. Returns `Ok(())` only if all succeed; returns first error on partial failure.
 
 ## Connector Details
 
