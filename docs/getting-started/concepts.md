@@ -13,7 +13,7 @@ graph TD
         direction TB
 
         subgraph XDP["XDP Layer - Tail-Call Chain via PROG_ARRAY"]
-            XDP_FW["<b>xdp-firewall</b><br/>LPM Trie<br/>DEVMAP / CPUMAP"]
+            XDP_FW["<b>xdp-firewall</b><br/>LPM Trie<br/>CPUMAP"]
             XDP_RL["<b>xdp-ratelimit</b><br/>PerCPU Hash<br/>SYN Cookie"]
             XDP_LB["<b>xdp-loadbalancer</b><br/>Consistent Hash<br/>Backend Pool"]
         end

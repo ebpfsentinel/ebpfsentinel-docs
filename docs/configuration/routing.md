@@ -59,7 +59,7 @@ Gateway names and ids must be unique, `gateway_ip` must be an IPv4 next hop, and
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `target` | string | `8.8.8.8` | IP or hostname to probe |
+| `target` | string | Required | IP or hostname to probe |
 | `protocol` | string | `icmp` | `icmp` or `tcp:<port>` (e.g., `tcp:443`) |
 | `interval_secs` | u32 | `10` | Seconds between probes |
 | `timeout_secs` | u32 | `5` | Probe timeout |

@@ -57,9 +57,8 @@ Key eBPF features:
 
 - **LPM Trie** maps for O(log n) CIDR matching (4 tries: src/dst × IPv4/IPv6)
 - **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`, slot 3 → `xdp-vip-announcer` (ARP frames targeting an owned VIP)
-- **DEVMAP** for packet mirroring to monitoring interfaces
 - **CPUMAP** for NUMA-aware CPU steering
-- **bpf_fib_lookup** for FIB routing enrichment and policy routing
+- **bpf_fib_lookup** to resolve the interface a packet would leave by, which is how the destination zone is found
 - **bpf_xdp_adjust_meta** for metadata passing to TC programs (rule ID, DSCP mark, route action)
 - **bpf_check_mtu** for MTU validation before pass/redirect (all 3 XDP programs)
 - **bpf_csum_diff** / `bpf_l3_csum_replace` / `bpf_l4_csum_replace` for checksums

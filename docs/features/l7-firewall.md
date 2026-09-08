@@ -180,6 +180,24 @@ field interpretation depends on the `protocol` string:
 | postgres | message type byte | SQL substring | - | - | - | - |
 | dns-tcp | - | - | QNAME substring | - | - | - |
 
+### Header selectors
+
+Beside the protocol matcher, a rule narrows on the packet header. Every field
+here is optional and an omitted one matches anything:
+
+| Field | Match logic |
+|-------|-------------|
+| `src_ip` | CIDR containing the source address |
+| `dst_ip` | CIDR containing the destination address |
+| `dst_port` | Port range containing the destination port, or a single port |
+| `src_country_codes` | Source address resolved to a country in the list |
+| `dst_country_codes` | Destination address resolved to a country in the list |
+
+Addresses are matched as IPv4 only: a rule whose CIDR is an IPv6 prefix matches
+nothing, and an IPv6 packet is tested against the first 32 bits of its address,
+so name IPv6 traffic by port, protocol or country rather than by address. There
+is no `src_port`, since the source port of a connection is ephemeral.
+
 See [Configuration: L7 Firewall](../configuration/l7.md) for the full reference.
 
 ## CLI Usage

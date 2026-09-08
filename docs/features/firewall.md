@@ -64,6 +64,10 @@ Each rule field is optional - omitted fields act as wildcards:
 | `state` | Omit to match any | Conntrack states (`new`, `established`, `related`, `invalid`) |
 | `src_alias` | Omit to match any | Named IP alias, bound to the addresses it holds |
 | `dst_alias` | Omit to match any | Named IP alias, bound to the addresses it holds |
+| `src_port_alias` | Omit to match any | Named port alias, bound to the ports it holds |
+| `dst_port_alias` | Omit to match any | Named port alias, bound to the ports it holds |
+| `src_mac_alias` | Omit to match any | Named MAC alias, bound to the addresses it holds |
+| `dst_mac_alias` | Omit to match any | Named MAC alias, bound to the addresses it holds |
 | `negate_source` | `false` | Invert source IP match (match if NOT in CIDR) |
 | `negate_destination` | `false` | Invert destination IP match |
 

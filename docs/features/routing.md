@@ -22,7 +22,7 @@ Each gateway can have an independent health probe:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `target` | string | `8.8.8.8` | IP or hostname to probe |
+| `target` | string | Required | IP or hostname to probe |
 | `protocol` | string | `icmp` | `icmp` or `tcp:<port>` |
 | `interval_secs` | u32 | 10 | Probe interval |
 | `timeout_secs` | u32 | 5 | Probe timeout |

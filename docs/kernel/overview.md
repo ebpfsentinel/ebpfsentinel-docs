@@ -18,7 +18,7 @@ eBPFsentinel hooks into three kernel subsystems:
 
 | # | Program | Hook | Purpose | Key Kernel Features |
 |---|---------|------|---------|---------------------|
-| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, DEVMAP, CPUMAP, conntrack fast-path |
+| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, CPUMAP, conntrack fast-path |
 | 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | PerCPU hash, [`bpf_timer`](https://docs.ebpf.io/linux/helper-function/bpf_timer_init/), custom FNV-1a SYN cookie forging via `XDP_TX` |
 | 3 | `tc-conntrack` | TC ingress | TCP/UDP/ICMP state machine (IPv4/IPv6) | LRU hash, bidirectional key normalization, packet+byte counters, unified V4/V6 state machine |
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |

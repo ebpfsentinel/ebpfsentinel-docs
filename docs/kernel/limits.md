@@ -59,8 +59,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Per-rule state counters | 4,096 | `FW_RULE_STATE_COUNT` (Array, `MAX_FIREWALL_RULES`) |
 | Interface groups | 31 | Bits 0-30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |
 | Conntrack entries | Kernel-managed | Kernel netfilter (no BPF shadow tables) |
-| DEVMAP redirect targets | 64 | `DEVMAP` |
-| CPUMAP CPU targets | 64 | `CPUMAP` |
+| DEVMAP redirect targets | 256 | `LB_DEVMAP` (xdp-loadbalancer) |
+| CPUMAP CPU targets | 128 | `DDOS_CPUMAP` (xdp-firewall) |
 | Tail-call programs | 4 | `XDP_PROG_ARRAY` (ProgramArray) |
 | RingBuf size | 1 MB | `EVENTS` |
 

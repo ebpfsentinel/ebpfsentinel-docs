@@ -95,7 +95,7 @@ The `xtask` crate builds all 16 programs with the nightly toolchain targeting `b
 | `PERCPU_HASH` | xdp-ratelimit | Lock-free per-IP counters |
 | `PROG_ARRAY` | xdp-firewall, xdp-ratelimit | Tail-call chain (firewall -> ratelimit -> reject) |
 | `BLOOM_FILTER` | tc-threatintel | Fast IOC pre-check |
-| `DEVMAP` | xdp-firewall | Packet mirroring |
+| `DEVMAP` | xdp-loadbalancer | Redirect to a backend interface |
 | `CPUMAP` | xdp-firewall | CPU steering |
 | `RING_BUF` | All programs | Event emission to userspace |
 | `PER_CPU_ARRAY` | All programs | Per-CPU metrics counters |

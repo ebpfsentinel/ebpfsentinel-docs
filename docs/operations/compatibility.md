@@ -85,7 +85,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_fib_lookup` | 4.18+ | FIB routing enrichment |
 | `CPUMAP` | 4.15+ | CPU steering |
 | `bpf_xdp_adjust_meta` | 4.15+ | XDP→TC metadata |
-| `DEVMAP` | 4.14+ | Packet mirroring |
+| `DEVMAP` | 4.14+ | Redirect to a backend interface |
 | `bpf_get_socket_cookie` | 4.12+ | Flow tracking |
 | `LPM_TRIE` | 4.11+ | CIDR matching |
 | `PERCPU_HASH` | 4.6+ | Lock-free counters |

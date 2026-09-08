@@ -30,7 +30,15 @@ ids:
   sample_mode: random   # random (per-packet) or hash (per-flow)
 ```
 
-`hash` mode provides consistent per-flow sampling - all packets from the same flow are either inspected or skipped. `random` mode is truly random per-packet.
+`hash` mode provides consistent per-flow sampling - all packets from the same
+flow are either inspected or skipped.
+
+`random` is random in the kernel and deterministic above it. The IDS program
+draws `bpf_get_prandom_u32` per packet, so a flow inspected once may be skipped
+next time. The same setting also gates the IPS blacklist counter in userspace,
+and there it selects on a hash of the address pair like `hash` does, with a
+different mixing constant: a source counted once is counted every time. Nothing
+in either layer keeps per-flow state to make the two agree.
 
 ## Rate Limiting Algorithm Selection
 

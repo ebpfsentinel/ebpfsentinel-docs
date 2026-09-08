@@ -65,13 +65,15 @@ On completion, the session records the final `file_size_bytes` and `packets_capt
 
 Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`). The single-active-capture constraint still applies -- if a capture is already running, the trigger is silently skipped.
 
-### Policy Fields
+### Configuration Fields
 
-Each auto-capture policy defines:
+Auto-capture is one `auto_capture` section rather than a list of policies:
+there is one set of triggers for the agent, and the name it is logged under is
+the literal `auto-capture`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | `string` | Required | Policy name (used in logs) |
+| `enabled` | `bool` | `false` | Whether an alert may start a capture at all |
 | `min_severity` | `string` | `high` | Minimum alert severity: `low`, `medium`, `high`, `critical` |
 | `components` | `[string]` | `[]` (all) | Component filter: `ids`, `ddos`, `dns`, `dlp`, `firewall`, etc. |
 | `duration_secs` | `integer` | `30` | Capture duration (max 60s in OSS) |
