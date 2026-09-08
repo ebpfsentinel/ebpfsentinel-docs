@@ -4,7 +4,7 @@
 
 ## Overview
 
-The eBPFsentinel firewall provides L3/L4 packet filtering at XDP speed - the earliest possible hook point in the Linux network stack, before the kernel allocates an SKB. Packets are matched against rules using a multi-phase lookup combining LPM trie CIDR matching (O(log n)) with priority-based linear evaluation, stateful connection tracking, IP/port aliases, and policy routing.
+The eBPFsentinel firewall provides L3/L4 packet filtering at XDP speed - the earliest possible hook point in the Linux network stack, before the kernel allocates an SKB. Packets are matched against rules using a multi-phase lookup combining LPM trie CIDR matching (O(log n)) with priority-based linear evaluation, stateful connection tracking, IP/port aliases, and zone policy.
 
 ## How It Works
 
@@ -36,13 +36,12 @@ Alert mode is useful for testing rules in production before enforcing them.
 
 ### Multi-Phase Pipeline
 
-The XDP firewall processes packets through five phases:
+The XDP firewall processes packets through four phases:
 
 1. **Phase 0 - Conntrack fast-path**: Overload check (IP set 255), then connection tracking lookup. Established connections are fast-tracked without rule evaluation.
 2. **Phase 1 - LPM Trie** (O(log n)): CIDR-only rules (source/destination subnet) in four tries: `FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`.
 3. **Phase 2 - Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP, MAC, DSCP, aliases, or negation filters are evaluated in priority order (lowest number = highest precedence). First matching rule wins.
 4. **Phase 3 - Connection limits**: Per-source and per-rule state limits are checked for new connections. Overloaded sources are added to the blacklist.
-5. **Phase 4 - Routing actions**: Policy routing (route-to, reply-to, dup-to) is applied to matched packets.
 
 ### Rule Matching
 

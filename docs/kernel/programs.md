@@ -71,12 +71,15 @@ Each rule carries a `group_mask` field for **interface group filtering**. Before
 
 Per-source and per-rule state limits. If a source exceeds the configured limit, it is added to the overload IP set (blacklist).
 
-#### Phase 4 - Routing Actions
+#### Zone Resolution
 
-Policy routing via [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/):
-- `route-to` - forward via specific next-hop
-- `reply-to` - force reply path
-- `dup-to` - duplicate to monitoring (via [`DEVMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_DEVMAP/) + [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/))
+At ingress the destination zone belongs to whichever interface the packet would
+leave by, so the program asks the kernel FIB with
+[`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/)
+in `BPF_FIB_LOOKUP_DIRECT` mode and maps the answer to a zone. A route that
+cannot be resolved falls back to the zone's own posture. This is the only use
+of the FIB here: a rule carries no per-rule routing action, and the egress
+gateway is picked by the [`routing`](../features/routing.md) section instead.
 
 MTU validated with [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) before any redirect or pass. Packets exceeding the interface MTU are dropped and the `mtu_exceeded` metric is incremented.
 
