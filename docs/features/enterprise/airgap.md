@@ -191,9 +191,15 @@ gap is the four commands above, and neither reaches the other's files.
    - Read feed file
    - **Verify SHA-256 checksum** against manifest
    - Warn if `ioc_count == 0`
-8. Record bundle as imported, update `last_import_ms`
-9. Check feed freshness (optional warnings)
-10. Invoke feed loader callback to load verified feeds into threat intel engine
+8. **Load the verified feeds** into the threat intel engine, which answers how many
+   indicators it accepted
+9. Record bundle as imported, update `last_import_ms`
+10. Check feed freshness (optional warnings)
+
+The load happens before the bundle is recorded as imported. A bundle whose contents
+the engine refused is therefore still importable: the operator fixes whatever refused
+it and carries the same bundle back in, rather than being told it has already been
+imported while nothing was ever enforced on.
 
 ### API Import
 
@@ -242,7 +248,10 @@ POST /api/v1/airgap/check-freshness
 
 ## Verified Feed Loading
 
-After successful import, verified feeds are passed to the threat intel engine via a callback:
+The whole point of an import is what the agent enforces on afterwards. Each feed whose
+signature and checksum were verified is handed to the threat intel engine, which parses
+it through the same code path a downloaded feed goes through, so an offline bundle and
+an online feed of the same format are read identically.
 
 ```rust
 pub struct VerifiedFeed {
@@ -253,7 +262,36 @@ pub struct VerifiedFeed {
 }
 ```
 
-The `FeedLoadCallback` is set at initialization to wire feeds into the OSS threat intel engine.
+The sink is installed once, on the agent's startup path, before either entry point can
+run: the auto-import sweep and `POST /api/v1/airgap/import` both go through the one
+service, so there is no second place that could forget to install it. When the threat
+intel datapath is not available, an import is **refused** with
+`503 Service Unavailable` rather than answered with the count the manifest claimed for
+itself. The caller should retry once the datapath is up; there is nothing wrong with
+the bundle they sent.
+
+### What `iocs_loaded` counts
+
+`iocs_loaded` is what the engine accepted, not what the manifest declared. The two are
+different numbers by design: a manifest counts what a feed was built from on the
+connected side, and the engine counts what survived parsing, the feed's own confidence
+and count limits, and its capacity. When they disagree, the difference is stated as a
+warning on the import response rather than left to be discovered as a silence:
+
+```json
+{
+  "status": "ok",
+  "bundle_version": "2026.01.15",
+  "feeds_imported": 3,
+  "iocs_loaded": 14832,
+  "skipped_feeds": 0,
+  "warnings": ["manifest declares 15000 IOCs, 14832 were loaded"]
+}
+```
+
+A bundle carrying domain indicators (which STIX feeds do, and the IP-keyed threat intel
+engine has no place for) needs the DNS blocklist enabled. Without it the import is
+refused rather than answered with a count that quietly dropped them.
 
 ## Configuration
 
@@ -283,7 +321,7 @@ enterprise:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/airgap/import` | operator | air-gap | Import a bundle (200 with `status: ok/skipped/error`). |
+| `POST` | `/api/v1/airgap/import` | operator | air-gap | Import a bundle (200 with `status: ok/skipped`, 400 for a bundle that failed verification, 503 when the threat intel datapath is not available). |
 | `GET` | `/api/v1/airgap/bundles` | viewer | air-gap | List imported bundles (version + created_at_ms). |
 | `POST` | `/api/v1/airgap/check-freshness` | operator | air-gap | Validate bundle freshness. |
 | `GET` | `/api/v1/airgap/status` | viewer | air-gap | Air-gap mode status (enabled, features_disabled, bundle_dir, last_import, count). |
