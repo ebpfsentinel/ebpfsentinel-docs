@@ -34,9 +34,16 @@ agent has active, which is a subset of it and never a superset.
 | Firewall | OSS | Firewall deny on HTTP/DB ports | T1190 | Exploit Public-Facing Application | initial-access |
 | Firewall | OSS | Firewall deny on RDP (3389) | T1021.001 | Remote Desktop Protocol | lateral-movement |
 | Firewall | OSS | Firewall deny on SMB (445) | T1021.002 | SMB/Windows Admin Shares | lateral-movement |
+| Firewall | OSS | Firewall deny on VNC (5900-5999) | T1021.005 | VNC | lateral-movement |
 | Firewall | OSS | Firewall deny on other ports | T1046 | Network Service Scanning | discovery |
 | IPS | OSS | IPS auto-blacklist on SSH (22) | T1110.001 | Password Guessing | credential-access |
 | IPS | OSS | IPS auto-blacklist on HTTP/DB | T1190 | Exploit Public-Facing Application | initial-access |
+| IPS | OSS | IPS auto-blacklist on Telnet (23) | T1021 | Remote Services | lateral-movement |
+| IPS | OSS | IPS auto-blacklist on SMTP (25/587) | T1071.003 | Mail Protocols | command-and-control |
+| IPS | OSS | IPS auto-blacklist on DNS (53) | T1071.004 | DNS | command-and-control |
+| IPS | OSS | IPS auto-blacklist on RDP (3389) | T1021.001 | Remote Desktop Protocol | lateral-movement |
+| IPS | OSS | IPS auto-blacklist on SMB (445) | T1021.002 | SMB/Windows Admin Shares | lateral-movement |
+| IPS | OSS | IPS auto-blacklist on VNC (5900-5999) | T1021.005 | VNC | lateral-movement |
 | IPS | OSS | IPS auto-blacklist on other ports | T1046 | Network Service Scanning | discovery |
 | Rate limiting | OSS | Rate limit exceeded on SSH (22) | T1110 | Brute Force | credential-access |
 | Rate limiting | OSS | Rate limit exceeded on HTTP | T1499.002 | Service Exhaustion Flood | impact |
@@ -44,6 +51,7 @@ agent has active, which is a subset of it and never a superset.
 | L7 firewall | OSS | L7 deny on HTTP/HTTPS | T1071.001 | Web Protocols | command-and-control |
 | L7 firewall | OSS | L7 deny on FTP | T1071.002 | File Transfer Protocols | command-and-control |
 | L7 firewall | OSS | L7 deny on SMTP | T1071.003 | Mail Protocols | command-and-control |
+| L7 firewall | OSS | L7 deny on DNS | T1071.004 | DNS | command-and-control |
 | L7 firewall | OSS | L7 deny on SMB | T1021.002 | SMB/Windows Admin Shares | lateral-movement |
 | L7 firewall | OSS | L7 deny on other protocols | T1071 | Application Layer Protocol | command-and-control |
 | DDoS | OSS | SYN flood detected | T1499.001 | OS Exhaustion Flood | impact |
@@ -57,6 +65,10 @@ agent has active, which is a subset of it and never a superset.
 | IDS | OSS | IDS match on DNS (53) | T1071.004 | DNS | command-and-control |
 | IDS | OSS | IDS match on RDP (3389) | T1021.001 | Remote Desktop Protocol | lateral-movement |
 | IDS | OSS | IDS match on SMB (445) | T1021.002 | SMB/Windows Admin Shares | lateral-movement |
+| IDS | OSS | IDS match on Telnet (23) | T1021 | Remote Services | lateral-movement |
+| IDS | OSS | IDS match on FTP (21) | T1071.002 | File Transfer Protocols | command-and-control |
+| IDS | OSS | IDS rate rule on SSH (22) or RDP (3389) | T1110.001 | Password Guessing | credential-access |
+| IDS | OSS | IDS rate rule on other ports | T1110 | Brute Force | credential-access |
 | IDS | OSS | IDS match on other ports | T1071 | Application Layer Protocol | command-and-control |
 | Threat intelligence | OSS | IOC hit: malware/C2 on HTTP | T1071.001 | Web Protocols | command-and-control |
 | Threat intelligence | OSS | IOC hit: C2 on SMTP | T1071.003 | Mail Protocols | command-and-control |
