@@ -8,11 +8,7 @@ The enterprise license system gates feature activation at runtime using Ed25519 
 
 ## License Key Format
 
-License keys are post-quantum dual-signed (v2) three-line files. Both the
-Ed25519 and ML-DSA-65 signatures must verify - legacy Ed25519-only keys are
-not accepted.
-
-**v2 format (Ed25519 + ML-DSA-65):**
+**The format (Ed25519 + ML-DSA-65):**
 - **Line 1:** Base64-encoded JSON payload (`LicenseInfo`)
 - **Line 2:** Base64-encoded Ed25519 signature
 - **Line 3:** Base64-encoded ML-DSA-65 signature
@@ -25,13 +21,12 @@ not accepted.
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
   "max_cores_per_agent": 32,
-  "machine_fingerprint": "ca9240c0e28de960...",
-  "version": 2
+  "machine_fingerprint": "ca9240c0e28de960..."
 }
 ```
 
 `max_cores_per_agent` is optional. A license issued without it is read as
-unlimited, so keys generated before the field existed keep working unchanged.
+unlimited.
 
 ## Available Features
 
@@ -115,7 +110,7 @@ This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are requir
 ### Generate License
 
 ```bash
-# v2 dual-signed license (Ed25519 + ML-DSA-65)
+# Dual-signed license (Ed25519 + ML-DSA-65)
 ebpfsentinel-license generate \
   --signing-key license-signing.key \
   --pq-signing-key license-signing-pq.key \
@@ -141,9 +136,8 @@ ebpfsentinel-license inspect license.key \
 Output includes both signature verification results:
 
 ```
-Ed25519 signature:  VALID
-ML-DSA-65 signature: VALID
-License version:    2
+  Ed25519 sig:  VALID
+  ML-DSA-65 sig: VALID
 ```
 
 Each key flag is optional on its own, and a signature with no key given is reported as `not verified` rather than checked. Pass both - a check that names only the classical key accepts a file carrying one valid signature and one forged, which is the case the second algorithm exists for.
@@ -212,7 +206,7 @@ ML-DSA-65 (FIPS 204) dual signing provides post-quantum resistance for license k
 **Verification behavior:**
 
 - Both the Ed25519 and ML-DSA-65 signatures must be valid for the license to be accepted. Failure of either signature - or a missing ML-DSA-65 signature - rejects the license.
-- Legacy Ed25519-only (v1) keys are no longer accepted.
+- A two-line, Ed25519-only file is refused by the format itself: the reader expects three lines and stops there.
 
 **Key storage:**
 
