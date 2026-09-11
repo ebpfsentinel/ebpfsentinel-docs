@@ -31,7 +31,7 @@ feature that has something to show:
 | Fleet | Fleet overview and containers |
 | Rules | Firewall, IDS, IPS, DLP, L7 firewall, staged rules, rate limits, NAT, connection tracking, zones, aliases, interface groups, VLANs, routing, load balancer, QoS, DDoS, GeoIP, DNS intelligence, threat intelligence |
 | Enterprise features | Analytics, SIEM export, compliance, forensics, automated response and its SOAR endpoints, ML detection, TLS intelligence, JA4, post-quantum TLS, L7 inspection, L7 policies, L7 enrichment, packet capture, alerting |
-| Administration | Profile, branding, auditor tokens, audit and licence |
+| Administration | Profile, auditor tokens, audit and licence |
 
 Configuration screens lock themselves on an agent reporting
 `management.operator_managed: true`, so an agent driven by the

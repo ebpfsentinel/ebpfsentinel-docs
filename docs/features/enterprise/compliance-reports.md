@@ -200,13 +200,13 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
 | JSON | - | `application/json` | Full structured report with all sections and evidence |
 | CSV | `/csv` | `text/csv` | Columns: section_id, section_title, control_id, control_name, status, evidence_count, recommendations |
 | Text | `/text` | `text/plain` | Structured text with title, metadata, summary table, section details |
-| PDF | `/pdf` | `application/pdf` | Branded PDF with company logo, cross-reference matrix, and compliance score summary |
+| PDF | `/pdf` | `application/pdf` | PDF carrying the organisation name, cross-reference matrix, and compliance score summary |
 
 ### PDF Export
 
 PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla) library and include:
 
-- **Company branding** - configurable company name displayed in the header
+- **Organisation name** - the name sent with the request, displayed in the header
 - **Cross-reference matrix** - maps each control to framework requirements
 - **Compliance score** - visual summary with pass/fail/partial counts
 - **Section details** - per-control status, evidence, and remediation guidance
