@@ -230,7 +230,7 @@ enterprise:
       - id: soc-lead
         name: SOC Lead
         parent: soc-analyst             # inherit grants from a parent role
-        grants: ["firewall:write"]
+        grants: ["firewall:write", "!firewall:write:prod-*"]  # "!" forbids, and a forbid wins
 
   # ── Analytics ───────────────────────────────────────────────────
   analytics:

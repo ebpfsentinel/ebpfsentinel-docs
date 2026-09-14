@@ -52,6 +52,7 @@ firewall:write               # Create/update all firewall rules
 firewall:write:team-a-*      # Write only rules with IDs starting with "team-a-"
 ids:admin                    # Full admin access to IDS
 dlp:read                     # Read DLP patterns
+!firewall:write:prod-*       # Refuse writes on rules with IDs starting with "prod-"
 ```
 
 ### Resource Prefix Constraints
@@ -62,6 +63,24 @@ Grants can optionally restrict access to resources matching a prefix:
 - Exact match → `"team-a-rule1"` matches only `"team-a-rule1"`
 - Wildcard → `"team-a-*"` matches any resource ID starting with `"team-a-"`
 - `"*"` → matches everything (equivalent to no prefix)
+
+### Permit and Forbid
+
+A grant permits by default. A leading `!` makes it a forbid, and a forbid always
+wins:
+
+- A permit covers everything **at or below** the level it names, so
+  `firewall:write` answers a read.
+- A forbid covers everything **at or above** the level it names, so
+  `!firewall:write` refuses write and admin and leaves read alone.
+- There is no priority number and no ordering. A forbid reaching the question
+  refuses it whatever any permit says, so the answer does not depend on the
+  order the grants were written in or on the order a parent chain is walked in.
+- A forbid carrying a resource prefix narrows the resources it names, exactly as
+  a permit does, so it does not answer a question that names no resource.
+
+A grant written before forbids existed is a permit and is stored, served and
+read back unchanged.
 
 ## Built-in Roles
 
@@ -103,6 +122,13 @@ enterprise:
           - "ids:write:team-a-*"
         parent: viewer
 
+      - id: staging-operator
+        name: "Staging Operator"
+        grants:
+          - "!firewall:write:prod-*"
+          - "!ids:write:prod-*"
+        parent: operator
+
       - id: soc-analyst
         name: "SOC Analyst"
         grants:
@@ -118,6 +144,8 @@ Roles can inherit grants from a parent role:
 
 - `parent` field references another role (builtin or custom)
 - Inherited grants are **merged** with explicit grants (deduplicated)
+- A child narrows what a parent grants with a forbid, which is the only way to
+  keep a child of `operator` off a set of resources
 - Maximum inheritance depth: **10** (prevents pathological chains)
 - Circular inheritance is detected and rejected
 - Built-in roles cannot have parents
