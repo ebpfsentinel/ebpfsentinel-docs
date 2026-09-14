@@ -55,14 +55,47 @@ dlp:read                     # Read DLP patterns
 !firewall:write:prod-*       # Refuse writes on rules with IDs starting with "prod-"
 ```
 
-### Resource Prefix Constraints
+### Resource Patterns
 
-Grants can optionally restrict access to resources matching a prefix:
+A grant can carry a pattern naming the resources it reaches. The pattern names
+the whole identifier rather than its start, and `*` stands for any run of
+characters, including none:
 
-- No prefix → unrestricted access to all resources in the domain
-- Exact match → `"team-a-rule1"` matches only `"team-a-rule1"`
-- Wildcard → `"team-a-*"` matches any resource ID starting with `"team-a-"`
-- `"*"` → matches everything (equivalent to no prefix)
+| Pattern | Names |
+|---------|-------|
+| none | every resource in the domain |
+| `team-a-rule1` | that identifier and nothing else |
+| `team-a-*` | every identifier beginning with `team-a-` |
+| `*-prod` | every identifier ending with `-prod` |
+| `a*b*c` | a star is read wherever it sits, not only at the end |
+| `*` | every resource, which is what carrying no pattern already means |
+
+A backslash escapes the character after it, so `\*` is a literal star and `\\`
+is a literal backslash. Both are refused in practice, because the literal an
+escape yields has to be a character an identifier can carry and neither of
+those is.
+
+### A Pattern That Can Never Match Is Refused
+
+A pattern is read when the role is written rather than when a request is
+answered, so a grant naming resources that cannot exist is refused by name
+instead of silently never applying. A pattern is refused when:
+
+- the domain names no resource of its own. `conntrack` holds flows the kernel
+  keeps and nobody named, reached as one table, so any pattern on it is refused.
+- it carries a character no identifier can. An identifier is alphanumeric plus
+  `-` and `_`, so `team a`, `team/a` and `team\*` are all refused.
+- it is empty, because an identifier never is.
+- its literal part is longer than the 256 characters an identifier can be.
+
+The refusal names the pattern, the domain and the reason. It applies wherever a
+role arrives: the HTTP API answers `400` and stores nothing, and a role in the
+configuration file is skipped at startup with the reason on a warning line, so
+the rest of the file still loads.
+
+A pattern nobody can read, which is a backslash escaping nothing or a backslash
+at the very end, matches no resource at all. It is refused at the same moment
+for the same reason, so a role in force never carries one.
 
 ### Permit and Forbid
 
