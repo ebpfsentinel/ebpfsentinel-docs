@@ -323,6 +323,26 @@ mounted without a check of its own cannot be reached under-permissioned. An
 }
 ```
 
+### Every decision names the grant behind it
+
+An access decision is logged with the grant that settled it and the role that
+grant is written on, so an answer nobody expected is traced without reading the
+whole inheritance chain back by hand. A denial is logged at `info` and an allow
+at `debug`, both carrying the same `grant` field:
+
+```text
+RBAC access decision role=team-a domain=firewall permission=write decision=allowed grant=firewall:admin on platform
+RBAC access decision role=team-a domain=firewall permission=admin decision=denied grant=!firewall:write on team-a
+RBAC access decision role=viewer domain=dlp permission=read decision=denied grant=no grant
+```
+
+The three answers are different things to be told. The first names the permit
+that gave the access and the ancestor role it was inherited from, rather than
+the role that was asked about. The second names the forbid that took it. The
+third says that nothing in the role speaks about the question at all, which is
+a role that was never given the permission rather than one that had it taken
+away.
+
 ### Assignment changes are attributed
 
 A role assignment or unassignment is recorded in the agent's audit trail with
