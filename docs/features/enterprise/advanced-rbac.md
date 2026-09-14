@@ -115,6 +115,91 @@ wins:
 A grant written before forbids existed is a permit and is stored, served and
 read back unchanged.
 
+## A Grant That Applies Only Somewhere
+
+A grant may carry one condition, and it is read only where that condition
+holds. Without a condition a grant applies to every request, which is what
+every grant written before conditions existed does and goes on doing.
+
+There are three conditions and there is no fourth, because a condition is a
+closed vocabulary rather than a language:
+
+| Condition | Written as | Holds when |
+|-----------|-----------|------------|
+| `within_tenant` | `{ when: within_tenant, tenant: acme }` | the request is being made in that tenant |
+| `source_cidr` | `{ when: source_cidr, network: 10.0.0.0, prefix_len: 8 }` | the connection was accepted from inside that network |
+| `time_window` | `{ when: time_window, from: ..., until: ... }` | the moment sits inside that half-open window |
+
+There is deliberately no expression, no operator, no `and` and no `or`. A role
+needing two conditions writes two grants, which is a thing an operator can read
+and a thing the decision log can name; a grammar would be a second vocabulary
+to parse, to escape and to get wrong, and an unparseable condition on a forbid
+is a permission nobody meant to give.
+
+### A condition is not spelled into the grant string
+
+The colon form stays exactly what it was. A grant with a condition is written
+as a mapping carrying that same string plus the condition beside it, in the
+configuration file and over the API alike:
+
+```yaml
+grants:
+  - "firewall:read"                    # applies everywhere
+  - grant: "firewall:write"            # applies in one tenant
+    when:
+      when: within_tenant
+      tenant: acme
+```
+
+The same two shapes go over the wire, so a role read back from
+`GET /api/v1/rbac/roles/{id}` can be sent to `PUT` unchanged.
+
+### A fact the request does not carry makes the condition fail
+
+Three facts are read off the request and no others: the tenant, taken from the
+verified claims rather than from a header anybody can set; the address, taken
+from the peer of the connection rather than from a forwarded header, because a
+forwarded header is written by whoever is talking to us; and the moment.
+
+A condition asking about a fact the request does not carry does **not** hold.
+A request with no tenant on it does not satisfy `within_tenant`, so the grant
+is simply not read. That is the safe direction for a permit and it is also the
+safe direction for a forbid, because a forbid that stops applying leaves
+whatever the rest of the role says rather than widening it: a conditional
+forbid narrows a role where its condition holds and nowhere else, which is what
+it was written to say.
+
+### A condition that can hold nowhere is refused when it is written
+
+A window ending at or before it starts, a prefix fixing more bits than the
+address it is written on, an empty tenant identifier - each is refused when the
+grant is stored, by the same check that refuses a resource pattern nobody can
+match. A role carrying one is refused whole rather than stored with the grant
+dropped, so a role is never loaded short of something its author wrote.
+
+### What a listing shows
+
+`GET /api/v1/rbac/roles/{id}/effective-grants` answers what a role holds rather
+than what the asking request satisfies, so a conditional grant is in that
+listing whoever asks and wherever from. A permission check is the other
+question and is answered for the request making it, so the same grant is read
+there only where its condition holds.
+
+A decision naming a conditional grant says the condition too, so the log line
+answers why the grant applied here and not on the request before it:
+
+```text
+RBAC access decision role=acme-operator domain=firewall permission=write decision=allowed grant=firewall:write within tenant acme on acme-operator
+```
+
+### The licence is answered once, at the door
+
+Conditions ride the `advanced-rbac` feature like the rest of this page, and
+that is checked when the request reaches the route rather than again when each
+grant is evaluated. Re-checking it at evaluation time would mean a lapsed
+licence turning a conditional grant into an unconditional one, which is a
+licence expiry widening somebody's access.
+
 ## Built-in Roles
 
 Three non-deletable built-in roles:
@@ -169,6 +254,19 @@ enterprise:
           - "audit:read"
           - "ids:read"
           - "threatintel:read"
+
+      - id: acme-operator
+        name: "Acme Operator"
+        grants:
+          - grant: "firewall:write"
+            when:
+              when: within_tenant
+              tenant: acme
+          - grant: "ids:read"
+            when:
+              when: source_cidr
+              network: 10.0.0.0
+              prefix_len: 8
 ```
 
 ## Role Inheritance

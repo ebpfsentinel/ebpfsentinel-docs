@@ -231,6 +231,13 @@ enterprise:
         name: SOC Lead
         parent: soc-analyst             # inherit grants from a parent role
         grants: ["firewall:write", "!firewall:write:prod-*"]  # "!" forbids, and a forbid wins
+      - id: acme-operator
+        name: Acme Operator
+        grants:                         # a grant that applies only somewhere
+          - grant: "firewall:write"     # the string, with the condition beside it
+            when: { when: within_tenant, tenant: acme }
+          - grant: "ids:read"
+            when: { when: source_cidr, network: 10.0.0.0, prefix_len: 8 }
 
   # ── Analytics ───────────────────────────────────────────────────
   analytics:
