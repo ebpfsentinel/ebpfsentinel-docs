@@ -147,6 +147,33 @@ Trigger configuration reload. Requires `admin` role.
 curl -X POST http://localhost:8080/api/v1/config/reload
 ```
 
+#### PUT /api/v1/config/{section}
+
+Write one section of the agent's configuration file and reload. Requires
+`admin` role, and is refused unless `agent.config_writes` is `allowed`.
+
+The body carries the section as a YAML document rooted at its own key, which
+is how the dashboard's configuration screens render a section, so a section
+read, edited and sent back needs no reshaping:
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/config/ids \
+  -H 'Content-Type: application/json' \
+  -d '{"yaml": "ids:\n  enabled: true\n"}'
+```
+
+The merged document is validated in full before it replaces anything, and it
+lands by rename, so a rejected edit leaves the file exactly as it was and an
+accepted one is never half-written. The answer is the reload answer: `ok`
+when the agent confirmed the reload, `pending` when it was triggered and had
+not finished in time.
+
+Secrets are the one thing that does not round-trip. `GET /api/v1/config`
+masks every secret as `***`, so wherever the submitted document still holds
+that string, the value already on disk is kept; a masked value the file
+cannot answer is refused by name rather than guessed at, and the way to
+change a secret is to write it out.
+
 #### GET /api/v1/ebpf/status
 
 Per-program eBPF load status, plus any attach the kernel refused.
@@ -1507,6 +1534,7 @@ curl http://localhost:8080/metrics
 | DELETE | `/api/v1/domains/blocklist/{domain}` | Yes | Remove from blocklist |
 | GET | `/api/v1/config` | Yes | Current config |
 | POST | `/api/v1/config/reload` | Yes (admin) | Trigger reload |
+| PUT | `/api/v1/config/{section}` | Yes (admin) | Write one config section and reload |
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
 | GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |

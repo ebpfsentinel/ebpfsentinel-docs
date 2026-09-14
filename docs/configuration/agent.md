@@ -18,6 +18,7 @@ agent:
   event_workers: 4                      # Parallel event dispatcher workers. Default: 4
   log_level: "info"                     # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"                    # Log format: json or text. Default: json
+  config_writes: refused                # Whether the control API may rewrite this file: refused or allowed. Default: refused
   api_rate_limit:                       # Write-API rate limit (see below). Optional.
     write_per_second: 1                 # Sustained write rate per IP. Default: 1
     write_burst: 60                     # Write burst per IP. Default: 60
@@ -43,6 +44,7 @@ agent:
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |
 | `api_rate_limit` | `object` | No | see below | Rate limit for the mutating control-plane API (see below) |
+| `config_writes` | `string` | No | `refused` | Whether `PUT /api/v1/config/{section}` may rewrite this agent's own configuration file: `refused` or `allowed`. Refused by default. Where the file is rendered by the Kubernetes operator from a custom resource, a write accepted here is reverted at the next reconcile and nobody is told why the setting went back, so allow it only where the file on disk is what decides what this agent does. |
 
 ## Write-API rate limit
 
