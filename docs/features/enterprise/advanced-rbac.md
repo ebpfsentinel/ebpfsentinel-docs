@@ -310,7 +310,12 @@ check is made.
 The raised routes are: creating, updating, deleting and reloading roles, and
 assigning or unassigning them. Everything else under `/api/v1/rbac` - `check`,
 `filter`, list, get, effective-grants - reads the model and keeps the permission
-its method maps to.
+its method maps to. Which of the two a route is, is declared on the route
+itself: every path on that surface is named in one list or the other, method
+included, exactly as it is mounted. A route named in neither fails the build
+rather than being passed over, so a new route on the role model surface costs
+`Admin` or costs what its method maps to because somebody decided it does, and
+never because a path happened to begin with the right word.
 
 The raise lives in the middleware rather than in each handler, so a route
 mounted without a check of its own cannot be reached under-permissioned. An
