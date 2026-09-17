@@ -397,9 +397,15 @@ List and manage alerts.
 ebpfsentinel-agent alerts list
 ebpfsentinel-agent alerts list --component ids --severity high --limit 50
 
+# Read one alert by identifier
+ebpfsentinel-agent alerts show alert-001
+
 # Mark as false positive
 ebpfsentinel-agent alerts mark-fp alert-001
 ```
+
+`alerts show` prints the same fields `alerts list` prints for a row, so a row
+picked out of the queue and the alert opened from it can never disagree.
 
 #### stats
 
@@ -852,11 +858,16 @@ provide. An empty list there is the answer you want.
 
 ### config
 
-The running configuration, and reloading it from disk.
+The running configuration, writing one section of it, and reloading it from
+disk.
 
 ```bash
 # Print the running configuration
 ebpfsentinel-agent config show
+
+# Write one section from a file, then from standard input
+ebpfsentinel-agent config set firewall --file firewall.yaml
+ebpfsentinel-agent config set ids.rules < rules.yaml
 
 # Reload the configuration from disk
 ebpfsentinel-agent config reload
@@ -864,6 +875,12 @@ ebpfsentinel-agent config reload
 
 `config show` always prints JSON, since the configuration is a document rather
 than a table.
+
+`config set` takes a YAML document rooted at the section's own key, the way
+`config show` renders it, writes that section into the configuration file and
+reloads. The agent refuses it unless `agent.config_writes` allows writes and it
+was started from a configuration file, and a masked secret left in the document
+is kept rather than written back as its mask.
 
 ### dlp
 

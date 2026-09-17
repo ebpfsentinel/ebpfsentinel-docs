@@ -110,6 +110,7 @@ ebpfsentinel-agent alerts mark-fp alert-001
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/alerts` | List alerts (filterable by component, severity, limit) |
+| GET | `/api/v1/alerts/{id}` | Read one alert by identifier |
 | POST | `/api/v1/alerts/{id}/false-positive` | Mark alert as false positive |
 
 ## gRPC Streaming

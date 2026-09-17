@@ -597,6 +597,16 @@ List alerts. Supports query parameters:
 curl "http://localhost:8080/api/v1/alerts?component=ids&severity=high&limit=50"
 ```
 
+#### GET /api/v1/alerts/{id}
+
+Read one stored alert by identifier. Returns `404` when no alert carries that
+identifier and `503` when no alert store is configured. The body is the same
+alert shape `GET /api/v1/alerts` returns for a row.
+
+```bash
+curl http://localhost:8080/api/v1/alerts/alert-001
+```
+
 #### POST /api/v1/alerts/{id}/false-positive
 
 Mark an alert as false positive.
@@ -1507,6 +1517,7 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/geoip/status` | Yes | GeoIP enrichment status |
 | GET | `/api/v1/geoip/lookup` | Yes | Resolve an IP to its GeoIP record |
 | GET | `/api/v1/alerts` | Yes | List alerts |
+| GET | `/api/v1/alerts/{id}` | Yes | Read one alert |
 | GET | `/api/v1/alerts/stream` | Yes | SSE live alert feed (`Last-Event-ID` resume) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Yes | Mark false positive |
 | GET | `/api/v1/audit/logs` | Yes | List audit logs |
