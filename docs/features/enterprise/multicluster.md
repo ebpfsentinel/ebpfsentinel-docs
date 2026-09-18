@@ -107,7 +107,7 @@ POST /api/v1/federation/policies/push
   "overrides": [
     {
       "cluster_id": "uuid-of-east",
-      "override_payload": { ... }   // merged with base policy
+      "override_payload": { ... }   // replaces the base payload for this cluster
     }
   ],
   "dry_run": false
@@ -118,11 +118,11 @@ POST /api/v1/federation/policies/push
 
 | Status | Description |
 |--------|-------------|
-| `Pending` | Not yet processed |
-| `Applied` | Successfully applied (includes `applied_at_ms`) |
-| `Failed` | Error during push (includes `error` message) |
-| `DryRunOk` | Dry-run validation passed |
-| `DryRunFailed` | Dry-run validation failed |
+| `pending` | Not yet processed |
+| `applied` | Successfully applied (includes `applied_at_ms`) |
+| `failed` | Error during push (includes `error` message) |
+| `dry_run_ok` | Dry-run validation passed |
+| `dry_run_failed` | Dry-run validation failed |
 
 Distribution history retains the last **1,000** results.
 
@@ -149,7 +149,8 @@ policy payload (a JSON array of that engine's rules), and responds:
   datapath, reporting `DryRunOk` / `DryRunFailed`.
 - **Per-cluster overrides** replace the policy payload for that member.
 - The member reports its actually-applied policy set in its heartbeat and at
-  `GET /api/v1/federation/status`, so the management can detect drift between
+  `GET /api/v1/federation/status`, each entry spelled `"<type>:<name>"` (for
+  example `threatintel:ti-1`), so the management can detect drift between
   pushed and enforced policies.
 
 ## Alert Aggregation
@@ -222,7 +223,11 @@ POST /api/v1/federation/alerts
 
 `GET /api/v1/federation/alerts?cluster_id=...&severity=high&component=ids&limit=50`
 
-All filters are optional. Prefers persistent store if available (loads 4× limit for filtering headroom), falls back to in-memory buffer.
+All filters are optional; `limit` defaults to **100**. The persistent store is
+preferred when configured and is read for `max(4 × limit, 100)` alerts so the
+filters have headroom, falling back to the in-memory buffer otherwise. Tenant
+scoping is applied to what the limit already cut, so an Operator can legitimately
+receive fewer than `limit` rows when the newest alerts belong to other tenants.
 
 ## Federation Overview
 
