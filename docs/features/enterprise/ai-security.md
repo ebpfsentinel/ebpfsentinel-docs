@@ -42,12 +42,20 @@ and use this feature for the visibility and the verdict.
 
 | Category | Providers |
 |----------|-----------|
-| General-purpose LLMs | OpenAI, Anthropic, Google AI/Gemini, Mistral, Cohere, Together AI, Groq, Fireworks, DeepSeek, Replicate |
-| Code assistants | GitHub Copilot, Cursor, Codeium, Tabnine, Sourcegraph Cody |
-| Image generation | Midjourney, Stability AI, Leonardo AI |
-| Model hubs | Hugging Face, CivitAI |
-| Cloud AI platforms | AWS Bedrock, Azure OpenAI, Azure AI, Google Vertex AI |
-| Search AI | Perplexity, You.com, Phind |
+| `general_purpose` | OpenAI, Anthropic, Google AI, Mistral, Cohere, Together AI, Groq, Fireworks AI, DeepSeek, Replicate, AWS Bedrock, Azure OpenAI, Azure AI, Google Vertex AI |
+| `code_assistant` | GitHub Copilot, Cursor, Codeium, Tabnine, Sourcegraph Cody |
+| `image_generation` | Midjourney, Stability AI, Leonardo AI |
+| `model_hub` | Hugging Face, CivitAI |
+| `search_ai` | Perplexity, You.com, Phind |
+
+The four cloud platforms carry `general_purpose` like the rest of the LLM
+entries: there is no cloud category, so a listing read by category never groups
+them apart. The two remaining categories, `internal` and `custom`, exist for the
+entries a deployment adds and carry no built-in provider.
+
+A provider name is what a policy and an override are written against, so it is
+the name exactly as the table spells it: `Google AI` rather than Gemini, and
+`Fireworks AI` rather than Fireworks.
 
 Domain matching supports exact match and wildcard suffix (e.g. `*.openai.com` matches `api.openai.com` and `chat.openai.com`).
 
@@ -75,7 +83,7 @@ enterprise:
         wildcard: true
 ```
 
-Categories: `general_purpose`, `code_assistant`, `image_generation`, `model_hub`, `search_ai`, `custom`, `internal`.
+Categories: `general_purpose`, `code_assistant`, `image_generation`, `model_hub`, `search_ai`, `custom`, `internal`. Those seven words and no eighth: a category the agent does not know stops it at startup by name rather than being filed under `custom` quietly, which used to let a typo read back as though it had been honoured.
 
 ### API
 
@@ -113,6 +121,13 @@ When a submitted event names an AI provider, the engine:
 2. In `allow_list` mode, checks if the provider is in the allowed list
 3. Generates an alert with MITRE ATT&CK mapping T1567.002 (Exfiltration to Cloud Storage)
 
+An exempt source is not scored at all: the verdict is `null`, which is the same
+answer the engine gives for a domain that is not an AI provider, and the rest of
+the pipeline is skipped with it, so no DLP scan runs on the payload and no bytes
+are added to that source's exfiltration tracker. Exempting a source therefore
+removes it from three of the five capabilities, not just from the shadow AI
+verdict.
+
 ### API
 
 ```
@@ -120,6 +135,11 @@ GET /api/v1/enterprise/ai-security/shadow-ai/detections
 GET /api/v1/enterprise/ai-security/shadow-ai/policy
 PUT /api/v1/enterprise/ai-security/shadow-ai/policy
 ```
+
+The `GET` answers the whole policy - `mode`, `allowed_providers` and
+`exempt_sources` - because the `PUT` replaces the whole policy: a reading
+carrying the mode alone could not be edited and put back without dropping both
+lists.
 
 ## AI-aware DLP
 
@@ -149,6 +169,11 @@ enterprise:
 Patterns are compiled when they are added, so a scan matches against the
 compiled form rather than recompiling the regex per payload. An invalid regex is
 refused at the moment the pattern is added.
+
+`mode` is one of `monitor`, `block` or `allow_list` and `severity` one of
+`critical`, `high`, `medium` or `low`. Both are refused by name at startup:
+until they were, a pattern written to block only ever monitored and one written
+as critical alerted as medium, with nothing said either way.
 
 When a pattern matches payload data in a submitted event:
 - An alert is generated with MITRE ATT&CK mapping T1048 (Exfiltration Over Alternative Protocol)
@@ -230,9 +255,30 @@ Policy evaluation order:
 
 Violations generate alerts with MITRE ATT&CK mapping T1071.004 (Application Layer Protocol: DNS).
 
+### Which Connections the Policy Sees
+
+The policy is applied to every submitted event, before the AI provider branch,
+and the transport is read out of what the event already carries:
+
+| Destination port | Protocol | Read as |
+|------------------|----------|---------|
+| 853 | 6 (TCP) | `dot` |
+| 853 | 17 (UDP) | `doq` |
+| 443 | any | `doh`, but only where the resolver is named in `allowed_resolvers` or `blocked_resolvers` |
+| anything else | any | not encrypted DNS, so no policy is applied |
+
+The resolver name is the event's `sni`, or its `domain` where no `sni` was
+submitted. `DoH` shares port 443 with every other HTTPS connection, so it is
+recognised by the resolver's own name alone: a connection to a host neither
+list names is ordinary web traffic as far as the engine can tell, and judging it
+as `DoH` would put every HTTPS connection under a DNS policy. Listing a resolver
+in `allowed_resolvers` is therefore what makes its `DoH` traffic visible, not
+only what exempts it.
+
 ### API
 
 ```
+GET /api/v1/enterprise/ai-security/encrypted-dns/detections
 GET /api/v1/enterprise/ai-security/encrypted-dns/policy
 PUT /api/v1/enterprise/ai-security/encrypted-dns/policy
 ```
@@ -240,8 +286,8 @@ PUT /api/v1/enterprise/ai-security/encrypted-dns/policy
 ## Event Ingestion
 
 This is the only way an event enters the feature. A submitted event runs the
-full pipeline (shadow AI, then exfiltration tracking, then DLP) and the verdicts
-come back in the response:
+full pipeline - encrypted DNS policy, then shadow AI, then exfiltration
+tracking, then DLP - and the verdicts come back in the response:
 
 ```
 POST /api/v1/enterprise/ai-security/events
@@ -287,15 +333,22 @@ Response:
       "data_type": "pii",
       "mode": "block"
     }
-  ]
+  ],
+  "encrypted_dns_action": null
 }
 ```
 
-`shadow_ai_action` is `null` when the domain is not a known AI provider, and the
-rest of the pipeline is skipped. Exfiltration tracking runs only when
-`bytes_sent` is above zero, and the DLP scan runs only when `payload_sample` is
-present. Both `shadow_ai_action` and a match's `mode` are verdicts for the
-caller to enforce, not actions the agent took.
+`encrypted_dns_action` is `null` where the connection is not encrypted DNS, as
+[Which Connections the Policy Sees](#which-connections-the-policy-sees)
+describes, and it is judged independently of everything below it: a resolver is
+not an AI provider, so an event can carry a DNS verdict and no shadow AI one.
+
+`shadow_ai_action` is `null` both when the domain is not a known AI provider and
+when the source is exempt, and the rest of the pipeline is skipped in either
+case. Exfiltration tracking runs only when `bytes_sent` is above zero, and the
+DLP scan runs only when `payload_sample` is present. Both `shadow_ai_action` and
+a match's `mode` are verdicts for the caller to enforce, not actions the agent
+took.
 
 ## Alerts & Status
 
@@ -303,6 +356,12 @@ caller to enforce, not actions the agent took.
 GET /api/v1/enterprise/ai-security/alerts
 GET /api/v1/enterprise/ai-security/status
 ```
+
+Every alert this feature raises is also submitted to the SIEM pipeline, so it
+reaches the configured exporters, the forensics ring buffer and the automated
+response engine like any other enterprise alert. `ai-security` is a component an
+automated reaction can be configured on, and that is what makes the reaction
+fire.
 
 Status returns:
 ```json
@@ -362,6 +421,7 @@ Every path below is served on the Enterprise port. The role is the least-privile
 | `GET` | `/api/v1/enterprise/ai-security/exfiltration/sources` | viewer | ai-llm-security | Sources ranked by outbound volume to AI providers. |
 | `GET` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | viewer | ai-llm-security | Current exfiltration volume thresholds. |
 | `PUT` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | operator | ai-llm-security | Replace the exfiltration volume thresholds. |
+| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | viewer | ai-llm-security | Encrypted DNS policy decisions taken on submitted events. |
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | viewer | ai-llm-security | Current DoH and DoT handling policy. |
 | `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | operator | ai-llm-security | Replace the DoH and DoT handling policy. |
 
