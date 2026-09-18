@@ -49,10 +49,10 @@ submits is a payload nobody inspects.
 | `command_injection` | `; cat`, backtick substitution, `$(...)`, `nc -e`, `wget\|sh`, `bash -i`, Python reverse shell | High → Critical |
 | `data_exfil` | AWS access key id, Google API key, Slack token, Stripe secret, private key header, JWT token, Visa PAN | Medium → Critical |
 
-The built-in catalogue ships ~40 curated patterns today and is
-extensible: every additional signature is a one-line `InspectPattern`
-literal in `enterprise-domain::l7_inspect::builtin`. The catalogue is
-on a roadmap to grow to 120+ patterns.
+The built-in catalogue ships 42 curated patterns - 13 SQL injection, 8
+XSS, 7 path traversal, 7 command injection and 7 data exfiltration - and
+is extensible: every additional signature is a one-line `InspectPattern`
+literal in `enterprise-domain::l7_inspect::builtin`.
 
 ## Architecture
 
@@ -177,10 +177,13 @@ enterprise:
 | `severity` | `string` | Yes | `low`, `medium`, `high`, `critical` |
 | `enabled` | `bool` | No | Load the pattern but keep it out of scans when `false` (default: `true`) |
 
-A pattern the agent cannot build is reported by id at startup and
-skipped, the rest still load. Duplicate rule ids, an empty rule id, an
-id colliding with a built-in pattern, an unparseable regex, and an
-unknown category or severity are all reported by name at startup.
+A pattern the agent cannot build stops the agent: it is reported by id
+at startup and nothing starts, because an agent running with one of the
+signatures an operator wrote silently missing would report itself
+healthy while inspecting less than it was asked to. Duplicate rule ids,
+an empty rule id, an empty name, an id colliding with a built-in
+pattern, an empty or unparseable regex, and an unknown category or
+severity are each reported by name and refuse the start.
 
 ## REST API
 
