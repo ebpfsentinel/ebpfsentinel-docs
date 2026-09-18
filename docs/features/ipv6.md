@@ -14,6 +14,8 @@ Six header types are walked: Hop-by-Hop (0), Routing (43), Fragment (44), AH (51
 
 The walk is bounded to **six iterations**, which the eBPF verifier requires. A chain of more than six extension headers is not walked to its end: the seventh header's own type is returned as the upper-layer protocol, with the offset pointing at that header rather than at TCP or UDP.
 
+A second bound is on the chain's length rather than its count: a walk landing more than **512 bytes** past the start of the chain, or running past the end of the packet, gives up entirely rather than returning an offset. The packet is then unparseable, which is not the same as passing inspection - the program applies the configured default policy, so a default-deny firewall drops it and a default-allow one passes it, and `ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action="errors"}` counts it either way. A rule never matches such a packet in either posture.
+
 - **Firewall** - separate LPM trie maps for IPv4 and IPv6 (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`)
 - **Conntrack** - `ConnKeyV6` / `ConnValueV6` with 128-bit NAT addresses, shared LRU map between programs
 - **NAT Ingress/Egress** - `NatRuleEntryV6` with per-word mask matching, L4 pseudo-header checksum updates (no `bpf_l3_csum_replace` needed for IPv6), NPTv6 (RFC 6296) stateless prefix translation
