@@ -8,11 +8,11 @@ Leader-based clustering with state replication for failover. Agents form a clust
 
 ## Cluster Roles
 
-| Role | Description |
-|------|-------------|
-| **Leader** | Active node, owns eBPF programs, sends heartbeats, replicates state |
-| **Candidate** | Participating in leader election |
-| **Follower** | Standby node, receives replicated state, monitors leader heartbeat |
+| Role | `role` on `/api/v1/ha/status` | Description |
+|------|---|-------------|
+| **Leader** | `leader` | Active node, owns eBPF programs, sends heartbeats, replicates state |
+| **Candidate** | `candidate` | Participating in leader election |
+| **Follower** | `follower` | Standby node, receives replicated state, monitors leader heartbeat |
 
 ## Node Identity
 
@@ -112,11 +112,11 @@ Replication status reports per-follower progress. Warning logged if follower is 
 
 When the leader detects a peer also claiming leadership (via `HeartbeatAck(role=Leader)`):
 
-| Policy | Behavior |
+| `split_brain_policy` | Behavior |
 |--------|----------|
-| `PreferActive` | Keep node with **higher** UUIDv7 (deterministic) |
-| `PreferStandby` | Keep node with **lower** UUIDv7 |
-| `Fence` | Both nodes deactivate eBPF and step down |
+| `prefer_active` | Keep node with **higher** UUIDv7 (deterministic) |
+| `prefer_standby` | Keep node with **lower** UUIDv7 |
+| `fence` | Both nodes deactivate eBPF and step down |
 
 Actions:
 
@@ -174,10 +174,10 @@ Standard HA is active-passive: one leader runs eBPF, followers are standby. Acti
 
 ### HaMode
 
-| Mode | Behavior |
+| `mode` | Behavior |
 |------|----------|
-| `ActivePassive` | Default. One leader owns all eBPF programs, followers are standby |
-| `ActiveActive` | Every node loads eBPF programs for the interfaces assigned to it, leader or not |
+| `active-passive` | Default. One leader owns all eBPF programs, followers are standby |
+| `active-active` | Every node loads eBPF programs for the interfaces assigned to it, leader or not |
 
 ### Interface Assignment
 
@@ -234,19 +234,19 @@ Controls agent behavior when it loses contact with its peer and enters a degrade
 
 ### DegradationPolicy
 
-| Policy | Behavior |
+| `degradation_policy` | Behavior |
 |--------|----------|
-| `Continue` | Default. Keep running normally with a warning. Accept configuration changes. |
-| `ReadOnly` | Keep current eBPF rules active. Reject configuration changes via the API (returns `503 Service Unavailable`). |
-| `FailClosed` | Everything `ReadOnly` does, plus a deny-all posture on the datapath. Only the anti-lockout ports stay reachable. |
+| `continue` | Default. Keep running normally with a warning. Accept configuration changes. |
+| `read-only` | Keep current eBPF rules active. Reject configuration changes via the API (returns `503 Service Unavailable`). |
+| `fail-closed` | Everything `read-only` does, plus a deny-all posture on the datapath. Only the anti-lockout ports stay reachable. |
 
 ### ClusterHealth
 
-| State | Meaning |
+| `cluster_health` | Meaning |
 |-------|---------|
-| `Healthy` | All peers reachable, replication up to date |
-| `Degraded` | One or more peers unreachable, operating under degradation policy |
-| `Isolated` | No peers reachable, node is completely alone |
+| `healthy` | All peers reachable, replication up to date |
+| `degraded` | One or more peers unreachable, operating under degradation policy |
+| `isolated` | No peers reachable, node is completely alone |
 
 ### Behavior
 
@@ -392,11 +392,11 @@ enterprise:
 
 | Field | Description |
 |-------|-------------|
-| `event_type` | `AutomaticFailover`, `ManualFailover`, `NodeRecovery`, `InterfaceTakeover`, `DegradationEntered`, `DegradationExited` |
+| `event_type` | `automatic_failover`, `manual_failover`, `node_recovery`, `interface_takeover`, `degradation_entered`, `degradation_exited`. The same word is what `POST /api/v1/ha/failover` answers with |
 | `old_leader` | Previous leader node ID |
 | `new_leader` | New leader node ID |
 | `term` | Election term |
-| `trigger` | `HeartbeatTimeout`, `ManualApi`, `Recovery`, `InterfaceTakeover`, `Degradation` |
+| `trigger` | `heartbeat_timeout`, `manual_api`, `recovery`, `interface_takeover`, `degradation` |
 | `timestamp_ms` | Event timestamp |
 
 ## gRPC Service
@@ -480,7 +480,7 @@ Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when 
 | `POST` | `/api/v1/ha/failover` | operator | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
 | `GET` | `/api/v1/ha/replication` | viewer | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
 | `GET` | `/api/v1/ha/interfaces` | viewer | high-availability | Interface assignments and ownership status (active_active mode). |
-| `GET` | `/api/v1/ha/health` | viewer | high-availability | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded). |
+| `GET` | `/api/v1/ha/health` | viewer | high-availability | Cluster health (health, degradation_policy, is_degraded) plus one entry per peer carrying addr, failure_count and reachable. It names no `ha_mode`: that is read from `/api/v1/ha/status`. |
 
 ## Feature Gating
 

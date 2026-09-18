@@ -343,7 +343,7 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/ha/failover` | operator | `config:write` | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
-| `GET` | `/api/v1/ha/health` | viewer | `config:read` | high-availability | Cluster health (ha_mode, cluster_health, degradation_policy, is_degraded). |
+| `GET` | `/api/v1/ha/health` | viewer | `config:read` | high-availability | Cluster health (health, degradation_policy, is_degraded) plus one entry per peer carrying addr, failure_count and reachable. No `ha_mode`: that is on `/api/v1/ha/status`. |
 | `GET` | `/api/v1/ha/interfaces` | viewer | `config:read` | high-availability | Interface assignments and ownership status (active_active mode). |
 | `GET` | `/api/v1/ha/peers` | viewer | `config:read` | high-availability | Peer list with addresses. |
 | `GET` | `/api/v1/ha/replication` | viewer | `config:read` | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
