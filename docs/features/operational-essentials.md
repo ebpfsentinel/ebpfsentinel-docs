@@ -199,10 +199,12 @@ GET /api/v1/captures
 DELETE /api/v1/captures/{id}
 ```
 
+`filter` and `duration_seconds` are required; `snap_length` defaults to 1500 and `interface` to every link on the host. Naming an interface narrows the capture to it, and `any` says the same thing as leaving it out - a capture is a diagnostic, so the filter is what narrows it rather than the configured interface list. The session answers with `id`, `output_path`, `status`, `file_size_bytes` and `packets_captured`, which is also what `GET /api/v1/captures` lists.
+
 ### CLI
 
 ```bash
-ebpfsentinel-agent capture start --filter "host 1.2.3.4" --duration 60s --snap-length 1500
+ebpfsentinel-agent capture start --filter "host 1.2.3.4" --duration 60s --snap-length 1500 --interface eth0
 ebpfsentinel-agent capture stop cap-1234
 ebpfsentinel-agent capture list
 ```

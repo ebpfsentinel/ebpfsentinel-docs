@@ -1,6 +1,6 @@
 # Capture Configuration
 
-The `capture` section bounds manual packet capture: the longest capture `POST /api/v1/capture` and `ebpfsentinel-agent capture start` will accept.
+The `capture` section bounds manual packet capture: the longest capture `POST /api/v1/captures/manual` and `ebpfsentinel-agent capture start` will accept.
 
 It is not the [`auto_capture`](auto-capture.md) section. That one decides whether a capture starts on its own when an alert fires and carries its own, tighter, duration cap. The ceiling here applies to every capture the agent runs, whoever asked for it.
 
