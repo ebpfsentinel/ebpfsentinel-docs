@@ -40,12 +40,15 @@ Each `ForensicEvent` contains:
 | `src_addr` / `dst_addr` | Source and destination addresses |
 | `src_port` / `dst_port` | Ports |
 | `protocol` | IP protocol number |
+| `is_ipv6` | Whether the addresses are IPv6 |
 | `component` | OSS component that generated the alert |
-| `severity` | Alert severity level |
+| `severity` | Alert severity, written as the alert carries it: `Low`, `Medium`, `High` or `Critical` |
 | `alert_id` | Original alert identifier |
 | `message` | Alert message (truncated to 256 bytes) |
 | `mitre_technique` | MITRE ATT&CK technique ID (if mapped) |
 | `ja4_fingerprint` | JA4 TLS fingerprint (if available) |
+
+Addresses are held as four 32-bit words: IPv4 uses the first word only, IPv6 uses all four in network order.
 
 The ring buffer is evicted both by capacity (oldest dropped when full) and by age (periodic GC every 60 seconds removes events older than `ring_buffer_max_age_secs`).
 
@@ -69,6 +72,8 @@ The trigger policy controls which alerts generate automatic captures:
 
 Only alerts from the listed components AND at or above the minimum severity trigger automatic captures. All other alerts are still ingested into the ring buffer for context.
 
+`min_severity` is matched by name and not validated at startup, so `low` and any word the engine does not recognise both mean "every severity triggers". A typo here widens the policy silently rather than being refused.
+
 The component match is exact and case-sensitive, so use the names alerts actually carry: `ids`, `threatintel`, `ddos`, `dlp`, `dns`, `routing`, `ai-security`, `ml-anomaly`. An empty `trigger.components` list accepts every component rather than none.
 
 ### Flow Matching
@@ -88,9 +93,11 @@ Each capture records:
 | `flow` | 5-tuple flow identifier |
 | `pre_context_count` | Number of pre-event context events frozen |
 | `status` | `running`, `completed`, or `failed` |
-| `created_at_ns` | When the capture was created |
+| `created_at_ns` | Timestamp of the alert that triggered the capture, not the wall clock at registration |
 
-Captures are automatically cleaned up after `retention_days` (default: 7 days).
+The capture identifier is built from that same timestamp, and `trigger_severity` repeats the alert's own word (`Low`, `Medium`, `High`, `Critical`).
+
+Captures are automatically cleaned up after `retention_days` (default: 7 days), counted from `created_at_ns`.
 
 ## Flow Timeline Reconstruction
 
@@ -103,19 +110,23 @@ Each timeline contains:
 
 | Field | Description |
 |-------|-------------|
-| `center_alert_id` | The alert at the center of the timeline |
+| `center_alert_id` | The alert at the center of the timeline, empty on a flow-tuple timeline |
 | `center_timestamp_ns` | Center timestamp |
+| `window_before_ns` | Span covered before the center, in nanoseconds |
+| `window_after_ns` | Span covered after the center, in nanoseconds |
 | `flows` | Aggregated flow entries (first/last seen, event count, component) |
 | `related_alerts` | Other alerts in the time window |
-| `capture_id` | Associated forensic capture (if any) |
+| `capture_id` | Associated forensic capture (if any), always absent on a flow-tuple timeline |
 
 Flow entries group events by `(src_port, dst_port, protocol)` and track first/last seen timestamps and event counts.
+
+A timeline by alert ID is centered on that alert and answers **404** when no event in the ring buffer carries it. A timeline by flow tuple is centered on the first matching event instead, or on `from_ns` when the range holds none, so its two window figures are the distance from that center to the ends of the range asked for rather than the two query parameters.
 
 ## REST API
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer status, capture count, trigger policy. |
+| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer depth and oldest event, capture count, trigger policy in force, current packet mirror configuration. |
 | `GET` | `/api/v1/enterprise/forensics/mirror` | viewer | network-forensics | Return the current packet mirror configuration. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/start` | operator | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
@@ -137,13 +148,15 @@ Flow entries group events by `(src_port, dst_port, protocol)` and track first/la
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `src_addr` | Yes | Source address |
-| `dst_addr` | Yes | Destination address |
+| `src_addr` | Yes | Source address, written as a dotted quad or an IPv6 literal |
+| `dst_addr` | Yes | Destination address, same family as `src_addr` |
 | `src_port` | No | Source port (default: 0) |
 | `dst_port` | No | Destination port (default: 0) |
 | `protocol` | No | IP protocol (default: 6/TCP) |
 | `from_ns` | Yes | Start of time range (epoch nanoseconds) |
 | `to_ns` | Yes | End of time range (epoch nanoseconds) |
+
+An address that does not parse, or a pair mixing IPv4 and IPv6, is answered **400** rather than matched against nothing: a zeroed tuple would return an empty timeline, which reads as a quiet flow.
 
 ## Metrics
 
