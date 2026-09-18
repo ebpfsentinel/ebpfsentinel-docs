@@ -100,8 +100,10 @@ envelope and no total: the list is a sample of the table, not the table.
 
 `GET /api/v1/conntrack/events` is Server-Sent Events. The SSE `event:` name is
 `new`, `update` or `destroy`, and the frame's `data` is one JSON object
-carrying `event_type` with that same word and `connection` with the shape
-above **plus `first_seen_ns` and `last_seen_ns`**, which the list route drops.
+carrying `event_type` with that same word and `connection` with exactly the
+shape the list route answers: a frame carries no instant either, because the
+kernel table reports counters and a state and no moment a flow started or was
+last seen at.
 A `:keepalive` comment is sent every 15 s; a client that falls behind silently
 skips the events it missed rather than being disconnected.
 

@@ -237,13 +237,17 @@ Full introspection of the registered agent.
     "pq_mode": "Hybrid"
   },
   "registered_at": 1709913600,
-  "uptime_seconds": 86400
+  "uptime_seconds": 86400,
+  "operator_managed": true,
+  "operator_endpoint": "https://operator.internal"
 }
 ```
 
 - `enterprise`: Always `true` for enterprise agents
 - `ebpf_programs`: The programs this agent attempted to load, each with its own load state, sorted by name
 - `tls.pq_mode`: Post-quantum TLS mode (`Disabled`, `Preferred`, `Hybrid`, `Required`)
+- `operator_managed`: Whether a Kubernetes operator owns this agent's configuration. This is the only route that says so, and a console that edits a configuration the operator reconciles is writing a change the next reconcile undoes
+- `operator_endpoint`: Where that operator's own console is, when it publishes one. Absent from the answer rather than `null` when it does not
 
 Each entry carries that program's own state, so a node whose NAT ingress program was rejected while its firewall attached reports `tc-nat-ingress: false` beside `xdp-firewall: true`, and the heartbeat above it reports `degraded`.
 
@@ -308,9 +312,7 @@ Builds a directed graph of network flows from connection tracking data.
       "dst": "10.0.2.10",
       "protocol": 6,
       "bytes": 1500000,
-      "flows": 42,
-      "first_seen": 1709900000000,
-      "last_seen": 1709913600000
+      "flows": 42
     }
   ]
 }
@@ -325,6 +327,10 @@ Builds a directed graph of network flows from connection tracking data.
 5. Capped at `max_nodes` unique IPs (edges requiring new IPs beyond the cap are dropped)
 
 Nodes and edges are both sorted by bytes descending.
+
+An edge says how much and how often and never since when: the conntrack table
+it is folded from reports counters and a state and no moment a flow started or
+was last seen at, so the graph carries no instant at all.
 
 ## Configuration
 
