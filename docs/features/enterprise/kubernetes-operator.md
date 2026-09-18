@@ -36,8 +36,12 @@ mounts the file at `/etc/ebpfsentinel/secrets/<secret>/<key>`, read-only and
 unreadable by the group.
 
 A checksum of the rendered document is annotated on the pod template, so editing
-a policy rolls the DaemonSet, and each running agent is additionally told to
-reload.
+a policy rolls the DaemonSet. Each running agent is additionally asked to reload,
+and that ask is best effort: a pod that refuses is logged and the reconcile
+carries on, because the rollout the checksum triggers applies the document
+anyway. An enterprise agent refuses every time - it applies its configuration
+once, at startup, and mounts no reload route - so on an enterprise DaemonSet the
+rollout is the whole of how a policy lands.
 
 ## Resources
 
@@ -97,4 +101,4 @@ Every document rendered by the operator forces `management.operator_managed: tru
 - `management.operator_managed` is set to `true` unconditionally - any user value supplied through the `EbpfSentinelAgent` resource's `spec.config.management` overlay is overridden, and the override is recorded as a `Warning` Kubernetes event with reason `OperatorManagedForced`. Audit it with `kubectl get events --field-selector reason=OperatorManagedForced`.
 - `management.operator_endpoint` defaults to the operator's in-cluster service URL (`https://<svc>.<ns>.svc:<port>`). When the user provides a value in `spec.config.management.operatorEndpoint`, it is passed through verbatim so air-gapped or proxied deployments can deep-link the dashboard to a custom URL.
 
-See `agent.management.operatorEndpoint` in `charts/ebpfsentinel-operator/values.yaml` to override the default endpoint via Helm.
+See the top-level `operatorEndpoint` in `charts/ebpfsentinel-operator/values.yaml` to override the default endpoint via Helm. Left empty, it is derived from the operator's own Service.
