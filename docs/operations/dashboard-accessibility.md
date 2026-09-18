@@ -12,9 +12,9 @@ The eBPFsentinel dashboard targets **WCAG 2.2 Level AA** conformance. SOC analys
 
 ## What We Test
 
-Every PR runs axe-core via Playwright against all dashboard routes in both light and dark themes. **Critical** and **serious** violations block merge.
+The end-to-end suite runs axe-core via Playwright against six routes in both light and dark themes, asserting no **critical** or **serious** violation. It is a `workflow_dispatch` run rather than a pull-request gate: the suite needs the `:dev` images of the agent, the enterprise agent and the dashboard, and the enterprise manifest is private, so the automatic triggers are off until those images are published.
 
-Tested routes: Overview, Alerts, Alert Detail, Fleet, Flow Graph, Compliance, Audit & License.
+Tested routes: Overview (`/`), Alerts, Fleet, Flow Graph, Compliance, Audit & License. Every other route is covered by the component tests and by review rather than by axe-core.
 
 ## Keyboard Navigation
 

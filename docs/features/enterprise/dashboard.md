@@ -40,8 +40,8 @@ two cannot drift.
 
 ## Accessibility
 
-The console targets WCAG 2.2 Level AA and every pull request runs axe-core
-against its routes in both themes. See
+The console targets WCAG 2.2 Level AA, and the end-to-end suite runs axe-core
+against six of its routes in both themes. See
 [Dashboard Accessibility](../../operations/dashboard-accessibility.md).
 
 ## Configuration
