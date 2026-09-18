@@ -339,9 +339,29 @@ Returns license status (200 OK or 402 Payment Required):
   "max_agents": 50,
   "max_cores_per_agent": 32,
   "host_cores": 30,
-  "machine_fingerprint": "ca9240c0..."
+  "machine_fingerprint": "ca9240c0...",
+  "air_gap_enabled": false,
+  "signed_payload": "eyJvcmciOiJBY21lIENvcnAiLCA...",
+  "ed25519_signature": "MEUCIQDf4b1c07a9d5e4...",
+  "ml_dsa_signature": "BEQCIGx2b1c07a9d5e4...",
+  "measurement": "9f2c4d7e1b08a3560c9d4e8f2a17b3c5..."
 }
 ```
 
 `host_cores` is what this machine measured, reported next to the ceiling so a
 fleet audit can see the headroom left before a resize takes a node out of band.
+`max_cores_per_agent` is always sent, `0` meaning no ceiling; `host_cores` is
+left out where the count could not be read.
+
+The last four fields are what makes the answer worth more than a self-report.
+`signed_payload` is the base64 of the exact `LicenseInfo` bytes that were
+signed, with the two signatures over those same bytes beside it, so a reader
+verifies the terms against the published public keys rather than believing the
+fields above them. `measurement` is the SHA-256 of the agent's own binary,
+where it could read one, which is what binds the key to a build the signed
+measurements manifest already names. All four are left out when no signed key
+is loaded, and `air_gap_enabled` is always sent.
+
+`features` is the set the key carries **and** the agent still honours: an
+expired or refused key answers `402` with an empty list rather than with the
+features it used to grant.
