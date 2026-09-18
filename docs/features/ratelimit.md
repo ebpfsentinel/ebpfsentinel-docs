@@ -21,7 +21,7 @@ SYN-flood mitigation (kernel-issued SYN cookie forging via `XDP_TX`) is configur
 
 ### Kernel-Side Implementation
 
-- **Per-CPU LRU hash maps** - lock-free per-IP counters (no cross-CPU contention)
+- **Per-CPU LRU hash maps** - lock-free per-IP counters (no cross-CPU contention). The bucket is per CPU as well as per source, so `rate` is enforced exactly for a single flow, which RSS pins to one queue and therefore one CPU, while a source spreading many flows across queues gets one bucket per CPU it lands on: its aggregate ceiling is up to `rate x online_CPUs`. Size a limit meant to hold a multi-flow source by dividing the intended rate by the CPU count
 - **Lazy window reset** - a bucket whose window has elapsed is rewritten by the packet that finds it, so an idle source costs nothing between packets
 - **LRU eviction** - the bucket map holds 262,144 sources per CPU and the kernel drops the least recently used entry when it is full, so a source that stops sending is forgotten without any periodic sweep. There is no `bpf_timer`, and nothing in userspace walks the map to expire entries
 - **Suspend-aware timestamps** via `bpf_ktime_get_boot_ns`
@@ -141,6 +141,7 @@ ebpfsentinel-agent ratelimit delete emergency-throttle
 
 ## Metrics
 
-- `ebpfsentinel_packets_total{interface="RATELIMIT_METRICS", action="dropped"}` - packets dropped by the rate limiter. The same map carries `matched`, `errors`, `events_dropped`, `total_seen` and `mtu_exceeded`
+- `ebpfsentinel_packets_total{interface="RATELIMIT_METRICS", action="dropped"}` - packets the rate limiter dropped because a bucket was empty. The same map carries `passed`, `errors`, `events_dropped`, `total_seen` and `mtu_exceeded`
+- `passed` counts every packet the limiter let through, which includes the sources no rule names and the packets an interface group excluded from the rule. It is not a count of rule matches: on a link with no rule at all, `passed` and `total_seen` track each other
 - `ebpfsentinel_rules_loaded{component="ratelimit"}` - number of loaded rate limit rules
 - `ebpfsentinel_packet_processing_duration_seconds{program="ratelimit"}` - rate limit event dispatch latency

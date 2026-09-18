@@ -12,6 +12,8 @@ Every source address gets its own token bucket in the kernel. There are three wa
 
 So the general case needs no rule at all: `default_rate` and `default_burst` already give each unnamed source its own bucket. A rule exists to single out one host.
 
+The bucket is held per CPU, so `rate` is enforced exactly for a single flow, which the NIC pins to one receive queue and therefore one CPU. A source spreading many flows across queues gets one bucket per CPU it lands on, and its aggregate ceiling is up to `rate` multiplied by the number of online CPUs. Divide the intended rate by the CPU count when the limit is meant to hold a source that opens many connections.
+
 ## Reference
 
 ```yaml
