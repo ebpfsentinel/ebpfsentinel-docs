@@ -26,12 +26,23 @@ The IDS engine:
 1. Receives `PacketEvent` from the event dispatcher
 2. Matches a rule that names no `pattern` on the `(protocol, port)` pair the classifier keyed on
 3. Matches a rule that carries a `pattern` against the captured TCP payload instead, so the port alone never fires it
-4. Applies **threshold detection** (per-rule limit, threshold, and combined modes)
-5. Generates alerts with severity, matched rule ID, and packet context
+4. Matches a rule that carries a `domain_pattern` against the name the DNS engine resolved for the peer, rather than against the payload
+5. Applies **threshold detection** (per-rule limit, threshold, and combined modes)
+6. Generates alerts with severity, matched rule ID, and packet context
 
 ### Interface Groups
 
 IDS rules can be scoped to specific interface groups using the `interfaces` field. For example, you can apply stricter detection rules on DMZ interfaces while using lighter sampling on internal networks. Rules without an `interfaces` field are floating and apply to all interfaces. See [Interface Groups](interface-groups.md).
+
+### What a Rule Is Narrowed To
+
+A rule names a protocol, and three optional fields cut it down to a slice of that protocol. A rule carrying none of them sees everything its protocol carries.
+
+| Field | Effect |
+|-------|--------|
+| `dst_port` | Fires only on that destination port |
+| `src_port` | Fires only on that source port, which is how a rule watches the reply leg of a flow (a DNS answer, an FTP data channel) |
+| `domain_pattern` | Fires only where the resolved name of the peer matches, with `domain_match_mode` deciding how: `exact`, `wildcard` (a single leading `*.`) or `regex` |
 
 ### Threshold Detection
 
@@ -115,7 +126,13 @@ See [Configuration: IDS](../configuration/ids.md) for the full reference.
 ## CLI Usage
 
 ```bash
-# List IDS rules (via IPS endpoint - IDS and IPS share rule management)
+# Detection status and the rule count behind it
+ebpfsentinel-agent ids status
+
+# List detection rules, what each is narrowed to, and the thresholds behind them
+ebpfsentinel-agent ids rules
+
+# The same rules read as prevention rules
 ebpfsentinel-agent ips list
 
 # View alerts
@@ -134,6 +151,22 @@ ebpfsentinel-agent alerts mark-fp alert-001
 | GET | `/api/v1/ips/rules` | List prevention rules |
 | GET | `/api/v1/alerts` | List alerts (filter by `component=ids`) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Mark alert as false positive |
+
+Both rule listings answer the same ruleset, in the vocabulary the configuration file uses: a severity, a mode, a protocol, a threshold type and what it tracks by are spelled exactly as they were written in the file, so a rule on screen matches the line that declared it.
+
+`GET /api/v1/ids/status` answers `enabled`, `mode` and `rule_count`. Each item of `GET /api/v1/ids/rules` carries:
+
+| Field | Meaning |
+|-------|---------|
+| `id`, `description`, `severity`, `enabled` | As configured |
+| `mode` | `alert` or `block`, capped by the service mode |
+| `protocol` | The protocol the rule is written for |
+| `dst_port`, `src_port` | What the rule is narrowed to; omitted where the rule names neither |
+| `pattern` | The payload regex, omitted where the rule carries none |
+| `domain_pattern`, `domain_match_mode` | The resolved name the rule is decided on, omitted where the rule names none |
+| `threshold` | `threshold_type`, `count`, `window_secs`, `track_by`, omitted where the rule carries none |
+| `country_thresholds` | Per-country overrides keyed by ISO 3166-1 alpha-2, omitted where the rule carries none |
+| `kernel_slot` | Present only where the slot is contended, see below |
 
 Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_port)` slot another rule holds, since detection and prevention rules share the same kernel maps. See [IPS](ips.md) for what a lost slot means for each kind of rule.
 
