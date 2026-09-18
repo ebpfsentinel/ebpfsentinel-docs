@@ -92,9 +92,21 @@ When feeds are reloaded, the `ThreatIntelMapManager` syncs to 4 kernel maps:
 
 Each IOC value in the map is 4 bytes: `{ action: u8, feed_id: u8, confidence: u8, threat_type: u8 }`.
 
-The `action` field is set globally based on the mode:
-- **`alert`** mode → `THREATINTEL_ACTION_ALERT (0)` → `TC_ACT_OK` (pass packet, emit event)
-- **`block`** mode → `THREATINTEL_ACTION_DROP (1)` → `TC_ACT_SHOT` (drop packet, emit event)
+The `action` field is written per IOC rather than per service, because a feed
+carrying `default_action` overrides the service mode for its own indicators:
+
+- **`alert`** → `THREATINTEL_ACTION_ALERT (0)` → `TC_ACT_OK` (pass packet, emit event)
+- **`block`** → `THREATINTEL_ACTION_DROP (1)` → `TC_ACT_SHOT` (drop packet, emit event)
+
+An IOC from a feed naming no `default_action` is loaded with the service mode,
+so a service on `alert` holding one blocking feed drops that feed's matches and
+passes every other. The alert an operator reads carries what the kernel did with
+the packet rather than what the service mode says, so a match on a blocking feed
+is reported as blocked even where the service is on `alert`.
+
+The `feed_id` byte is the IOC's position in the batch that was loaded, not an
+identifier of the feed it came from; the feed an alert names is resolved in
+userspace, and so is the `ebpfsentinel_threatintel_matches_total{feed}` label.
 
 ### 5. Kernel Matching (tc-threatintel, hot path)
 
@@ -155,6 +167,9 @@ threatintel:
     KP: 15       # +15 for North Korea
 ```
 
+The boost is applied where the IOC is added and again on every feed reload, and
+it needs GeoIP: with no GeoIP database configured nothing resolves a country, so
+every entry in the table is inert and confidence stays as the feed stated it.
 Values are clamped to the 0-100 range after adjustment. This is useful to prioritize IOCs from known high-risk regions when feeds have variable confidence scores.
 
 ## Configuration
