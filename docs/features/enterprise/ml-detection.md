@@ -222,6 +222,8 @@ Optional. Random Cut Forest observes the same `FeatureVector` the fused engines 
 
 Scores and attribution are readable directly through `/api/v1/enterprise/ml/rcf/scores` and `/api/v1/enterprise/ml/rcf/attribution`.
 
+Each score record on `/rcf/scores` carries the window it was aggregated over as `OneMin`, `FiveMin` or `FifteenMin`, and an `is_anomalous` flag that is true at or above the configured `anomaly_threshold` - `1.5` by default, so anything the table above calls Low or worse is flagged. The `window` query parameter of `/rcf/attribution` is spelled differently on purpose: it takes `one_min`, `five_min` or `fifteen_min` and defaults to `one_min`.
+
 ---
 
 ## Heavy-Hitter Detection
@@ -405,7 +407,7 @@ enterprise:
   "suggestion_count": 3,
   "feedback_count": 17,
   "model_loaded": true,
-  "model_engine": "onnx",
+  "model_engine": "onnx-runtime",
   "model_warmed_up": true,
   "model_sample_count": 3412,
   "anomaly_threshold": 2.0,
@@ -418,7 +420,9 @@ enterprise:
 }
 ```
 
-`model_loaded` says a model is in memory; `model_warmed_up` says it is contributing to the fusion. A model loaded seconds ago reports `true` and `false` respectively, and scores nothing until `model_sample_count` reaches the configured `ewma_warmup_samples`.
+`model_engine` names the inference engine holding the model: `onnx-runtime`
+while one is loaded, `none` when none is. `model_loaded` says a model is in
+memory; `model_warmed_up` says it is contributing to the fusion. A model loaded seconds ago reports `true` and `false` respectively, and scores nothing until `model_sample_count` reaches the configured `ewma_warmup_samples`.
 
 ### Streaming Algorithm Endpoints
 
