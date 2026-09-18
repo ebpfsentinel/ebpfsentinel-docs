@@ -46,6 +46,10 @@ Each source address gets its own bucket, keyed on the packet's 32-bit source in 
 
 The defaults are stored under key `{src_ip: 0}` and cover every source no rule names, so the general case needs no rule at all. A rule exists to single out one host, and its `src_ip` must therefore be a single IPv4 address: the map is an exact-match hash, so a shorter prefix would match one address rather than the range, and IPv6 would match nothing. Both are refused at config load. Use `country_tiers` for ranges and for IPv6.
 
+### What Happens Over the Limit
+
+The bucket's `action` decides the verdict, and both values report the same way. `drop` returns `XDP_DROP`. `pass` returns `XDP_PASS`, which is how a limit is sized against live traffic before it is enforced: the packet is forwarded, the kernel still emits the event, userspace still writes a `rate_exceeded` audit line and still raises an alert, and the packet is counted under `throttled_passed` rather than under `dropped`, so an observing rule never reads as drops that did not happen. A tier and a rule each carry their own `action`, and the one that decided the bucket is the one applied.
+
 ### Per-Country Rate Limit Tiers (LPM)
 
 Country-specific rate limits are enforced via dedicated kernel-side LPM Trie maps (`RL_LPM_SRC_V4`, `RL_LPM_SRC_V6`). Each tier maps a set of country codes to a rate limit profile (rate, burst, algorithm, action). The LPM lookup runs **before** per-IP rule matching - if a source IP falls within a country tier's CIDR range, the tier's config is used instead.
@@ -141,7 +145,8 @@ ebpfsentinel-agent ratelimit delete emergency-throttle
 
 ## Metrics
 
-- `ebpfsentinel_packets_total{interface="RATELIMIT_METRICS", action="dropped"}` - packets the rate limiter dropped because a bucket was empty. The same map carries `passed`, `errors`, `events_dropped`, `total_seen` and `mtu_exceeded`
+- `ebpfsentinel_packets_total{interface="RATELIMIT_METRICS", action="dropped"}` - packets the rate limiter dropped because a bucket was empty. The same map carries `passed`, `errors`, `events_dropped`, `total_seen`, `mtu_exceeded` and `throttled_passed`
+- `throttled_passed` counts the packets that were over the limit and forwarded anyway because the bucket's `action` is `pass`. It is kept apart from `dropped` so a rule observing rather than enforcing is readable as the dry run it is
 - `passed` counts every packet the limiter let through, which includes the sources no rule names and the packets an interface group excluded from the rule. It is not a count of rule matches: on a link with no rule at all, `passed` and `total_seen` track each other
 - `ebpfsentinel_rules_loaded{component="ratelimit"}` - number of loaded rate limit rules
 - `ebpfsentinel_packet_processing_duration_seconds{program="ratelimit"}` - rate limit event dispatch latency

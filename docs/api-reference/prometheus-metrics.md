@@ -82,7 +82,7 @@ visible.
 | `interface` | Program | `action` values |
 |--------|------|--------|
 | `FIREWALL_METRICS` | `xdp-firewall`, `xdp-firewall-reject` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected`, `mtu_exceeded`, `reject_throttled` |
-| `RATELIMIT_METRICS` | `xdp-ratelimit` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `mtu_exceeded` |
+| `RATELIMIT_METRICS` | `xdp-ratelimit` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `mtu_exceeded`, `throttled_passed` |
 | `IDS_METRICS` | `tc-ids` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed` |
 | `THREATINTEL_METRICS` | `tc-threatintel` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen` |
 | `DNS_METRICS` | `tc-dns` | `inspected`, `emitted`, `errors`, `events_dropped`, `total_seen` |

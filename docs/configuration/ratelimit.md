@@ -61,6 +61,8 @@ ratelimit:
 
 Two rules naming the same source are also refused: one source carries one bucket, so the second would silently replace the first.
 
+`action: pass` forwards the packet the bucket had no token for instead of dropping it, which is how a limit is sized against live traffic before it is enforced. Everything else happens exactly as for a drop: the kernel emits the event, userspace writes a `rate_exceeded` audit line and raises an alert carrying the word `pass`, and the packet is counted under `action="throttled_passed"` rather than `action="dropped"`, so a rule observing rather than enforcing never reads as drops that did not happen.
+
 ### CountryTier
 
 | Field | Type | Required | Description |
