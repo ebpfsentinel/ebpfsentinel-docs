@@ -1008,7 +1008,7 @@ curl http://localhost:8080/api/v1/routing/gateways
 
 #### POST /api/v1/routing/gateways
 
-Add a routing gateway. Returns `201` on success and `409` when the name or address conflicts with an existing gateway.
+Add a routing gateway. Requires a write role: admin or operator. Viewers are refused. The agent assigns the identifier itself, taking the lowest free one, so the body carries none and two gateways may share a name or a next hop. Returns `201` on success and `409` only when all 256 identifiers are in use.
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/routing/gateways \
@@ -1025,7 +1025,9 @@ curl -X POST http://localhost:8080/api/v1/routing/gateways \
 | `interface` | string | No | Egress interface. Defaults to empty, inheriting the agent's primary |
 | `weight` | integer | No | Routing weight, mapped to failover priority (lower is preferred) |
 | `enabled` | boolean | No | Whether the gateway is eligible for selection |
-| `health_check_interval_secs` | integer | No | Health-check probe interval in seconds. When set, an ICMP probe is configured |
+| `health_check_interval_secs` | integer | No | Health-check probe interval in seconds. When set, an ICMP probe against `8.8.8.8` is configured, with the default 5-second timeout and the default thresholds of 3 failures down and 2 successes up. The configuration file is where a probe target of your own is named |
+
+The gateway joins the probe rotation as soon as it is created, probed on its own interval and out of its own `interface`.
 
 Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` returns.
 
@@ -1043,7 +1045,7 @@ Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` 
 
 #### DELETE /api/v1/routing/gateways/{id}
 
-Remove a routing gateway. Returns `204` on success and `404` when no gateway carries that identifier.
+Remove a routing gateway. Requires a write role: admin or operator. Viewers are refused. Returns `204` on success, `400` when the identifier is not a number in 0-255, and `404` when no gateway carries it.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/routing/gateways/1

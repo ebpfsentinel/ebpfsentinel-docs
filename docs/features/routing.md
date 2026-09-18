@@ -29,6 +29,10 @@ Each gateway can have an independent health probe:
 | `failure_threshold` | u32 | 3 | Consecutive failures before marking down |
 | `recovery_threshold` | u32 | 2 | Consecutive successes before marking healthy |
 
+Each gateway is probed on its own `interval_secs`, and the probe leaves by that gateway's `interface` so it measures that path rather than whichever one the default route currently takes. An `icmp` probe is bound to the interface; a `tcp:<port>` probe is not, so it reports on the elected path and is the wrong choice for a gateway that is not currently carrying traffic. A gateway naming no interface is probed unbound.
+
+A gateway added through the API joins the probe rotation without a restart, and one removed leaves it.
+
 ## Gateway States
 
 | State | Description |
