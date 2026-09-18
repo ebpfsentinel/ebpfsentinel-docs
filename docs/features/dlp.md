@@ -175,6 +175,12 @@ See [Configuration: DLP](../configuration/dlp.md) for the full reference.
 ## CLI Usage
 
 ```bash
+# Service state, mode and how many patterns are loaded
+ebpfsentinel-agent dlp status
+
+# List the patterns, each with the mode it is enforced at
+ebpfsentinel-agent dlp patterns
+
 # View DLP alerts
 ebpfsentinel-agent alerts list --component dlp --severity critical
 
@@ -186,8 +192,40 @@ ebpfsentinel-agent alerts mark-fp alert-dlp-001
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/v1/dlp/status` | Service state, mode and pattern count |
+| GET | `/api/v1/dlp/patterns` | List the loaded patterns |
 | GET | `/api/v1/alerts` | List alerts (filter by `component=dlp`) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Mark alert as false positive |
+
+Both DLP routes answer `404 SERVICE_NOT_AVAILABLE` on an agent started with
+no `dlp` section. Neither writes: patterns are configuration, so they are
+changed in the file and reloaded, never posted.
+
+### Status Fields
+
+| Field | Meaning |
+|-------|---------|
+| `enabled` | Whether the service is running at all |
+| `mode` | `alert` or `block`, the service default a pattern may depart from |
+| `pattern_count` | How many patterns the service holds, which is what the listing returns |
+
+### Pattern Fields
+
+| Field | Meaning |
+|-------|---------|
+| `id` | Rule id, `dlp-pci-*`, `dlp-pii-*` and `dlp-cred-*` for the built-ins |
+| `name` | Pattern name as configured |
+| `description` | What the pattern is for, as the configuration file wrote it; empty where none was written |
+| `regex` | The expression the matcher runs |
+| `severity` | `low`, `medium`, `high` or `critical` |
+| `data_type` | `pci`, `pii`, `credentials` or `custom`, and what `[REDACTED:{data_type}]` names in the alert |
+| `mode` | `alert` or `block`, this pattern's own |
+| `enabled` | Whether the pattern is switched on; a switched-off pattern enforces nothing whatever its mode says |
+
+`mode` is the pattern's own rather than the service's: with the `enterprise`
+feature a pattern may block while the service default alerts, so reading the
+service mode alone reports such a host as letting everything through. In OSS
+every pattern reads back `alert`, since block mode is refused at startup.
 
 ## Code Architecture
 
