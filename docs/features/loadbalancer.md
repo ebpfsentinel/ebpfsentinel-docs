@@ -154,6 +154,25 @@ ebpfsentinel-agent --output json lb services
 | GET | `/api/v1/lb/services/{id}` | Service detail with backends, health status, connections |
 | POST | `/api/v1/lb/services` | Create a service (requires `admin` role) |
 | DELETE | `/api/v1/lb/services/{id}` | Delete a service (requires `admin` role) |
+| GET | `/api/v1/lb/vips` | VIP announcer status - role, speaker, bindings, per-VIP counters |
+| POST | `/api/v1/lb/vips` | Apply a VIP announce configuration (requires `admin` role) |
+
+Each item of `GET /api/v1/lb/services` carries `id`, `name`, `protocol`,
+`listen_port`, `algorithm`, `mode`, `backend_count`, `enabled` and
+`health_checked`.
+
+`GET /api/v1/lb/services/{id}` adds the backends and, where the service carries
+one, a `health_check` block holding `protocol`, `interval_secs`, `timeout_secs`,
+`failure_threshold` and `recovery_threshold`. The block is omitted where there
+is none. Each backend carries `id`, `addr`, `port`, `weight`, `enabled`,
+`same_segment`, `status`, `active_connections` and `probed`.
+
+`probed` is what separates a measurement from a default. A backend is probed
+only where the service is enabled, carries a health check and the backend
+itself is enabled; everywhere else the backend keeps the `healthy` it was
+created with and nothing ever revisits it. A service created through
+`POST /api/v1/lb/services` carries no health check, so every one of its
+backends answers `probed: false` and reads `healthy` for as long as it exists.
 
 ## Code Architecture
 
