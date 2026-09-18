@@ -200,17 +200,23 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
 | JSON | - | `application/json` | Full structured report with all sections and evidence |
 | CSV | `/csv` | `text/csv` | Columns: section_id, section_title, control_id, control_name, status, evidence_count, recommendations |
 | Text | `/text` | `text/plain` | Structured text with title, metadata, summary table, section details |
-| PDF | `/pdf` | `application/pdf` | PDF carrying the organisation name, cross-reference matrix, and compliance score summary |
+| PDF | `/pdf` | `application/pdf` | A4 document carrying the framework, the generation time, the score and one line per control (attachment: `compliance-report.pdf`) |
 
 ### PDF Export
 
-PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla) library and include:
+PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla) library. An A4
+page carries:
 
-- **Organisation name** - the name sent with the request, displayed in the header
-- **Cross-reference matrix** - maps each control to framework requirements
-- **Compliance score** - visual summary with pass/fail/partial counts
-- **Section details** - per-control status, evidence, and remediation guidance
-- **Embedded fonts** - Liberation Sans family for consistent rendering across systems
+- **Header** - `Compliance Report: {framework}`, the generation time in UTC and the compliance score
+- **Control counts** - total, pass, partial, fail and not-applicable on one line
+- **Section details** - per section, one line per control: the control id, a `[PASS]` / `[PART]` /
+  `[FAIL]` / `[N/A]` marker, the control name and how many evidence items back it. The evidence
+  payloads and the remediation guidance are in the JSON and text exports rather than in the PDF
+- **Font** - the first of Liberation Sans, DejaVu Sans or Helvetica found at the usual system
+  paths. No font is shipped with the agent and the published image is distroless, so unless a font
+  is mounted into the container the route answers with the text export under the PDF content type
+  rather than with a document. Mount one at
+  `/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf` to get a real PDF
 
 ## Configuration
 

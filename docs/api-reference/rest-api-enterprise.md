@@ -299,7 +299,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/compliance/reports` | operator | `config:write` | compliance-reports | Generate a new report (`{ framework, period_start_ms, period_end_ms, format }`). |
 | `GET` | `/api/v1/compliance/reports/{id}` | viewer | `config:read` | compliance-reports | Fetch full report (JSON). |
 | `GET` | `/api/v1/compliance/reports/{id}/csv` | viewer | `config:read` | compliance-reports | Export as CSV (attachment: `report.csv`). |
-| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | `config:read` | compliance-reports | Export as branded PDF (attachment: `report.pdf`). |
+| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | `config:read` | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | `config:read` | compliance-reports | Export as structured text. |
 | `POST` | `/api/v1/compliance/segmentation/validate` | operator | `config:write` | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
 
