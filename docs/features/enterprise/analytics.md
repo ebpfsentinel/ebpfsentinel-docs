@@ -142,7 +142,11 @@ Statistical trend analysis using **Welford's online algorithm** for numerically 
 
 A background flush loop runs continuously:
 - **Every 60 seconds** - flush in-memory accumulators to persistent storage
-- **Every 24 hours** - auto-generate a 7-day trend report and cache it
+- **Every 24 hours thereafter** - auto-generate a 7-day trend report and cache it
+
+The first tick of the loop is a minute after startup, and the first report is generated there rather than a day later: the twenty-four hours are counted from the last report, and at startup there is none. So an agent that has been up for two minutes already has one cached report, covering a week most of which it was not running.
+
+An aggregate with nothing in it is not written: a minute whose traffic, alert or IOC counter is zero leaves no key in the store, which is why a quiet hour reads as missing keys rather than as rows of zeros.
 
 Up to **30 daily reports** are retained in memory and accessible via the history endpoint.
 
@@ -179,7 +183,7 @@ All query endpoints accept a `period` parameter:
 | Hours | `1h`, `6h`, `24h` | Short-range queries |
 | Days | `7d`, `30d` | Long-range queries |
 
-Default period is `24h`. The `top-talkers` endpoint also accepts a `limit` parameter (default: 20).
+Default period is `24h`. The `top-talkers` endpoint also accepts a `limit` parameter (default: 20), and `flows` a `limit` (default: 100) capped at **10,000** by the server whatever the caller asks for, plus an `offset`.
 
 `top-talkers`, `alerts`, `ioc` and `flows` also take the window as its two ends, `start_ms` and `end_ms` in milliseconds since the epoch, which is what a screen offering a pair of dates has to send: a window somebody picked by hand is rarely a whole number of hours and has no preset to name it with. Both ends or neither - half a window is refused with `400` rather than answered with the preset, as is a window whose start is not before its end. Where both are present they are read instead of `period`.
 
@@ -194,7 +198,7 @@ Trend endpoints take the `period` alone and require a minimum of **7 days**.
 | Field | Description |
 |-------|-------------|
 | `events_ingested` | Lifetime event counter |
-| `last_flush_ms` | Timestamp of last successful flush |
+| `last_flush_ms` | When the last flush cycle ran, or `null` before the first one. A cycle that failed to persist an aggregate logs the failure and still stamps this field, so it says when the loop last ran rather than when a write last succeeded |
 | `retention_days` | Configured retention window |
 
 There is no `enabled` field: the analytics routes are mounted only when the license carries the `advanced-analytics` feature, `enterprise.analytics.enabled` is `true`, and the store under `data_dir` opened, so a reachable status endpoint is itself the answer.
