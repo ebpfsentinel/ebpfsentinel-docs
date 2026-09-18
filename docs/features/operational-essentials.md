@@ -271,12 +271,21 @@ See [Enterprise Network Forensics](enterprise/network-forensics.md) for the full
 
 Detects DNS traffic encrypted via DNS-over-HTTPS (DoH) or DNS-over-TLS (DoT) that bypasses traditional DNS monitoring.
 
+Detection reads the TLS ClientHello the TC classifier ships to userspace, so
+it rides the L7 payload capture path: `l7.enabled` has to be on, and the port
+has to be one the classifier captures. Port 853 is folded into that set on its
+own whenever `l7` and `dns` are both enabled, since a TLS session to it is the
+whole of the DoT detection. DoH is decided on the SNI of an ordinary TLS
+session, so the port carrying it has to be listed in `l7.ports` (usually 443)
+- it is not folded in, because that would copy the payload of every TLS
+connection on the host.
+
 ### Detection Methods
 
 | Protocol | Detection | Criteria |
 |----------|-----------|----------|
-| DoT | Port-based | Destination port 853 (TCP/TLS) |
-| DoH | SNI-based | SNI matches known DoH resolver domains |
+| DoT | Port-based | Destination port 853 (TCP/TLS). The SNI, where the client wrote one, becomes the resolver label; otherwise it reads `unknown` |
+| DoH | SNI-based | SNI equals a known DoH resolver domain or is a subdomain of one |
 
 ### Built-in Resolvers
 
@@ -293,10 +302,11 @@ dns:
 
 ### Behavior
 
-Detection is **passive** (alert-only in OSS). Detected events are logged and
-counted on `ebpfsentinel_encrypted_dns_detections_total{protocol,resolver}`. A
-DoT detection reads the resolver name out of the TLS SNI, which the client
-writes, so the label is capped at 64 distinct values per process and everything
-past the cap is counted under `resolver="other"`.
+Detection is **passive** (alert-only in OSS). A detection raises a `dns` alert
+at `medium` severity naming the resolver, is logged, and is counted on
+`ebpfsentinel_encrypted_dns_detections_total{protocol,resolver}`. The resolver
+label comes out of the TLS SNI, which the client writes, so it is capped at 64
+distinct values per agent process and everything past the cap is counted under
+`resolver="other"`.
 
 Enterprise adds policy enforcement: block unauthorized DoH/DoT, allow-list for approved resolvers.

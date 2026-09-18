@@ -133,7 +133,9 @@ eBPFsentinel detects DNS traffic that bypasses traditional UDP/53 monitoring via
 | **DoT** | Port-based | Destination port 853 (TCP/TLS) |
 | **DoH** | SNI-based | TLS ClientHello SNI matches known DoH resolvers |
 
-Built-in DoH resolver domains are checked (dns.google, cloudflare-dns.com, dns.quad9.net, etc.). Custom resolvers can be added via config:
+Both read the TLS ClientHello the TC classifier ships, so detection needs `l7.enabled` and the port in the capture set. Port 853 is folded in on its own while `l7` and `dns` are both enabled; the port carrying DoH has to be listed in `l7.ports`.
+
+Built-in DoH resolver domains are checked (dns.google, cloudflare-dns.com, dns.quad9.net, etc.), matched against the SNI exactly or as a parent of it. Custom resolvers are hostnames rather than URLs, and are added via config:
 
 ```yaml
 dns:

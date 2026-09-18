@@ -31,7 +31,7 @@ dns:
     decay_half_life_hours: 24         # Exponential decay half-life in hours
     max_tracked_domains: 50000        # Maximum domains tracked for reputation
     high_risk_countries: [RU, CN]     # ISO 3166-1 alpha-2 codes
-  doh_resolvers: []                   # DNS-over-HTTPS resolver URLs for encrypted DNS detection
+  doh_resolvers: []                   # Extra DoH resolver hostnames for encrypted DNS detection
 ```
 
 ## Fields
@@ -44,7 +44,7 @@ dns:
 | `cache` | `Cache` | see below | DNS cache settings |
 | `blocklist` | `Blocklist` | see below | Domain blocklist settings |
 | `reputation` | `Reputation` | see below | Domain reputation settings |
-| `doh_resolvers` | `[string]` | `[]` | DNS-over-HTTPS resolver URLs (host or URL) used to detect encrypted DNS |
+| `doh_resolvers` | `[string]` | `[]` | Extra DoH resolver hostnames, matched against the TLS SNI exactly or as a parent of it, on top of the built-in list. A URL never matches, since an SNI carries a host and nothing else. Detection rides the L7 capture path, so `l7.enabled` and the port in `l7.ports` are what make it fire |
 
 ### Cache
 
