@@ -167,10 +167,20 @@ enterprise:
   # ── Compliance Reporting ────────────────────────────────────────
   compliance:
     enabled: true
-    # pci_dss_4 | hipaa | gdpr_art_32 | soc_2 | nis2 | dora | secnumcloud | hds
-    frameworks: [pci_dss_4, hipaa, gdpr_art_32, soc_2]
+    # pci_dss4 | hipaa | gdpr_art32 | soc2 | nis2 | dora | secnumcloud | hds
+    # (pci_dss_4, gdpr_art_32, soc_2, nis_2 and sec_num_cloud are accepted too;
+    #  a name outside that list is refused at startup rather than skipped)
+    frameworks: [pci_dss4, hipaa, gdpr_art32, soc2]
     schedule:                      # object, not a scalar
       frequency: weekly            # daily | weekly | monthly
+      frameworks: [pci_dss4, soc2] # left empty, the schedule covers all eight
+      email_recipients: []         # addresses mailed each run; needs smtp below
+      # smtp:
+      #   host: smtp.example.com
+      #   port: 587                # 587 with starttls, 465 with starttls: false
+      #   from: ebpfsentinel@example.com
+      #   starttls: true
+      # webhook_url: https://soar.example.com/hooks/compliance
     retention_days: 90
     output_dir: /var/lib/ebpfsentinel/reports
 

@@ -172,7 +172,10 @@ Reports can be generated automatically on a recurring schedule:
 | `Weekly` | 7 days |
 | `Monthly` | 30 days |
 
-The scheduler runs as a background tokio task, generating reports for all configured frameworks at each interval.
+The scheduler runs as a background tokio task, generating one report per framework in
+`schedule.frameworks` at each interval. That list is the schedule's own: left empty it falls back
+to all eight frameworks rather than to the top-level `frameworks`, so a schedule narrower than the
+agent's evaluation set has to name its frameworks.
 
 ### Delivery
 
@@ -254,6 +257,8 @@ enterprise:
 | `retention_days` | u32 | `90` | Days to retain generated reports |
 | `output_dir` | string | - | Optional directory for disk persistence |
 | `schedule` | object | - | Optional automated generation config |
+| `schedule.frequency` | string | `daily` | `daily`, `weekly` or `monthly` |
+| `schedule.frameworks` | list | all 8 | Frameworks generated on each tick (empty means all eight) |
 | `schedule.email_recipients` | list | - | Addresses emailed each scheduled report (requires `schedule.smtp`) |
 | `schedule.smtp` | object | - | SMTP server for email delivery (`host`, `port`, `from`, `username?`, `password?`, `starttls`) |
 | `schedule.webhook_url` | string | - | URL POSTed a JSON report summary on each scheduled run |
@@ -267,7 +272,7 @@ enterprise:
 | `GET` | `/api/v1/compliance/reports/{id}` | viewer | compliance-reports | Fetch full report (JSON). |
 | `GET` | `/api/v1/compliance/reports/{id}/csv` | viewer | compliance-reports | Export as CSV (attachment: `report.csv`). |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | compliance-reports | Export as structured text. |
-| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | compliance-reports | Export as branded PDF (attachment: `report.pdf`). |
+| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
 | `POST` | `/api/v1/compliance/segmentation/validate` | operator | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
 
 ### Error Responses
