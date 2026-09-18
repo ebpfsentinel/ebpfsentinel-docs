@@ -53,13 +53,19 @@ Each event wraps an OSS alert with enterprise metadata:
 | `event_id` | UUIDv7 (time-ordered) |
 | `tenant_id` | Optional multi-tenancy scope |
 | `alert` | Original OSS alert |
-| `export_timestamp_ms` | When the event was queued |
-| `destination_name` | Target connector name |
+| `export_timestamp_ms` | When the exporter sent the event, not when it was queued. Absent until then |
+| `destination_name` | Connector that handled the event, filled during export |
 | `delivery_attempt` | Retry counter (0 = first) |
+| `l7_enrichment` | Enterprise L7 enrichment, when the advanced L7 pipeline produced one. A side channel, so the OSS alert stays as the datapath wrote it |
 
 ## ECS Mapping
 
-All events are mapped to [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html):
+The Elasticsearch, OpenSearch and Wazuh connectors map each event to
+[Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html).
+The other seven do not: Splunk, S3 and ClickHouse carry the `SiemEvent` as it is
+stored, and Sentinel, QRadar and generic syslog carry CEF, LEEF and their own
+flat JSON. A deployment normalising on ECS therefore reads it off an index, not
+off every destination.
 
 | ECS Field | Source |
 |-----------|--------|
@@ -71,7 +77,8 @@ All events are mapped to [Elastic Common Schema](https://www.elastic.co/guide/en
 | `event.module` | `"ebpfsentinel"` |
 | `event.dataset` | `"ebpfsentinel.{component}"` |
 | `@timestamp` | ISO 8601 |
-| `rule.id`, `rule.name` | Alert rule |
+| `rule.id`, `rule.name` | The rule that raised the alert, under both names. There is one identifier, and a rule name that changed on every row would be a grouping nobody can use |
+| `ebpfsentinel.alert_id` | The alert's own identifier, `{timestamp}-{rule}-{sequence}` |
 | `source.ip`, `source.port` | Source address |
 | `destination.ip`, `destination.port` | Destination address |
 | `network.transport` | tcp/udp/icmp |
@@ -132,7 +139,7 @@ Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` se
 
 ### Splunk HEC
 
-- **Envelope**: `{"event": <ECS JSON>, "sourcetype": "...", "index": "...", "time": <float>}`
+- **Envelope**: `{"event": <SiemEvent JSON>, "sourcetype": "...", "index": "...", "time": <float>}` - the event as the buffer holds it, alert and enterprise metadata together, rather than an ECS document
 - **Batch format**: NDJSON (newline-delimited envelopes)
 - **Authentication**: `Authorization: Splunk {token}`
 - **Channel**: UUIDv7-based channel ID per exporter instance (for ACK correlation)
@@ -251,7 +258,7 @@ Exports events as NDJSON (one JSON object per line) to any S3-compatible object 
 Key features:
 
 - **Date-partitioned keys** - objects stored as `{prefix}/year=YYYY/month=MM/day=DD/hour=HH/{batch_id}.ndjson.gz` for efficient partition pruning
-- **Gzip compression** - configurable (enabled by default), reduces storage costs by 80-90%
+- **Gzip compression** - configurable (enabled by default), reduces storage costs by 80-90%. The key follows it: with `compress: false` the object is written as `.ndjson`, so a reader is never handed plain text under a gzip name
 - **S3-compatible** - works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store
 - **Authentication** - access key/secret key pair, or IAM instance roles when credentials are omitted
 
@@ -325,7 +332,7 @@ Each `RetroIocAlert` contains:
 ### Example Request
 
 ```bash
-curl -X POST http://agent:8080/api/v1/siem/retro-ioc-scan \
+curl -X POST http://agent:8444/api/v1/siem/retro-ioc-scan \
   -H 'Content-Type: application/json' \
   -d '{
     "iocs": [
