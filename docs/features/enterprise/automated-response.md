@@ -108,7 +108,7 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 
 ```bash
 # Create webhook endpoint
-curl -X POST http://agent:8080/api/v1/enterprise/response/webhooks \
+curl -X POST http://agent:8444/api/v1/enterprise/response/webhooks \
   -H 'Content-Type: application/json' \
   -d '{
     "id": "soar-splunk",
@@ -121,7 +121,7 @@ curl -X POST http://agent:8080/api/v1/enterprise/response/webhooks \
   }'
 
 # Create policy referencing the webhook
-curl -X POST http://agent:8080/api/v1/enterprise/response/policies \
+curl -X POST http://agent:8444/api/v1/enterprise/response/policies \
   -H 'Content-Type: application/json' \
   -d '{
     "id": "notify-critical",
@@ -152,19 +152,24 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 
 ```bash
 # All recent actions
-curl http://agent:8080/api/v1/enterprise/response/audit
+curl http://agent:8444/api/v1/enterprise/response/audit
 
 # Filter by policy
-curl "http://agent:8080/api/v1/enterprise/response/audit?policy_id=block-c2-traffic"
+curl "http://agent:8444/api/v1/enterprise/response/audit?policy_id=block-c2-traffic"
 
 # Filter by action type
-curl "http://agent:8080/api/v1/enterprise/response/audit?action_type=webhook_notify"
+curl "http://agent:8444/api/v1/enterprise/response/audit?action_type=webhook_notify"
 
 # Filter by outcome
-curl "http://agent:8080/api/v1/enterprise/response/audit?outcome=failed&limit=50"
+curl "http://agent:8444/api/v1/enterprise/response/audit?outcome=failed&limit=50"
+
+# Only what happened after a given moment, in nanoseconds since the epoch
+curl "http://agent:8444/api/v1/enterprise/response/audit?since_ns=1750000000000000000"
 ```
 
-Filters are applied before the limit, and the limit keeps the most recent matches.
+The four filters - `policy_id`, `action_type`, `outcome` and `since_ns` - combine,
+are applied before the limit, and the limit keeps the most recent matches. The
+answer is a bare array, newest first.
 
 ## REST API
 
@@ -195,13 +200,18 @@ Filters are applied before the limit, and the limit keeps the most recent matche
 Response policies and webhook endpoints are persisted to a **redb** key-value
 store, in the `response_policies` and `response_webhooks` tables, and are
 restored on startup. The state store path is configured via
-`enterprise.state_store_path` (default: `/var/lib/ebpfsentinel/state.redb`).
+`enterprise.response.state_path` (default:
+`/var/lib/ebpfsentinel/response_state.redb`). When that directory does not exist
+and the configuration names no path, the agent falls back to
+`ebpfsentinel_response_state.redb` in the system temporary directory, so a
+policy written on an agent running without `/var/lib/ebpfsentinel` survives a
+reload but not a reboot.
 
 Two things are deliberately not in that store, and an operator planning a restart
 has to count on neither:
 
 - **The audit trail is in memory.** It is a bounded ring of the most recent
-  action results, capped by `audit_max`, and it is empty after a restart. Export
+  action results, capped by `audit_max_entries`, and it is empty after a restart. Export
   it to a SIEM if the record has to outlive the process.
 - **Containment does not survive a restart.** An active block, rate limit or flow
   isolation lives in an eBPF map with a TTL, and nothing replays those entries
