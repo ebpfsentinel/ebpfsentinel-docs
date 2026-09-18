@@ -259,15 +259,15 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
-| `GET` | `/api/v1/analytics/alerts` | viewer | `config:read` | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/flows` | viewer | `config:read` | advanced-analytics | Flow volume aggregates over the requested period. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/ioc` | viewer | `config:read` | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). Query: `period` (default 24h). |
+| `GET` | `/api/v1/analytics/alerts` | viewer | `config:read` | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
+| `GET` | `/api/v1/analytics/flows` | viewer | `config:read` | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h) or `start_ms` + `end_ms`, `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order`. |
+| `GET` | `/api/v1/analytics/ioc` | viewer | `config:read` | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
 | `GET` | `/api/v1/analytics/status` | viewer | `config:read` | advanced-analytics | Pipeline status. |
-| `GET` | `/api/v1/analytics/top-talkers` | viewer | `config:read` | advanced-analytics | Top talkers with period-over-period deltas. Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). Query: `period` (default 24h), `limit` (default 20). |
-| `GET` | `/api/v1/analytics/trends` | viewer | `config:read` | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/csv` | viewer | `config:read` | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/top-talkers` | viewer | `config:read` | advanced-analytics | Top talkers with window-over-window deltas. Query: `period` (default 24h) or `start_ms` + `end_ms`, `limit` (default 20). |
+| `GET` | `/api/v1/analytics/trends` | viewer | `config:read` | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/csv` | viewer | `config:read` | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). |
 | `GET` | `/api/v1/analytics/trends/history` | viewer | `config:read` | advanced-analytics | Cached daily trend reports (up to 30). |
-| `GET` | `/api/v1/analytics/trends/text` | viewer | `config:read` | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/text` | viewer | `config:read` | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). |
 
 ## Automated response
 

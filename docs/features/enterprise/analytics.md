@@ -181,7 +181,11 @@ All query endpoints accept a `period` parameter:
 
 Default period is `24h`. The `top-talkers` endpoint also accepts a `limit` parameter (default: 20).
 
-Trend endpoints require a minimum period of **7 days**.
+`top-talkers`, `alerts`, `ioc` and `flows` also take the window as its two ends, `start_ms` and `end_ms` in milliseconds since the epoch, which is what a screen offering a pair of dates has to send: a window somebody picked by hand is rarely a whole number of hours and has no preset to name it with. Both ends or neither - half a window is refused with `400` rather than answered with the preset, as is a window whose start is not before its end. Where both are present they are read instead of `period`.
+
+Those four answers state the window they were read over, as `start_ms` and `end_ms`, rather than a period they may not have been asked with. `top-talkers` compares against the window of the same length immediately before.
+
+Trend endpoints take the `period` alone and require a minimum of **7 days**.
 
 ## Pipeline Status
 
@@ -223,10 +227,10 @@ enterprise:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with period-over-period deltas. Query: `period` (default 24h), `limit` (default 20). |
-| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h). |
-| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h), `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order` (`asc` or `desc`, default `desc`). |
+| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with window-over-window deltas. Query: `period` (default 24h) or `start_ms` + `end_ms`, `limit` (default 20). |
+| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
+| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
+| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h) or `start_ms` + `end_ms`, `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order` (`asc` or `desc`, default `desc`). |
 | `GET` | `/api/v1/analytics/status` | viewer | advanced-analytics | Pipeline status. |
 | `GET` | `/api/v1/analytics/trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). |
 | `GET` | `/api/v1/analytics/trends/csv` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). |
