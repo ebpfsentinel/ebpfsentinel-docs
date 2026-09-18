@@ -4,7 +4,7 @@
 
 ## Overview
 
-eBPFsentinel supports three authentication methods for API and CLI access: static API keys, JWT (RS256), and OIDC (JWKS discovery). Methods can be combined - API keys work alongside JWT or OIDC via a composite authentication provider. Role-based access control (RBAC) governs what each authenticated identity can do.
+eBPFsentinel supports three authentication methods for API and CLI access: static API keys, JWT (RS256 or EdDSA, from a PEM file or a JWKS endpoint), and OIDC (JWKS discovery). Methods can be combined - API keys work alongside JWT or OIDC via a composite authentication provider. Role-based access control (RBAC) governs what each authenticated identity can do.
 
 ## Authentication Methods
 
@@ -15,6 +15,8 @@ Static tokens configured in YAML. Best for automation, CI/CD pipelines, and moni
 ```yaml
 auth:
   enabled: true
+  api_key_salt: "a-stable-secret"   # Optional. A random 32-byte salt is drawn at
+                                    # startup when absent, so hashes change on restart
   api_keys:
     - name: admin
       key: "sk-change-me-admin-key"
@@ -22,7 +24,15 @@ auth:
     - name: monitoring
       key: "sk-change-me-monitoring"
       role: viewer
+    - name: prod-operator
+      key: "sk-change-me-operator"
+      role: operator
+      namespaces: [prod, staging]   # Namespaces this key may write to
 ```
+
+`role` defaults to `viewer` when omitted. `namespaces` is only consulted for
+the `operator` role: a key with an empty or absent list grants no namespace at
+all, which is a deny rather than a wildcard.
 
 Use with `X-API-Key` header or `--token` CLI flag:
 
@@ -31,20 +41,50 @@ curl -H "X-API-Key: sk-change-me-admin-key" http://localhost:8080/api/v1/firewal
 ebpfsentinel-agent --token sk-change-me-admin-key firewall list
 ```
 
-### JWT (RS256)
+### JWT
 
-Service-to-service authentication with an RSA public key. The agent validates JWT tokens against the configured issuer, audience, and public key. Bearer tokens are pre-validated for correct JWT structure (three dot-separated Base64 parts) before cryptographic verification, rejecting malformed inputs early. RSA 2048-bit minimum key size is enforced at key load and on rotation.
+Service-to-service authentication against a public key the agent holds. The
+agent validates tokens against the configured issuer, audience and key. Bearer
+tokens are pre-validated for correct JWT structure (three dot-separated Base64
+parts) before cryptographic verification, rejecting malformed inputs early. RSA
+2048-bit minimum key size is enforced at key load and on rotation.
 
-Token revocation is supported via `sub:iat` revocation keys - when a token is revoked, its subject and issued-at timestamp form a composite key that is checked on every request.
+Two algorithms are accepted. `RS256` is the default and verifies with an
+RSA-2048+ public key. `EdDSA` verifies with an Ed25519 key, which is what the
+dashboard's short-lived per-tenant tokens use.
+
+The verification key comes from exactly one of `public_key_path` (a PEM file on
+disk) or `jwks_url` (an endpoint the agent fetches at startup and refreshes in
+the background). Setting both is refused at boot rather than resolved by
+precedence.
+
+Token revocation is supported via `sub:iat` revocation keys - when a token is
+revoked, its subject and issued-at timestamp form a composite key that is
+checked on every request.
 
 ```yaml
 auth:
   enabled: true
   jwt:
+    algorithm: RS256               # RS256 (default) or EdDSA
     issuer: "https://auth.example.com"
     audience: "ebpfsentinel"
     public_key_path: /etc/ebpfsentinel/jwt.pub
 ```
+
+```yaml
+auth:
+  enabled: true
+  jwt:
+    algorithm: EdDSA
+    issuer: "https://dashboard.example.com"
+    audience: "ebpfsentinel"
+    jwks_url: "https://dashboard.example.com/.well-known/jwks.json"
+    jwks_cache_ttl_seconds: 3600       # Default 3600
+    jwks_refresh_on_unknown_kid: true  # Default true: refetch once on an unknown kid
+```
+
+`issuer` and `audience` are optional and validated only when set.
 
 ### OIDC (JWKS Discovery)
 
@@ -55,6 +95,8 @@ auth:
   enabled: true
   oidc:
     jwks_url: "https://auth.example.com/.well-known/jwks.json"
+    issuer: "https://auth.example.com"   # Optional, validated when set
+    audience: "ebpfsentinel"             # Optional, validated when set
 ```
 
 ### Combined Authentication
@@ -77,8 +119,10 @@ auth:
 | Role | Permissions |
 |------|-------------|
 | `admin` | Full access to all endpoints |
-| `operator` | Namespace-scoped writes (create/update/delete rules). `namespace: None` in claims means deny-all (not unrestricted) - operators without explicit namespace grants cannot write to any namespace. |
+| `operator` | Every write the `viewer` role is refused, **except** firewall rules whose scope is `global` or an interface: those are admin-only. A namespace-scoped rule needs that namespace in the identity's `namespaces` claim, and an identity with no `namespaces` claim at all grants no namespace rather than all of them |
 | `viewer` | Read-only access to all endpoints |
+
+A token carrying no `role` claim is treated as `viewer`.
 
 ### Public Endpoints (No Auth Required)
 
@@ -88,6 +132,8 @@ auth:
 | `/readyz` | Readiness probe |
 
 All `/api/v1/*` endpoints require authentication when `auth.enabled: true`.
+`/metrics` does too, unless `auth.metrics_auth_required: false` is set - the
+default is `true`, so a Prometheus scraper needs a viewer key.
 
 ### Rate Limiting
 
