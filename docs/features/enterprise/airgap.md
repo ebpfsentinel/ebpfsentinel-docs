@@ -204,7 +204,7 @@ imported while nothing was ever enforced on.
 ### API Import
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/airgap/import \
+curl -X POST http://127.0.0.1:8444/api/v1/airgap/import \
   -H 'Content-Type: application/json' \
   -d '{"bundle_dir": "/path/to/bundle"}'
 ```
@@ -232,7 +232,7 @@ When `auto_import: true`, the agent scans `bundle_dir` for bundles on startup an
 
 Bundles have a maximum age to prevent stale threat intelligence:
 
-- Default: **7 days** from bundle creation timestamp
+- Default: **7 days**, counted per feed rather than from the bundle as a whole
 - Check per-feed `last_updated_ms` against `max_age_days`
 - Returns warnings (not errors) for stale feeds
 
@@ -241,9 +241,14 @@ POST /api/v1/airgap/check-freshness
 { "bundle_dir": "/path/to/bundle", "max_age_days": 7 }
 
 // Response
-{ "fresh": true, "warnings": [] }
+{ "status": "ok", "fresh": true, "max_age_days": 7, "warnings": [] }
 // or
-{ "fresh": false, "warnings": ["feed 'abuse-ch' is 12 days old (max: 7)"] }
+{
+  "status": "ok",
+  "fresh": false,
+  "max_age_days": 7,
+  "warnings": ["feed 'abuse-ch' is 12 days old (max allowed: 7)"]
+}
 ```
 
 ## Verified Feed Loading
