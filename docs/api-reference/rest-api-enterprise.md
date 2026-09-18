@@ -224,6 +224,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | operator | `config:write` | ai-llm-security | Add a prompt inspection pattern. |
 | `DELETE` | `/api/v1/enterprise/ai-security/ai-dlp/patterns/{id}` | operator | `config:write` | ai-llm-security | Remove a prompt inspection pattern. |
 | `GET` | `/api/v1/enterprise/ai-security/alerts` | viewer | `config:read` | ai-llm-security | List AI security alerts. |
+| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | viewer | `config:read` | ai-llm-security | Encrypted DNS policy decisions taken on submitted events. |
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | viewer | `config:read` | ai-llm-security | Current DoH and DoT handling policy. |
 | `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | operator | `config:write` | ai-llm-security | Replace the DoH and DoT handling policy. |
 | `POST` | `/api/v1/enterprise/ai-security/events` | operator | `config:write` | ai-llm-security | Process a connection event. |
