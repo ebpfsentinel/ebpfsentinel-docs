@@ -47,13 +47,18 @@ feature each one requires in
 license does not carry is never mounted, so a call to one of its paths answers
 `404 Not Found` rather than `403 Forbidden`.
 
-Three routes are mounted whatever the license carries:
+Four routes are mounted whatever the license carries:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
+| `GET` | `/api/v1/license` | viewer | none | What the license itself says. Gating this on a feature would leave an expired deployment with no way to read why it had stopped working. |
 | `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
 | `GET` | `/metrics` | none | none | OpenMetrics text output for every enterprise metric. |
+
+`/api/v1/alerts` is free of the license and not free of the configuration: it is
+mounted only where the OSS datapath was activated and its alert store opened, so
+an enterprise agent running no OSS datapath answers `404 Not Found` there too.
 
 ## Enterprise Architecture
 
@@ -67,7 +72,9 @@ ebpfsentinel-enterprise/
 ├── enterprise-adapters/        # HTTP handlers, gRPC services, persistence (redb), SIEM connectors
 ├── enterprise-infrastructure/  # Config parsing, TLS CA, encrypted assets, binary integrity
 ├── enterprise-agent/           # CLI + HTTP server entry point
-├── enterprise-license/         # License management CLI tool
+├── enterprise-license/         # Signing and verification library plus its CLI, behind the `cli` feature
+├── enterprise-warden/          # Privileged broker the rootless agent asks for what a user namespace cannot do
+├── enterprise-warden-proto/    # The wire contract between the agent and that broker
 ├── enterprise-vectorscan/      # Safe Rust Vectorscan wrapper
 └── enterprise-vectorscan-sys/  # Vectorscan FFI bindings
 ```
