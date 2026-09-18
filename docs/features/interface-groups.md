@@ -100,6 +100,29 @@ Interface groups are enforced in 6 eBPF programs:
 
 Programs without interface group support (tc-conntrack, tc-scrub, tc-threatintel, tc-dns, xdp-loadbalancer, uprobe-dlp) process all traffic unconditionally.
 
+## REST API
+
+Interface groups have no surface of their own: there is nothing to list, create or delete, because a group is a name a configuration file gives a set of interfaces. What the API does answer is which groups each rule is scoped to, so a listing reads the same way the file that declared it does.
+
+| Method | Path | Answers `interfaces` on |
+|--------|------|-------------------------|
+| GET | `/api/v1/firewall/rules` | Each rule |
+| GET | `/api/v1/ratelimit/rules` | Each rule |
+| GET | `/api/v1/nat/rules` | Each rule |
+| GET | `/api/v1/nat/nptv6` | Each prefix rule |
+| GET | `/api/v1/ids/rules` | Each detection rule |
+| GET | `/api/v1/ips/rules` | Each prevention rule |
+| GET | `/api/v1/qos/pipes` | Each pipe |
+| GET | `/api/v1/qos/classifiers` | Each classifier |
+
+`interfaces` is a list of group names in the spelling the configuration file used, `!` prefix included, so `["wan", "!lab"]` on the wire is `interfaces: [wan, "!lab"]` in the file. The field is **omitted rather than empty** on a floating rule, which is the wider reading: a rule naming no group is evaluated on every interface the programs are attached to, never on none.
+
+A group the running configuration no longer defines is reported as `bit-<position>`, naming the bit the rule still carries. That is a rule scoped to a group that has gone, which matches nothing on an interface nobody put back in it.
+
+Rules created through the API are always floating: no create route accepts an `interfaces` field, because group membership is a property of the configuration and a rule the file does not carry cannot be scoped against it. Scope a rule by declaring it in the configuration file.
+
+The eight CLI listings behind those routes - `firewall list`, `ratelimit list`, `nat rules`, `nat nptv6 list`, `ids rules`, `ips list`, `qos pipes` and `qos classifiers` - print the same reading in an `INTERFACES` column, `*` for a floating rule.
+
 ## eBPF Implementation
 
 Each of the 6 programs has an `INTERFACE_GROUPS` HashMap map:

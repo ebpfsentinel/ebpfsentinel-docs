@@ -96,7 +96,7 @@ A single alert event streamed to the client.
 
 Container and Kubernetes provenance for an alert, resolved from the originating process's cgroup_id. Mirrors the HTTP alert DTO's container block. The Kubernetes fields are populated only when a k8s enricher attached pod metadata.
 
-6 fields, in declaration order. The number is the wire tag and never changes.
+8 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
@@ -106,6 +106,8 @@ Container and Kubernetes provenance for an alert, resolved from the originating 
 | 4 | `namespace` | `string` | Kubernetes namespace (empty unless a k8s enricher attached metadata). |
 | 5 | `pod` | `string` | Kubernetes pod name (empty unless a k8s enricher attached metadata). |
 | 6 | `container_name` | `string` | Kubernetes container name (empty unless a k8s enricher attached metadata). |
+| 7 | `name` | `string` | Container name (empty unless the Docker enricher attached metadata). |
+| 8 | `image` | `string` | Image tag (empty unless the Docker enricher attached metadata). |
 
 <!-- END GENERATED MESSAGES -->
 ### Usage

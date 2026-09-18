@@ -399,6 +399,86 @@
         ]
       }
     },
+    "/api/v1/alerts/{id}": {
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "`GET /api/v1/alerts/{id}` - one stored alert by identifier.",
+        "operationId": "get_alert",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Alert identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored alert",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Alert not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Alert store not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/alerts/{id}/false-positive": {
       "post": {
         "tags": [
@@ -1123,6 +1203,96 @@
         ]
       }
     },
+    "/api/v1/config/{section}": {
+      "put": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Write one section of the agent configuration file and reload.",
+        "operationId": "put_config_section",
+        "parameters": [
+          {
+            "name": "section",
+            "in": "path",
+            "description": "Configuration key, dotted for a nested one",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigSectionWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Section written and reload triggered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReloadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed section, malformed YAML, or a configuration the agent refuses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Configuration writes are not enabled on this agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The file could not be read or replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/conntrack/connections": {
       "get": {
         "tags": [
@@ -1211,7 +1381,7 @@
             }
           },
           "404": {
-            "description": "Conntrack event stream not enabled, which is also what a kernel built without `CONFIG_NF_CONNTRACK_PROCFS` answers, since the poller has nothing to read",
+            "description": "Conntrack event stream not enabled, which is what a host answers when the poller has no table to read: neither `/proc/net/nf_conntrack` nor a `conntrack -L` this agent is allowed to run. A kernel built without `CONFIG_NF_CONNTRACK_PROCFS` still streams where conntrack-tools answer, so the missing proc file is not on its own the reason",
             "content": {
               "application/json": {
                 "schema": {
@@ -6956,8 +7126,9 @@
           "timestamp_ns",
           "component",
           "action",
-          "src_ip",
-          "dst_ip",
+          "src_addr",
+          "dst_addr",
+          "is_ipv6",
           "src_port",
           "dst_port",
           "protocol",
@@ -6974,15 +7145,23 @@
           "detail": {
             "type": "string"
           },
-          "dst_ip": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
+          "dst_addr": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Destination address (same encoding as `src_addr`)."
           },
           "dst_port": {
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "is_ipv6": {
+            "type": "boolean",
+            "description": "`true` if the addresses are IPv6."
           },
           "protocol": {
             "type": "integer",
@@ -6992,10 +7171,14 @@
           "rule_id": {
             "type": "string"
           },
-          "src_ip": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
+          "src_addr": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Source address as four big-endian u32 words.\nIPv4: `[v4, 0, 0, 0]`. IPv6: full 128-bit address."
           },
           "src_port": {
             "type": "integer",
@@ -7211,16 +7394,31 @@
           }
         }
       },
+      "ConfigSectionWrite": {
+        "type": "object",
+        "description": "One section of the configuration, as the editor holds it.",
+        "required": [
+          "yaml"
+        ],
+        "properties": {
+          "yaml": {
+            "type": "string",
+            "description": "A YAML document rooted at the section's own key, exactly as the read\nroute renders it, so the text an operator edited is the text that\ncomes back."
+          }
+        }
+      },
       "ConnTrackStatusResponse": {
         "type": "object",
         "required": [
           "enabled",
-          "connection_count",
           "max_connections"
         ],
         "properties": {
           "connection_count": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
             "minimum": 0
           },
@@ -7298,7 +7496,7 @@
       },
       "ContainerIdentity": {
         "type": "object",
-        "description": "Container provenance surfaced on an alert. `kind` is `container` for a\nresolved container and `host` for a host-namespace process; the Docker /\nKubernetes fields are populated only when an enricher attached metadata.",
+        "description": "Container provenance surfaced on an alert.\n\nThe field is absent altogether for a host-namespace process, so `kind` is\nalways `container` where the object exists at all. It is kept because a\nreader that has to tell a container apart from a host should be told so by\na value rather than by an absence it has to interpret.\n\nThe Kubernetes and the Docker halves are filled by whichever enricher\nattached metadata, and never both, since the pipeline keeps the first\nenricher that answered.",
         "required": [
           "kind",
           "runtime",
@@ -7319,11 +7517,25 @@
           },
           "id": {
             "type": "string",
-            "description": "Container ID (empty for host)."
+            "description": "Container ID."
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Image tag (only when the Docker enricher attached metadata)."
           },
           "kind": {
             "type": "string",
-            "description": "`container` or `host`."
+            "description": "Always `container`: a host-namespace process carries no identity."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Container name (only when the Docker enricher attached metadata)."
           },
           "namespace": {
             "type": [
@@ -7979,11 +8191,13 @@
       },
       "DdosAttackResponse": {
         "type": "object",
+        "description": "One flood the detector is tracking, or tracked until it expired.",
         "required": [
           "id",
           "attack_type",
           "status",
           "start_time_ns",
+          "last_seen_ns",
           "peak_pps",
           "current_pps",
           "total_packets",
@@ -7991,7 +8205,8 @@
         ],
         "properties": {
           "attack_type": {
-            "type": "string"
+            "type": "string",
+            "description": "`syn_flood`, `udp_amplification`, `icmp_flood`, `rst_flood`,\n`fin_flood`, `ack_flood` or `volumetric`: the same spelling the\nconfiguration file uses and `POST /api/v1/ddos/policies` accepts."
           },
           "current_pps": {
             "type": "integer",
@@ -8000,6 +8215,12 @@
           },
           "id": {
             "type": "string"
+          },
+          "last_seen_ns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the detector last counted a packet against this attack. On the\nhistory route this is where the flood stopped, which a start alone\ncannot say.",
+            "minimum": 0
           },
           "peak_pps": {
             "type": "integer",
@@ -8011,13 +8232,21 @@
             "format": "int64",
             "minimum": 0
           },
+          "src_country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source country, `null` where `GeoIP` resolved none. A policy carrying\n`country_thresholds` is judged against this, and a `block` policy\ninjects this country's CIDRs into the firewall, so an attack with no\ncountry here is one no country rule acted on."
+          },
           "start_time_ns": {
             "type": "integer",
             "format": "int64",
             "minimum": 0
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "`detecting`, `active`, `mitigated` or `expired`."
           },
           "total_packets": {
             "type": "integer",
@@ -8038,12 +8267,28 @@
         ],
         "properties": {
           "attack_type": {
-            "type": "string"
+            "type": "string",
+            "description": "Spelled the way the configuration file and the create route spell it."
           },
           "auto_block_duration_secs": {
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "country_thresholds": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-country thresholds that replace `detection_threshold_pps` for\ntraffic from those countries, absent where the policy carries none.\nReading it back is the only way to explain a policy that fired well\nunder the threshold beside it.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "detection_threshold_pps": {
             "type": "integer",
@@ -8057,7 +8302,8 @@
             "type": "string"
           },
           "mitigation_action": {
-            "type": "string"
+            "type": "string",
+            "description": "`alert`, `throttle` or `block`."
           }
         }
       },
@@ -8093,20 +8339,31 @@
         "required": [
           "id",
           "name",
+          "description",
           "regex",
           "severity",
           "data_type",
+          "mode",
           "enabled"
         ],
         "properties": {
           "data_type": {
-            "type": "string"
+            "type": "string",
+            "description": "`pci`, `pii`, `credentials` or `custom`."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the pattern is for, as the configuration file wrote it. Empty\nwhere none was written."
           },
           "enabled": {
             "type": "boolean"
           },
           "id": {
             "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "description": "`alert` or `block`, this pattern's own. A pattern may block while the\nservice default alerts, so a listing carrying only the service mode\nreads as a set of patterns that all merely report."
           },
           "name": {
             "type": "string"
@@ -8115,7 +8372,8 @@
             "type": "string"
           },
           "severity": {
-            "type": "string"
+            "type": "string",
+            "description": "`low`, `medium`, `high` or `critical`."
           }
         }
       },
@@ -8594,7 +8852,7 @@
           },
           "status": {
             "type": "string",
-            "description": "Health-check observed status (`healthy` / `degraded` / `down`)."
+            "description": "Health-check observed status (`healthy` / `down`)."
           },
           "weight": {
             "type": "integer",
@@ -8708,8 +8966,35 @@
           "enabled"
         ],
         "properties": {
+          "country_thresholds": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-country threshold overrides, keyed by ISO 3166-1 alpha-2 code. A\nrule stricter for one country reads as a single threshold without\nthem.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ThresholdResponse"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
           "description": {
             "type": "string"
+          },
+          "domain_match_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How `domain_pattern` is read: `exact`, `wildcard` or `regex`."
+          },
+          "domain_pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Domain the rule matches on, for rules evaluated against resolved names\nrather than against a port."
           },
           "dst_port": {
             "type": [
@@ -8724,6 +9009,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which sees every interface the classifier is attached to."
           },
           "kernel_slot": {
             "oneOf": [
@@ -8747,6 +9039,15 @@
           },
           "severity": {
             "type": "string"
+          },
+          "src_port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Source-port match, set on rules watching the reply leg of a flow. A\nrule carrying one fires on nothing else, so a listing that dropped it\nread as matching every port.",
+            "minimum": 0
           },
           "threshold": {
             "oneOf": [
@@ -8849,6 +9150,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which enforces on every interface the classifier is on."
           },
           "kernel_slot": {
             "oneOf": [
@@ -9319,6 +9627,13 @@
           "id": {
             "type": "string"
           },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which translates on every interface the programs are on."
+          },
           "nat_type": {
             "type": "string"
           },
@@ -9364,6 +9679,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which translates on every interface the programs are on."
           },
           "internal_prefix": {
             "type": "string"
@@ -9428,6 +9750,13 @@
         "properties": {
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which shapes every interface the programs are on."
           },
           "match_rule": {
             "$ref": "#/components/schemas/QosMatchRuleResponse"
@@ -9526,6 +9855,13 @@
           "id": {
             "type": "string"
           },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which shapes every interface the programs are on."
+          },
           "loss_pct": {
             "type": "number",
             "format": "float"
@@ -9610,6 +9946,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which meters every interface the programs are on."
           },
           "rate": {
             "type": "integer",
@@ -9961,6 +10304,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The interface groups this rule is scoped to, in the words the\nconfiguration file used, `!` prefix included. Empty is a floating\nrule, which is the only thing a rule created through this API can be."
           },
           "max_states": {
             "type": [
