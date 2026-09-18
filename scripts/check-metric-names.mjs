@@ -64,6 +64,11 @@ const entMetricsRs = process.env.EBPFSENTINEL_ENT_METRICS_RS
 const PREFIX = 'ebpfsentinel_';
 const ENT_PREFIX = 'ebpfsentinel_ent_';
 const TOKEN = /ebpfsentinel_[a-z0-9_]+/g;
+// A token carrying a file extension is a filename rather than a series. The
+// state stores on disk are named after the agent the same way a metric is, so
+// `ebpfsentinel_rbac_state.redb` would otherwise be reported as a name no
+// registry exposes, which is a failure nobody can act on.
+const FILE_EXTENSION = /^\.[a-z0-9]+/;
 const HISTOGRAM_SUFFIXES = ['_bucket', '_sum', '_count'];
 
 function fail(lines) {
@@ -191,7 +196,9 @@ function metricNameIn(cell) {
 for (const file of markdownFiles(docsRoot).sort()) {
   const lines = readFileSync(file, 'utf8').split('\n');
   lines.forEach((line, index) => {
-    for (const token of line.match(TOKEN) ?? []) {
+    for (const match of line.matchAll(TOKEN)) {
+      const token = match[0];
+      if (FILE_EXTENSION.test(line.slice(match.index + token.length))) continue;
       if (exposed.has(token)) {
         named.add(token);
         continue;
