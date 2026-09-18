@@ -4,7 +4,7 @@
 
 ## Overview
 
-TLS Intelligence provides deep visibility into TLS handshake metadata across the network. It fingerprints clients and servers using JA4+ hashes, detects anomalous TLS behavior via statistical rarity scoring, tracks post-quantum cryptography adoption, and enforces cipher/protocol compliance policies. All analysis operates on handshake metadata extracted by eBPF -- no decryption required.
+TLS Intelligence provides deep visibility into TLS handshake metadata across the network. It fingerprints clients and servers using JA4+ hashes, detects anomalous TLS behavior via statistical rarity scoring, tracks post-quantum cryptography adoption, and enforces cipher/protocol compliance policies. All analysis operates on handshake metadata extracted by eBPF - no decryption required.
 
 Four sub-capabilities:
 
@@ -313,7 +313,7 @@ Tracks TLS session ticket reuse across destinations. If the same session ticket 
 
 ### Beaconing-TLS Bridge
 
-Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, ja4)` - same TLS fingerprint to the same destination at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
+Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, dst_port, ja4)` - same TLS fingerprint to the same destination endpoint at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
 
 ### ONNX TLS Feature Extraction
 
