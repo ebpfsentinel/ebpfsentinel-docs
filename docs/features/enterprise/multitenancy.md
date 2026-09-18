@@ -19,8 +19,8 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `description` | Optional description |
 | `tenant_id` | Numeric tenant identifier - allocated once (`max + 1`) and **stable** for the life of the tenant; adding/suspending/removing other tenants never renumbers it. The default tenant is always `0`. |
 | `quota` | Per-tenant resource limits |
-| `status` | `Active` or `Suspended`|
-| `source` | `Config` (YAML) or `Api` (dynamic creation) |
+| `status` | `active` or `suspended` |
+| `source` | `config` (YAML) or `api` (dynamic creation) |
 | `self_service` | Self-service policy with allowed operations |
 
 ### Isolation Modes
@@ -240,13 +240,13 @@ Dynamic tenant changes propagate to the kernel **live, without a restart**: afte
 
 | Status | Description |
 |--------|-------------|
-| `Active` | Tenant is operational, rules are enforced, self-service allowed |
-| `Suspended` | Tenant rules are inactive, API operations blocked, alerts suppressed |
+| `active` | Tenant is operational, rules are enforced, self-service allowed |
+| `suspended` | Tenant rules are inactive, API operations blocked, alerts suppressed |
 
 | Source | Description |
 |--------|-------------|
-| `Config` | Defined in YAML config (default) |
-| `Api` | Created dynamically via `POST /api/v1/enterprise/tenants` |
+| `config` | Defined in YAML config (default) |
+| `api` | Created dynamically via `POST /api/v1/enterprise/tenants` |
 
 ### Self-Service Policy
 
@@ -414,14 +414,32 @@ by hand.
 {
   "id": "client-c",
   "name": "client-c",
-  "tenant_id": 4,
-  "interfaces": ["eth2"],
-  "subnets": ["10.3.0.0/16", "fd00:abcd::/48"],
-  "vlans": [300],
   "namespaces": [],
-  "quota": { "max_rules": 1000, "max_alert_rate": 10000, ... }
+  "interfaces": ["eth2"],
+  "description": null,
+  "tenant_id": 4,
+  "subnets": ["10.3.0.0/16", "fd00:abcd::/48"],
+  "vlans": [300]
 }
 ```
+
+That is the whole of it: the tenant response carries the identity and the three
+attribution lists and **nothing else**. The quota and its usage are a separate
+reading at `GET /api/v1/tenants/{id}/quota`, which answers
+`{ "tenant_id", "quota": { "max_rules", "max_alert_rate", "max_patterns",
+"max_ratelimit_rules", "max_qos_pipes" }, "usage": { "rules", "alert_rate",
+"patterns", "ratelimit_rules", "qos_pipes" } }`; the status, the source and the
+self-service policy are on the tenant object but on no response here, the last
+of them read at `GET /api/v1/enterprise/tenants/{id}/self-service`.
+
+`GET /api/v1/tenants` wraps the same objects rather than returning a bare array:
+`{ "tenants": [ ... ], "count": 3 }`.
+
+Creating a tenant through `POST /api/v1/enterprise/tenants` requires both `id`
+and `name` - the YAML default of falling back to the id is the config loader's
+and not the API's. Everything else on that body is optional, `tenant_id` is
+assigned by the agent whatever the body says, and a tenant created this way is
+always `active` with source `api`.
 
 ### Quota Check Request/Response
 
