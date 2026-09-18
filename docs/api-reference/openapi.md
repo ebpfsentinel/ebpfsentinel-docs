@@ -8,14 +8,14 @@ There are **two** documents, not one. The open-source agent describes its own su
 
 | | Open source | Enterprise |
 |---|---|---|
-| Swagger UI | `http://localhost:8080/swagger-ui/` | `https://localhost:8444/swagger-ui/` |
-| JSON document | `http://localhost:8080/api-docs/openapi.json` | `https://localhost:8444/api-docs/openapi.json` |
+| Swagger UI | `http://localhost:8080/swagger-ui/` | `http://localhost:8444/swagger-ui/` |
+| JSON document | `http://localhost:8080/api-docs/openapi.json` | `http://localhost:8444/api-docs/openapi.json` |
 | Committed copy | `openapi.json` at the repository root | `openapi.json` at the repository root |
 | Paths / operations | 89 / 105 | 154 / 184 |
 | Schema components | 114 | 184 |
 | Tags | 27 | 24 |
 
-The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is HTTPS on `8444` and the open-source API stays where it is: an Enterprise deployment serves both, so both documents are reachable at once from the same host.
+The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is plain HTTP on `8444`: the agent terminates no TLS there, so put it behind a reverse proxy or a service mesh if it leaves the host. The open-source API stays where it is, and an Enterprise deployment serves both, so both documents are reachable at once from the same host.
 
 ## What each document covers
 
@@ -74,7 +74,7 @@ curl -o openapi-oss.json http://localhost:8080/api-docs/openapi.json
 openapi-generator generate -i openapi-oss.json -g go -o sdk/go/oss
 
 # Enterprise surface
-curl -k -o openapi-enterprise.json https://localhost:8444/api-docs/openapi.json
+curl -o openapi-enterprise.json http://localhost:8444/api-docs/openapi.json
 openapi-generator generate -i openapi-enterprise.json -g go -o sdk/go/enterprise
 ```
 

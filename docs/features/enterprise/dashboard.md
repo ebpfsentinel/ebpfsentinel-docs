@@ -56,7 +56,7 @@ air-gapped and MSSP variants, is documented in
 Nothing in the console is privileged: it reads the same endpoints an operator
 can. For scripting, or to build a view the console does not have, use the REST
 API with the Swagger UI (`http://localhost:8080/swagger-ui/` on the open source
-agent, `https://localhost:8444/swagger-ui/` on the enterprise agent), or build
+agent, `http://localhost:8444/swagger-ui/` on the enterprise agent), or build
 Grafana dashboards from the Prometheus metrics.
 
 ## REST API

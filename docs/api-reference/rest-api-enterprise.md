@@ -12,7 +12,7 @@ open-source agent is a different binary listening on a different port, and
 it is documented in [REST API](rest-api.md).
 
 ```
-https://localhost:8444
+http://localhost:8444
 ```
 
 Every path below is generated from the `openapi.json` the enterprise agent
@@ -485,7 +485,7 @@ lexicographically greater than that value from the in-memory rolling buffer
 ```bash
 curl -N -H 'Accept: text/event-stream' \
     -H 'Last-Event-ID: 01934567-89ab-7def-0123-456789abcdef' \
-    "https://localhost:8444/api/v1/federation/alerts/stream?cluster_id=01234567-89ab-cdef-0123-456789abcdef"
+    "http://localhost:8444/api/v1/federation/alerts/stream?cluster_id=01234567-89ab-cdef-0123-456789abcdef"
 ```
 
 ```text
@@ -570,7 +570,7 @@ Response headers:
 
 ```bash
 curl -N -H 'Accept: text/event-stream' \
-    "https://localhost:8444/api/v1/forensics/events/stream?severity_min=high&component=ids"
+    "http://localhost:8444/api/v1/forensics/events/stream?severity_min=high&component=ids"
 ```
 
 ```text

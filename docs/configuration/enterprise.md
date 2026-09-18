@@ -211,7 +211,8 @@ enterprise:
   multi_cluster:
     enabled: false
     is_management: false                # true on the management cluster
-    management_endpoint: https://mgmt.example.com:8444  # set on member clusters
+    management_endpoint: http://mgmt.example.com:8444  # set on member clusters;
+                                                       # https on mtls.listen_port when mtls is on
     ca_cert: /etc/ebpfsentinel/cluster-ca.crt
     heartbeat_interval_secs: 30
     degraded_threshold_secs: 90

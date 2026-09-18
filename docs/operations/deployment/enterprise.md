@@ -59,7 +59,7 @@ The detail is served on the enterprise API, reading the cached result without
 issuing further kernel calls:
 
 ```bash
-curl -sk https://127.0.0.1:8444/api/v1/ebpf/kernel-features
+curl -s http://127.0.0.1:8444/api/v1/ebpf/kernel-features
 ```
 
 Three signals a log aggregator can key on distinguish an unverified boot: the
@@ -138,8 +138,10 @@ The warden holds the host capabilities
 (`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`) and mounts host
 `/proc` and `/sys/fs/cgroup` read-only; the agent stays `cap-drop: ALL`. The
 chart exposes the OSS API (8080), gRPC (50051), metrics (9090), the enterprise
-HTTPS API (8444) and the HA peer gRPC port (9443). The last one carries no
-authentication and no TLS, so it must reach the HA peers and nothing else - see
+API (8444) and the HA peer gRPC port (9443). The enterprise API terminates no
+TLS of its own, so put a proxy in front of it if it leaves the node. The last
+one carries no authentication and no TLS either, so it must reach the HA peers
+and nothing else - see
 the [gRPC API reference](../../api-reference/grpc-api.md).
 
 > On Ubuntu 24.04+ nodes, set `kernel.apparmor_restrict_unprivileged_userns=0`

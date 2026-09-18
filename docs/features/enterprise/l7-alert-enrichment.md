@@ -112,7 +112,7 @@ Submitting a payload with `alert_meta`, so the enriched alert is also
 forwarded to the SIEM exporters:
 
 ```bash
-curl -sk -X POST https://agent:8444/api/v1/enterprise/l7/analyze \
+curl -s -X POST http://agent:8444/api/v1/enterprise/l7/analyze \
   -H "Authorization: Bearer ${TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
