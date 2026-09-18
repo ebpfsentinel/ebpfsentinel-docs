@@ -41,6 +41,12 @@ and the enrichment comes back in the HTTP response and goes nowhere
 else. The `/api/v1/enterprise/l7/enriched-alerts` route reads back what
 the enricher has produced, whether or not it was exported.
 
+That read-back is a bounded in-memory history: the last 500 enriched
+alerts of that agent process, oldest first, the oldest dropped as newer
+ones arrive and the whole of it gone at restart. It is a recent-activity
+window rather than an alert store, so a console counting what it returns
+is counting the window and not the estate.
+
 ## Mapping tables
 
 ### Vectorscan → OWASP / MITRE / PCI
