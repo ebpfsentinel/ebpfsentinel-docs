@@ -146,7 +146,7 @@ ebpfsentinel-agent ddos status
 # List active DDoS attacks
 ebpfsentinel-agent ddos attacks
 
-# List historical attacks (default: last 100)
+# List historical attacks, newest first (default: last 100)
 ebpfsentinel-agent ddos history
 ebpfsentinel-agent ddos history --limit 50
 
@@ -181,6 +181,59 @@ ebpfsentinel-agent --output json ddos attacks
 | GET | `/api/v1/ddos/policies` | List DDoS policies |
 | POST | `/api/v1/ddos/policies` | Create a DDoS policy (requires `admin` role) |
 | DELETE | `/api/v1/ddos/policies/{id}` | Delete a DDoS policy (requires `admin` role) |
+
+All six answer `404 SERVICE_NOT_AVAILABLE` on an agent started with no `ddos`
+section: the service is absent rather than idle, so there is nothing to report
+`enabled: false` about.
+
+### Status Fields
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `enabled` | boolean | Whether DDoS protection is turned on |
+| `active_attacks` | integer | Floods currently tracked, capped at 64 |
+| `total_mitigated` | integer | Attacks that reached `mitigated` or `expired` since start |
+| `policy_count` | integer | Policies the engine holds |
+
+### Attack Fields
+
+`GET /api/v1/ddos/attacks` and `GET /api/v1/ddos/attacks/history` answer a
+bare array of the same shape. There is no envelope and no total.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `id` | string | Attack identifier |
+| `attack_type` | string | `syn_flood`, `udp_amplification`, `icmp_flood`, `rst_flood`, `fin_flood`, `ack_flood` or `volumetric` - **the spelling the configuration file uses and the create route accepts**, so a word read here can be posted back without translation |
+| `status` | string | `detecting`, `active`, `mitigated` or `expired`, the four states of the machine above |
+| `start_time_ns` | integer | First packet counted against this flood |
+| `last_seen_ns` | integer | Last packet counted against it. On the history route this is where the flood stopped, which a start alone cannot say |
+| `peak_pps` | integer | Highest smoothed rate reached |
+| `current_pps` | integer | Smoothed rate now (EWMA) |
+| `total_packets` | integer | Packets counted against the flood |
+| `source_count` | integer | Distinct sources seen |
+| `src_country` | string | Source country, **absent where `GeoIP` resolved none**. The per-country thresholds below are judged against it, and a `block` policy injects this country's CIDRs, so an attack with no country here is one no country rule acted on |
+
+The history route answers the newest flood first and is bounded by `limit`
+(default `100`), which is also the number of entries the engine keeps: asking
+for more than 100 returns what there is rather than failing.
+
+### Policy Fields
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `id` | string | Policy identifier |
+| `attack_type` | string | One of the seven above |
+| `detection_threshold_pps` | integer | Rate that declares a flood, `> 0` |
+| `mitigation_action` | string | `alert`, `throttle` or `block` |
+| `auto_block_duration_secs` | integer | How long a `block` holds |
+| `enabled` | boolean | Whether the policy is evaluated |
+| `country_thresholds` | object | Country code to PPS, **absent where the policy carries none**. It is the only way to explain a policy that fired well under the threshold beside it |
+
+`POST /api/v1/ddos/policies` takes the same field names. It accepts both
+`syn_flood` and `synflood` and refuses anything else by naming the seven
+words; `mitigation_action` defaults to `alert`, `enabled` to `true`, and a
+`detection_threshold_pps` of `0` is refused. Creating and deleting a policy
+each write an audit entry under the `ddos` component.
 
 ## Code Architecture
 
