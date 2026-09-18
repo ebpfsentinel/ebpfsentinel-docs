@@ -59,11 +59,34 @@ Capture files are written to `/var/lib/ebpfsentinel/captures/` as standard PCAP 
 - Manual captures: `cap-{timestamp_ms}.pcap`
 - Auto-captures: `auto-{timestamp_ms}.pcap`
 
-On completion, the session records the final `file_size_bytes` and `packets_captured` for API queries.
+The file name is the session identifier, which is what the API returns and
+what `DELETE /api/v1/captures/{id}` takes.
+
+### Session Fields
+
+Both `POST /api/v1/captures/manual` and `GET /api/v1/captures` answer with the
+same record. Note that the duration is `duration_seconds` on the way in and
+`duration_secs` on the way out:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Session identifier, `cap-{timestamp_ms}` or `auto-{timestamp_ms}` |
+| `filter` | `string` | The BPF filter in force |
+| `duration_secs` | `integer` | Maximum duration the session was started with |
+| `snap_length` | `integer` | Max bytes per packet |
+| `output_path` | `string` | Absolute path of the PCAP file |
+| `interface` | `string` | Interface captured on, or `any` |
+| `status` | `string` | `running`, `completed`, `stopped` or `failed` |
+| `file_size_bytes` | `integer` | `0` until the session ends |
+| `packets_captured` | `integer` | `0` until the session ends |
+
+`file_size_bytes` and `packets_captured` are filled when the session leaves
+the `running` state, so a running session reads as zero on both rather than as
+a live counter.
 
 ## Auto-Capture
 
-Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`). The single-active-capture constraint still applies -- if a capture is already running, the trigger is silently skipped.
+Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`). The single-active-capture constraint still applies - if a capture is already running, the trigger is silently skipped. So is an alert that names no source address: there is nothing to build a filter from, so no capture starts.
 
 ### Configuration Fields
 
