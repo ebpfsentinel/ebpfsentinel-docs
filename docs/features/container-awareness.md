@@ -11,10 +11,16 @@ during packet processing, resolves it to a `ContainerInfo`
 to attach runtime-specific metadata (Docker image, Kubernetes labels,
 service account, namespace, …).
 
-When alerts are generated, the enriched context is embedded in the alert
-payload, the SIEM export, the audit trail, and the gRPC/REST API
-responses. SOC analysts no longer need to correlate IP addresses back to
-workloads manually - the workload identity travels with every event.
+When alerts are generated the enriched context rides the alert, so it is
+on the webhook payload, on the REST and gRPC readings, and on every
+Enterprise SIEM exporter that ships the alert whole (Splunk HEC, the S3
+NDJSON archive). The exporters that map into a fixed schema - ECS,
+QRadar LEEF, CEF over syslog - carry no container field, and **the audit
+trail carries none either**: an audit entry is a decision with its
+five-tuple and its rule, and has no field a workload identity could
+travel in. SOC analysts no longer need to correlate IP addresses back to
+workloads manually on the paths that do carry it - the workload identity
+travels with the alert.
 
 Container awareness is composed of four independent building blocks:
 
@@ -253,9 +259,15 @@ fields:
 `container_metadata` is populated by the first registered
 `MetadataEnricher` that returns `Some(..)`. Enrichers are consulted in
 registration order, so the startup code inserts the Kubernetes enricher
-before the Docker enricher.
+before the Docker enricher. **Exactly one of them ever answers for a
+given alert**: the pipeline keeps the first metadata it gets, so a
+Kubernetes-enriched alert carries no Docker fields and a
+Docker-enriched one carries no pod.
 
-Example alert fragment (JSON):
+### Webhook payload
+
+The webhook serialises the domain `Alert` as it stands, so both fields
+appear in full, each tagged by its own `kind`:
 
 ```json
 {
@@ -280,6 +292,46 @@ Example alert fragment (JSON):
     "owner_kind": "ReplicaSet",
     "owner_name": "my-app-7b8f9",
     "node_name": "node-01"
+  }
+}
+```
+
+### REST and gRPC readings
+
+`GET /api/v1/alerts` and the gRPC alert stream carry **one flattened
+object** instead of the two: `container`, holding the resolver's
+identity with whichever enricher fields were filled. There is no
+`container_metadata` on either, and the labels, annotations, service
+account, owner reference, node name, image status and creation
+timestamp are not projected onto them at all - those live on the
+webhook payload and on the exporters that ship the alert whole.
+
+| Field | Filled by | Meaning |
+|-------|-----------|---------|
+| `kind` | always | Always the string `container`: a host-namespace process carries no `container` object at all, so the field never says `host` |
+| `runtime` | resolver | `docker`, `containerd`, `crio`, `podman` or `unknown` |
+| `id` | resolver | Canonical container id |
+| `cgroup_path` | resolver | The cgroup path the resolver matched |
+| `namespace` | Kubernetes enricher | Pod namespace |
+| `pod` | Kubernetes enricher | Pod name |
+| `container_name` | Kubernetes enricher | Container name inside the pod |
+| `name` | Docker enricher | Container name, leading `/` stripped |
+| `image` | Docker enricher | Image tag, for example `nginx:1.25` |
+
+On REST an unfilled field is absent rather than empty; on gRPC, where
+every field is a `string`, it is the empty string. The `pid` the
+resolver carries is deliberately not projected onto either: it is the
+process that happened to be observed, not a property of the container.
+
+```json
+{
+  "container": {
+    "kind": "container",
+    "runtime": "docker",
+    "id": "c0ffee2b91a44d7e8f30ba52cd917e64",
+    "cgroup_path": "/docker/c0ffee2b91a44d7e8f30ba52cd917e64",
+    "name": "legacy-batch",
+    "image": "registry.internal/legacy-batch:1.9.3"
   }
 }
 ```
@@ -336,7 +388,8 @@ eBPF (cgroup_id in PacketEvent)
                                 └── DockerClient (Unix socket HTTP)
                                       └── LRU + TTL cache
                     └── Alert { container, container_metadata }
-                          └── SIEM / gRPC stream / audit / REST API
+                          ├── webhook + whole-alert SIEM exporters (both fields)
+                          └── REST + gRPC (one flattened container object)
 ```
 
 ## Related
