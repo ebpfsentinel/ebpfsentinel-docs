@@ -219,6 +219,14 @@ Define organization-specific roles with explicit grants and optional inheritance
 > than answered with defaults, because defaults would leave the feature off in an agent
 > that reports itself healthy. See
 > [what happens when the section is wrong](../../configuration/enterprise.md#what-happens-when-the-section-is-wrong).
+>
+> A custom role is the one thing here that is skipped rather than fatal: a role
+> whose grants cannot be read, that duplicates an id, that names a parent the agent
+> has not loaded yet or that would close an inheritance cycle is logged by name at
+> `warn` and left out, and the agent serves the rest of the set. Roles are added in
+> the order they are written, so a parent listed below its child is not yet known
+> when the child is read and it is the child that goes: write a parent above the
+> roles inheriting from it.
 
 ```yaml
 enterprise:
@@ -473,8 +481,12 @@ configuration file, so neither depends on any stored state.
 
 Everything created through the API - a custom role, and a subject-to-role
 assignment - is written to a redb file beside the response and tenant state,
-`/var/lib/ebpfsentinel/rbac_state.redb`, and read back at startup. Two rules
-apply to that reading:
+`/var/lib/ebpfsentinel/rbac_state.redb`, and read back at startup. Where that
+directory does not exist, the file is `ebpfsentinel_rbac_state.redb` in the
+system temporary directory instead: the API goes on answering, and what it
+created is exactly as durable as that directory is on the host, which on most
+of them means until the next reboot. The path the agent settled on is logged at
+startup. Two rules apply to that reading:
 
 - A configured role wins over a persisted one carrying the same id, because the
   file is what the operator edits and the store is what the API wrote. The
@@ -485,9 +497,9 @@ apply to that reading:
 
 A write the store refuses is rolled back before the caller is answered and the
 call returns `503`, so a role the API said it created is a role the next start
-will still have. An agent with no writable state directory logs that roles and
-assignments created through the API will not survive a restart, and otherwise
-serves normally.
+will still have. An agent whose store could not be opened at all logs that roles
+and assignments created through the API will not survive a restart, and
+otherwise serves normally.
 
 ### Deleting a role
 
