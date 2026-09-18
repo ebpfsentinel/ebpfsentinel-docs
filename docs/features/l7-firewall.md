@@ -192,6 +192,14 @@ here is optional and an omitted one matches anything:
 | `dst_port` | Port range containing the destination port, or a single port |
 | `src_country_codes` | Source address resolved to a country in the list |
 | `dst_country_codes` | Destination address resolved to a country in the list |
+| `src_ip_alias` | Names an IP-set alias instead of writing the source CIDR out |
+| `dst_ip_alias` | The same, on the destination address |
+| `dst_port_alias` | Names a port alias instead of writing the destination port out |
+
+The three alias fields are resolved at load and at every configuration reload:
+an L7 rule holds one address per side and one port range, so an alias naming
+several networks, or naming none, leaves that side with nothing to match on and
+the rule is dropped with its reason rather than installed unrestricted.
 
 Addresses are matched as IPv4 only: a rule whose CIDR is an IPv6 prefix matches
 nothing, and an IPv6 packet is tested against the first 32 bits of its address,
@@ -227,6 +235,23 @@ ebpfsentinel-agent l7 delete block-uploads
 | GET | `/api/v1/firewall/l7-rules` | List L7 rules |
 | POST | `/api/v1/firewall/l7-rules` | Create an L7 rule |
 | DELETE | `/api/v1/firewall/l7-rules/{id}` | Delete an L7 rule |
+
+Each item of `GET /api/v1/firewall/l7-rules` carries the rule's `id`,
+`priority`, `action`, `enabled` and `matcher`, plus what the rule is narrowed
+to: `src_ip`, `dst_ip` and `dst_port` as the criteria it matches on,
+`src_country_codes` and `dst_country_codes` where the rule names them, and
+`src_ip_alias`, `dst_ip_alias` and `dst_port_alias` in the words the
+configuration file used, so a reader can find the line that wrote the rule.
+Each is omitted where the rule names none, and a rule created through this API
+names none of the last five.
+
+`POST /api/v1/firewall/l7-rules` is narrower than the configuration file on
+purpose. It accepts `http`, `tls`, `grpc`, `smtp`, `ftp` and `smb` and refuses
+any other `protocol`, so the remaining built-in protocols and the enterprise
+ones are configuration-file only. It takes `src_ip`, `dst_ip` and `dst_port`
+as literals, and accepts neither a country list nor an alias name: a rule
+scoped that way is written in the file, where the alias it names can be
+resolved.
 
 ## Code Architecture
 
