@@ -60,8 +60,8 @@ literal in `enterprise-domain::l7_inspect::builtin`.
 L7 payload (up to 64 KiB decoded, refused above)
   └── L7InspectEngine
         └── CompiledState
-              ├── BlockDatabase (Vectorscan - atomically swapped on reload)
-              └── ScratchPool (pre-allocated, acquire/release)
+              ├── BlockDatabase (Vectorscan - replaced on reload)
+              └── ScratchPool (4 pre-allocated, cloned when all are out)
         └── Vec<InspectPattern>  // parallel metadata array
               │
               └── InspectMatch per hit
@@ -76,9 +76,18 @@ L7 payload (up to 64 KiB decoded, refused above)
 ```
 
 All pattern changes (load / add / remove / enable / disable) force a
-full recompile of the Vectorscan database. The old `BlockDatabase` and
-its scratch pool are kept alive until no scanner still references them
-so in-flight scans finish on the old state without locking.
+full recompile of the Vectorscan database. The engine sits behind a
+single reader-writer lock: a scan holds it as a reader, a recompile
+holds it as a writer, so a reload waits for the scans already running
+and the scans arriving during it wait for the reload. Nothing is kept
+alive for an in-flight scanner - the old `BlockDatabase` and its
+scratch pool are dropped as the new ones are installed - and the whole
+recompile, the compile included, happens with that writer lock held.
+
+Scratch space is a pool of four, acquired per scan and returned after
+it. A fifth concurrent scan clones from the template rather than
+waiting, and the clone is returned to the pool, so the pool grows to
+the concurrency the agent actually saw and stays there.
 
 The pattern list and the database are installed together or not at all.
 A match is resolved by using the database's own pattern id as an index
@@ -95,8 +104,16 @@ maps Vectorscan IDs back to the pattern metadata in a single pass, so
 the full-text pattern identifier (`"sqli-union-select"`) travels with
 the match for alert enrichment.
 
+Matches are also kept for reading back: the last 500 of that agent
+process, oldest first, the oldest dropped as newer ones arrive and the
+whole of it gone at restart. It is a recent-activity window rather than
+a match store, so a console counting what `/l7/matches` returns is
+counting the window and not the estate.
+
 The `confidence()` helper turns severity into a 0-100 score ready for
-SIEM export:
+SIEM export. It is the only source of the figure: confidence is not
+measured per hit, so a match only ever carries one of the four values
+below.
 
 | Severity | Confidence |
 |----------|-----------:|
@@ -109,8 +126,11 @@ SIEM export:
 
 `L7InspectEngine::add_pattern` lets operators load organisation-specific
 signatures at runtime. Patterns use the same `InspectPattern` structure
-as the built-ins and are tagged with `origin: Custom` so the audit
-trail can distinguish them from the default catalogue.
+as the built-ins and are tagged with `origin: Custom`. That tag stays
+inside the process: no route, metric or log publishes it, so a pattern
+read back over the API is told apart from a built-in by its id and not
+by its origin. Everything the API and the configuration file load is
+`Custom`, including a pattern that carries a built-in's own regex.
 
 ```rust
 use enterprise_domain::l7_inspect::*;
@@ -191,7 +211,7 @@ severity are each reported by name and refuse the start.
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/enterprise/l7/patterns` | viewer | advanced-dlp | List loaded patterns. |
 | `POST` | `/api/v1/enterprise/l7/patterns` | operator | advanced-dlp | Add one pattern. |
-| `POST` | `/api/v1/enterprise/l7/patterns/bulk` | operator | advanced-dlp | Replace the whole catalogue. |
+| `POST` | `/api/v1/enterprise/l7/patterns/bulk` | operator | advanced-dlp | Replace the whole catalogue, built-ins included. |
 | `DELETE` | `/api/v1/enterprise/l7/patterns/{id}` | operator | advanced-dlp | Remove a pattern. |
 | `GET` | `/api/v1/enterprise/l7/matches` | viewer | advanced-dlp | Recent match history. |
 | `GET` | `/api/v1/enterprise/l7/rule-toggles` | viewer | advanced-dlp | Rule ids currently allowed to trigger a scan. |
