@@ -218,7 +218,7 @@ ebpfsentinel-agent capture list
 
 ## Auto-Capture
 
-Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`). One capture at a time, max 60 seconds.
+Automatically start a packet capture when a high-severity alert fires. The BPF filter is auto-generated from the alert's source IP (`host {src_ip}`), so an alert naming no source address starts nothing. One capture at a time, max 60 seconds.
 
 ### Configuration
 
@@ -234,12 +234,13 @@ auto_capture:
 
 ### How It Works
 
-1. An alert fires (IDS, DLP, DDoS, DNS, packet security)
-2. If severity >= `min_severity` and component matches, a capture is triggered
-3. If another capture is already running, the trigger is skipped (no stacking)
-4. A BPF filter `host {source_ip}` is auto-generated from the alert
-5. A `.pcap` file is written to `/var/lib/ebpfsentinel/captures/auto-{timestamp}.pcap`
-6. The capture auto-stops after `duration_secs`
+1. An alert fires on one of the paths auto-capture is evaluated on: IDS, threat intelligence, DDoS, DLP, and the packet-level components (firewall, ratelimit, L7, IPS). A DNS alert names a domain rather than a client, so it is not one of them
+2. If the alert names no source address, the trigger is skipped: there is nothing to filter on. A DLP alert is read off a process rather than off a packet and never names one
+3. If severity >= `min_severity` and component matches, a capture is triggered
+4. If another capture is already running, the trigger is skipped (no stacking)
+5. A BPF filter `host {source_ip}` is auto-generated from the alert
+6. A `.pcap` file is written to `/var/lib/ebpfsentinel/captures/auto-{timestamp}.pcap`
+7. The capture auto-stops after `duration_secs`
 
 ### Fields
 

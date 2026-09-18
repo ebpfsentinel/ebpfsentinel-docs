@@ -19,11 +19,26 @@ auto_capture:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable auto-capture |
-| `min_severity` | string | `"high"` | Minimum alert severity to trigger capture: `low`, `medium`, `high`, `critical` |
-| `components` | list | `[]` | Component filter (e.g., `[ids, ddos]`). Empty matches all components |
+| `min_severity` | string | `"high"` | Minimum alert severity to trigger capture: `low`, `medium`, `high`, `critical`. Any other word is refused at startup |
+| `components` | list | `[]` | Component filter (e.g., `[ids, ddos]`). Empty matches all capturable components; see below for the accepted names |
 | `duration_secs` | u64 | `30` | Capture duration in seconds (max 60 in OSS) |
 | `snap_length` | u32 | `1500` | Snap length in bytes (maximum bytes captured per packet) |
 | `interface` | string | `null` | Interface to capture on. If omitted, uses the first agent interface |
+
+## What can be captured
+
+The BPF filter is built from the address the alert names, so a component whose
+alerts carry none has nothing to capture on. DLP matches and ML anomalies are
+process-level, and DNS and routing alerts describe a name or a gateway rather
+than a peer. `components` therefore accepts only the components whose alerts
+name a source:
+
+`ai-security`, `ddos`, `firewall`, `ids`, `ips`, `l7`, `ratelimit`,
+`threatintel`
+
+Any other name is refused at startup rather than accepted as a filter that
+would never match, and an alert of an accepted component that still names no
+source is skipped at the moment it fires.
 
 ## OSS Limits
 
