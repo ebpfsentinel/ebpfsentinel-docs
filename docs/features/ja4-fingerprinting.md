@@ -81,14 +81,36 @@ controls. The values themselves are read per flow from the cache below.
 
 ## API
 
-```
-GET /api/v1/fingerprints/summary
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/fingerprints/summary` | State of the JA4 client cache |
+| GET | `/api/v1/fingerprints/ja4s` | State of the JA4S server cache |
 
-Returns the current cache size and configuration.
+Both answer the same four fields, read off the running cache rather than off a
+constant: `cached_count` (entries held right now, not since start, since they
+expire), `max_size` and `ttl_seconds` (the ceiling and the lifetime that cache
+was built with, 10,000 and 300 in the shipped configuration), and `persistent`,
+which says whether the cache is mirrored to a store that survives a restart.
+
+Neither route returns a fingerprint. A JA4 value is derived from bytes a peer
+chose, so it is read per flow off an alert's `ja4_fingerprint` rather than
+listed, for the same reason it is not a metric label.
+
+`cached_count` at zero has more than one explanation - nothing captured, a
+cache that expired, or a server side that never saw a reply - so read it next
+to `l7.ports`, `l7.enabled` and `ids.enabled`, which are what decide whether a
+payload reaches the parser at all.
 
 ## CLI
 
 ```bash
+# The JA4 client cache
 ebpfsentinel-agent fingerprints summary
+
+# The JA4S server cache
+ebpfsentinel-agent fingerprints ja4s
 ```
+
+Both print the same four lines, persistence included, so a cache that fell back
+to memory because its store would not open is visible on either.
+
