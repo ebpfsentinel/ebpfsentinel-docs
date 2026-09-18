@@ -58,6 +58,18 @@ Both programs support IPv4 and IPv6 with full checksum recalculation. Rule scann
 | GET | `/api/v1/nat/status` | Enabled status and rule count |
 | GET | `/api/v1/nat/rules` | List all NAT rules (SNAT + DNAT with direction field) |
 
+Each item of `GET /api/v1/nat/rules` carries:
+
+| Field | Meaning |
+|-------|---------|
+| `id`, `priority`, `enabled` | As configured. An alias-named rule keeps its id on every rule it expanded into |
+| `nat_type` | One of the six type words, spelled as the configuration file spells it |
+| `direction` | `dnat` or `snat`, the rule set the rule was installed in |
+| `translation` | What the rule rewrites to, tagged with the same type word: `addr` and `port_range` for `snat`, `addr` and `port` for `dnat`, `interface` and `port_range` for `masquerade`, `external` and `internal` for `one_to_one`, `port` for `redirect`, `ext_port`, `int_addr` and `int_port` for `port_forward`. A port range collapses to the port where both ends are the same |
+| `match_src`, `match_dst`, `match_dst_port`, `match_protocol` | What the rule is narrowed to, each omitted where the rule names none, which is a rule translating everything its direction carries |
+| `match_src_alias`, `match_dst_alias` | The alias a rule still names, which is a rule whose criteria the alias service has not resolved into CIDRs yet. Omitted once expansion has run |
+| `interfaces` | The interface groups the rule is scoped to, omitted on a floating rule |
+
 See [REST API Reference](../api-reference/rest-api.md) for details.
 
 ## NPTv6 (RFC 6296)
