@@ -12,8 +12,8 @@ Enterprise replaces the OSS regex-based scanner with [Vectorscan](https://github
 
 Key capabilities:
 - **Block mode scanning** - single contiguous buffer, all patterns in one pass
-- **Per-pattern flags** - CASELESS, UTF8, SINGLEMATCH, SOM_LEFTMOST, etc.
-- **Early termination** - stop scanning on first block-mode match
+- **Start-of-match reporting** - every pattern is compiled with SOM_LEFTMOST, so a match carries the offset it started at and not only where it ended
+- **Every match returned** - the scan does not stop on the first hit, so one buffer carrying two kinds of secret reports both, and the block decision is taken per match afterwards
 - **Scratch pooling** - zero-allocation scanning in steady state
 
 Architecture:
@@ -94,7 +94,7 @@ enterprise:
 OSS is limited to 9 built-in patterns (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`). Enterprise allows any pattern ID.
 
 **Validation at config load:**
-- Pattern IDs validated for uniqueness (vs built-in + other custom)
+- Custom pattern IDs validated for uniqueness against each other; a custom ID colliding with a built-in is refused at startup, when the custom list is merged into the built-ins
 - Regex syntax validated via Vectorscan `expression_info` (catch errors before compilation)
 - Severity validated (low, medium, high, critical)
 - Invalid patterns rejected with clear error messages including pattern ID
@@ -120,19 +120,21 @@ enterprise:
   advanced_dlp:
     mode: alert                    # default
     custom_patterns:
-      - id: dlp-pci-visa
-        name: Visa Card
-        regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
+      - id: acme-card-token
+        name: ACME Card Token
+        regex: "\\bACME-[0-9]{16}\\b"
         severity: critical
         data_type: pci
         mode: block                # override: block this pattern
-      - id: dlp-pii-email
-        name: Email
-        regex: "[a-z]+@[a-z]+\\.[a-z]+"
+      - id: acme-staff-email
+        name: Staff Email
+        regex: "[a-z]+@acme\\.example"
         severity: medium
         data_type: pii
         # inherits global alert mode
 ```
+
+A custom pattern carries an ID of its own. Reusing a built-in ID here - `dlp-pci-visa`, `dlp-pii-email` or any of the other seven - is refused at startup rather than treated as an override, so the agent does not start. The built-ins are re-tuned or switched off in the OSS `dlp.patterns` section, which keeps its meaning under Enterprise.
 
 ### Scan Results
 
