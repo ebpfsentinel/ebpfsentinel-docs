@@ -81,7 +81,7 @@ See [Configuration: IPS](../configuration/ips.md) for the full reference.
 ## CLI Usage
 
 ```bash
-# List IPS rules
+# List IPS rules, what each one narrows on, and the slot conflicts under the table
 ebpfsentinel-agent ips list
 
 # View blacklisted IPs
@@ -104,6 +104,27 @@ ebpfsentinel-agent ips set-mode block-reverse-shell --mode alert
 | POST | `/api/v1/ips/blacklist` | Blacklist an IP, installing its host route |
 | DELETE | `/api/v1/ips/blacklist/{ip}` | Remove an IP from the blacklist and from the kernel |
 | GET | `/api/v1/ips/domain-blocks` | List domain-based blocks |
+
+Each item of `GET /api/v1/ips/rules` carries:
+
+| Field | Meaning |
+|-------|---------|
+| `id`, `description`, `severity`, `enabled` | As configured |
+| `mode` | `alert` or `block` |
+| `protocol` | The protocol the rule is written for |
+| `dst_port` | The port the rule is pinned to, `null` where it names none |
+| `pattern` | The payload regex, empty where the rule carries none |
+| `domain_pattern`, `domain_match_mode` | The resolved name the rule is decided on, omitted where the rule names none |
+| `interfaces` | The interface groups the rule is scoped to, omitted on a floating rule, see [Interface Groups](interface-groups.md#rest-api) |
+| `kernel_slot` | Present only where another rule holds the slot, see above |
+
+`PATCH /api/v1/ips/rules/{id}` takes `{"mode": "alert"}` or `{"mode": "block"}` and answers the rule in that same shape, with `kernel_slot` recomputed: changing a mode reinstalls the prevention rules, so which rule holds a contended slot can change with the write.
+
+Each item of `GET /api/v1/ips/blacklist` carries `ip`, `reason`, `auto_generated` and `ttl_remaining_secs` - what is left of the entry's TTL, not the TTL it was given.
+
+`POST /api/v1/ips/blacklist` takes `ip` and, optionally, `reason` (default `manual-api`) and `ttl_secs`. The TTL is capped at the policy's maximum blacklist duration, so a longer one is shortened rather than refused: the `201` answers `ip`, `reason` and the `ttl_remaining_secs` the entry actually got, which is how a caller learns it was cut. A refusal from the engine, a full blacklist included, is a `400` rather than an eviction. `DELETE /api/v1/ips/blacklist/{ip}` answers `204`, or `404` where the address is not in the list.
+
+`GET /api/v1/ips/domain-blocks` is a filtered reading of that same blacklist rather than a second store: an entry whose reason names the DNS blocklist or the reputation feed is reported again here, with the `domain` and the `source` - `dns-blocklist` or `reputation` - pulled out of that reason, which is carried whole beside them along with `ip` and `ttl_remaining_secs`. Such an entry is therefore in both listings, and an entry blacklisted by any other mechanism is in neither this one nor a listing of its own.
 
 ## Code Architecture
 
