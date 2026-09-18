@@ -4,7 +4,7 @@
 
 ## Overview
 
-eBPFsentinel provides time-bounded incident response actions that automatically expire after a configurable TTL. Operators can manually block or throttle IPs via the API and CLI, or configure severity-based policies that trigger responses automatically when alerts fire. Every action has an expiration timestamp -- there are no permanent stale rules.
+eBPFsentinel provides time-bounded incident response actions that automatically expire after a configurable TTL. Operators can manually block or throttle IPs via the API and CLI, or configure severity-based policies that trigger responses automatically when alerts fire. Every action has an expiration timestamp - there are no permanent stale rules.
 
 ## Action Types
 
@@ -29,10 +29,10 @@ stateDiagram-v2
     Revoked --> [*]
 ```
 
-1. **Create** -- An action is registered with a target host address, action type, and TTL, and the blacklist entry or token bucket is installed
-2. **Active** -- The blacklist entry or rate-limit bucket is in effect
-3. **Expired** -- The TTL elapsed; the entry is lifted from the data plane and the action is cleaned up
-4. **Revoked** -- An operator manually revoked the action before TTL expiry; the entry is lifted immediately
+1. **Create** - An action is registered with a target host address, action type, and TTL, and the blacklist entry or token bucket is installed
+2. **Active** - The blacklist entry or rate-limit bucket is in effect
+3. **Expired** - The TTL elapsed; the entry is lifted from the data plane and the action is cleaned up
+4. **Revoked** - An operator manually revoked the action before TTL expiry; the entry is lifted immediately
 
 An action is considered inactive when `revoked == true` OR the current time has reached `expires_at_ns`. The engine periodically drains expired actions to free memory.
 
@@ -81,13 +81,13 @@ Automatic block or throttle of source IPs when alerts match severity-based polic
 | `components` | `[string]` | `[]` (all) | Component filter, one or more of `ai-security`, `ddos`, `firewall`, `ids`, `ips`, `l7`, `ratelimit`, `threatintel` |
 | `action` | `string` | `block` | `block` (deny, both IP families) or `throttle` (rate limit, IPv4 sources only) |
 | `ttl_secs` | `integer` | `3600` | Duration of the block/throttle in seconds |
-| `rate_pps` | `integer` | -- | Packets per second, required above zero on a `throttle` |
+| `rate_pps` | `integer` | - | Packets per second, required above zero on a `throttle` |
 
 ### How Auto-Response Works
 
 1. An alert is created (IDS pattern match, DDoS detection, threat-intel hit, firewall deny, etc.)
 2. An alert that names no source address is skipped: nothing can be contained for it
-3. Each policy is evaluated in order -- first match wins (no stacking)
+3. Each policy is evaluated in order - first match wins (no stacking)
 4. If `min_severity` matches and `components` matches (or is empty = all), the source IP is blocked or throttled
 5. The block/throttle has a bounded TTL and auto-expires
 6. Every action is logged with policy name, alert ID, source IP, and TTL
@@ -117,6 +117,17 @@ ebpfsentinel-agent responses revoke resp-1234
 | `DELETE` | `/api/v1/responses/{id}` | Revoke a response action early |
 
 All endpoints require authentication (Bearer JWT, OIDC, or API key).
+
+`GET /api/v1/responses` answers `actions` and `active_count`, and both only
+ever cover what is still in force: an action that was revoked or whose TTL has
+elapsed is gone from the listing rather than listed as lifted. `remaining_secs`
+is whole seconds, so an action with under a second left answers `0` and is
+still in force.
+
+`DELETE /api/v1/responses/{id}` answers `200` with the action as it stood when
+it was lifted, `revoked` set, rather than an empty body. An identifier the
+agent does not hold answers `404`, so a lift that reached nothing is never read
+as one that happened.
 
 See the full [API reference](../api-reference/rest-api.md#responses) for request/response schemas.
 

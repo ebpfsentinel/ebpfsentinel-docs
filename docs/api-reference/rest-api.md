@@ -1377,9 +1377,23 @@ List active response actions (blocks and throttles).
 curl http://localhost:8080/api/v1/responses
 ```
 
+**Response:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `actions` | array | The containments in force, one object each |
+| `active_count` | integer | How many of them there are |
+
+Only what is in force is listed: an action that was revoked or whose TTL has
+elapsed is absent rather than listed as lifted. Each object carries `id`,
+`action_type`, `target`, `ttl_secs`, `remaining_secs`, `rule_id`, `revoked`
+and, on a throttle, `rate_pps`. `remaining_secs` is whole seconds, so an
+action with under a second left answers `0` and is still in force.
+
 #### POST /api/v1/responses/manual
 
-Create a time-bounded response action. Requires `admin` role.
+Create a time-bounded response action. Requires a write role: admin or
+operator, since a containment is not namespaced. Viewers are refused.
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/responses/manual \
@@ -1403,11 +1417,16 @@ IPv4 targets only, since its per-source map is keyed by a 32-bit address.
 #### DELETE /api/v1/responses/{id}
 
 Revoke a response action early, which lifts the blacklist entry or the token
-bucket immediately instead of waiting for the TTL. Requires `admin` role.
+bucket immediately instead of waiting for the TTL. Requires a write role:
+admin or operator. Viewers are refused.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/responses/resp-001
 ```
+
+Answers `200` with the action as it stood when it was lifted, `revoked` set,
+rather than an empty body. An identifier the agent does not hold answers
+`404`, so a lift that reached nothing is never read as one that happened.
 
 ### Captures
 
