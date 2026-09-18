@@ -213,7 +213,8 @@ Feed ingestion enforces several hardening measures to prevent abuse:
 ## CLI Usage
 
 ```bash
-# Feed status (last refresh time, IOC count, errors)
+# Whether threat intel is on, the mode every match is capped at, and how
+# many indicators and feeds stand behind it
 ebpfsentinel-agent threatintel status
 
 # List loaded IOCs (all feeds)
@@ -238,11 +239,33 @@ the first.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/threatintel/status` | Feed status (last refresh, IOC count per feed) |
+| GET | `/api/v1/threatintel/status` | `enabled`, `mode`, and the totals behind them: `ioc_count` and `feed_count` |
 | GET | `/api/v1/threatintel/iocs` | List loaded IOCs |
 | GET | `/api/v1/threatintel/urls` | List loaded URL IOCs |
 | GET | `/api/v1/threatintel/feeds` | List configured feeds |
 | POST | `/api/v1/threatintel/feeds/refresh` | Refresh feeds now (not available to the `viewer` role) |
+
+The status route answers the subsystem rather than the feeds: there is no
+per-feed count and no error field on it, so a feed that failed its last fetch
+is not visible there. What it does say is what a match will do, since `mode`
+caps every IOC in the maps at once.
+
+Each feed of `GET /api/v1/threatintel/feeds` carries its `id`, `name`, `url`,
+`format`, `enabled`, `refresh_interval_secs`, `max_iocs`, `min_confidence` and
+`last_fetched`. `last_fetched` is Unix-epoch milliseconds of the last completed
+fetch **cycle**, and a cycle covers every enabled feed at once, so the value is
+a property of the agent repeated on each row rather than of the feed it sits
+on; it is `null` until a cycle has run.
+
+`GET /api/v1/threatintel/iocs` is the IP set the engine holds, served whole:
+there is no filter, no paging and no cursor, so a caller asking an agent
+carrying a million indicators is asking for all of them. Each item carries
+`ip`, `feed_id`, `confidence`, `threat_type` and `source_feed`, the feed's
+configured name. `threat_type` is one of `malware`, `c2`, `scanner`, `spam`
+or `other` and never a feed's own wording, because the parser normalizes every
+category it reads into those five. `GET /api/v1/threatintel/urls` answers the
+indicators the IP set cannot carry, with `url`, `feed_id`, `confidence` and
+`threat_type` and no `source_feed`.
 
 ## Code Architecture
 
