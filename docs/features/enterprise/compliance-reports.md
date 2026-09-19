@@ -215,11 +215,13 @@ page carries:
 - **Section details** - per section, one line per control: the control id, a `[PASS]` / `[PART]` /
   `[FAIL]` / `[N/A]` marker, the control name and how many evidence items back it. The evidence
   payloads and the remediation guidance are in the JSON and text exports rather than in the PDF
-- **Font** - the first of Liberation Sans, DejaVu Sans or Helvetica found at the usual system
-  paths. No font is shipped with the agent and the published image is distroless, so unless a font
-  is mounted into the container the route answers with the text export under the PDF content type
-  rather than with a document. Mount one at
-  `/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf` to get a real PDF
+- **Font** - Liberation Sans, embedded in the binary and again in every document it writes. The
+  published image is distroless and carries no font, so nothing is read from the host and no mount
+  is needed; a document opens the same way on any machine
+
+If the renderer fails, the route answers `500` and the body is not a PDF. It never answers `200`
+with something that is not a document under the `application/pdf` content type, because nothing
+downstream can tell the two apart.
 
 ## Configuration
 
@@ -282,7 +284,7 @@ enterprise:
 | 201 | Report generated successfully |
 | 400 | Invalid time range (start ≥ end) or invalid UUID |
 | 404 | Report not found |
-| 500 | Generation failure |
+| 500 | Generation failure, or a PDF the renderer could not produce |
 
 ## Feature Gating
 
