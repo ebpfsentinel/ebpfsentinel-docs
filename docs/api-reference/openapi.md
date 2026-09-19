@@ -15,7 +15,7 @@ There are **two** documents, not one. The open-source agent describes its own su
 | Schema components | 114 | 184 |
 | Tags | 27 | 24 |
 
-The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is plain HTTP on `8444`: the agent terminates no TLS there, so put it behind a reverse proxy or a service mesh if it leaves the host. The open-source API stays where it is, and an Enterprise deployment serves both, so both documents are reachable at once from the same host.
+The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is plain HTTP on `8444`: the agent terminates no TLS there, so put it behind a reverse proxy or a service mesh if it leaves the host. The two are two binaries rather than two ports on one: the enterprise agent opens 8444 alone and never starts the open-source listeners, so a host running it answers the enterprise document and not the open-source one.
 
 ## What each document covers
 

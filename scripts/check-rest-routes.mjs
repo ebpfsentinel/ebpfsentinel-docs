@@ -31,8 +31,8 @@ const VERB_SET = new Set(VERBS.map((verb) => verb.toUpperCase()));
 const ENTERPRISE_HEADING = '## Enterprise Endpoints';
 const SECTION_RE = /^#{3,4}\s+([A-Z]+)\s+(\/\S*)\s*$/;
 const SUMMARY_ROW_RE = /^\|\s*([A-Z]+)\s*\|\s*`([^`]+)`\s*\|/;
-const INLINE_PAIR_RE = /`([A-Z]+)\s+(\/(?:api\/v1|metrics)\S*?)`/g;
-const FENCED_PAIR_RE = /^([A-Z]+)\s+(\/(?:api\/v1|metrics)\S*)\s*$/;
+const INLINE_PAIR_RE = /`([A-Z]+)\s+(\/(?:api\/v1|metrics|healthz|readyz)\S*?)`/g;
+const FENCED_PAIR_RE = /^([A-Z]+)\s+(\/(?:api\/v1|metrics|healthz|readyz)\S*)\s*$/;
 
 // Prefix to feature page. Longest match wins, so the more specific prefixes
 // come first. Every enterprise operation must fall under one of them.
@@ -68,7 +68,13 @@ const FEATURE_DOCS = [
 // Mounted whatever the license carries, so they belong to no feature. They are
 // documented on the enterprise overview page instead.
 const AGENT_WIDE_DOC = 'overview.md';
-const AGENT_WIDE = ['/api/v1/alerts', '/api/v1/ebpf/kernel-features', '/metrics'];
+const AGENT_WIDE = [
+  '/api/v1/alerts',
+  '/api/v1/ebpf/kernel-features',
+  '/metrics',
+  '/healthz',
+  '/readyz',
+];
 
 // Operations deliberately left out of the enterprise reference page. Add a pair
 // here only when the route is internal by design, with the reason beside it.

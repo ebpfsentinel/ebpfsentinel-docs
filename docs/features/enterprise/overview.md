@@ -47,7 +47,7 @@ feature each one requires in
 license does not carry is never mounted, so a call to one of its paths answers
 `404 Not Found` rather than `403 Forbidden`.
 
-Four routes are mounted whatever the license carries:
+Six routes are mounted whatever the license carries:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
@@ -55,6 +55,14 @@ Four routes are mounted whatever the license carries:
 | `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
 | `GET` | `/metrics` | none | none | OpenMetrics text output for every enterprise metric. |
+| `GET` | `/healthz` | none | none | Liveness. Answers 200 while the process is running. |
+| `GET` | `/readyz` | none | none | Readiness. 200 once this node is doing what its role asks of it, 503 otherwise. |
+
+The two probes carry no authentication and no license check on purpose: an
+orchestrator has no credential, and a license that cannot be read is exactly
+when an operator needs the pod to keep answering why. They are served on the
+enterprise API port like everything else, because this binary opens one HTTP
+listener and never starts the open-source agent's.
 
 `/api/v1/alerts` is free of the license and not free of the configuration: it is
 mounted only where the OSS datapath was activated and its alert store opened, so

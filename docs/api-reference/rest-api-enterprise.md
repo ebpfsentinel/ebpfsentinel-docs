@@ -188,6 +188,28 @@ Mounted whatever the license carries, on every enterprise agent.
 | `GET` | `/api/v1/alerts` | viewer | `alerts:read` | none | Query the OSS datapath alert store. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | `config:read` | none | Return what the startup helper probe learned about this kernel. |
 | `GET` | `/metrics` | none | `none` | none | Returns `OpenMetrics` text output for all enterprise metrics. |
+| `GET` | `/healthz` | none | `none` | none | Liveness probe. `200` while the process is running. |
+| `GET` | `/readyz` | none | `none` | none | Readiness probe. `200` once this node is doing what its role asks of it, `503` otherwise. |
+
+`/readyz` answers what this edition can be asked to do rather than what the
+open-source agent can:
+
+```json
+{
+  "status": "ready",
+  "datapath": "active",
+  "ebpf_loaded": true
+}
+```
+
+`datapath` is `active` on a node driving the eBPF programs, `standby` on a node
+that lost the HA election, and `absent` where no datapath was built at all. A
+standby answers `200`: it drives no datapath on purpose, and reporting it not
+ready would pull its peer gRPC out of the service its peers find it through.
+An `absent` datapath is a fault and answers `503`. On an active node, a refused
+attach or a missing kernel helper also answers `503` and repeats the list in
+`attach_blocked` and `kernel_helpers_missing`; both fields are left out when
+empty.
 
 ## Advanced RBAC
 
