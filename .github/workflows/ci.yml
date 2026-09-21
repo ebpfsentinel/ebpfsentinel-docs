@@ -46,7 +46,7 @@ jobs:
         with:
           repository: ebpfsentinel/ebpfsentinel-enterprise
           path: ebpfsentinel-enterprise
-          token: ${{ secrets.ENTERPRISE_READ_TOKEN }}
+          token: ${{ secrets.SIBLING_READ_TOKEN }}
 
       - uses: actions/setup-node@v5
         with:
