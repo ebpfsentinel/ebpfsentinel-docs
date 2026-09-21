@@ -42,6 +42,7 @@ ratelimit:
 | `default_algorithm` | `string` | `token_bucket` | Default algorithm for unmatched source IPs |
 | `country_tiers` | `[CountryTier]` | `[]` | Per-country rate limit tiers enforced via kernel LPM maps |
 | `rules` | `[Rule]` | `[]` | Rate limit rules (max 10,240) |
+| `max_buckets` | `integer` | `65536` | Capacity of the kernel bucket table, in source addresses tracked at once, 1,024 to 4,194,304. The table is per CPU, so it costs this many slots on every online CPU and evicts the least recently seen source when full: at about 80 bytes a slot the default locks 5 MB per CPU. Applies at the next agent start |
 
 ### Rule
 

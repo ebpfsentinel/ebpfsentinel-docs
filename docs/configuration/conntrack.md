@@ -25,6 +25,8 @@ conntrack:
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable connection tracking probe |
 
+This section keeps no table of its own: the probe reads the kernel's own conntrack entries. The connection table the DDoS guard fills is sized by `ddos.connection_tracking.max_entries`, and that key is refused here.
+
 ### Flood Detection
 
 These thresholds trigger alerts when anomalous connection patterns are detected in the eBPF program:

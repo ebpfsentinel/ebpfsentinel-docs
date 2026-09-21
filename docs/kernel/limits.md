@@ -13,11 +13,11 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | xdp-firewall | IP set entries (IPv4) | 65,536 |
 | xdp-firewall | Interface groups | 31 |
 | xdp-ratelimit | Rate limit configs | 10,240 |
-| xdp-ratelimit | Tracked source IPs (bucket state) | 262,144 |
+| xdp-ratelimit | Tracked source IPs (bucket state) | `ratelimit.max_buckets`, 65,536 by default |
 | xdp-ratelimit | Country CIDRs (per family) | 131,072 |
 | xdp-ratelimit | Country tiers | 16 |
-| xdp-ratelimit | SYN rate tracked IPs | 65,536 |
-| xdp-ratelimit | DDoS connection table | 131,072 |
+| xdp-ratelimit | SYN rate tracked IPs | `ddos.max_tracked_sources`, 16,384 by default |
+| xdp-ratelimit | DDoS connection table | `ddos.connection_tracking.max_entries`, 65,536 by default |
 | xdp-ratelimit | Amplification protection ports | 64 |
 | xdp-loadbalancer | Services | 4,096 |
 | xdp-loadbalancer | Backends per service | 256 |
@@ -35,8 +35,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | tc-nat-egress | NAT port allocations | 65,536 |
 | tc-ids | IDS patterns | 10,240 |
 | tc-ids | L7 inspection ports | 256 |
-| tc-threatintel | IOCs per family | 1,048,576 |
-| tc-threatintel | Bloom filter per family | 1,048,576 |
+| tc-threatintel | IOCs per family | `threatintel.max_entries`, derived from the feeds, up to 4,194,304 |
+| tc-threatintel | Bloom filter per family | same as the IOC table |
 | tc-qos | Pipes | 64 |
 | tc-qos | Queues | 256 |
 | tc-qos | Classifiers | 1,024 |
@@ -69,28 +69,30 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
 | Rate limit configs | 10,240 | `RATELIMIT_CONFIG` (HashMap) |
-| Tracked source IPs (all algorithms) | 262,144 | `RL_BUCKETS` (LruPerCpuHash, `MAX_RL_BUCKET_ENTRIES`) |
+| Tracked source IPs (all algorithms) | `ratelimit.max_buckets` (65,536 by default, 1,024 to 4,194,304) | `RL_BUCKETS` (LruPerCpuHash, sized at load) |
 | Country tiers | 16 | `RL_TIER_CONFIG` (Array, `MAX_RL_TIERS`) |
 | Country CIDRs (IPv4) | 131,072 | `RL_LPM_SRC_V4` (LPM Trie, `MAX_RL_LPM_ENTRIES`) |
 | Country CIDRs (IPv6) | 131,072 | `RL_LPM_SRC_V6` (LPM Trie, `MAX_RL_LPM_ENTRIES`) |
-| SYN rate tracked IPs | 65,536 | `SYN_RATE_TRACKER` (LruPerCpuHash) |
-| ICMP rate tracked IPs | 65,536 | `ICMP_RATE_BUCKETS` (LruPerCpuHash) |
+| SYN rate tracked IPs | `ddos.max_tracked_sources` (16,384 by default, 1,024 to 1,048,576) | `SYN_RATE_TRACKER` (LruPerCpuHash, sized at load) |
+| ICMP rate tracked IPs | `ddos.max_tracked_sources` | `ICMP_RATE_BUCKETS` (LruPerCpuHash, sized at load) |
 | Amplification protection ports | 64 | `AMP_PROTECT_CONFIG` (HashMap) |
-| Amplification rate tracked sources | 65,536 | `AMP_RATE_BUCKETS` (LruPerCpuHash) |
-| DDoS connection table | 131,072 | `CONN_TABLE` (LruPerCpuHash) |
-| Half-open connection counters | 65,536 | `HALF_OPEN_COUNTERS` (LruPerCpuHash) |
-| Flood counters | 65,536 | `FLOOD_COUNTERS` (LruPerCpuHash) |
+| Amplification rate tracked sources | `ddos.max_tracked_sources` | `AMP_RATE_BUCKETS` (LruPerCpuHash, sized at load) |
+| DDoS connection table | `ddos.connection_tracking.max_entries` (65,536 by default, 1,024 to 4,194,304) | `CONN_TABLE` (LruPerCpuHash, sized at load) |
+| Half-open connection counters | `ddos.max_tracked_sources` | `HALF_OPEN_COUNTERS` (LruPerCpuHash, sized at load) |
+| Flood counters | `ddos.max_tracked_sources` | `FLOOD_COUNTERS` (LruPerCpuHash, sized at load) |
 | SYN cookie secrets | 1 | `SYNCOOKIE_SECRET` (Array, 32 bytes) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 1 MB | `EVENTS` |
 
-**Memory footprint** (`RL_BUCKETS`, 64 bytes/entry, per-CPU):
+**Memory footprint** at the defaults, measured on kernel 7.0.0-28-generic: 84 bytes of locked memory per slot per CPU for `RL_BUCKETS`, 46 for `CONN_TABLE` and 37 for the five per-source tables (`bytes_memlock`, key, value and hash overhead included):
 
-| CPUs | `RL_BUCKETS` only | All DDoS LruPerCpuHash maps combined |
-|------|-------------------|--------------------------------------|
-| 4 | ~64 MB | ~96 MB |
-| 8 | ~128 MB | ~192 MB |
-| 16 | ~256 MB | ~384 MB |
+| CPUs | `RL_BUCKETS` only | All seven LruPerCpuHash tables combined |
+|------|-------------------|-----------------------------------------|
+| 4 | ~21 MB | ~43 MB |
+| 8 | ~42 MB | ~87 MB |
+| 16 | ~84 MB | ~174 MB |
+
+The per-CPU part is what moves with the machine; the rest of the loaded maps is about 56 MB whatever the CPU count. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 ### xdp-loadbalancer
 
@@ -173,14 +175,14 @@ without backpressure drops at typical enterprise rates.
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| IOCs (IPv4) | 1,048,576 | `THREATINTEL_IOCS` (LRU Hash, `THREATINTEL_MAX_ENTRIES`) |
-| IOCs (IPv6) | 1,048,576 | `THREATINTEL_IOCS_V6` (LRU Hash, `THREATINTEL_MAX_ENTRIES`) |
-| Bloom filter (IPv4) | 1,048,576 | `THREATINTEL_BLOOM_V4` (BloomFilter) |
-| Bloom filter (IPv6) | 1,048,576 | `THREATINTEL_BLOOM_V6` (BloomFilter) |
+| IOCs (IPv4) | `threatintel.max_entries` (derived, 4,096 to 4,194,304) | `THREATINTEL_IOCS` (LRU Hash, sized at load) |
+| IOCs (IPv6) | `threatintel.max_entries` | `THREATINTEL_IOCS_V6` (LRU Hash, sized at load) |
+| Bloom filter (IPv4) | `threatintel.max_entries` | `THREATINTEL_BLOOM_V4` (BloomFilter, sized at load) |
+| Bloom filter (IPv6) | `threatintel.max_entries` | `THREATINTEL_BLOOM_V6` (BloomFilter, sized at load) |
 | RingBuf size | 1 MB | `EVENTS` |
 | Backpressure threshold | 75% | Events dropped when buffer >75% full |
 
-Supports 1M+ IOCs per address family. LRU eviction handles overflow.
+The capacity follows the enabled feeds' `max_iocs` unless set by hand, up to four million IOCs per address family; LRU eviction handles overflow. An agent with no feed gets the 4,096-slot floor rather than a million empty slots.
 
 ### tc-dns
 

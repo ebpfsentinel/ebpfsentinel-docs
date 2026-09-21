@@ -59,7 +59,7 @@ Hash table with built-in **LRU eviction**. Used for:
 
 Combines per-CPU value storage with LRU eviction. Each CPU core maintains its own copy of the value (no locking), while the map automatically evicts the least-recently-used entries when capacity is reached. Used for:
 
-- `RL_BUCKETS` (262,144 entries): consolidated rate limit bucket state using a discriminated union (`RateLimitBucketUnion`, 64 bytes). All 4 rate limiting algorithms share one map. LRU eviction handles bucket expiration.
+- `RL_BUCKETS` (`ratelimit.max_buckets` entries, 65,536 by default): consolidated rate limit bucket state using a discriminated union (`RateLimitBucketUnion`, 64 bytes). All 4 rate limiting algorithms share one map. LRU eviction handles bucket expiration.
 - `QOS_FLOW_STATE` (65,536 entries): per-flow token bucket state. Each entry stores `tokens_remaining` and `last_refill_ns`. Per-CPU storage avoids contention on the hot path - each core independently tracks token state for flows it processes.
 
 ### Per-CPU Maps
@@ -70,7 +70,7 @@ Combines per-CPU value storage with LRU eviction. Each CPU core maintains its ow
 
 Per-CPU hash map providing **lock-free** per-IP rate limiting counters. Each CPU core maintains its own copy of the counter - no atomic operations or spinlocks needed. Values are aggregated when read from userspace.
 
-**Consolidated bucket map:** The 4 separate per-algorithm maps (`RATELIMIT_BUCKETS`, `FIXED_WINDOW_BUCKETS`, `SLIDING_WINDOW_BUCKETS`, `LEAKY_BUCKET_BUCKETS`) are consolidated into a single `RL_BUCKETS` (`LruPerCpuHashMap`, 262K entries) using a discriminated union:
+**Consolidated bucket map:** The 4 separate per-algorithm maps (`RATELIMIT_BUCKETS`, `FIXED_WINDOW_BUCKETS`, `SLIDING_WINDOW_BUCKETS`, `LEAKY_BUCKET_BUCKETS`) are consolidated into a single `RL_BUCKETS` (`LruPerCpuHashMap`, capacity from `ratelimit.max_buckets` at load, 65,536 by default) using a discriminated union:
 
 | Field | Type | Size |
 |-------|------|------|
@@ -87,8 +87,11 @@ memory = value_size * max_entries * num_CPUs
 
 | `max_entries` | CPUs | Memory (consolidated) |
 |---------------|------|-----------------------|
-| 262 144 | 4 | ~64 MB |
-| 262 144 | 8 | ~128 MB |
+| 65 536 | 4 | ~21 MB |
+| 65 536 | 8 | ~42 MB |
+| 262 144 | 8 | ~168 MB |
+
+The capacity is a configuration choice rather than a compile-time constant, and so are the DDoS per-source tables (`ddos.max_tracked_sources`), the DDoS connection table (`ddos.connection_tracking.max_entries`) and the threat intelligence IOC tables (`threatintel.max_entries`): the agent sizes them at load and logs the plan. What each costs is in [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 The consolidation reduces total kernel memory by ~75% compared to 4 separate maps (each with 65K entries).
 

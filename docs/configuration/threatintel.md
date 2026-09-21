@@ -40,6 +40,7 @@ threatintel:
 | `mode` | `string` | `"alert"` | Global enforcement mode. `"alert"` = log matches, pass traffic. `"block"` = drop traffic to/from IOC-listed IPs |
 | `country_confidence_boost` | `map<string, integer>` | `{}` | Per-country confidence adjustment (ISO 3166-1 alpha-2 → signed integer). Positive values increase IOC confidence for traffic from listed countries, negative values decrease it. Values are clamped to 0-100 after adjustment |
 | `feeds` | `[Feed]` | `[]` | List of feed configurations |
+| `max_entries` | `integer` | derived | Capacity of the kernel IOC tables (IPv4 and IPv6 each, plus their bloom filters), 4,096 to 4,194,304. When unset it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor rather than the tables' former fixed million slots. Locked kernel memory, about 80 bytes per slot per table, is paid at load whether the slots are used or not. Applies at the next agent start; a value changed by a reload is reported, not applied |
 
 ### Feed
 

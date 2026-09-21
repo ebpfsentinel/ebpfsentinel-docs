@@ -35,6 +35,12 @@ Six programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-egress`
 
 Up to 31 named interface groups are supported. The bitmask check adds negligible overhead (one map lookup + one AND + one compare per rule).
 
+## TC Chain Handoff (Cross-Cutting)
+
+The eight tc classifiers attach on TCX and each returns `TCX_NEXT`, so an ingress skb runs through `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-scrub` and `tc-qos` in that order, and an egress skb through `tc-nat-egress` then `tc-qos`. The frame is parsed once per chain rather than once per program: the first classifier that sees the skb reads the Ethernet header, walks the VLAN and QinQ tags, reads the IP header and the transport ports, and writes the result into the five control-block words the kernel carries with the skb from one TCX program to the next (`skb->cb`). Every classifier after it reads those words back: the L3 and L4 offsets, the protocol, the VLAN identifier, the two ports and the tenant, once a program in the chain has resolved it. `tc-dns` uses the ports to leave before touching the packet when neither is 53.
+
+The control block is not trusted blindly. The kernel overwrites it on an IP receive and on a locally originated skb, so the words carry a magic byte and a check word folded over the five of them, the skb length and the two interface indexes; a mismatch is a re-parse, never a wrong offset. A NAT rewrite invalidates the handoff before it touches the packet, since the ports it carries would be stale afterwards, and the next program parses again. The layout lives in `crates/ebpf-helpers/src/pktmeta.rs`.
+
 ## Shared Types (ebpf-common)
 
 All programs share types via `crates/ebpf-common/`:
@@ -165,7 +171,7 @@ Packet normalization running after XDP processing:
 ## TC NAT Egress (tc-nat-egress)
 
 - **NPTv6 (RFC 6296)**: stateless IPv6 prefix translation (source rewrite), checked before SNAT rules
-- Source NAT (SNAT) for outgoing packets
+- Source NAT (SNAT) for outgoing packets, attached on TCX egress so locally originated traffic is rewritten as well as forwarded traffic
 - `bpf_loop` for NAT rule scanning without hitting verifier loop limits
 - Reverse mapping from conntrack entries
 - L3/L4 checksum updates

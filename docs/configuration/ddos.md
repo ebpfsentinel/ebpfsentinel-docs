@@ -71,6 +71,7 @@ ddos:
 | `amplification_protection` | `AmplificationProtection` | - | UDP amplification kernel-side protection |
 | `connection_tracking` | `ConnectionTracking` | - | TCP connection tracking |
 | `policies` | `[DdosPolicy]` | `[]` | Userspace detection policies, evaluated on the events the guards raise |
+| `max_tracked_sources` | `integer` | `16384` | Capacity of each per-source kernel table the guards keep (SYN rate, ICMP rate, amplification rate, half-open counts, RST/FIN/ACK flood counters), in sources tracked at once, 1,024 to 1,048,576. Each table is per CPU, so it costs this many slots on every online CPU and evicts the least recently seen source when full. Applies at the next agent start |
 
 ### SynProtection
 
@@ -112,6 +113,7 @@ ddos:
 | `rst_threshold` | `integer` | `50` | RST packets/sec per source before dropping |
 | `fin_threshold` | `integer` | `50` | FIN packets/sec per source before dropping |
 | `ack_threshold` | `integer` | `200` | ACK packets/sec per source before dropping |
+| `max_entries` | `integer` | `65536` | Capacity of the kernel connection table, in connections tracked at once, 1,024 to 4,194,304. Per CPU, least recently seen connection evicted when full. Applies at the next agent start. This key is read here only: the top-level `conntrack` section sizes no table and refuses it |
 
 ### DdosPolicy
 
