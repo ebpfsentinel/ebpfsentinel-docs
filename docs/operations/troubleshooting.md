@@ -5,45 +5,41 @@
 ### Kernel version too old
 
 ```
-Error: failed to load eBPF program: kernel version too old
+kernel is below the mandatory minimum 6.9 (kernel 6.8 is below the required minimum 6.9; ...) - eBPFsentinel refuses to start.
 ```
 
-Check: `uname -r` must be >= 6.9. Upgrade your kernel. BPF token delegation requires kernel 6.9+.
+The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.9: BPF token delegation, the only way it loads eBPF, needs 6.9. There is no degraded mode. Upgrade the kernel.
 
 ### BTF not available
 
 ```
-Error: BTF not found at /sys/kernel/btf/vmlinux
+failed to read vmlinux BTF at /sys/kernel/btf/vmlinux: No such file or directory (os error 2)
 ```
 
-Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled kernel for your distribution.
+The version check does not look at BTF, so the agent starts, but the programs that resolve kfuncs against kernel BTF fail to load and the error lands in the log and in `/api/v1/ebpf/status`. The kernel was built without `CONFIG_DEBUG_INFO_BTF=y`; install a BTF-enabled kernel for your distribution.
 
-### eBPF fails to load / "BPF token unavailable - API-only mode"
+### "BPF token unavailable - running in API-only mode"
 
 ```
-Error: permission denied loading eBPF program
+BPF token creation failed against `/sys/fs/bpf/ebpfsentinel`: ... point EBPFSENTINEL_WARDEN_SOCK at a running warden.
 ```
 
-eBPF loads only through a BPF token, which requires a user namespace. Start the
-agent via the launcher (not directly) so the token is created:
+eBPF loads only through a BPF token, and the token needs a bpffs delegated by the warden. The agent stays up, serves the API and loads nothing (`/readyz` answers 503). Check, in order:
 
-```bash
-sudo ebpfsentinel-token-launch \
-  --bpffs /sys/fs/bpf/ebpfsentinel \
-  ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
-```
+1. the warden is running and its socket exists: `systemctl status ebpfsentinel-warden`, `ls -l /run/ebpfsentinel/warden.sock`;
+2. the agent has `EBPFSENTINEL_WARDEN_SOCK` pointing at that socket (the shipped unit sets it);
+3. the agent runs as the uid the warden was started with (`--uid 0` in the shipped unit); the warden refuses any other peer;
+4. unprivileged user namespaces are allowed on the host. On Ubuntu 24.04 and later `kernel.apparmor_restrict_unprivileged_userns=1` blocks them unless the agent's AppArmor profile is loaded, which `install.sh` does.
 
-If it still fails, the host likely disallows unprivileged user namespaces or the
-launcher lacks `CAP_SYS_ADMIN`. There is no `setcap cap_bpf` fallback. See the
-[BPF token guide](deployment/bpf-token.md#troubleshooting).
+There is no `setcap cap_bpf` fallback. See the [BPF token guide](deployment/bpf-token.md#troubleshooting).
 
 ### Interface not found
 
 ```
-Error: interface eth0 not found
+resolve ifindex for `eth0`: No such file or directory (os error 2)
 ```
 
-Check available interfaces: `ip link show`. Update `agent.interfaces` in your config.
+An interface named in `agent.interfaces` does not exist. The programs load but cannot attach there, the failure is listed in `attach_blocked` and `/readyz` answers 503. Check available interfaces with `ip link show` and update `agent.interfaces`. An empty list is refused at startup (`agent.interfaces: at least one interface is required`).
 
 ### Programs load but nothing attaches, and `/readyz` stays 503
 
@@ -87,10 +83,10 @@ the agent has not finished loading, or loading failed outright. Check the log.
 ### BPF filesystem not mounted
 
 ```
-Error: /sys/fs/bpf not mounted
+[warden] move_mount: No such file or directory (os error 2)
 ```
 
-Mount it:
+The agent mounts its delegated bpffs at `/sys/fs/bpf/ebpfsentinel`, which needs `/sys/fs/bpf` to be a bpffs itself (systemd mounts it at boot on every mainstream distribution). If `mount | grep /sys/fs/bpf` shows nothing, mount it:
 
 ```bash
 sudo mount -t bpf bpf /sys/fs/bpf
@@ -117,15 +113,13 @@ sudo mount -t bpf bpf /sys/fs/bpf
 
 ## IDS Not Generating Alerts
 
-1. Verify rules are loaded:
+1. Verify IDS is enabled and rules are loaded:
    ```bash
-   ebpfsentinel-agent ips list
+   ebpfsentinel-agent ids status
+   ebpfsentinel-agent ids rules
    ```
 
-2. Check sampling - if `sample_rate` is high, most packets are skipped:
-   ```bash
-   curl http://localhost:8080/metrics | grep sampled
-   ```
+2. Check sampling. With `ids.sampling.mode` set to `random` or `hash`, only the `ids.sampling.rate` fraction (0.0 to 1.0) of events is evaluated; `country_based` uses `high_risk_rate` and `default_rate` (0.1 unless set). The default mode is `none`, which evaluates everything.
 
 3. Test a rule manually:
    ```bash
@@ -133,19 +127,21 @@ sudo mount -t bpf bpf /sys/fs/bpf
    curl http://target-host/ -d "union select * from users"
    ```
 
-4. Check threshold settings - `threshold` mode requires N matches before alerting.
+4. Check per-rule `threshold` settings - with `type: threshold` a rule alerts only after `count` matches within `window_secs`, tracked by `track_by`.
 
 ## High CPU Usage
 
-1. Check per-domain latency:
+1. Check processing latency:
    ```bash
-   curl http://localhost:8080/metrics | grep processing_duration
+   curl -s http://localhost:9090/metrics | grep -E 'packet_processing_duration|worker_processing_duration'
    ```
 
 2. Enable IDS sampling to reduce userspace load:
    ```yaml
    ids:
-     sample_rate: 100    # Inspect 1-in-100
+     sampling:
+       mode: random
+       rate: 0.01    # Inspect 1 in 100
    ```
 
 3. Profile with perf:
@@ -163,7 +159,8 @@ sudo mount -t bpf bpf /sys/fs/bpf
 2. Reduce cache if needed:
    ```yaml
    dns:
-     cache_size: 10000
+     cache:
+       max_entries: 10000
    ```
 
 3. Check IPS blacklist size:
@@ -173,17 +170,20 @@ sudo mount -t bpf bpf /sys/fs/bpf
 
 ## Config Reload Fails
 
-1. Check the reload endpoint response:
+1. Check the reload response. The endpoint validates the file on disk before applying it and answers 400 `INVALID_CONFIG` with the reason when it does not load:
    ```bash
-   curl -v -X POST http://localhost:8080/api/v1/config/reload
+   ebpfsentinel-agent config reload
+   # or
+   curl -v -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/config/reload
    ```
+   With authentication on, the `viewer` role is refused with 403 `INSUFFICIENT_ROLE`.
 
 2. Check agent logs for validation errors:
    ```bash
    journalctl -u ebpfsentinel -f
    ```
 
-3. Validate the config file manually - look for YAML syntax errors, invalid CIDRs, or invalid regex patterns.
+3. Validate the config file manually - look for YAML syntax errors, invalid CIDRs, or invalid regex patterns. A reload does not re-read everything; see [Hot reload](hot-reload.md) for what needs a restart.
 
 ## Debugging Tools
 
