@@ -2,537 +2,347 @@
 
 > DaemonSet mode supports all features. The agent requires kernel 6.9+
 > and loads eBPF **exclusively** through a **BPF token** - there is no
-> capability-based fallback. The container entrypoint is the launcher
-> (`ebpfsentinel-token-launch`), which creates the token in a child user
-> namespace and then execs the agent unprivileged; the pod is granted
-> `CAP_SYS_ADMIN` for that bootstrap only. See the
-> [BPF token guide](bpf-token.md) and the
-> [deployment compatibility matrix](../../features/deployment-matrix.md)
-> for details.
+> capability-based fallback. See the [BPF token guide](bpf-token.md) and the
+> [deployment compatibility matrix](../../features/deployment-matrix.md).
 
-Deploy eBPFsentinel as a DaemonSet - one agent per node.
+The agent runs as a DaemonSet, one pod per node, installed by the Helm chart
+`charts/ebpfsentinel`. Each pod carries two containers:
 
-> **Rootless agent option:** to keep the agent container itself off `CAP_SYS_ADMIN`
-> (non-root + `cap-drop: ALL`), use the **split-broker** layout
-> (`dist/kubernetes/bpf-token-broker-daemonset.yaml`, or Helm
-> `daemonset.brokerSidecar.enabled=true`). See the
-> [BPF token guide](bpf-token.md#the-warden-broker).
+| Container | User | Capabilities | Role |
+|-----------|------|--------------|------|
+| `warden` | 0 | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | Privileged broker, run as a native sidecar (an init container with `restartPolicy: Always`). Delegates a bpffs to the agent once, then performs the host-namespace operations the agent cannot: conntrack teardown, routes, gratuitous ARP, the pcap socket pool and the DLP uprobe attach |
+| `agent` | 65534 | none (`drop: [ALL]`) | The agent. Unshares its own user namespace, has the warden stamp the bpffs it opened, loads its eBPF through the token and serves the API |
 
-## BPF token creation phase
+Native sidecars need **Kubernetes 1.28 or later**. The two containers share the
+warden socket through an `emptyDir`; the agent finds it through
+`EBPFSENTINEL_WARDEN_SOCK`.
 
-The agent requires kernel 6.9+ and loads eBPF only through a
-**[BPF token](bpf-token.md)**. Token creation happens **in-process** when
-the container starts - there is **no init container** and no setup script.
-The image entrypoint is `ebpfsentinel-token-launch`, which:
+## Install
 
-1. starts as container root (`CAP_SYS_ADMIN`) and inherits the kernel
-   module BTF fds,
-2. unshares a **child user namespace**, `fsopen("bpf")`s and applies
-   `delegate_*=any` to mount the delegated bpffs at
-   `/sys/fs/bpf/ebpfsentinel` (`BPF_TOKEN_CREATE` is `EOPNOTSUPP` outside a
-   user namespace - hence the launcher),
-3. pre-opens the `AF_PACKET` pcap sockets, then execs the agent **inside
-   that user namespace**, where it calls `BPF_TOKEN_CREATE` and loads every
-   program through the token holding no host capabilities.
+The chart is published as an OCI artifact:
 
-So the pod's `securityContext` grants `CAP_SYS_ADMIN` with
-`allowPrivilegeEscalation: true` for the launcher bootstrap; the
-long-running agent is unprivileged. The agent config only needs
-`agent.bpf_token.bpffs_path` to match the launcher's `--bpffs` (both
-default `/sys/fs/bpf/ebpfsentinel`) - see the [ConfigMap](#configmap).
-
-> **Note:** nested user namespaces + bpffs delegation inside a pod can
-> require cluster-specific runtime config (the node must allow unprivileged
-> user namespaces; some Pod Security Admission levels or runtimes block
-> `CAP_SYS_ADMIN`). Validate on your cluster before rolling out fleet-wide.
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: ebpfsentinel
-  namespace: ebpfsentinel
-  labels:
-    app: ebpfsentinel
-spec:
-  selector:
-    matchLabels:
-      app: ebpfsentinel
-  template:
-    metadata:
-      labels:
-        app: ebpfsentinel
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9090"
-    spec:
-      serviceAccountName: ebpfsentinel
-      hostNetwork: true
-      hostPID: true                  # needed for uprobe DLP visibility
-      dnsPolicy: ClusterFirstWithHostNet
-      # No init container - the image entrypoint (ebpfsentinel-token-launch)
-      # sets up the delegated bpffs + token in a child userns, then execs the
-      # agent there. The agent's args below are appended to that entrypoint.
-      containers:
-        - name: agent
-          image: ebpfsentinel:latest
-          args: ["--config", "/etc/ebpfsentinel/config.yaml"]
-          securityContext:
-            # CAP_SYS_ADMIN is consumed by the launcher (bpffs delegation +
-            # module BTF fds + userns creation); the agent it execs is
-            # unprivileged. There is no capability-based eBPF loading path.
-            allowPrivilegeEscalation: true
-            # Unconfined: the launcher does mount/move_mount (bpffs delegation)
-            # and writes /proc/self/uid_map after unshare(CLONE_NEWUSER). On
-            # AppArmor nodes (e.g. Ubuntu) the default container profile blocks
-            # these; the default seccomp profile must not filter mount either.
-            appArmorProfile:
-              type: Unconfined
-            seccompProfile:
-              type: Unconfined
-            capabilities:
-              drop: [ALL]
-              add:
-                - SYS_ADMIN         # launcher bootstrap only; eBPF loads via the BPF token
-                - NET_RAW           # launcher pre-opens the AF_PACKET pcap pool; drop if you never capture
-          env:
-            - name: EBPFSENTINEL_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-          ports:
-            - containerPort: 8080
-              name: http
-            - containerPort: 50051
-              name: grpc
-            - containerPort: 9090
-              name: metrics
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          volumeMounts:
-            - name: config
-              mountPath: /etc/ebpfsentinel
-            - name: bpf
-              mountPath: /sys/fs/bpf
-              # the launcher mounts the delegated bpffs in its own private mount
-              # namespace; the container only needs to see the host bpffs
-              mountPropagation: HostToContainer
-            - name: proc
-              mountPath: /host/proc
-              readOnly: true
-            - name: cgroup
-              mountPath: /host/sys/fs/cgroup
-              readOnly: true
-          resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "512Mi"
-              cpu: "1000m"
-      volumes:
-        - name: config
-          configMap:
-            name: ebpfsentinel-config
-            # The agent rejects a world-readable config; configMap volumes
-            # default to 0644, so pin a stricter mode.
-            defaultMode: 0640
-        - name: bpf
-          # Real node: the host bpffs is writable, so bind it in. On nested
-          # runtimes (kind, minikube) the node's own /sys/fs/bpf may be
-          # read-only - use an in-pod tmpfs instead:
-          #   emptyDir: { medium: Memory }
-          hostPath:
-            path: /sys/fs/bpf
-        - name: proc
-          hostPath:
-            path: /proc
-        - name: cgroup
-          hostPath:
-            path: /sys/fs/cgroup
+```bash
+helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> \
+  --namespace ebpfsentinel --create-namespace \
+  --set agent.interfaces='{eth0}'
 ```
+
+From a checkout of the agent repository, install the chart directory instead:
+
+```bash
+helm install ebpfsentinel charts/ebpfsentinel \
+  --namespace ebpfsentinel --create-namespace \
+  --set agent.interfaces='{eth0}'
+```
+
+`agent.interfaces` names the node interfaces the eBPF programs attach to. The
+pod runs with `hostNetwork: true`, so these are the node's own interface names.
+
+Verify:
+
+```bash
+kubectl -n ebpfsentinel get pods -o wide
+kubectl -n ebpfsentinel logs ds/ebpfsentinel -c agent | grep -i token
+kubectl -n ebpfsentinel exec ds/ebpfsentinel -c agent -- \
+  ebpfsentinel-agent metrics | grep bpf_token_used
+```
+
+`ebpfsentinel_bpf_token_used 1` means eBPF was loaded through the token. The
+image is distroless: there is no shell and no `curl` in it, so use the agent's
+own subcommands through `kubectl exec`.
+
+## What the chart renders
+
+| Object | When |
+|--------|------|
+| `ServiceAccount` | `serviceAccount.create` (default `true`) |
+| `ConfigMap` holding `config.yaml` | always |
+| `Service`, headless `ClusterIP`, ports `http` 8080, `grpc` 50051, `metrics` 9090 | always |
+| `DaemonSet` | always |
+| `ClusterRole` + `ClusterRoleBinding` (`pods`: `get`, `list`, `watch`) | `container.kubernetes.enabled` |
+| `ServiceMonitor` | `metrics.serviceMonitor.enabled` |
+| `PrometheusRule` | `metrics.prometheusRule.enabled` |
+| `PodDisruptionBudget` | `podDisruptionBudget.enabled` |
+| `NetworkPolicy` | `networkPolicy.enabled` |
+
+Without the Kubernetes enricher the chart creates no RBAC at all and does not
+mount the ServiceAccount token into the pod.
+
+## Pod layout
+
+Pod-level settings: `hostNetwork: true`, `dnsPolicy: ClusterFirstWithHostNet`,
+`fsGroup: 65534` (so the agent can read the `0640` config file), and `hostPID`
+from `daemonset.hostPID` (default `true`).
+
+`hostPID` is what makes TLS DLP node-wide: the agent resolves each workload's
+`libssl` through `/host/proc/<pid>` and the warden attaches the uprobe against
+the host pid. It also lets the pod see every process on the node. With
+`daemonset.hostPID: false` the uprobe covers only the libraries the agent itself
+maps.
+
+Both containers run with AppArmor and seccomp `Unconfined`: the agent issues
+`unshare`, `mount` and `bpf` without holding `CAP_SYS_ADMIN`, which the default
+seccomp profile would refuse, and the warden issues `fsconfig`, netlink,
+`AF_PACKET` and `bpf`.
+
+Environment set on the agent:
+
+| Variable | Value |
+|----------|-------|
+| `EBPFSENTINEL_WARDEN_SOCK` | the warden socket in the shared `emptyDir` |
+| `EBPFSENTINEL_BPFFS` | `daemonset.bpfToken.bpffsPath` (default `/sys/fs/bpf/ebpfsentinel`) |
+| `EBPFSENTINEL_HOST_PROC` | `/host/proc` |
+| `EBPFSENTINEL_NODE_NAME` | the node name, from `spec.nodeName` |
+
+Volumes:
+
+| Volume | Source | Mounted at |
+|--------|--------|------------|
+| warden socket | `emptyDir` | both containers |
+| config | the ConfigMap, mode `0640` | `/etc/ebpfsentinel` |
+| bpf | host `/sys/fs/bpf`, propagation `HostToContainer`; or an in-memory `emptyDir` when `daemonset.bpfToken.bpffsEmptyDir` is `true` | `/sys/fs/bpf` |
+| debugfs | host `/sys/kernel/debug`, read-only | `/sys/kernel/debug` |
+| cgroup | host `/sys/fs/cgroup`, read-only | `/sys/fs/cgroup` |
+| host proc | host `/proc`, read-only | `/host/proc` (both containers) |
+
+Set `daemonset.bpfToken.bpffsEmptyDir=true` on nested runtimes such as kind and
+minikube, whose node `/sys/fs/bpf` is read-only or absent. On a real node leave
+it `false`.
+
+Probes: liveness on `/healthz`, readiness on `/readyz`, both on the `http` port.
+
+### Node prerequisite on Ubuntu 24.04 and later
+
+These kernels set `kernel.apparmor_restrict_unprivileged_userns=1`. The agent
+runs as uid 65534 and must create a user namespace, and the pod's own
+`appArmorProfile: Unconfined` does not lift a host-level gate. On each such node
+either set the sysctl to `0` (a node bootstrap step, a `/etc/sysctl.d/` drop-in
+or a privileged init DaemonSet), or load a per-binary AppArmor profile granting
+`userns`. Nodes without the restriction (most non-Ubuntu kernels, Talos) need
+nothing.
 
 ### Kernel version matrix
 
 | Kernel | Supported path | Notes |
 |--------|----------------|-------|
 | < 6.9 | **Not supported** | The agent requires 6.9+ (BPF token delegation and the kfunc surface) |
-| 6.9+ | BPF token (only path) | Pod grants `CAP_SYS_ADMIN` for the launcher bootstrap; the agent runs unprivileged |
+| 6.9+ | BPF token (only path) | The warden holds the host capabilities; the agent holds none |
 
-> There is **no capability-based fallback**. eBPF loads exclusively through
-> the token; if the launcher cannot delegate the bpffs (user namespaces
-> disabled, runtime blocks `CAP_SYS_ADMIN`), the agent starts in API-only
-> mode with no eBPF attached. The only knob is
-> `agent.bpf_token.bpffs_path`, which must match the launcher `--bpffs`.
+If the token cannot be created (user namespaces disabled, the warden absent,
+the AppArmor gate above), the agent logs
+`BPF token unavailable - running in API-only mode`, serves the API with no eBPF
+attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
+`/readyz`, so the pod never becomes Ready.
 
-## ServiceAccount, ClusterRole & ClusterRoleBinding
+## Values reference
 
-The Kubernetes metadata enricher needs `get`, `list`, `watch` on the
-`pods` resource cluster-wide. Install the following alongside the
-DaemonSet:
+### Images
 
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: ebpfsentinel
-  namespace: ebpfsentinel
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: ebpfsentinel-pod-reader
-rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: ebpfsentinel-pod-reader
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: ebpfsentinel-pod-reader
-subjects:
-  - kind: ServiceAccount
-    name: ebpfsentinel
-    namespace: ebpfsentinel
-```
+| Key | Default |
+|-----|---------|
+| `image.repository` | `ghcr.io/ebpfsentinel/ebpfsentinel` |
+| `image.tag` | the chart's `appVersion` when empty |
+| `wardenImage.repository` | `ghcr.io/ebpfsentinel/ebpfsentinel-warden` |
+| `wardenImage.tag` | the chart's `appVersion` when empty |
+| `imagePullSecrets` | `[]` |
 
-The OSS agent only reads `pods` - no other API group. You can audit
-this with `kubectl describe clusterrole ebpfsentinel-pod-reader`.
+### Agent
 
-## ConfigMap
+| Key | Default | Description |
+|-----|---------|-------------|
+| `agent.interfaces` | `[eth0]` | Node interfaces to attach to |
+| `agent.bindAddress` | `0.0.0.0` | Listen address for HTTP, gRPC and metrics |
+| `agent.allowUnauthenticatedApi` | `true` | Lets the agent boot on a non-loopback bind with auth off. Turn `auth.enabled` on for production, or restrict access with a NetworkPolicy |
+| `agent.httpPort` / `grpcPort` / `metricsPort` | `8080` / `50051` / `9090` | Ports |
+| `agent.logLevel` / `logFormat` | `info` / `json` | Logging |
+| `agent.swaggerUi` | `false` | Swagger UI at `/swagger-ui` |
+| `agent.grpcReflection` | `false` | gRPC reflection |
+| `agent.xdpMode` | `auto` | `auto`, `native`, `generic` or `offloaded` |
+| `agent.eventWorkers` | `4` | Event dispatch workers |
+| `agent.tls.enabled` | `false` | TLS on the HTTP and gRPC listeners; `certPath`, `keyPath`, `pqMode` (`prefer`, `require`, `disable`) and `allowTls12` beside it. Mount the files through `daemonset.extraVolumes` and `extraVolumeMounts` under `/etc/ebpfsentinel/` |
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ebpfsentinel-config
-  namespace: ebpfsentinel
-data:
-  config.yaml: |
-    agent:
-      interfaces: [eth0]
-      bind_address: "0.0.0.0"
-      attach_mode: auto              # netkit for Cilium pods, TC clsact otherwise
-      bpf_token:
-        # Path of the delegated bpffs the launcher mounts; must match its
-        # --bpffs. eBPF loads exclusively through the token created here.
-        bpffs_path: /sys/fs/bpf/ebpfsentinel
-    container:
-      resolver:
-        enabled: true
-        proc_path: /host/proc         # points at the hostPath mount
-      kubernetes:
-        enabled: true                  # K8s enricher
-        node_name: ""                  # auto-detect from EBPFSENTINEL_NODE_NAME
-    firewall:
-      default_policy: pass
-      rules:
-        - id: block-telnet
-          priority: 10
-          action: deny
-          protocol: tcp
-          dst_port: 23
-```
+### DaemonSet
 
-## Environment Variables
+| Key | Default | Description |
+|-----|---------|-------------|
+| `daemonset.hostPID` | `true` | Host PID namespace, for node-wide TLS DLP |
+| `daemonset.bpfToken.bpffsPath` | `/sys/fs/bpf/ebpfsentinel` | Drives both `EBPFSENTINEL_BPFFS` and the agent's `bpf_token.bpffs_path`, so the two cannot drift |
+| `daemonset.bpfToken.bpffsEmptyDir` | `false` | In-pod tmpfs bpffs, for kind and minikube |
+| `daemonset.warden.securityContext` | uid 0, the six capabilities above, Unconfined | Warden security context |
+| `daemonset.warden.resources` | 64Mi/50m requests, 256Mi/1 CPU limits | Warden resources |
+| `daemonset.securityContext` | uid/gid 65534, `drop: [ALL]`, Unconfined | Agent security context |
+| `daemonset.resources` | 128Mi/100m requests, 512Mi/1 CPU limits | Agent resources |
+| `daemonset.updateStrategy` | `RollingUpdate`, `maxUnavailable: 1` | |
+| `daemonset.tolerations` | `[{operator: Exists}]` | Schedules on every node, control plane included |
+| `daemonset.nodeSelector`, `affinity`, `priorityClassName` | empty | Scheduling |
+| `daemonset.podLabels`, `podAnnotations` | `{}` | |
+| `daemonset.extraEnv`, `extraVolumes`, `extraVolumeMounts`, `extraContainers`, `initContainers` | `[]` | Extension points |
+| `daemonset.minReadySeconds`, `revisionHistoryLimit`, `terminationGracePeriodSeconds` | `0`, `10`, `30` | |
 
-| Variable | Purpose |
-|----------|---------|
-| `EBPFSENTINEL_NODE_NAME` | Injected from `fieldRef: spec.nodeName`; tells the K8s enricher which node to scope its pod watcher to |
-| `KUBERNETES_SERVICE_HOST` | Set automatically by kubelet; used to detect the cluster environment |
-| `RUST_LOG` | Optional log-level override |
+### Domains
 
-## Namespace
+Each domain maps to its section of `config.yaml` and carries only `enabled`:
+
+| Enabled by default | Disabled by default |
+|--------------------|---------------------|
+| `firewall`, `ids`, `ips`, `dlp`, `ratelimit`, `threatintel`, `dns` | `alerting`, `audit`, `auth`, `conntrack`, `ddos`, `l7`, `nat`, `routing`, `loadbalancer`, `geoip`, `zones`, `qos` |
+
+`geoip.source` takes the GeoIP source block as-is. Rules, feeds, keys and every
+other domain setting go through `configOverride`.
+
+### Other values
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `container.kubernetes.enabled` | `false` | Kubernetes pod metadata on alerts, see below |
+| `container.kubernetes.labelFilter` | `[]` | `key=value` pairs narrowing the pod watcher |
+| `auto_response` | `enabled: false` | Rendered as the `auto_response` section |
+| `auto_capture` | `enabled: false` | Rendered as the `auto_capture` section |
+| `aliases` | `{}` | Named IP and port aliases, e.g. `trusted: {type: ip_set, values: ["10.0.0.0/8"]}` |
+| `interface_groups` | `{}` | Interface groups, e.g. `lan: {interfaces: [eth0, eth1]}` |
+| `metrics.serviceMonitor` | `enabled: false`, `interval: 15s`, `labels: {}` | |
+| `metrics.prometheusRule` | `enabled: false`, `labels: {}`, `rules: []` | Empty `rules` uses the built-in set |
+| `podDisruptionBudget` | `enabled: false`, `maxUnavailable: 1` | |
+| `networkPolicy` | `enabled: false`, `extraIngress: []`, `extraEgress: []` | Ingress on the three ports, egress unrestricted |
+| `serviceAccount` | `create: true`, `name: ""`, `annotations: {}` | |
+| `configOverride` | `""` | A whole `config.yaml`; when set, every `agent.*` value and domain toggle is ignored |
+
+Structured blocks are easier to pass as a file than with `--set`:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ebpfsentinel
+# response-values.yaml
+auto_response:
+  enabled: true
+  policies:
+    - name: block-critical
+      min_severity: critical
+      action: block
+      ttl_secs: 3600
 ```
-
-## Deployment
 
 ```bash
-kubectl apply -f namespace.yaml
-kubectl apply -f rbac.yaml
-kubectl apply -f configmap.yaml
-kubectl apply -f daemonset.yaml
-
-# Verify
-kubectl -n ebpfsentinel get pods
-kubectl -n ebpfsentinel logs -l app=ebpfsentinel
-
-# Config update (triggers rolling restart)
-kubectl -n ebpfsentinel edit configmap ebpfsentinel-config
-kubectl -n ebpfsentinel rollout restart daemonset/ebpfsentinel
+helm upgrade --install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> -n ebpfsentinel -f response-values.yaml
 ```
 
-## Cilium / netkit pod networking
+### Full configuration
 
-On clusters where the CNI gives pods **netkit** interfaces instead of veth
-pairs (Cilium **1.16+**, kernel **6.7+**), eBPFsentinel attaches its TC
-datapath (`tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`,
-`tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-qos`) directly to the
-netkit device via `BPF_LINK_CREATE` (`BPF_NETKIT_PRIMARY`), skipping the TC
-clsact qdisc.
+`configOverride` replaces the rendered file with your own. Keep `agent.interfaces`,
+the ports and `bpf_token.bpffs_path` consistent with the pod: the probes read the
+`http` port and the bpffs path must match `daemonset.bpfToken.bpffsPath`.
 
-No extra configuration is needed: `agent.attach_mode` defaults to `auto`,
-which uses netkit when the interface is a netkit device and falls back to TC
-clsact otherwise - the same DaemonSet works on bare metal, veth, and netkit
-clusters. A background watcher polls every 5 s and **hot-plugs** newly
-scheduled pod interfaces, attaching all loaded TC programs without an agent
-restart (and detaching when the pod is deleted). It also correlates each new
-device with the pod network namespaces that appeared in the same cycle, so
-hot-plug log lines carry the owning pod's PID and namespace inode.
+```yaml
+configOverride: |
+  agent:
+    interfaces: [eth0]
+    bind_address: 0.0.0.0
+    allow_unauthenticated_api: true
+    http_port: 8080
+    grpc_port: 50051
+    metrics_port: 9090
+    bpf_token:
+      bpffs_path: /sys/fs/bpf/ebpfsentinel
+  firewall:
+    enabled: true
+    default_policy: pass
+    rules: []
+```
 
-Set `attach_mode: netkit` to **require** netkit (the agent fails to start if
-an interface is not a netkit device) or `attach_mode: tc` to force clsact
-everywhere. See the [TC attachment mode](../../configuration/agent.md#tc-attachment-mode)
-reference for the full behaviour. The agent Helm chart leaves `attach_mode`
-at its `auto` default; override it through `configOverride` if you need a
-non-default mode.
+See the [configuration reference](../../configuration/overview.md) for every section.
 
-## Helm Chart
+## Config updates
 
-### Install
+The pod template carries a checksum of the rendered ConfigMap, so a
+`helm upgrade` that changes the configuration rolls the DaemonSet. Pods are
+replaced one node at a time (`maxUnavailable: 1`).
+
+## Kubernetes pod metadata on alerts
 
 ```bash
-helm repo add ebpfsentinel https://charts.ebpfsentinel.io
-helm repo update
-
-# Minimal install (OSS, single agent per node)
-helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
-  --namespace ebpfsentinel --create-namespace \
-  --set agent.interfaces='{eth0}'
-
-# With Prometheus ServiceMonitor + custom config
-helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
-  --namespace ebpfsentinel --create-namespace \
-  --set agent.interfaces='{eth0}' \
-  --set metrics.serviceMonitor.enabled=true \
+helm upgrade --install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> -n ebpfsentinel \
   --set container.kubernetes.enabled=true
 ```
 
-### values.yaml Reference
+With the enricher on, the chart:
 
-```yaml
-# -- Container image
-image:
-  repository: ghcr.io/ebpfsentinel/ebpfsentinel
-  tag: ""  # defaults to chart appVersion
-  pullPolicy: IfNotPresent
+- renders `container.kubernetes` into the config;
+- creates a `ClusterRole` with `get`, `list` and `watch` on `pods` and binds it
+  to the ServiceAccount;
+- mounts the ServiceAccount token into the pod;
+- passes `EBPFSENTINEL_NODE_NAME` so the agent watches only the pods of its own
+  node.
 
-# -- Agent configuration (maps to config.yaml)
-agent:
-  interfaces: [eth0]
-  bindAddress: "0.0.0.0"
-  httpPort: 8080
-  grpcPort: 50051
-  metricsPort: 9090
-  logLevel: info
-  logFormat: json
-  swaggerUi: false
-  xdpMode: auto
-  eventWorkers: 4
-  # BPF token delegation. eBPF loads EXCLUSIVELY through the token; the only
-  # knob is where the launcher mounts the delegated bpffs (must match its
-  # --bpffs). There is no enable/fallback toggle - token is the only path.
-  bpfToken:
-    bpffsPath: /sys/fs/bpf/ebpfsentinel
+Alerts then carry the pod name, namespace and labels of the container that
+produced them. The enricher stays off when `KUBERNETES_SERVICE_HOST` is absent.
+See [container configuration](../../configuration/container.md).
 
-# -- DaemonSet security context & scheduling
-daemonset:
-  # Required for uprobe DLP to see processes outside the pod (default: false)
-  hostPID: false
-  # CAP_SYS_ADMIN is consumed by the launcher entrypoint (bpffs delegation +
-  # module BTF fds + userns creation); the agent it execs is unprivileged.
-  # allowPrivilegeEscalation must be true so the launcher can do that bootstrap.
-  securityContext:
-    capabilities:
-      drop: [ALL]
-      add: [SYS_ADMIN, NET_RAW]   # NET_RAW: launcher pre-opens the pcap pool
-    allowPrivilegeEscalation: true
-    # Launcher does mount/move_mount + uid_map write; the default container
-    # AppArmor/seccomp profile blocks these on hardened (e.g. Ubuntu) nodes.
-    appArmorProfile:
-      type: Unconfined
-    seccompProfile:
-      type: Unconfined
-  # Extra volumes & mounts for container awareness (see below)
-  volumes:
-    proc: true               # mounts /proc → /host/proc (read-only)
-    cgroup: true             # mounts /sys/fs/cgroup (read-only)
-    dockerSocket: false      # mounts /var/run/docker.sock (read-only)
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "1000m"
-  extraVolumeMounts: []
-  extraVolumes: []
-  nodeSelector: {}
-  tolerations:
-    - operator: Exists
-  affinity: {}
+## Netkit
 
-# -- RBAC resources for the Kubernetes metadata enricher
-rbac:
-  create: true                # creates ClusterRole + ClusterRoleBinding
+TC programs attach through TCX (kernel 6.6+, no `clsact` qdisc). On clusters
+whose CNI creates netkit pod devices (Cilium 1.16+ with netkit on kernel 6.7+),
+`agent.attach_mode` decides how the agent attaches to them:
 
-serviceAccount:
-  create: true
-  name: ebpfsentinel
+| `attach_mode` | Behaviour |
+|---------------|-----------|
+| `auto` (default) | netkit attach on a netkit device, TCX otherwise; a failed netkit attach falls back to TCX |
+| `netkit` | netkit only; a non-netkit interface fails its attach |
+| `tc` | TCX only |
 
-# -- Container awareness
-container:
-  resolver:
-    enabled: true
-    procPath: /host/proc
-  docker:
-    enabled: false
-    socket: /var/run/docker.sock
-    cacheSize: 1024
-    cacheTtlSeconds: 300
-  kubernetes:
-    enabled: true             # opt-in; turn off on non-K8s deployments
-    nodeName: ""              # auto-detect from EBPFSENTINEL_NODE_NAME
+The agent polls for new netkit devices every five seconds and attaches to them
+as they appear (`netkit hot-plug watcher started (5s poll, auto-attach enabled)`
+in the log). `attach_mode` has no chart value; set it through `configOverride`.
 
-# -- Prometheus metrics
-metrics:
-  serviceMonitor:
-    enabled: false
-    interval: 15s
-    labels: {}
+## State
 
-# -- Security features toggles
-firewall:
-  enabled: true
-  defaultPolicy: pass
+The chart mounts no volume on `/var/lib/ebpfsentinel`. What the agent writes
+there - the redb stores under `data/` when `audit` is enabled, packet captures,
+downloaded GeoIP databases, the anonymous telemetry installation identifier -
+lives in the container's writable layer and is lost when the pod is replaced.
+Mount a volume there through `daemonset.extraVolumes` and `extraVolumeMounts`
+if any of it must survive a restart; the directory must be writable by uid
+65534.
 
-ids:
-  enabled: true
+## Metrics
 
-ratelimit:
-  enabled: false
+With `metrics.prometheusRule.enabled`, the built-in rules are:
 
-threatintel:
-  enabled: false
+| Alert | Expression | For |
+|-------|------------|-----|
+| `EbpfsentinelAgentDown` | `up{job=~".*ebpfsentinel.*"} == 0` | 2m |
+| `EbpfsentinelHighEventDropRate` | `rate(ebpfsentinel_events_dropped_total[5m]) > 10` | 5m |
+| `EbpfsentinelHighAlertRate` | `rate(ebpfsentinel_alerts_total[5m]) > 50` | 5m |
+| `EbpfsentinelConfigReloadFailure` | `increase(ebpfsentinel_rules_reloads_total{result="failure"}[10m]) > 0` | - |
+| `EbpfsentinelHighMemoryUsage` | `ebpfsentinel_memory_usage_bytes > 400 * 1024 * 1024` | 5m |
+| `EbpfsentinelEbpfProgramDown` | `ebpfsentinel_ebpf_program_status == 0` | 1m |
+| `EbpfsentinelCircuitBreakerOpen` | `ebpfsentinel_alert_sender_circuit_state > 0` | 2m |
+| `EbpfsentinelDdosAttackActive` | `ebpfsentinel_ddos_attacks_active > 0` | 1m |
 
-dlp:
-  enabled: false
+Add the label your Prometheus Operator selects on with
+`metrics.serviceMonitor.labels` and `metrics.prometheusRule.labels`, for example
+`release: kube-prometheus-stack`.
 
-ddos:
-  enabled: false
+## NetworkPolicy
 
-dns:
-  enabled: false
+`networkPolicy.enabled` admits ingress on the HTTP, gRPC and metrics ports and
+leaves egress open. The pod runs on the host network, and many CNIs do not
+enforce NetworkPolicy on host-network pods, so check your CNI before relying on
+it to protect an API left unauthenticated.
 
-auth:
-  enabled: false
-
-# -- Override the full config.yaml (takes precedence over individual settings)
-configOverride: ""
-```
-
-### Upgrade & Rollback
+## Upgrade, rollback, uninstall
 
 ```bash
-helm upgrade ebpfsentinel ebpfsentinel/ebpfsentinel \
-  --namespace ebpfsentinel --reuse-values
-
-helm rollback ebpfsentinel 1 --namespace ebpfsentinel
-
-helm upgrade ebpfsentinel ebpfsentinel/ebpfsentinel \
-  --namespace ebpfsentinel --reuse-values \
-  --set ids.mode=enforce
+helm upgrade ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> -n ebpfsentinel --reuse-values
+helm rollback ebpfsentinel -n ebpfsentinel
+helm uninstall ebpfsentinel -n ebpfsentinel
 ```
 
-### Uninstall
+Uninstalling detaches every program: the eBPF links belong to the agent
+process and go with it.
 
-```bash
-helm uninstall ebpfsentinel --namespace ebpfsentinel
-kubectl delete namespace ebpfsentinel
-```
+## Enterprise
 
-### ServiceMonitor (Prometheus Operator)
-
-When `metrics.serviceMonitor.enabled=true`, the chart creates a
-ServiceMonitor:
-
-```yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: ebpfsentinel
-  namespace: ebpfsentinel
-  labels:
-    app: ebpfsentinel
-spec:
-  selector:
-    matchLabels:
-      app: ebpfsentinel
-  endpoints:
-    - port: metrics
-      interval: 15s
-      path: /metrics
-```
-
-> **Enterprise**: HA clustering (`enterprise.ha.enabled=true`) and
-> multi-agent-per-node deployments (`enterprise.multiNode.enabled=true`)
-> require an enterprise license key. See the Enterprise Kubernetes
-> guide in the `ebpfsentinel-enterprise` documentation.
-
-## Requirements
-
-- Kernel 6.9+ with BTF - the agent's minimum (BPF token delegation and the kfunc surface)
-- `hostNetwork: true` - XDP/TC programs attach to host interfaces
-- `hostPID: true` - uprobe DLP visibility across the node
-- `CAP_SYS_ADMIN` + `allowPrivilegeEscalation: true` on the agent
-  container - consumed by the launcher entrypoint for bpffs delegation;
-  the agent it execs is unprivileged. **No init container.**
-- `CAP_NET_RAW` (optional) - lets the launcher pre-open the `AF_PACKET`
-  pcap socket pool; drop it if you never run packet capture
-- `appArmorProfile.type: Unconfined` + `seccompProfile.type: Unconfined` -
-  the launcher issues `mount`/`move_mount` and writes `/proc/self/uid_map`,
-  which the default container AppArmor/seccomp profile blocks on hardened
-  nodes (e.g. Ubuntu)
-- The node must **allow unprivileged user namespaces** - the launcher
-  creates the token inside a child userns (`BPF_TOKEN_CREATE` is
-  `EOPNOTSUPP` otherwise)
-- `/sys/fs/bpf` hostPath mount (`mountPropagation: HostToContainer` on the
-  agent container) - a container's `/sys` is read-only, so the launcher needs
-  this writable host bpffs to create the delegated mountpoint. On nested
-  runtimes (kind, minikube) whose `/sys/fs/bpf` is itself read-only, use an
-  in-pod `emptyDir: { medium: Memory }` instead
-- `/proc` and `/sys/fs/cgroup` hostPath mounts (read-only) - required
-  by the container resolver when running inside a pod
-- Helm 3.x
-
-### When the token cannot be created
-
-There is **no capability-based fallback** - eBPF loads only through the
-token. If the node disallows unprivileged user namespaces, or the runtime
-/ Pod Security Admission level blocks `CAP_SYS_ADMIN`, the launcher cannot
-delegate the bpffs and the agent starts in **API-only mode** (no eBPF
-attached, `ebpfsentinel_bpf_token_used` reads `0`). Fix the cluster
-runtime config rather than reaching for a capability set - granting
-`CAP_BPF`/`CAP_NET_ADMIN` does **not** create an alternate loading path.
-See the [BPF token guide](bpf-token.md#troubleshooting).
+The Enterprise agent has its own chart and license handling. See
+[Enterprise deployment](enterprise.md).
