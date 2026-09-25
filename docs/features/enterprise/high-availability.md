@@ -151,6 +151,13 @@ reused. The agent reads the interface's attachment state back from the kernel
 after detaching and warns about what is left, so the cause is logged on the node
 that failed to clean up rather than discovered on the node promoted after it.
 
+The pinned maps are wiped before the new generation loads, so what the services
+had written into the previous one is put back on the promotion: the IPS
+blacklist, the anti-DDoS country blocks, the external alias sets and the
+rate-limit country tiers are written into the new maps, the resolved aliases are
+handed to the firewall again, and zone traffic export resumes on the new
+counters.
+
 Two consequences are visible to an operator:
 
 - Packet mirroring is bound to the datapath generation that is actually running.
