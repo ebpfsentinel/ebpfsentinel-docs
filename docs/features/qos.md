@@ -86,7 +86,7 @@ QoS pipes and classifiers can be scoped to specific interface groups using the `
 
 ### EDT Pacing
 
-Delay is applied by Earliest Departure Time pacing: the program sets `skb->tstamp` via `bpf_skb_set_tstamp` to `max(now, previous departure) + delay`, per flow, and the kernel queuing discipline holds the packet until then. Two consequences follow:
+Delay is applied by Earliest Departure Time pacing: the program sets `skb->tstamp` via `bpf_skb_set_tstamp` to `max(now + delay, previous departure)` on the monotonic clock (`bpf_ktime_get_ns`), per flow, and the kernel queuing discipline holds the packet until then. Every packet leaves `delay` after it was seen and never ahead of the flow's previous packet, so the flow stays in order and the delay does not compound under load. Two consequences follow:
 
 - The interface needs the `fq` qdisc, which is what honours the departure timestamp. Without it the timestamp is set and ignored.
 - Departure times only exist on the way out, so `delay` has no effect on a pipe whose direction is `ingress`. Such a pipe still enforces its bandwidth and loss.
@@ -225,7 +225,7 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 3. **Scope** - Skip the pipe if it does not shape this hook, does not cover this interface group, or belongs to another tenant
 4. **Loss** - If `loss > 0`, draw from `bpf_get_prandom_u32` and drop with the configured probability
 5. **Token bucket** - Refill the pipe's bucket in `QOS_PIPE_STATE` from the elapsed time, deduct the packet size, mark ECN CE if the bucket is running low, drop if there is no credit
-6. **Pace** - If `delay > 0`, set the packet's departure timestamp in `skb->tstamp` from the flow's previous departure in `QOS_FLOW_STATE`
+6. **Pace** - If `delay > 0`, set the packet's departure timestamp in `skb->tstamp` to `now + delay`, held back behind the flow's previous departure in `QOS_FLOW_STATE`
 7. **Emit** - Send an event to the RingBuf with the shaping decision (shaped, dropped)
 
 ### Maps

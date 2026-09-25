@@ -51,7 +51,7 @@ A pipe is the shaper: it owns the rate cap, the burst allowance, the added laten
 | `bandwidth` | string | required | Rate limit (e.g., `"100mbps"`, `"1gbps"`, `"500kbps"`, `"1000bps"`) |
 | `delay` | u32 | `0` | Added latency in milliseconds. Applied by pacing the departure time, so it needs the `fq` qdisc on the interface and has no effect on an ingress-only pipe |
 | `loss` | f32 | `0.0` | Random packet loss percentage (0.0--100.0) |
-| `burst` | string | `"64kb"` | Maximum burst size (e.g., `"64kb"`, `"1mb"`, `"4096b"`) |
+| `burst` | string | `"64kb"` | Maximum burst size (e.g., `"64kb"`, `"1mb"`, `"4096b"`). Must be above 0 on a pipe with a non-zero `bandwidth`, since a bucket that holds no token drops every packet |
 | `direction` | string | `"egress"` | Hook this pipe shapes: `egress`, `ingress`, or `both`. A forwarded packet crosses both hooks, so a pipe set to `both` is charged twice for it |
 | `enabled` | bool | `true` | Whether this pipe is active |
 | `interfaces` | list | `[]` | Interface groups this pipe applies to. Empty = all interfaces. Use `"!"` prefix for inversion (e.g., `"!lan"`) |

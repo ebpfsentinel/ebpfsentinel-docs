@@ -543,30 +543,29 @@ ebpfsentinel-agent qos classifiers
 
 # Add a pipe
 ebpfsentinel-agent qos add-pipe --json '{
-  "id": 1,
-  "bandwidth_bps": 10000000,
+  "id": "wan-uplink",
+  "rate_bps": 10000000,
   "burst_bytes": 65536,
+  "direction": "egress",
   "delay_ms": 0,
-  "loss_percent": 0,
-  "scheduler": "wf2q"
+  "loss_pct": 0.0
 }'
 
 # Add a queue
-ebpfsentinel-agent qos add-queue --json '{"id": 1, "pipe_id": 1, "weight": 80}'
+ebpfsentinel-agent qos add-queue --json '{"id": "best-effort", "pipe_id": "wan-uplink"}'
 
 # Add a classifier
 ebpfsentinel-agent qos add-classifier --json '{
-  "id": 1,
-  "queue_id": 1,
+  "id": "https",
+  "queue_id": "best-effort",
   "priority": 10,
-  "protocol": 6,
-  "dst_port": 443
+  "match_rule": { "protocol": 6, "dst_port": 443 }
 }'
 
 # Delete
-ebpfsentinel-agent qos delete-pipe 1
-ebpfsentinel-agent qos delete-queue 1
-ebpfsentinel-agent qos delete-classifier 1
+ebpfsentinel-agent qos delete-pipe wan-uplink
+ebpfsentinel-agent qos delete-queue best-effort
+ebpfsentinel-agent qos delete-classifier https
 ```
 
 ### nat

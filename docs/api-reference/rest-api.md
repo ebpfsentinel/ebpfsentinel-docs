@@ -1204,12 +1204,23 @@ curl -X POST http://localhost:8080/api/v1/qos/pipes \
   -d '{"id":"pipe-1","rate_bps":10000000,"burst_bytes":65536}'
 ```
 
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique pipe identifier (max 64 chars) |
+| `rate_bps` | integer | Yes | Bandwidth limit in bits per second, enforced by a token bucket; `0` leaves the pipe unlimited |
+| `burst_bytes` | integer | No | Token bucket depth in bytes (default: `65536`). A rate-limited pipe with `0` is refused with 400, since a bucket that holds no token drops every packet |
+| `direction` | string | No | Hook the pipe shapes: `ingress`, `egress` or `both` (default: `egress`) |
+| `delay_ms` | integer | No | Added latency, paced on egress through the `fq` qdisc (default: `0`) |
+| `loss_pct` | number | No | Random packet loss, `0.0` to `100.0` (default: `0.0`) |
+
 #### DELETE /api/v1/qos/pipes/{id}
 
 Delete a QoS pipe. Requires `admin` role.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/qos/pipes/1
+curl -X DELETE http://localhost:8080/api/v1/qos/pipes/pipe-1
 ```
 
 #### GET /api/v1/qos/queues
@@ -1227,7 +1238,7 @@ Create a QoS queue. Requires `admin` role.
 ```bash
 curl -X POST http://localhost:8080/api/v1/qos/queues \
   -H "Content-Type: application/json" \
-  -d '{"id":"q-web","pipe_id":"p-wan","weight":80}'
+  -d '{"id":"q-web","pipe_id":"p-wan"}'
 ```
 
 **Request body:**
@@ -1236,7 +1247,6 @@ curl -X POST http://localhost:8080/api/v1/qos/queues \
 |-------|------|----------|-------------|
 | `id` | string | Yes | Unique queue identifier (max 64 chars) |
 | `pipe_id` | string | Yes | Parent pipe identifier |
-| `weight` | integer | No | Scheduling weight (default: 50) |
 
 #### DELETE /api/v1/qos/queues/{id}
 
@@ -1261,7 +1271,6 @@ curl -X POST http://localhost:8080/api/v1/qos/classifiers \
     "id": "cls-https",
     "queue_id": "q-web",
     "priority": 10,
-    "direction": "egress",
     "match_rule": {
       "dst_port": 443,
       "protocol": 6
@@ -1276,7 +1285,6 @@ curl -X POST http://localhost:8080/api/v1/qos/classifiers \
 | `id` | string | Yes | Unique classifier identifier (max 64 chars) |
 | `queue_id` | string | Yes | Target queue identifier |
 | `priority` | integer | No | Priority (lower = higher, default: 100) |
-| `direction` | string | No | `ingress`, `egress`, or `both` (default: `egress`) |
 | `match_rule` | object | No | Traffic match criteria (see below) |
 
 **`match_rule` fields (all optional, defaults to match-all):**

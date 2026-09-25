@@ -59,7 +59,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [NAT](nat.md) | OSS | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Kernel + Userspace | Network zones with inter-zone policies |
-| [QoS / Traffic Shaping](qos.md) | OSS | TC egress | Pipe/queue/classifier hierarchy, token bucket, WF2Q+, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation |
+| [QoS / Traffic Shaping](qos.md) | OSS | TC ingress + egress | Pipe/queue/classifier hierarchy, per-pipe token bucket with ECN CE marking, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation |
 | [IP/Port Aliases](aliases.md) | OSS | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
@@ -132,7 +132,7 @@ datapath. The twelve enforcement points:
 | `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, full packet sizing (`bpf_dynptr_size`), RingBuf backpressure, interface groups |
 | `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN and QinQ tag parsing, backpressure |
-| `tc-qos` | TC egress | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
+| `tc-qos` | TC ingress + egress | Per-pipe token bucket bandwidth limiting with ECN CE marking, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
 

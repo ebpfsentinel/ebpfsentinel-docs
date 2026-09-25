@@ -404,7 +404,7 @@ QoS traffic shaping. The program sits on both hooks; a pipe shapes one direction
 3. **Group and tenant** - the classifier and the pipe must both apply to this interface and tenant, otherwise the packet passes.
 4. **Loss** - If the pipe has a loss rate, call [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) and drop with the configured probability.
 5. **Token bucket** - Refill the pipe's bucket in `QOS_PIPE_STATE` from the time elapsed ([`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/)). If tokens >= packet size, deduct and pass, marking the packet ECN CE with `bpf_skb_ecn_set_ce` once the bucket is below 25% of its burst. Otherwise drop (`TC_ACT_SHOT`).
-6. **Delay** - If the pipe has a delay, set the packet's earliest departure time with `bpf_skb_set_tstamp` (per flow, in `QOS_FLOW_STATE`). The `fq` qdisc on the interface honours it; without `fq` the delay is not applied.
+6. **Delay** - If the pipe has a delay, set the packet's earliest departure time with `bpf_skb_set_tstamp` to `max(now + delay, previous departure)` per flow (`QOS_FLOW_STATE`), `now` read from [`bpf_ktime_get_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_ns/) because the delivery time is `CLOCK_MONOTONIC`. The `fq` qdisc on the interface honours it; without `fq` the delay is not applied.
 7. **Emit** - Send a `PacketEvent` to the `EVENTS` RingBuf on a drop or a shaped packet. Same 75% backpressure pattern as other programs.
 
 QoS pipes and classifiers carry a `group_mask` field for **interface group filtering** via the `INTERFACE_GROUPS` map. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
