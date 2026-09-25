@@ -43,7 +43,7 @@ ids:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `mode` | `string` | `none` | `none`, `random`, `hash`, or `country_based` |
-| `rate` | `float` | - | Share of address pairs evaluated, 0.0-1.0. Required for `random` and `hash` |
+| `rate` | `float` | - | Share sampled, 0.0-1.0. Required for `random` (drawn per packet in the `tc-ids` classifier) and `hash` (selected on the address pair) |
 | `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 codes for full inspection (`country_based` mode). Max 250 codes |
 | `high_risk_rate` | `float` | `1.0` | Sample rate for high-risk countries (default: 100%) |
 | `default_rate` | `float` | `0.1` | Sample rate for all other countries |

@@ -44,7 +44,7 @@ XDP runs at the earliest possible hook point - packets can be dropped before the
 
 ### How do I reduce CPU usage?
 
-1. Enable IDS sampling: `ids.sample_rate: 100` (inspect 1-in-100)
+1. Enable IDS sampling: `ids.sampling: { mode: random, rate: 0.01 }` (1 match in 100 leaves the kernel)
 2. Use CIDR-only firewall rules (LPM trie - faster than port/protocol rules)
 3. Reduce log verbosity: `agent.log_level: "warn"`
 
@@ -128,7 +128,7 @@ Start the warden first and point the agent at its socket: without `EBPFSENTINEL_
 ### No alerts are generated
 
 1. Check rules are loaded: `ebpfsentinel-agent ips list`
-2. Check sampling is not too aggressive: reduce `ids.sample_rate`
+2. Check sampling is not too aggressive: raise `ids.sampling.rate`, or set `ids.sampling.mode: none`
 3. Check threshold settings: `threshold` mode requires N matches before alerting
 4. Check the agent is attached to the right interface
 

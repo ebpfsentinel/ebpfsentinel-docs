@@ -58,8 +58,8 @@ Three threshold modes control alert volume:
 
 | Mode | Description |
 |------|-------------|
-| `random` | Kernel-side `bpf_get_prandom_u32` with configurable rate (1-in-N) |
-| `hash` | Hash-based consistent sampling on flow tuple |
+| `random` | Kernel-side `bpf_get_prandom_u32` against the rate written to `IDS_SAMPLING_CONFIG`: a match not drawn is never written to the ring buffer. Captured payloads, which the kernel does not sample, select on the address pair at the same rate |
+| `hash` | Consistent sampling on a hash of the source and destination addresses, in userspace |
 | `country_based` | Full inspection for high-risk countries, reduced rate for others |
 
 **Country-Based Sampling** - Sources from `high_risk_countries` (e.g. `[RU, CN, KP, IR]`) are inspected at `high_risk_rate` (default: 1.0 = 100%), while all other sources use `default_rate` (e.g. 0.1 = 10%). This focuses IDS resources on traffic from high-risk regions without dropping inspection entirely for the rest.

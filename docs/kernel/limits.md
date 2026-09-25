@@ -163,7 +163,7 @@ No RingBuf.
 | Source-keyed IDS patterns | 10,240 | `IDS_SRC_PATTERNS` (HashMap) |
 | L7 inspection ports | 256 | `L7_PORTS` (HashMap, `MAX_L7_PORTS`) |
 | L7 payload capture | 2,048 bytes | `MAX_L7_PAYLOAD` (compact: 512 bytes `SMALL_L7_PAYLOAD`) |
-| Sampling rate | 0-100% | `IDS_SAMPLING_CONFIG` (Array, random threshold); nothing writes the map, so every matched event passes; `ids.sampling` is applied in userspace |
+| Sampling rate | 0-100% | `IDS_SAMPLING_CONFIG` (Array, random threshold `rate * u32::MAX`); written when `ids.sampling.mode` is `random`, cleared otherwise; `hash` and `country_based` are applied in userspace |
 | Tenant cgroups | 4,096 | `TENANT_CGROUP_MAP` (HashMap) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 4 MB | `EVENTS` (two record sizes, 512 B and 2 KiB payload) |

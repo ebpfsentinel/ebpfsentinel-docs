@@ -91,7 +91,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `LPM_TRIE` | 4.11+ | CIDR matching |
 | `PERCPU_HASH` | 4.6+ | Lock-free counters |
 | `PROG_ARRAY` + tail call | 4.2+ | Program chaining |
-| `bpf_get_prandom_u32` | 4.1+ | QoS loss emulation, scrub IP ID randomisation; the IDS sampling check, whose config map nothing writes |
+| `bpf_get_prandom_u32` | 4.1+ | QoS loss emulation, scrub IP ID randomisation; IDS random sampling |
 | `bpf_csum_diff` | 4.6+ | Checksums in scrub |
 
 SYN cookies are computed by the kernel's raw syncookie helpers and the

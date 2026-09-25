@@ -75,7 +75,7 @@ flowchart TD
     subgraph TC["TC Hook (ingress, TCX chain in this order)"]
         IDS["tc-ids"]
         IDS_PARSE["Parse L2/L3/L4 once,\nwrite skb->cb handoff"]
-        IDS_SAMPLE["Sampling check\n(map never written:\nevery event passes)"]
+        IDS_SAMPLE["Random sampling\n(IDS_SAMPLING_CONFIG,\nbpf_get_prandom_u32)"]
         IDS_EMIT["Emit PacketEvent\nto RingBuf"]
         IDS --> IDS_PARSE --> IDS_SAMPLE --> IDS_EMIT
 

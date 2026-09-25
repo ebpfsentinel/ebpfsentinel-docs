@@ -22,13 +22,13 @@ Check your driver: `ethtool -i eth0 | grep driver`. A requested mode the interfa
 
 ## IDS Sampling
 
-Sampling cuts the work done on IDS and IPS events in userspace:
+Sampling cuts the work done on IDS and IPS events:
 
 ```yaml
 ids:
   sampling:
-    mode: hash      # none | random | hash | country_based
-    rate: 0.01      # share of address pairs evaluated, 0.0 to 1.0
+    mode: random    # none | random | hash | country_based
+    rate: 0.01      # share sampled, 0.0 to 1.0
 ```
 
 `ips.sampling` takes the same keys and gates the IPS blacklist counter.
@@ -36,13 +36,13 @@ ids:
 | Mode | Keys | Effect |
 |------|------|--------|
 | `none` | - | Every event is evaluated (the default) |
+| `random` | `rate` | The `tc-ids` classifier draws per packet and emits a match only when the draw falls under `rate` |
 | `hash` | `rate` | Evaluated when a hash of the source and destination addresses falls under `rate` |
-| `random` | `rate` | The same, with a different mixing of the two addresses |
 | `country_based` | `high_risk_countries`, `high_risk_rate` (default 1.0), `default_rate` (default 0.1) | `high_risk_rate` for sources in the listed countries, `default_rate` for the rest |
 
-Every mode decides on the address pair, `random` included: an address pair evaluated once is evaluated every time, and one skipped is always skipped. Keep that in mind before sampling a detection that needs to see a given source, since a sampled-out pair never raises an alert.
+`random` is the one mode that lightens the kernel-to-userspace path: the agent writes the rate into the `IDS_SAMPLING_CONFIG` map and `tc-ids` skips the ring-buffer write for a packet it did not draw, so a sampled-out match costs neither a ring-buffer slot nor a userspace wakeup. A drop decided by an IPS rule in block mode is enforced whatever the draw; only its event is sampled. What the kernel does not sample - a captured L7 payload matched by a content rule, and the IPS blacklist counter - selects on a hash of the address pair at the same rate.
 
-Sampling happens after the kernel has emitted the event, so it does not reduce the ring-buffer traffic from `tc-ids`: it saves rule evaluation, alert routing and the IPS counter, not the kernel-to-userspace path.
+`hash` and `country_based` decide on the address pair after the kernel has emitted the event: an address pair evaluated once is evaluated every time, and one skipped is always skipped. They save rule evaluation, alert routing and the IPS counter, not the ring-buffer traffic. Keep that in mind before sampling a detection that needs to see a given source, since a sampled-out pair never raises an alert.
 
 ## Rate Limiting Algorithm Selection
 

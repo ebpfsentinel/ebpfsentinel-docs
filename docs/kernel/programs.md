@@ -333,7 +333,7 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 
 | Feature | Helper | Description |
 |---------|--------|-------------|
-| Random sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Sample N% of packets against `IDS_SAMPLING_CONFIG`; nothing writes the map, so every matched event passes; `ids.sampling` is applied in userspace |
+| Random sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | Sample N% of matches against `IDS_SAMPLING_CONFIG`, written from `ids.sampling` in `random` mode; an IPS drop is enforced whatever the draw |
 | Packet sizing | [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) | Measure the full packet, fragments included, so the payload copy is bounded by what the packet carries |
 | Payload copy | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | Reads across SKB fragments (jumbo frames, GRO aggregates) without linearizing |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
