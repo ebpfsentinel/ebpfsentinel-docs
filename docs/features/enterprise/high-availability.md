@@ -159,6 +159,14 @@ Two consequences are visible to an operator:
   node" instead of being accepted and capturing nothing.
 - Alerts follow the promotion. A promoted leader serves `/api/v1/alerts`,
   forwards to SIEM, and arms automated response for the datapath it just loaded.
+- Tenant attribution follows the promotion. Every VLAN, subnet, interface and
+  cgroup attribution the node has been handed is kept by the activator, loaded
+  or not, and written into each generation before it starts serving, so a
+  promoted node, or one that took over or released interfaces, resolves
+  traffic to its tenants rather than to tenant 0.
+- A configuration reload follows the leadership. A standby stores the new file
+  and loads from it at its next promotion; a leader applies it as described in
+  [Hot Reload](../../operations/hot-reload.md#enterprise-agent).
 
 ### State Bridge
 

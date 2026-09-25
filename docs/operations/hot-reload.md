@@ -20,7 +20,7 @@ Each of these is handed to its service, which rewrites the kernel maps of the pr
 - Rule schedules
 - IDS, IPS and L7 rules, modes and sampling
 - Rate limit policies and country tiers, DDoS policies
-- DLP settings
+- DLP settings: enabled switch, mode and the built-in patterns the file re-tunes
 - Connection tracking settings
 - NAT rules (DNAT, SNAT, NPTv6) and hairpin
 - Aliases, routing gateways, zones
@@ -191,6 +191,23 @@ The agent detects the file change and:
 7. Starts the event reader and the kernel counter reader
 
 No packets are lost during this process - the TC program is attached atomically by the kernel.
+
+## Enterprise agent
+
+The enterprise agent reloads on SIGHUP and on a change to the file, with the same validation and the same service reloads as above. It does not mount `POST /api/v1/config/reload`. The sections the enterprise layer reads (`enterprise.*`, licence, HA, tenants) are read at startup only.
+
+Two things differ, because the enterprise datapath is loaded as one generation per node, the same generation an HA promotion loads:
+
+- **Rules and the shared maps**: written in place, as on the community agent. Enforcement never pauses.
+- **A different set of programs** (any `enabled` flag in the table above changing): the whole generation is reloaded on the interfaces the node drives. That is the path an HA takeover takes, so the programs and maps provably belong together, at the cost of a sub-second gap in enforcement on those interfaces. Tenant attributions are written into the new generation before it serves traffic.
+
+The DLP capture path goes back to the Vectorscan engine after every reload, with the enabled switch and the mode the file just set.
+
+On an HA standby a reload only stores the new configuration; the next promotion loads from it. A change to `agent.interfaces` is stored and applies at the next activation: in active-active the interfaces a node drives are the cluster's to assign, so the ones driven now stay driven.
+
+An agent that runs with no datapath (eBPF could not load) logs the reload request and keeps running; the default SIGHUP disposition never terminates it.
+
+Disabling `firewall.enabled` while an HA node holds its fail-closed posture unloads the program that enforces the posture. Leave the firewall on on a cluster that relies on failing closed.
 
 ## Limitations
 
