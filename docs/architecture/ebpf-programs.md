@@ -22,7 +22,7 @@ eBPFsentinel includes 16 eBPF kernel programs, all written in Rust using the [Ay
 | `tc-ids` | TC classifier | `crates/ebpf-programs/tc-ids/` | Intrusion detection |
 | `tc-threatintel` | TC classifier | `crates/ebpf-programs/tc-threatintel/` | Threat intelligence |
 | `tc-dns` | TC classifier | `crates/ebpf-programs/tc-dns/` | DNS capture |
-| `tc-qos` | TC egress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping |
+| `tc-qos` | TC egress + ingress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping (`tc_qos` on egress, `tc_qos_ingress` on ingress) |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
 
 ## Interface Groups (Cross-Cutting)
@@ -37,7 +37,7 @@ Up to 31 named interface groups are supported. The bitmask check adds negligible
 
 ## TC Chain Handoff (Cross-Cutting)
 
-The eight tc classifiers attach on TCX and each returns `TCX_NEXT`, so an ingress skb runs through `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-scrub` and `tc-qos` in that order, and an egress skb through `tc-nat-egress` then `tc-qos`. The frame is parsed once per chain rather than once per program: the first classifier that sees the skb reads the Ethernet header, walks the VLAN and QinQ tags, reads the IP header and the transport ports, and writes the result into the five control-block words the kernel carries with the skb from one TCX program to the next (`skb->cb`). Every classifier after it reads those words back: the L3 and L4 offsets, the protocol, the VLAN identifier, the two ports and the tenant, once a program in the chain has resolved it. `tc-dns` uses the ports to leave before touching the packet when neither is 53.
+The eight tc classifiers attach on TCX and each returns `TCX_NEXT`, so an ingress skb runs through `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-nat-ingress`, `tc-scrub` and `tc_qos_ingress` in that order, and an egress skb through `tc-ids` (only when `ids.inspect_egress` or the container resolver is on), `tc-nat-egress` then `tc_qos`. A program whose feature is off is not attached, so it costs nothing in the chain. The frame is parsed once per chain rather than once per program: the first classifier that sees the skb reads the Ethernet header, walks the VLAN and QinQ tags, reads the IP header and the transport ports, and writes the result into the five control-block words the kernel carries with the skb from one TCX program to the next (`skb->cb`). Every classifier after it reads those words back: the L3 and L4 offsets, the protocol, the VLAN identifier, the two ports and the tenant, once a program in the chain has resolved it. `tc-dns` uses the ports to leave before touching the packet when neither is 53.
 
 The control block is not trusted blindly. The kernel overwrites it on an IP receive and on a locally originated skb, so the words carry a magic byte and a check word folded over the five of them, the skb length and the two interface indexes; a mismatch is a re-parse, never a wrong offset. A NAT rewrite invalidates the handoff before it touches the packet, since the ports it carries would be stale afterwards, and the next program parses again. The layout lives in `crates/ebpf-helpers/src/pktmeta.rs`.
 
@@ -48,6 +48,47 @@ All programs share types via `crates/ebpf-common/`:
 - `PacketEvent` (64 bytes) - the standard event emitted to userspace via RingBuf
 - `#[repr(C)]` structs for eBPF map keys and values
 - Shared constants (`FLAG_IPV6`, `FLAG_VLAN`, etc.)
+
+## Map Sizing (Cross-Cutting)
+
+Rule arrays keep the `max_entries` compiled into the object: that number is the
+ceiling userspace writes up to. Tables the kernel fills on its own are sized at
+load from the configuration instead, because locked memory is paid for every
+slot whether it is used or not, and a per-CPU table pays it once per online
+CPU. The agent builds one plan `map name -> max_entries` before the first
+object is loaded:
+
+| Map | Follows |
+|---|---|
+| `THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`, `THREATINTEL_BLOOM_V4`, `THREATINTEL_BLOOM_V6` | `threatintel.max_entries` |
+| `RL_BUCKETS` | `ratelimit.max_buckets` |
+| `SYN_RATE_TRACKER`, `ICMP_RATE_BUCKETS`, `AMP_RATE_BUCKETS`, `HALF_OPEN_COUNTERS`, `FLOOD_COUNTERS` | `ddos.max_tracked_sources` |
+| `CONN_TABLE` | `ddos.connection_tracking.max_entries` |
+| `CT_SRC_COUNTERS` | `conntrack.max_src_states` |
+| `NAT_HAIRPIN_CT` | `nat.hairpin.enabled` |
+| `REJECT_RATELIMIT` | whether any firewall rule uses `reject` |
+
+A table belonging to a feature that is off is created small rather than empty,
+so a reload that turns the feature on can still insert until the next start. A
+pinned map keeps the size it was created with, so a size changed by a hot
+reload is reported and applied at the next start.
+
+## Ring Buffer Events (Cross-Cutting)
+
+Every program that reports events writes them to a `RingBuf`. Two rules apply
+to all of them:
+
+- **Backpressure**: before reserving, `tc-ids`, `tc-threatintel`, `tc-dns`,
+  `tc-qos`, `xdp-firewall`, `xdp-ratelimit` and `xdp-loadbalancer` check the
+  ring's fill level with `bpf_ringbuf_query` and skip the event above 75%,
+  counting it in their `events_dropped` metric. The packet verdict is never
+  affected.
+- **Batched wakeup**: a record is submitted with `BPF_RB_NO_WAKEUP` until the
+  unread backlog reaches 64 KiB, then with `BPF_RB_FORCE_WAKEUP`. The reader
+  also drains every 10 ms, so a quiet ring is still read promptly while a busy
+  one wakes the agent once per batch rather than once per record. `tc-dns` is
+  the exception: it keeps the default wakeup, because a DNS answer has to
+  reach the domain cache before the connection it resolved.
 
 ## XDP Firewall (xdp-firewall)
 
@@ -65,11 +106,10 @@ Key eBPF features:
 - **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`, slot 3 → `xdp-vip-announcer` (ARP frames targeting an owned VIP)
 - **CPUMAP** for NUMA-aware CPU steering
 - **bpf_fib_lookup** to resolve the interface a packet would leave by, which is how the destination zone is found
-- **bpf_xdp_adjust_meta** for metadata passing to TC programs (rule ID, DSCP mark, route action)
 - **bpf_check_mtu** for MTU validation before pass/redirect (all 3 XDP programs)
 - **bpf_csum_diff** / `bpf_l3_csum_replace` / `bpf_l4_csum_replace` for checksums
 - Inline `VlanHdr` / `Ipv6Hdr` parsing
-- `bpf_loop` for iterating large rule sets (kernel 5.17+)
+- `bpf_loop` for iterating large rule sets
 - TCP flags matching (`match/mask` notation), ICMP type/code filtering
 - MAC address matching (L2), DSCP classification
 - IP set maps for aliases and overload blacklist
@@ -79,8 +119,7 @@ Key eBPF features:
 ## XDP Rate Limiter (xdp-ratelimit)
 
 - **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching - if a source IP falls within a country tier's CIDR range, the tier config is used
-- **PerCPU Hash** maps for lock-free per-IP counters
-- **bpf_timer** for periodic bucket expiration
+- **LRU PerCPU Hash** maps for lock-free per-source buckets; the LRU evicts the least recently seen source when the table is full, and a bucket refills from its own timestamp on the next packet, so no timer runs. The table is sized by `ratelimit.max_buckets` at load
 - **XDP SYN cookies** - via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
 - **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
@@ -142,7 +181,6 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - Conntrack key normalization (lower IP:port always "src") for bidirectional matching
 - Garbage collection for expired connections
 - Per-source counter decrement on connection expiry
-- `bpf_skb_store_bytes` for packet modification
 
 ## TC Scrub (tc-scrub)
 
@@ -184,21 +222,22 @@ Packet normalization running after XDP processing:
 
 ## TC QoS (tc-qos)
 
-- TC egress classifier for traffic shaping
+- Two entry points in one object: `tc_qos` on TC egress and `tc_qos_ingress` on TC ingress, each applying only the rules whose direction matches
 - Three-level hierarchy: pipes (bandwidth/delay/loss) → queues (WF2Q+ weighted fair) → classifiers (5-tuple + DSCP matching)
 - **Token bucket** bandwidth limiting with `bpf_ktime_get_boot_ns` timestamps
-- **4-level progressive wildcard** classifier lookup in `QOS_CLASSIFIERS` HashMap
+- **Classification ladder** in `QOS_CLASSIFIERS`: nine rule shapes (both hosts and ports, hosts and destination port, hosts only, both ports, destination port, source port, DSCP, protocol, catch-all), walked in two scopes (rules naming a VLAN, then rules naming none). The six host and port shapes are probed with the packet's DSCP and with DSCP open, so a full walk is 16 lookups for an unmarked packet and 30 for a marked one
+- **Empty-shape mask** (`QOS_EMPTY_SHAPES`): userspace publishes which shapes hold no rule, one bit each plus a no-DSCP bit per scope, and the ladder skips them. With no shaping rule loaded the program costs about the floor of the test loop; a stale mask can only be slower, never wrong
 - **Random loss** emulation via `bpf_get_prandom_u32`
 - **LRU_PERCPU_HASH** (`QOS_FLOW_STATE`, 65536 entries) for per-flow token bucket state
 - **PerCpuArray** metrics: total_seen, shaped, dropped_loss, dropped_queue, delayed, errors, events_dropped
 - Scheduler types: fifo, wf2q, fq_codel
-- RingBuf backpressure (same 75% pattern)
+- RingBuf backpressure (same 75% line)
 
 ## Uprobe DLP (uprobe-dlp)
 
-- Attaches to `SSL_write` / `SSL_read` in OpenSSL/BoringSSL
-- Captures plaintext before encryption / after decryption
-- Forwards to userspace DLP engine via RingBuf
+- Three probes: `SSL_write` (uprobe), `SSL_read` entry (uprobe, saves the buffer pointer) and `SSL_read` return (uretprobe, reads what was decrypted), on every OpenSSL or BoringSSL library a process maps
+- Captures plaintext before encryption / after decryption, and the cgroup identifier of the calling task so an event is attributed to its container
+- Forwards to userspace DLP engine via RingBuf; a statically linked TLS stack has no `SSL_*` symbol to probe (Enterprise covers it with its extended TLS scan)
 
 ## Kernel Requirements
 

@@ -10,7 +10,11 @@
 | `ports` | `#![forbid(unsafe_code)]` | Trait definitions only |
 | `application` | `#![forbid(unsafe_code)]` | Orchestration only |
 | `infrastructure` | `#![forbid(unsafe_code)]` | Config, logging, metrics |
-| `adapters` | `#![deny(unsafe_code)]` | One targeted `#[allow]` for eBPF ring buffer parsing |
+| `adapters` | `#![deny(unsafe_code)]` | Lifted with a file-level `#[allow]` in 16 files: ring-buffer record reads, raw BPF and netlink syscalls, fd passing |
+| `agent` | `#![forbid(unsafe_code)]` | Wiring only |
+| `warden-proto` | `#![forbid(unsafe_code)]` | Wire messages only |
+| `warden-client` | `#![forbid(unsafe_code)]` unless the `fd-pass` feature is on | `SCM_RIGHTS` fd receipt needs `libc` |
+| `warden` | `#![allow(unsafe_code)]` | Raw mount, bpf and user-namespace syscalls; the smallest privileged process in the deployment |
 | `ebpf-common` | `#![deny(unsafe_op_in_unsafe_fn)]` | Shared kernel/userspace types - enforces explicit unsafe blocks inside unsafe fns |
 
 ### UB Detection
@@ -30,7 +34,7 @@ cargo audit         # Vulnerability scanning
 ```
 
 `deny.toml` policy:
-- 13 approved dependency licenses (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, AGPL-3.0-only, BSD-2-Clause, BSD-3-Clause, 0BSD, ISC, Zlib, CC0-1.0, CDLA-Permissive-2.0, Unicode-3.0, OpenSSL)
+- 12 approved dependency licenses (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, AGPL-3.0-only, BSD-2-Clause, BSD-3-Clause, 0BSD, ISC, Zlib, CC0-1.0, CDLA-Permissive-2.0, Unicode-3.0). OpenSSL is not on the list: nothing in the tree carries it, so a dependency that drags it in fails the check
 - Yanked crates denied
 - Unknown registries and git sources denied
 - Vulnerability advisories denied
@@ -43,12 +47,15 @@ CycloneDX Software Bill of Materials is generated in CI for supply chain transpa
 
 ### Regex DoS Prevention
 
-All user-supplied regex patterns are compiled with safety limits:
+All user-supplied regex patterns (IDS, DLP, L7 domain matching) are compiled
+with the `regex` crate, which guarantees linear-time matching (no
+backtracking), and with safety limits:
 
 - **10 MiB** maximum compiled regex size
 - **200** maximum nesting depth
-- **4 KiB** maximum regex source length
-- Compilation timeout prevents hangs
+- **4 KiB** maximum DLP pattern source length; **253** characters for an L7 domain pattern
+
+A pattern over a limit is refused at load with an error naming it.
 
 ### DNS Parser Safety
 
@@ -57,7 +64,19 @@ All user-supplied regex patterns are compiled with safety limits:
 
 ### Configuration Limits
 
-- Maximum **4096 rules** per domain (prevents OOM from oversized YAML)
+- Rule count ceilings, checked at load (prevents OOM from oversized YAML):
+
+| Section | Maximum |
+|---|---:|
+| Firewall rules | 4 096 |
+| IDS rules | 50 000 |
+| IPS rules | 50 000 |
+| L7 rules | 10 000 |
+| Rate-limit rules | 10 000 |
+| DLP patterns | 1 000 |
+| NAT rules | 256 |
+| NPTv6 rules | 64 |
+
 - Feed URL validation
 - CIDR subnet validation
 - Port range validation
@@ -80,10 +99,11 @@ eBPF programs are verified by the kernel verifier before loading:
 - **Type safety** - BTF provides type information for CO-RE (Compile Once, Run Everywhere)
 
 eBPF loads **exclusively** through a BPF token (kernel 6.9+) - there is no
-capability-based loading path. The privileged launcher
-(`ebpfsentinel-token-launch`) creates the token in a child user namespace and
-execs the agent there, so the long-running agent holds **no host capabilities**.
-The launcher itself consumes `CAP_SYS_ADMIN` only for the bootstrap. See the
+capability-based loading path. The agent unshares a user namespace of its own
+and asks the privileged **warden** to apply the `delegate_*` options to a bpffs
+it prepared, which is the one step that needs `CAP_SYS_ADMIN` in the initial
+user namespace. The agent then creates the token and loads its own programs, so
+the long-running agent holds **no host capabilities**. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
 ## Container DLP and host PID visibility
@@ -113,7 +133,7 @@ no `libssl` symbol to probe and are not covered by the OSS agent.
 
 ## Authentication Security
 
-- **JWT validation** - RS256 signature, issuer, audience, expiration checks
+- **JWT validation** - RS256 or EdDSA signature, issuer, audience, expiration checks
 - **OIDC** - JWKS key rotation support via discovery URL
 - **API keys** - configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
 - **TLS 1.3** - rustls with aws-lc backend, older protocol versions rejected
@@ -135,7 +155,7 @@ The dashboard server enforces a strict, nonce-based CSP on every HTTP response:
 
 ```text
 default-src 'self';
-script-src  'self' 'nonce-<per-request>' 'strict-dynamic' 'wasm-unsafe-eval';
+script-src  'self' 'nonce-<per-request>' 'strict-dynamic';
 style-src   'self' 'nonce-<per-request>';
 img-src     'self' data:;
 font-src    'self';
@@ -159,20 +179,9 @@ A cryptographically random 128-bit nonce is generated per request using the OS C
 
 `connect-src` is locked to `'self'` plus the explicit OIDC issuer origin(s). The dashboard derives the origin (`scheme://host[:port]`) from the configured `oidc.issuer_url` at startup, plus every entry in `oidc.additional_issuers` for federated-discovery (multi-IdP) deployments. No wildcard, no `*`. A compromised dependency cannot exfiltrate via `fetch` / `EventSource` / `WebSocket` to an arbitrary host because the browser refuses any `connect-src` target outside that allowlist; CSP violations are reported via `/csp-report` and counted by `ebpfsentinel_dashboard_csp_violations_total{directive="connect-src"}`.
 
-`'strict-dynamic'` and `'wasm-unsafe-eval'` stay in `script-src`: the former is required for nonce-trust propagation through the Trunk-generated bootstrap, the latter is the only baseline-supported directive that allows the Leptos WASM client to compile (see the WASM section below).
-
 ### `'strict-dynamic'`
 
-With `'strict-dynamic'`, scripts loaded by a nonced script inherit trust without needing their own nonce. The Trunk-generated WASM bootstrap script carries the nonce; all dynamically loaded modules (including the WASM binary) propagate from it.
-
-### WASM and `'wasm-unsafe-eval'`
-
-The Leptos client compiles to WebAssembly. Browsers require an explicit CSP directive to allow WASM execution:
-
-- **`'wasm-eval'`** - the standard directive (CSP Level 3), but not yet shipped in Chrome, Firefox, or Safari as of 2026-04.
-- **`'wasm-unsafe-eval'`** - the interim directive supported by all major browsers. Despite the name, it only permits WASM compilation and does not allow arbitrary `eval()`.
-
-The dashboard uses `'wasm-unsafe-eval'` until `'wasm-eval'` reaches baseline support. The `scripts/csp-audit.sh` CI script validates that no CSP violations occur across all dashboard routes.
+With `'strict-dynamic'`, scripts loaded by a nonced script inherit trust without needing their own nonce. The Angular bundle's entry scripts carry the nonce in the `index.html` the server returns, and the chunks they load lazily inherit it. No `eval` and no WebAssembly is allowed.
 
 ### CSP violation reporting
 

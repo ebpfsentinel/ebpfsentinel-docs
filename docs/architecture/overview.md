@@ -87,12 +87,16 @@ flowchart TB
 | Crate | Role | Depends On |
 |-------|------|-----------|
 | `ebpf-common` | Shared `#[repr(C)]` types (kernel + userspace) | Nothing |
-| `domain` | Business logic, engines, entities | Nothing |
-| `ports` | Trait definitions (primary + secondary) | `domain` |
-| `application` | Use cases, pipelines, orchestration | `domain`, `ports` |
-| `infrastructure` | Config, logging, metrics | `domain`, `ports` |
-| `adapters` | HTTP, gRPC, eBPF, storage (redb), GeoIP | `domain`, `ports` |
-| `agent` | Binary entry point, startup | All crates |
+| `ebpf-helpers` | Shared helpers for the kernel programs (nightly, outside the workspace) | `ebpf-common` |
+| `domain` | Business logic, engines, entities | `ebpf-common` |
+| `ports` | Trait definitions (primary + secondary) | `domain`, `ebpf-common` |
+| `application` | Use cases, pipelines, orchestration | `domain`, `ports`, `ebpf-common` |
+| `infrastructure` | Config, logging, metrics | `domain` |
+| `adapters` | HTTP, gRPC, eBPF, storage (redb), GeoIP | `domain`, `ports`, `infrastructure`, `ebpf-common`, `warden-client` |
+| `warden-proto` | Wire messages between the agent and the warden | Nothing |
+| `warden-client` | Agent side of the warden control socket (fd passing) | `warden-proto` |
+| `warden` | Privileged broker binary and the syscall primitives it shares with the agent's rootless bootstrap | `warden-proto` |
+| `agent` | Binary entry point, startup | All userspace crates |
 | `xtask` | Build orchestration (eBPF multi-program builds) | None |
 
 ## Project Structure
@@ -105,11 +109,12 @@ ebpfsentinel/
 ├── deny.toml                         # Dependency policy
 ├── config/
 │   ├── ebpfsentinel.yaml             # Default config
-│   └── examples/                     # Per-feature standalone configs (20 files)
+│   └── examples/                     # Per-feature standalone configs (25 files)
 ├── proto/
 │   └── ebpfsentinel/v1/alerts.proto  # gRPC service definition
 ├── crates/
 │   ├── ebpf-common/                  # Shared #[repr(C)] types (kernel + userspace)
+│   ├── ebpf-helpers/                 # Shared kernel-side helpers (nightly)
 │   ├── ebpf-programs/                # eBPF kernel programs (nightly, bpfel-unknown-none)
 │   │   ├── xdp-firewall/
 │   │   ├── xdp-firewall-reject/
@@ -124,12 +129,17 @@ ebpfsentinel/
 │   │   ├── tc-nat-ingress/
 │   │   ├── tc-nat-egress/
 │   │   ├── tc-qos/
-│   │   └── uprobe-dlp/
+│   │   ├── uprobe-dlp/
+│   │   ├── xdp-vip-announcer/
+│   │   └── xdp-pass/
 │   ├── domain/                       # Business logic (engines, entities, errors)
 │   ├── ports/                        # Port traits (primary + secondary)
 │   ├── application/                  # Use cases, pipelines, orchestration
 │   ├── adapters/                     # HTTP, gRPC, eBPF, redb, GeoIP
 │   ├── infrastructure/               # Config, logging, metrics
+│   ├── warden/                       # Privileged broker (rootless deployments)
+│   ├── warden-client/                # Agent side of the warden socket
+│   ├── warden-proto/                 # Agent <-> warden wire messages
 │   ├── agent/                        # Binary entry point
 │   └── xtask/                        # Build orchestration
 ├── tests/integration/                # BATS integration tests
@@ -142,8 +152,8 @@ ebpfsentinel/
 - **100% Rust** - kernel programs and userspace, no C, no Go
 - **Aya framework** - compile-once eBPF with CO-RE/BTF support
 - **Hexagonal/DDD** - domain logic has zero external dependencies
-- **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure crates
-- **Single binary** - no sidecar processes, no daemon dependencies
+- **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure, agent and warden-proto; adapters deny it and allow it file by file where a syscall or a ring-buffer record needs it
+- **Single agent binary** - no sidecar; in a rootless deployment a small privileged `warden` process sets up the BPF token and hands file descriptors over, then the agent loads its own programs
 - **Source-agnostic feeds** - threat intel feeds are configured in YAML, no provider-specific code
 - **MITRE ATT&CK mapping** - every alert tagged with tactic + technique ID
 - **GeoIP enforcement** - MaxMind-backed country resolution shared across all engines

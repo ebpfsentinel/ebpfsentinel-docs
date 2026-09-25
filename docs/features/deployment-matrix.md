@@ -13,15 +13,17 @@ This page documents which features are fully supported, partially supported, or 
 | Mode | Description | Network Namespace | Process Namespace |
 |------|-------------|-------------------|-------------------|
 | **Bare metal / VM** | Agent binary runs directly on the host | Host | Host |
-| **Container** | `docker run --network host`; the image entrypoint is the launcher, which creates the BPF token in a child userns and execs the agent unprivileged (container granted `CAP_SYS_ADMIN` for the bootstrap only) | Host (shared) | Container (isolated) |
-| **Kubernetes DaemonSet** | One DaemonSet pod per node with `hostNetwork: true`; the launcher-entrypoint agent container is granted `CAP_SYS_ADMIN` + `allowPrivilegeEscalation` for the token bootstrap (no init container) | Host (shared) | Pod (isolated unless `hostPID: true`) |
+| **Container** | Two containers with `network_mode: host`: the `warden` broker holds the host capabilities, the agent runs as uid 65534 with `cap_drop: [ALL]` (see `docker-compose.yml`) | Host (shared) | Host with `pid: host`, otherwise container |
+| **Kubernetes DaemonSet** | One pod per node with `hostNetwork: true`; the warden is a native sidecar (init container with `restartPolicy: Always`) holding the capabilities, the agent container runs as uid 65534 with every capability dropped | Host (shared) | Pod (isolated unless `hostPID: true`) |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
-> **Split-broker variant (Container / DaemonSet):** the privileged bpffs
-> delegation can run in a separate small `broker` container so the long-running
-> agent container runs **non-root + `cap-drop: ALL` + no `CAP_SYS_ADMIN`**. Same
-> feature support as the modes above; only the privilege placement changes. See
-> the [BPF token guide](../operations/deployment/bpf-token.md#the-warden-broker).
+In both the Container and DaemonSet modes the agent holds **no host
+capability**. It unshares its own user namespace, has the warden delegate a
+bpffs into it, creates a BPF token there and loads every program through it.
+What a user namespace cannot do against the host (conntrack teardown, route
+programming, gratuitous ARP, packet capture, cross-container uprobe links) is
+brokered to the warden over a Unix socket. See the
+[BPF token guide](../operations/deployment/bpf-token.md#the-warden-broker).
 
 ## Compatibility Matrix
 
@@ -58,9 +60,63 @@ This page documents which features are fully supported, partially supported, or 
 These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine. **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets - see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
 
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
-- **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods. XDP attaches to veth in generic (SKB) mode since kernel 4.19 and native mode since 5.9, but the scope is limited to the pod's own traffic.
+- **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods, and its scope is limited to the pod's own traffic.
 
-**Requirements**: kernel 6.9+ with a BPF token (the only loading path; the launcher entrypoint sets up the delegated bpffs and creates the token in a child user namespace, then execs the agent unprivileged - the long-running agent holds no host capabilities); `--network host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: kernel 6.9+ with a BPF token (the only loading path; the agent creates it in its own user namespace on a bpffs the warden delegates, and holds no host capability); `network_mode: host` (container), `hostNetwork: true` (Kubernetes).
+
+### Node traffic or container-to-container traffic
+
+A DaemonSet or a host-network container protects the **node** by default: the
+programs sit on the interfaces listed in `agent.interfaces`, so they see what
+enters and leaves the machine. Traffic between two pods on the same node never
+crosses those interfaces. What can be brought down to one container depends on
+the hook:
+
+| Hook | Programs | Per container | How |
+|------|----------|:-:|-----|
+| XDP | firewall, reject, rate limiting, DDoS, SYN cookies, load balancer, VIP announcer | :x: | Node NIC only. XDP runs before the kernel builds a packet buffer, which is only meaningful on a physical or bond interface. |
+| TC | IDS/IPS, threat intelligence, DNS, conntrack, NAT, scrub, QoS | :white_check_mark: | Attached to the container's host-side interface (netkit or veth), see below |
+| uprobe | DLP | :white_check_mark: | Attached to the TLS library mapped by each process, see [DLP](#dlp-data-loss-prevention) |
+
+**netkit (Kubernetes, Cilium 1.16+ in netkit mode).** With
+`agent.attach_mode: auto` (the default) or `netkit`, the agent watches for
+netkit devices and attaches the TC chain to every pod automatically:
+
+- the ingress chain (IDS, threat intelligence, DNS, conntrack, NAT ingress,
+  scrub, QoS ingress) runs on traffic going **into** the pod, the egress chain
+  (IDS when `ids.inspect_egress` or the container resolver is on, NAT egress,
+  QoS) on traffic coming **out** of it, each in the same order as on a node NIC;
+- pods already running when the agent starts are covered on the first poll,
+  new pods within one poll cycle;
+- the links are released when the pod is deleted, so pod churn does not leak
+  program references;
+- an interface also listed in `agent.interfaces` is left alone, so nothing is
+  attached twice.
+
+The watcher does not run with `attach_mode: tc`.
+
+**veth (Docker, Calico, Flannel and every other veth-based CNI).** There is no
+automatic discovery: list the host-side interfaces in `agent.interfaces` to put
+the TC chain on them. For Docker, listing the bridge (`docker0`, or a
+`br-<id>` user network) covers every container attached to it; a single
+container's `veth<id>` covers that container only, and its name changes when the
+container is recreated.
+
+Container attribution is independent of the interface: the container resolver
+maps each packet's cgroup id (read on the TC egress hook) to its container or
+pod, so alerts carry the workload even when the chain sits on the node NIC.
+
+### Namespace scope
+
+A firewall rule's `scope` can be `global`, an interface, or
+`{ namespace: <name> }`. The namespace is an **eBPFsentinel namespace**, not a
+Linux network namespace and not a Kubernetes namespace: it is the ownership
+label that role-based access checks against the `namespaces` claim of an
+`operator` identity (see [Authentication](authentication.md)). It is not tied
+to one interface, so one NIC can carry traffic governed by several namespaces,
+each owned by a different team. What a namespace rule matches is set by its own
+fields (addresses, ports, protocol, VLAN, `interfaces` groups), never by the
+namespace name.
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 
@@ -94,35 +150,58 @@ than mapping `libboringssl.so`.
 
 **Enterprise extends this coverage** via additional uprobe targets - Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS - so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
-**Recommended K8s deployment** for full DLP coverage (BPF token, default):
+**Across containers**, the agent finds each process's library through the
+host `/proc` mounted at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), and the warden
+creates the uprobe link against `/host/proc/<pid>/root/<lib>` (it holds
+`SYS_PTRACE`, `BPF` and `PERFMON` for that). New processes are picked up as they
+start, and each event's `cgroup_id` names the container it came from.
+
+**Recommended K8s deployment** for full DLP coverage, as the Helm chart renders
+it (trimmed):
 
 ```yaml
 spec:
   hostPID: true
   hostNetwork: true
-  # No init container - the image entrypoint (ebpfsentinel-token-launch) creates
-  # the token in a child userns and execs the agent unprivileged.
+  initContainers:
+    - name: warden                 # native sidecar: starts first, lives with the pod
+      restartPolicy: Always
+      args: ["serve", "/run/ebpfsentinel/warden.sock", "--uid", "65534"]
+      securityContext:
+        runAsUser: 0
+        capabilities:
+          drop: [ALL]
+          add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON]
+      volumeMounts:
+        - { name: warden-sock, mountPath: /run/ebpfsentinel }
+        - { name: host-proc, mountPath: /host/proc, readOnly: true }
   containers:
     - name: agent
       args: ["--config", "/etc/ebpfsentinel/config.yaml"]
+      env:
+        - { name: EBPFSENTINEL_WARDEN_SOCK, value: /run/ebpfsentinel/warden.sock }
+        - { name: EBPFSENTINEL_HOST_PROC, value: /host/proc }
       securityContext:
-        allowPrivilegeEscalation: true
+        runAsUser: 65534
+        allowPrivilegeEscalation: true   # the agent unshares its own user namespace
         capabilities:
           drop: [ALL]
-          add:
-            - SYS_ADMIN          # launcher bootstrap only; eBPF loads via the token
+      volumeMounts:
+        - { name: warden-sock, mountPath: /run/ebpfsentinel, readOnly: true }
+        - { name: host-proc, mountPath: /host/proc, readOnly: true }
+        - { name: cgroup, mountPath: /sys/fs/cgroup, readOnly: true }
 ```
 
-> **Note:** `hostPID: true` is required for full DLP visibility. The agent
-> container grants `CAP_SYS_ADMIN` for the launcher bootstrap; the
-> long-running agent is unprivileged.
+> **Note:** `hostPID: true` is required for full DLP visibility. Both
+> containers run with `Unconfined` AppArmor and seccomp profiles, which the
+> user-namespace unshare and the bpffs delegation need.
 
 ### Multi-WAN Routing
 
 Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes). It requires access to the **host routing table** to apply policy routing decisions.
 
-- **Bare metal / Container** (`--network host`, `CAP_NET_ADMIN`): full support. The container shares the host network namespace and has direct access to `ip route` / `ip rule`.
-- **K8s DaemonSet** (`hostNetwork: true`): the pod shares the host network namespace, but policy routing (`ip rule add` / `ip route`) goes through **netlink**, which re-checks `CAP_NET_ADMIN` against the *sending* task on every message. The launcher runs the agent in a child user namespace, and a descendant namespace is never privileged over the host netns it manipulates - so adding `CAP_NET_ADMIN` to `capabilities.add` does **not** make Multi-WAN route changes take effect (same limitation as `conntrack -D` flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)). Gateway health checks (ICMP/TCP probes) still run; the route application is what is constrained.
+- **Bare metal / Container** (`network_mode: host`): full support. The route changes go through the warden, which holds `CAP_NET_ADMIN` in the host network namespace.
+- **K8s DaemonSet** (`hostNetwork: true`): the agent runs in its own user namespace, which is never privileged over the host network namespace, so it cannot program routes itself. The route changes are sent to the warden, which holds `CAP_NET_ADMIN` in the host network namespace and applies them over netlink (same path as `conntrack -D` flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)).
 
   > **CNI compatibility note**: eBPFsentinel adds policy routes (`ip rule`) to the host routing table. Most CNIs are unaffected because they use separate routing tables or eBPF-based routing:
   > - **Flannel, Calico (iptables mode), kube-router**: compatible - these use standard routing tables that don't conflict with policy routing rules.
@@ -155,34 +234,30 @@ See the full reference at [Container Awareness](container-awareness.md).
 
 The agent requires **kernel 6.9+** and loads eBPF **exclusively** through
 [**BPF token delegation**](../operations/deployment/bpf-token.md) - there
-is no capability-based loading path. The privileged launcher
-(`ebpfsentinel-token-launch`, the systemd `ExecStart` and the container
-image entrypoint) sets up a delegated bpffs **inside a child user
-namespace**, then execs the agent there; the agent creates a
-`BPF_TOKEN_CREATE` fd and loads every program through it. The launcher
-consumes `CAP_SYS_ADMIN` for the bootstrap; the long-running agent holds
-**no host capabilities** at all. This is what the systemd unit
-(`dist/ebpfsentinel.service`) and the Helm chart ship.
+is no capability-based loading path. The agent unshares its own user
+namespace, the warden (which holds `CAP_SYS_ADMIN`) mounts a bpffs with the
+`delegate_*` options for it, and the agent creates a `BPF_TOKEN_CREATE` fd
+there and loads every program through it. The long-running agent holds **no
+host capabilities** at all. This is what the systemd units, the Compose file
+and the Helm chart ship.
 
-Because the agent runs in a child user namespace, host-netns operations
-that re-check capabilities per syscall are unavailable to it - `conntrack -D`
-teardown, Multi-WAN route application, and VIP gratuitous ARP - and granting
-the agent extra capabilities does not change that. pcap capture is the
-exception: the launcher pre-opens the `AF_PACKET` sockets (cap checked only
-at `socket()`) and passes the fds. The in-kernel equivalents (IPS_DYING
-flow-kill, `xdp-vip-announcer`) cover the eBPF side. See the
-[capability matrix](../operations/deployment/bpf-token.md#capability-matrix).
+Because the agent runs in its own user namespace, host-netns operations are
+brokered to the warden in the init network namespace: `conntrack -D` teardown,
+Multi-WAN route application, gratuitous ARP on VIP takeover, and pcap capture
+(the warden opens the `AF_PACKET` sockets and passes the fds). The in-kernel
+equivalents (IPS_DYING flow-kill, `xdp-vip-announcer`) cover the eBPF side.
+See the [capability matrix](../operations/deployment/bpf-token.md#capability-matrix).
 
 ### When the token cannot be created
 
-There is **no capability-based fallback**. If the launcher cannot delegate
-the bpffs (the node disallows unprivileged user namespaces, or the runtime
-/ PSA level blocks `CAP_SYS_ADMIN`), the agent starts in **API-only mode**
+There is **no capability-based fallback**. If the bpffs cannot be delegated
+(the node disallows unprivileged user namespaces, AppArmor restricts them, or
+the runtime / PSA level blocks the warden's `CAP_SYS_ADMIN`), the agent starts in **API-only mode**
 with no eBPF attached (`ebpfsentinel_bpf_token_used` reads `0`). The fix is
 cluster runtime config, not a capability set.
 
-`CAP_SYS_ADMIN` is broad, which is the reason the token path is the
-default. See the
+`CAP_SYS_ADMIN` is broad, which is why it sits in the warden, a small broker
+with no API and no parser, rather than in the agent. See the
 [Kubernetes deployment guide](../operations/deployment/kubernetes.md#kernel-version-matrix)
 for the kernel-version matrix.
 
@@ -191,8 +266,9 @@ for the kernel-version matrix.
 | Deployment Goal | Recommended Mode |
 |----------------|-----------------|
 | Full host/VM protection (all features) | Bare metal binary |
-| Containerized with full coverage | Container, launcher entrypoint (`CAP_SYS_ADMIN` bootstrap) + `--network host --pid host` |
-| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, launcher entrypoint (`CAP_SYS_ADMIN`, no init container) |
+| Containerized with full coverage | Container, warden + agent from `docker-compose.yml` (`network_mode: host`, `pid: host`) |
+| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, warden sidecar (Helm chart) |
+| Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` on a netkit CNI, or the veth interfaces listed in `agent.interfaces` |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
 For production Kubernetes deployments, use the **DaemonSet** pattern with `hostPID: true` for full feature coverage including DLP, and enable the Kubernetes metadata enricher for workload-aware alerts. See the [Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the complete manifest.

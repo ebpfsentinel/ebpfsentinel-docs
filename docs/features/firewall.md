@@ -16,7 +16,7 @@ Firewall rules can be scoped to control where they apply:
 |-------|-------------|
 | **Global** | Rule applies to all interfaces and namespaces (default) |
 | **Interface(`name`)** | Rule applies only to traffic on the named interface |
-| **Namespace(`name`)** | Rule applies only within the named network namespace |
+| **Namespace(`name`)** | Rule is owned by the named eBPFsentinel namespace: an `operator` needs that namespace in its `namespaces` claim to write it. The namespace does not narrow the traffic (one interface carries several namespaces), so restrict it with its own match fields: addresses, ports, protocol, VLAN or `interfaces` groups |
 
 Scope values are validated at config load and API ingestion, by one rule
 reached from both:

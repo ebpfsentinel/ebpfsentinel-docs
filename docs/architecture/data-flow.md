@@ -72,42 +72,45 @@ flowchart TD
     STACK["Kernel Network Stack\n(SKB allocation)"]
     LB_PASS_2 --> STACK
 
-    subgraph TC["TC Hook (ingress classifier)"]
-        CT["tc-conntrack"]
-        CT_KF["Kernel netfilter CT probe\n(bpf_skb_ct_lookup kfunc)"]
-        CT_RD["nf_conn->status via bpf_probe_read_kernel"]
-        CT --> CT_KF --> CT_RD
-
-        SCRUB["tc-scrub"]
-        SCRUB_NORM["TTL / MSS / DF / IP ID\nnormalization"]
-        SCRUB_TS["TCP timestamp stripping"]
-        CT_RD --> SCRUB --> SCRUB_NORM --> SCRUB_TS
-
-        NAT_IN["tc-nat-ingress"]
-        NAT_NPTV6["NPTv6 prefix translation\n(stateless)"]
-        NAT_DNAT["DNAT rule scan (bpf_loop)\n+ hairpin NAT"]
-        NAT_CSUM["L3/L4 checksum update"]
-        SCRUB_TS --> NAT_IN --> NAT_NPTV6 --> NAT_DNAT --> NAT_CSUM
-
+    subgraph TC["TC Hook (ingress, TCX chain in this order)"]
         IDS["tc-ids"]
+        IDS_PARSE["Parse L2/L3/L4 once,\nwrite skb->cb handoff"]
         IDS_SAMPLE["Sampling\n(bpf_get_prandom_u32)"]
-        IDS_L7["Packet sizing\n(bpf_dynptr_size)"]
         IDS_EMIT["Emit PacketEvent\nto RingBuf"]
-        NAT_CSUM --> IDS --> IDS_SAMPLE --> IDS_L7 --> IDS_EMIT
+        IDS --> IDS_PARSE --> IDS_SAMPLE --> IDS_EMIT
 
         TI["tc-threatintel"]
         TI_BLOOM["Bloom filter pre-check"]
         TI_VLAN["LRU hash confirmation\n+ VLAN tag on event"]
-        TI_EMIT["Emit PacketEvent\nto RingBuf"]
-        IDS_EMIT --> TI --> TI_BLOOM --> TI_VLAN --> TI_EMIT
+        IDS_EMIT --> TI --> TI_BLOOM --> TI_VLAN
 
         DNS["tc-dns"]
-        DNS_UDP["UDP:53 identification"]
+        DNS_UDP["Port 53? (read from handoff)"]
         DNS_EMIT["Emit DNS packet\nto RingBuf"]
-        TI_EMIT --> DNS --> DNS_UDP --> DNS_EMIT
+        TI_VLAN --> DNS --> DNS_UDP --> DNS_EMIT
+
+        CT["tc-conntrack"]
+        CT_KF["Kernel netfilter CT probe\n(bpf_skb_ct_lookup kfunc)"]
+        CT_RD["nf_conn->status via bpf_probe_read_kernel"]
+        DNS_EMIT --> CT --> CT_KF --> CT_RD
+
+        NAT_IN["tc-nat-ingress"]
+        NAT_NPTV6["NPTv6 prefix translation\n(stateless)"]
+        NAT_DNAT["DNAT rule scan (bpf_loop)\n+ hairpin NAT"]
+        NAT_CSUM["L3/L4 checksum update\n(handoff invalidated)"]
+        CT_RD --> NAT_IN --> NAT_NPTV6 --> NAT_DNAT --> NAT_CSUM
+
+        SCRUB["tc-scrub"]
+        SCRUB_NORM["TTL / MSS / DF / IP ID\nnormalization"]
+        SCRUB_TS["TCP timestamp stripping"]
+        NAT_CSUM --> SCRUB --> SCRUB_NORM --> SCRUB_TS
+
+        QOS_IN["tc_qos_ingress"]
+        QOS_IN_CLASS["Shape ladder\n(ingress rules only)"]
+        SCRUB_TS --> QOS_IN --> QOS_IN_CLASS
     end
 
-    STACK --> CT
+    STACK --> IDS
 ```
 
 ### 1b. Egress (Kernel)
@@ -116,15 +119,17 @@ flowchart TD
 flowchart TD
     APP["Application"]
 
-    subgraph TC_EGR["TC Hook (egress)"]
+    subgraph TC_EGR["TC Hook (egress, TCX chain in this order)"]
+        IDS_EGR["tc-ids\n(only with ids.inspect_egress\nor the container resolver)"]
         NAT_EGR["tc-nat-egress"]
+        IDS_EGR --> NAT_EGR
         NAT_NPTV6["NPTv6 prefix translation\n(stateless)"]
         NAT_SNAT["SNAT / masquerade rule scan\n(bpf_loop)"]
         NAT_REWRITE["Source IP/port rewrite\n+ checksum update"]
         NAT_EGR --> NAT_NPTV6 --> NAT_SNAT --> NAT_REWRITE
 
-        QOS["tc-qos"]
-        QOS_CLASS["4-level progressive wildcard\nclassifier lookup"]
+        QOS["tc_qos"]
+        QOS_CLASS["Shape ladder\n(skips shapes with no rule)"]
         QOS_TOKEN["Token bucket bandwidth check\n(per-flow state)"]
         QOS_LOSS["Random loss emulation\n(bpf_get_prandom_u32)"]
         QOS_DELAY["Delay annotation"]
@@ -138,7 +143,7 @@ flowchart TD
         QOS_DROP -- No --> QOS_OK
     end
 
-    APP --> NAT_EGR
+    APP --> IDS_EGR
     WIRE["Wire"]
     QOS_OK --> WIRE
 
@@ -205,9 +210,10 @@ flowchart TD
         EMAIL["Email (SMTP)"]
         WEBHOOK["Webhook (HTTP POST)"]
         LOG["Log (file)"]
+        OTLP["OTLP (logs)"]
     end
 
-    ROUTING --> EMAIL & WEBHOOK & LOG
+    ROUTING --> EMAIL & WEBHOOK & LOG & OTLP
 ```
 
 ### 4. External Interfaces
@@ -259,31 +265,48 @@ sequenceDiagram
     RET->>C: src = 203.0.113.1:443 (reply received)
 ```
 
-## XDP→TC Metadata Flow
+## TC Chain Handoff
 
-When XDP passes a packet, it writes metadata using `bpf_xdp_adjust_meta`:
+XDP and TC do not share per-packet metadata: nothing is written with
+`bpf_xdp_adjust_meta`, and every TC program works from the skb. What is shared
+is the parse *inside* each TC chain. The first classifier that sees the skb
+reads the Ethernet header, walks the VLAN and QinQ tags, reads the IP header
+and the transport ports, and writes the result into the control-block words
+the kernel carries with the skb from one TCX program to the next
+(`skb->cb`):
 
 ```mermaid
 classDiagram
-    class XdpMetadata {
-        u32 rule_id
-        u32 flags
-        u32 status
+    class PktMeta {
+        magic byte
+        L3 and L4 offsets
+        protocol
+        VLAN identifier
+        source and destination port
+        tenant
+        check word
     }
 
-    class XDP_Program {
-        writes metadata via bpf_xdp_adjust_meta()
+    class FirstClassifier {
+        parses the frame once
+        writes skb->cb
     }
 
-    class TC_Program {
-        reads metadata without re-parsing headers
+    class LaterClassifiers {
+        verify the check word
+        read offsets and ports back
     }
 
-    XDP_Program --> XdpMetadata : writes
-    XdpMetadata --> TC_Program : consumed by
+    FirstClassifier --> PktMeta : writes
+    PktMeta --> LaterClassifiers : read by
 ```
 
-This avoids duplicate header parsing across hook points.
+The check word folds the other words together with the skb length and the two
+interface indexes, because the kernel overwrites the control block on an IP
+receive and on a locally originated skb; a mismatch is a re-parse, never a wrong
+offset. A NAT rewrite invalidates the handoff before it touches the packet, and
+the next program parses again. The layout is in
+`crates/ebpf-helpers/src/pktmeta.rs`.
 
 ## eBPF↔Userspace Map Synchronization
 

@@ -7,12 +7,16 @@ eBPFsentinel follows hexagonal architecture (ports & adapters) with Domain-Drive
 ## Dependency Rules
 
 ```
-domain ← ports ← application
-                ← infrastructure
-                ← adapters ← agent (binary)
+ebpf-common ← domain ← ports ← application ← agent (binary)
+              domain ← infrastructure ← adapters ← agent
+              domain, ports ← adapters
 ```
 
-Arrows point toward dependencies. The domain depends on nothing.
+Arrows point toward dependencies. The domain depends on nothing of ours but
+`ebpf-common`, the `#[repr(C)]` types the kernel programs share. Adapters read
+the parsed configuration from `infrastructure`; `application` never does, and
+neither ever imports an adapter. Only `agent` sees every crate, because it is
+where they are wired together.
 
 ### domain
 
@@ -20,7 +24,7 @@ Arrows point toward dependencies. The domain depends on nothing.
 
 - `#![forbid(unsafe_code)]`
 - Minimal external dependencies: `thiserror`, `serde`, `regex`, `ebpf-common`
-- Contains 2500+ unit tests
+- Contains about 1200 unit tests, plus property tests on the parsers and engines
 - Each domain follows the same structure:
 
 ```
@@ -62,6 +66,7 @@ crates/domain/src/<domain>/
 - `ebpf/` - Aya program loader and map management
 - `storage/` - redb persistence
 - `geoip/` - MaxMind `.mmdb` adapter for GeoIP lookups
+- `#![deny(unsafe_code)]` at the crate root, lifted file by file (16 files) where a raw syscall or a ring-buffer record read needs it
 
 ### agent
 
