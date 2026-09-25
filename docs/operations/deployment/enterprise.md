@@ -170,13 +170,13 @@ edit takes `docker compose restart agent`.
 
 The `charts/ebpfsentinel-enterprise` chart deploys one agent per node as a
 DaemonSet with the warden as a **native sidecar** (init container with
-`restartPolicy: Always`, Kubernetes 1.29+). The release publishes the OSS and
-dashboard charts only, so this one is installed from a checkout of
-`ebpfsentinel-enterprise`:
+`restartPolicy: Always`, Kubernetes 1.29+). Each release publishes it
+beside the OSS chart, signed the same way, at
+`oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-enterprise`:
 
 ```bash
-git clone https://github.com/ebpfsentinel/ebpfsentinel-enterprise.git && cd ebpfsentinel-enterprise
-helm install ent charts/ebpfsentinel-enterprise \
+helm install ebpfsentinel-enterprise oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-enterprise \
+  --version <version> \
   --namespace ebpfsentinel --create-namespace \
   --set image.repository=ghcr.io/ebpfsentinel/ebpfsentinel-enterprise \
   --set wardenImage.repository=ghcr.io/ebpfsentinel/ebpfsentinel-enterprise-warden \
@@ -184,10 +184,26 @@ helm install ent charts/ebpfsentinel-enterprise \
   --set-file license.key=./my-license.key
 ```
 
+From a checkout of `ebpfsentinel-enterprise`, install the chart directory
+`charts/ebpfsentinel-enterprise` with the same values instead.
+
 Provide the license either inline (`--set-file license.key=…`, which creates a
 Secret) or by referencing an existing one (`--set license.secretName=…` whose
 `license.key` data entry holds the signed license). It is mounted read-only at
 `/etc/ebpfsentinel-license/license.key` (the chart's `enterprise.license_path`).
+
+The agent keeps its state under `/var/lib/ebpfsentinel`: the redb stores
+under `data/`, captures, GeoIP databases, the portal enrolment under `portal/`,
+and the HA, federation and analytics stores. The chart mounts a `state` volume
+there, an `emptyDir` by default, which survives a container restart but not the
+pod being replaced; an agent reporting to the portal then joins again after
+every rollout. Set `daemonset.state.hostPath` to keep it on the node, after
+creating the directory owned by the agent's uid, since Kubernetes applies no
+`fsGroup` to a hostPath:
+
+```bash
+install -d -o 65534 -g 65534 -m 0700 /var/lib/ebpfsentinel
+```
 
 Key values:
 
@@ -198,15 +214,14 @@ Key values:
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
 | `daemonset.hostPID` | `true` | Node-wide DLP visibility (set `false` to scope to the pod) |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
+| `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty keeps it on an `emptyDir` |
 
 The warden holds the host capabilities
 (`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`); the agent stays
 `cap-drop: ALL`. Both containers mount host `/proc` read-only at `/host/proc`,
 and the agent also mounts host `/sys/fs/cgroup` read-only for cgroup attribution.
 The config is a ConfigMap whose checksum is a pod annotation, so a values change
-rolls the DaemonSet. The chart mounts no state volume: the redb stores, GeoIP
-databases and captures live in the container filesystem and go with the pod. The
-chart exposes the enterprise API (8444) and the HA peer gRPC port (9443), and
+rolls the DaemonSet. The chart exposes the enterprise API (8444) and the HA peer gRPC port (9443), and
 nothing else: this binary opens one HTTP listener, so the REST surface,
 `/metrics` and the `/healthz` and `/readyz` probes are all served on 8444 and
 the OSS agent's own 8080, 50051 and 9090 are never started. The enterprise API
