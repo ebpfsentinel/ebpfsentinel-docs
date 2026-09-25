@@ -26,8 +26,9 @@ eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
 | [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-loadbalancer | Redirect through `DevMap.redirect()` for wire-speed LB forwarding |
+| [`bpf_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_redirect/) | 4.4+ | xdp-loadbalancer | Redirect a DNAT packet to the interface the FIB named when the backend has no DevMap entry |
 | [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding - drops oversized packets |
-| [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | Kernel FIB lookup for route enrichment |
+| [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall, xdp-loadbalancer | Egress interface for zone policy; next hop and both MACs for a DNAT packet |
 
 ### Tail Call & Program Chaining
 

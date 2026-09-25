@@ -125,7 +125,7 @@ datapath. The twelve enforcement points:
 |---------|------|----------|
 | `xdp-firewall` | XDP | 4-phase pipeline, LPM trie, conntrack fast-path, TCP flags, ICMP, MAC, DSCP, aliases, connection limits, FIB lookup for zone resolution, tail-call to rate limiter, interface groups |
 | `xdp-ratelimit` | XDP | 4 algorithms, per-CPU LRU buckets, SYN cookie, per-country LPM tier lookup, interface groups |
-| `xdp-loadbalancer` | XDP | L4 load balancing, per-service round-robin, MAC swap, backend selection, health-aware routing |
+| `xdp-loadbalancer` | XDP | L4 load balancing, per-service round-robin, FIB next-hop MAC rewrite, backend selection, health-aware routing |
 | `tc-conntrack` | TC classifier | Unified TCP/UDP/ICMP state machine, bidirectional tracking, packet+byte counters, IPv4/IPv6 |
 | `tc-scrub` | TC classifier | TTL/hop limit normalization, MSS clamping, DF clearing, IP ID randomization, IPv4/IPv6 |
 | `tc-nat-ingress` | TC ingress | NPTv6 prefix translation, hairpin NAT, destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6, interface groups |

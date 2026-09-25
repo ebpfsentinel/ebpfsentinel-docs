@@ -66,10 +66,11 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | xdp-firewall, tc-conntrack | Read `nf_conn` fields at BTF-resolved offsets |
 | [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | tc-ids, tc-threatintel, tc-dns, tc-qos, uprobe-dlp | Container attribution for locally-originated events |
 | [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Container attribution on the egress hook |
-| [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | FIB routing enrichment |
+| [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall, xdp-loadbalancer | FIB routing enrichment, DNAT next hop |
 | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-qos, tc-scrub | Kernel-side sampling, loss emulation, IP ID randomization |
 | [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-threatintel, tc-qos | Per-connection flow identity |
 | [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-loadbalancer (DEVMAP) | Wire-speed backend forwarding |
+| [`bpf_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_redirect/) | 4.4+ | xdp-loadbalancer | Backend forwarding without a DevMap entry |
 | [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.15+ | xdp-firewall-reject, xdp-ratelimit-syncookie | Resize the forged reply |
 | [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | Most programs | Suspend-aware timestamps |
 | [`bpf_ktime_get_coarse_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_coarse_ns/) | 5.11+ | xdp-ratelimit | Cheap clock for token-bucket refill |

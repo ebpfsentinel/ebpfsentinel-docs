@@ -10,7 +10,7 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 
 ### Two-Layer Architecture
 
-1. **Kernel-side (eBPF)** - An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the destination MAC is rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
+1. **Kernel-side (eBPF)** - An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the Ethernet addresses are rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
 2. **Userspace (LB Engine)** - Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
 
 ### Protocols
@@ -37,8 +37,8 @@ The selected backend is reached using one of two forwarding modes, set per servi
 
 | Mode | Value | Behavior |
 |------|-------|----------|
-| **DNAT** | `dnat` (default) | Destination IP/port are rewritten to the selected backend and L3/L4 checksums are recomputed inline. Works across L3 boundaries. This is the default and is unchanged from prior releases. |
-| **L2 DSR** | `l2dsr` | Direct Server Return (LVS-DR style). Only the destination MAC is rewritten to the backend's resolved MAC; the destination IP stays the VIP and **no L3/L4 checksum recompute** occurs. The backend (with the VIP bound on loopback) replies directly to the client, bypassing the load balancer on the return path. |
+| **DNAT** | `dnat` (default) | Destination IP/port are rewritten to the selected backend and L3/L4 checksums are recomputed inline. The next hop towards the backend is resolved in the kernel FIB and both Ethernet addresses are rewritten from it, so a backend on a local segment or behind a router is reached directly. Until the kernel has resolved the next hop's neighbour, packets go through the host stack (which resolves it); the node must forward IP (`net.ipv4.ip_forward` / `net.ipv6.conf.all.forwarding`) for those. |
+| **L2 DSR** | `l2dsr` | Direct Server Return (LVS-DR style). The destination MAC is rewritten to the backend's resolved MAC and the source to this node's interface MAC; the destination IP stays the VIP and **no L3/L4 checksum recompute** occurs. The backend (with the VIP bound on loopback) replies directly to the client, bypassing the load balancer on the return path. |
 
 L2 DSR requirements:
 

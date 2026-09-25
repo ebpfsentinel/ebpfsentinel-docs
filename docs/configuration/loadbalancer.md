@@ -102,7 +102,7 @@ probed.
 `mode` selects how the selected backend is reached. It is independent of the balancing algorithm.
 
 - **`dnat`** (default) - destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Unchanged from prior releases.
-- **`l2dsr`** - Direct Server Return: only the destination MAC is rewritten to the backend's resolved MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
+- **`l2dsr`** - Direct Server Return: only the Ethernet header is rewritten, destination to the backend's resolved MAC and source to this node's interface MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
 
 ## Examples
 

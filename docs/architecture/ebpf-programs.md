@@ -137,8 +137,8 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 
 - **Service map** lookup by `(protocol, port)` in `LB_SERVICES` to find service definitions
 - **Backend selection**: round robin (per-CPU index), weighted, IP hash, least connections or Maglev
-- **Two modes**: DNAT rewrites the destination IP and port for the selected backend; L2 DSR rewrites only the destination MAC (from `LB_BACKEND_MAC`) and leaves the VIP in place so the backend replies to the client directly
-- **Forwarding**: `XDP_REDIRECT` through the DevMap when the backend's interface is known, otherwise a MAC swap and `XDP_TX`
+- **Two modes**: DNAT rewrites the destination IP and port for the selected backend; L2 DSR rewrites only the Ethernet header (destination from `LB_BACKEND_MAC`, source = this interface) and leaves the VIP in place so the backend replies to the client directly
+- **Forwarding**: DNAT resolves the next hop with `bpf_fib_lookup` and rewrites both MACs from it, then sends with `XDP_TX` on the receiving interface or `XDP_REDIRECT` (DevMap, else `bpf_redirect`) to another; an unresolved neighbour is passed to the stack, and only a missing route falls back to a MAC swap and `XDP_TX`
 - **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update
 - **IPv6 checksum**: L4 pseudo-header incremental update (8 × u16 words for 128-bit address diff + port diff)
 - **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`

@@ -202,8 +202,8 @@ L4 load balancing at XDP speed, before the kernel allocates an SKB.
 | **Service lookup** | `LB_SERVICES` (HashMap, 4096 services) holds each service's backend slots, up to 256 per service; `LB_BACKENDS` (HashMap, 65,536) holds the backends themselves |
 | **Backend selection** | Round-robin (per-CPU index in `LB_RR_STATE`, 4096), IP hash (the NIC's `xdp_rx_hash` when the driver offers it), weighted, or Maglev (FNV-1a of the source address into the service's prime-sized table in `LB_MAGLEV`) |
 | **Health awareness** | The chosen slot is probed linearly until a backend marked healthy by userspace is found |
-| **Forwarding** | L2 direct server return when `LB_BACKEND_MAC` holds the backend's MAC: only the destination MAC is rewritten, the VIP stays in the packet and the backend answers the client itself. Otherwise DNAT: destination address and port rewritten, checksums fixed up |
-| **Transmit** | `bpf_redirect_map` through `LB_DEVMAP` when the backend sits behind another interface, otherwise the MACs are swapped and the frame leaves with `XDP_TX` |
+| **Forwarding** | L2 direct server return when `LB_BACKEND_MAC` holds the backend's MAC: only the Ethernet addresses are rewritten, the VIP stays in the packet and the backend answers the client itself. Otherwise DNAT: destination address and port rewritten, checksums fixed up |
+| **Transmit** | DNAT: `bpf_fib_lookup` with neighbour resolution names the next hop towards the backend, and both MACs are rewritten from its answer; the frame leaves with `XDP_TX` when that next hop is on the receiving interface, otherwise through `LB_DEVMAP` (`bpf_redirect_map`) or `bpf_redirect` to the interface the FIB named. A route whose neighbour is not resolved yet is handed to the stack (`XDP_PASS`) so the kernel resolves it; with no route at all the MACs are swapped and the frame goes back to the router it came from. L2 DSR: the destination MAC is the backend's and the source becomes this interface's own |
 | **Event emission** | RingBuf events for forward/no-backend actions |
 | **Per-CPU metrics** | `LB_METRICS` PerCpuArray for high-frequency counters |
 

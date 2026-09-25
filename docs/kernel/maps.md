@@ -122,7 +122,7 @@ Fixed-size per-CPU array for **metrics counters**. Each program maintains its ow
 
 Per-CPU arrays avoid contention - each core writes to its own slot, and userspace sums across CPUs when scraping Prometheus metrics.
 
-Per-CPU arrays also serve as scratch space too large for the 512-byte stack: `PKT_CTX` (the parsed packet shared between xdp-firewall and xdp-firewall-reject), `SYNCOOKIE_CTX` (shared between xdp-ratelimit and xdp-ratelimit-syncookie), `FIB_PARAMS`, `CT_STATE_SCRATCH` and `REJECT_SCRATCH`.
+Per-CPU arrays also serve as scratch space too large for the 512-byte stack: `PKT_CTX` (the parsed packet shared between xdp-firewall and xdp-firewall-reject), `SYNCOOKIE_CTX` (shared between xdp-ratelimit and xdp-ratelimit-syncookie), `FIB_PARAMS` (one each in xdp-firewall and xdp-loadbalancer), `CT_STATE_SCRATCH` and `REJECT_SCRATCH`.
 
 #### [`BPF_MAP_TYPE_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/)
 
@@ -157,13 +157,13 @@ An empty slot makes the tail call fail and the caller falls through to its own v
 
 **Kernel:** 4.14+ | **Used by:** xdp-loadbalancer
 
-Device map for **wire-speed load balancer forwarding**. Maps `backend_id` to the backend's network interface index. When populated by userspace (via `LbMapManager`), the load balancer uses `DevMap.redirect()` instead of `XDP_TX`. Falls back to `XDP_TX` (MAC swap, or the resolved backend MAC in L2 DSR mode) when the entry is not populated.
+Device map for **wire-speed load balancer forwarding**. Maps `backend_id` to the backend's network interface index. On the DNAT path the next hop comes from `bpf_fib_lookup`: when it leaves by another interface the load balancer uses `DevMap.redirect()` if the entry is populated (via `LbMapManager`) and `bpf_redirect` to the FIB's interface otherwise, and a next hop on the receiving interface leaves with `XDP_TX`. In L2 DSR mode the entry is used when present, `XDP_TX` otherwise.
 
 | Map | Max Entries | Key | Value | Purpose |
 |-----|-------------|-----|-------|---------|
 | `LB_DEVMAP` | 256 | `backend_id` (u32) | `ifindex` (u32) | Backend interface redirect |
 
-Userspace resolves the ifindex from an IPv4 backend address via `ip route get` + `/sys/class/net/{dev}/ifindex` and populates the DevMap when a backend is synced. IPv6 backends are not resolved and always take the `XDP_TX` path.
+Userspace resolves the ifindex from an IPv4 backend address via `ip route get` + `/sys/class/net/{dev}/ifindex` and populates the DevMap when a backend is synced. IPv6 backends are not resolved into the DevMap; their DNAT packets are still routed by the FIB lookup and redirected with `bpf_redirect` when the next hop is on another interface.
 
 ### Event Maps
 
