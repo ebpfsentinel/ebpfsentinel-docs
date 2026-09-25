@@ -81,12 +81,15 @@ A pattern over a limit is refused at load with an error naming it.
 - CIDR subnet validation
 - Port range validation
 
-### File Permission Warnings
+### File Permission Checks
 
-The agent warns at startup if config or key files are world-readable:
+The agent refuses to load a configuration file that is world-readable, and
+does the same for the TLS private key (when `agent.tls.enabled`) and the JWT
+public key (when `auth.enabled`). Startup fails with a validation error naming
+the file and its mode:
 
 ```
-WARN: config file /etc/ebpfsentinel/config.yaml has mode 0644 - recommend 0640 or stricter
+validation error: config file: /etc/ebpfsentinel/config.yaml is world-readable (mode 0644) - chmod 640 or stricter
 ```
 
 ## eBPF Safety
@@ -136,7 +139,7 @@ no `libssl` symbol to probe and are not covered by the OSS agent.
 - **JWT validation** - RS256 or EdDSA signature, issuer, audience, expiration checks
 - **OIDC** - JWKS key rotation support via discovery URL
 - **API keys** - configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
-- **TLS 1.3** - rustls with aws-lc backend, older protocol versions rejected
+- **TLS 1.3** - rustls with aws-lc backend; TLS 1.2 is accepted only when `agent.tls.allow_tls12` is set, and never together with `pq_mode: require`
 - **CA private key zeroized on drop** - enterprise TLS inspection CA key material is securely erased from memory when no longer needed
 
 ## Network Security

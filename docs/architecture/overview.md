@@ -95,9 +95,9 @@ flowchart TB
 | `adapters` | HTTP, gRPC, eBPF, storage (redb), GeoIP | `domain`, `ports`, `infrastructure`, `ebpf-common`, `warden-client` |
 | `warden-proto` | Wire messages between the agent and the warden | Nothing |
 | `warden-client` | Agent side of the warden control socket (fd passing) | `warden-proto` |
-| `warden` | Privileged broker binary and the syscall primitives it shares with the agent's rootless bootstrap | `warden-proto` |
-| `agent` | Binary entry point, startup | All userspace crates |
-| `xtask` | Build orchestration (eBPF multi-program builds) | None |
+| `warden` | Privileged broker binary and the syscall primitives it shares with the agent's rootless bootstrap | `warden-proto`, `warden-client` |
+| `agent` | Binary entry point, startup | `domain`, `ports`, `application`, `adapters`, `infrastructure`, `ebpf-common`, `warden` |
+| `xtask` | Build orchestration (eBPF multi-program builds) | `adapters`, `agent`, `ebpf-common` |
 
 ## Project Structure
 
@@ -109,7 +109,7 @@ ebpfsentinel/
 ├── deny.toml                         # Dependency policy
 ├── config/
 │   ├── ebpfsentinel.yaml             # Default config
-│   └── examples/                     # Per-feature standalone configs (25 files)
+│   └── examples/                     # Per-feature standalone configs (23 files)
 ├── proto/
 │   └── ebpfsentinel/v1/alerts.proto  # gRPC service definition
 ├── crates/
@@ -152,13 +152,13 @@ ebpfsentinel/
 - **100% Rust** - kernel programs and userspace, no C, no Go
 - **Aya framework** - compile-once eBPF with CO-RE/BTF support
 - **Hexagonal/DDD** - domain logic has zero external dependencies
-- **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure, agent and warden-proto; adapters deny it and allow it file by file where a syscall or a ring-buffer record needs it
-- **Single agent binary** - no sidecar; in a rootless deployment a small privileged `warden` process sets up the BPF token and hands file descriptors over, then the agent loads its own programs
+- **`#![forbid(unsafe_code)]`** on domain, ports, application, infrastructure, agent, warden-proto and warden-client; adapters deny it and allow it file by file where a syscall or a ring-buffer record needs it
+- **One agent binary plus a small broker** - a privileged `warden` process delegates a BPF filesystem and hands file descriptors over; the agent, holding no capability, creates its own BPF token and loads its own programs
 - **Source-agnostic feeds** - threat intel feeds are configured in YAML, no provider-specific code
 - **MITRE ATT&CK mapping** - every alert tagged with tactic + technique ID
 - **GeoIP enforcement** - MaxMind-backed country resolution shared across all engines
 - **Hot reload** - configuration updates without restart (file watcher, SIGHUP, or API)
 - **JWT/OIDC/API key auth** - role-based access control (Admin, Operator, Viewer)
-- **TLS 1.3** - REST and gRPC secured with rustls + aws_lc_rs
+- **TLS 1.3** - REST and gRPC secured with rustls + aws_lc_rs; TLS 1.2 only when explicitly allowed
 - **OTLP export** - alerts as OpenTelemetry Logs to any OTLP-compatible collector
 - **CLI** - 37 subcommands covering all endpoints

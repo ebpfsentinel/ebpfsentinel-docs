@@ -45,7 +45,7 @@ The control block is not trusted blindly. The kernel overwrites it on an IP rece
 
 All programs share types via `crates/ebpf-common/`:
 
-- `PacketEvent` (64 bytes) - the standard event emitted to userspace via RingBuf
+- `PacketEvent` (96 bytes) - the standard event emitted to userspace via RingBuf
 - `#[repr(C)]` structs for eBPF map keys and values
 - Shared constants (`FLAG_IPV6`, `FLAG_VLAN`, etc.)
 
@@ -94,19 +94,18 @@ to all of them:
 
 The most feature-rich eBPF program. Processes packets through a 5-phase pipeline:
 
-1. **Phase 0 - Conntrack fast-path**: Overload check (IP set 255), connection tracking lookup. Established connections skip rule evaluation.
+1. **Phase 0 - Overload and conntrack fast-path**: a source in the overload IP set (set 255) is dropped while its mark stands; then the kernel conntrack entry is looked up with `bpf_xdp_ct_lookup`, and established connections skip rule evaluation.
 2. **Phase 1 - LPM Trie** (O(log n)): CIDR-only rules in four tries (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`).
-3. **Phase 2 - Linear scan**: Rules with port ranges, protocol, VLAN, TCP flags, ICMP type/code, MAC, DSCP, aliases, negation. Priority order, first match wins.
-4. **Phase 3 - Connection limits**: Per-source and per-rule state limits. Overloaded sources added to blacklist.
-5. **Phase 4 - Routing actions**: Policy routing (`route-to`, `reply-to`, `dup-to`).
+3. **Phase 1b / 1c - Hash lookups** (O(1)): exact 5-tuple rules, then protocol-and-port rules.
+4. **Phase 2 - Linear scan** (`bpf_loop`): rules with port ranges, VLAN, TCP flags, ICMP type/code, MAC, DSCP, aliases, conntrack state, negation. Priority order, first match wins.
+5. **Connection limits**: per-source state limits; a source over its rate is marked overloaded and added to the overload set.
 
 Key eBPF features:
 
 - **LPM Trie** maps for O(log n) CIDR matching (4 tries: src/dst × IPv4/IPv6)
-- **PROG_ARRAY** tail-call chain: slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`, slot 3 → `xdp-vip-announcer` (ARP frames targeting an owned VIP)
+- **PROG_ARRAY** tail-call chain (`XDP_PROG_ARRAY`): slot 0 → `xdp-ratelimit`, slot 1 → `xdp-firewall-reject`, slot 2 → `xdp-loadbalancer`, slot 3 → `xdp-vip-announcer` (ARP frames targeting an owned VIP)
 - **bpf_fib_lookup** to resolve the interface a packet would leave by, which is how the destination zone is found
 - **bpf_check_mtu** for MTU validation before pass/redirect (all 3 XDP programs)
-- **bpf_csum_diff** / `bpf_l3_csum_replace` / `bpf_l4_csum_replace` for checksums
 - Inline `VlanHdr` / `Ipv6Hdr` parsing
 - `bpf_loop` for iterating large rule sets
 - TCP flags matching (`match/mask` notation), ICMP type/code filtering
@@ -119,7 +118,7 @@ Key eBPF features:
 
 - **LPM Trie** maps for per-country rate limit tiers (`RL_LPM_SRC_V4/V6` → `RL_TIER_CONFIG`). Lookup runs before per-IP matching - if a source IP falls within a country tier's CIDR range, the tier config is used
 - **LRU PerCPU Hash** maps for lock-free per-source buckets; the LRU evicts the least recently seen source when the table is full, and a bucket refills from its own timestamp on the next packet, so no timer runs. The table is sized by `ratelimit.max_buckets` at load
-- **XDP SYN cookies** - via tail-call to `xdp-ratelimit-syncookie` (RL_PROG_ARRAY slot 0), forges SYN+ACK with FNV-1a cookie (4-tuple + minute counter + 32-byte secret) via `XDP_TX`; ACK validation stays inline in the main program
+- **XDP SYN cookies** - via tail-call to `xdp-ratelimit-syncookie` (`RL_PROG_ARRAY` slot 0), which forges the SYN+ACK with a kernel-issued cookie (`bpf_tcp_raw_gen_syncookie_ipv4/_ipv6`) and sends it with `XDP_TX`; the returning ACK is validated inline in the main program with `bpf_tcp_raw_check_syncookie_ipv4/_ipv6`, so a valid client completes the handshake with the host's own stack
 - **bpf_xdp_adjust_tail** for packet resizing during SYN+ACK forging
 - **bpf_ktime_get_boot_ns** for suspend-aware timestamps
 - 4 algorithms: token bucket, fixed window, sliding window, leaky bucket. SYN cookie forging is not one of them: it is configured under `ddos.syn_protection` and `algorithm: syn_cookie` is rejected at config load
@@ -128,18 +127,18 @@ Key eBPF features:
 
 The xdp-ratelimit program also hosts DDoS-specific protections:
 
-- **SYN protection (SYN cookies)** - forges SYN+ACK responses with cryptographic cookies via `XDP_TX` instead of dropping SYNs; ACK validation checks cookie against current and previous minute windows
+- **SYN protection (SYN cookies)** - answers a flood with kernel-issued SYN cookies via `XDP_TX` instead of dropping SYNs; the kernel's own check validates the returning ACK
 - **ICMP protection** - rate limiting + oversized payload detection (potential tunneling)
 - **UDP amplification protection** - per-source-per-port rate limiting on configurable amplification ports (DNS/53, NTP/123, SSDP/1900, etc.)
 - **TCP connection tracking** - half-open connection monitoring, RST/FIN/ACK flood detection with per-source thresholds
-- **17-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS, SYNCOOKIE_SENT, SYNCOOKIE_VALID, SYNCOOKIE_INVALID
+- **18-slot PerCpuArray** metrics: SYN_RECEIVED, SYN_FLOOD_DROPS, ICMP_PASSED/DROPPED, AMP_PASSED/DROPPED, OVERSIZED_ICMP, ERRORS, EVENTS_DROPPED, CONN_TRACKED, HALF_OPEN_DROPS, RST/FIN/ACK_FLOOD_DROPS, TOTAL_SEEN, SYNCOOKIE_SENT, SYNCOOKIE_VALID, SYNCOOKIE_INVALID
 
 ## XDP Load Balancer (xdp-loadbalancer)
 
-- **Service map** lookup by `(port, protocol)` to find service definitions
-- **Backend selection** via per-service round-robin index in eBPF map
-- **DNAT packet rewriting**: destination IP/port rewrite for selected backend
-- **MAC address swap**: swaps source/destination MACs after DNAT for correct L2 routing
+- **Service map** lookup by `(protocol, port)` in `LB_SERVICES` to find service definitions
+- **Backend selection**: round robin (per-CPU index), weighted, IP hash, least connections or Maglev
+- **Two modes**: DNAT rewrites the destination IP and port for the selected backend; L2 DSR rewrites only the destination MAC (from `LB_BACKEND_MAC`) and leaves the VIP in place so the backend replies to the client directly
+- **Forwarding**: `XDP_REDIRECT` through the DevMap when the backend's interface is known, otherwise a MAC swap and `XDP_TX`
 - **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update
 - **IPv6 checksum**: L4 pseudo-header incremental update (8 × u16 words for 128-bit address diff + port diff)
 - **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`
@@ -161,7 +160,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 - **bpf_get_prandom_u32** for kernel-side sampling
 - **bpf_dynptr_from_skb / bpf_dynptr_size** to measure the full packet, fragments included, before the payload copy
 - **bpf_ringbuf_query** for adaptive backpressure (skip at >75% fill)
-- Port-only key for IP-version-agnostic matching
+- Rule key is tenant, destination port and protocol with no address, so IPv4 and IPv6 share one table
 
 ## TC Threat Intel (tc-threatintel)
 
@@ -173,13 +172,11 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 
 ## TC Connection Tracking (tc-conntrack)
 
-- Unified TCP state machine for both IPv4 and IPv6 (SYN_SENT → SYN_RECV → ESTABLISHED → FIN_WAIT → TIME_WAIT)
-- Per-connection packet and byte counters for volume-based analysis
-- UDP bidirectional detection (NEW → ESTABLISHED after reply seen)
-- ICMP request/reply state tracking
-- Conntrack key normalization (lower IP:port always "src") for bidirectional matching
-- Garbage collection for expired connections
-- Per-source counter decrement on connection expiry
+- Kernel netfilter is the only connection tracking engine: the program keeps no connection table of its own
+- Parses the 5-tuple (IPv4 and IPv6; TCP, UDP, ICMP) and probes the kernel entry with `bpf_skb_ct_lookup`
+- Reads `nf_conn->status` and `nf_conn->mark` with `bpf_probe_read_kernel`, at offsets userspace resolves from vmlinux BTF into `CT_NF_CONN_OFFSETS`
+- Counts lookups, hits, misses, marked connections and the state seen (new, established, related, invalid) in `CT_METRICS`
+- Timeouts, the state machine and eviction are the kernel's
 
 ## TC Scrub (tc-scrub)
 
@@ -193,7 +190,9 @@ Packet normalization running after XDP processing:
 - **ECN stripping**: Clear ECN bits in IPv4 TOS and IPv6 Traffic Class
 - **TOS normalization**: Force TOS/DSCP to configured value (default 0)
 - **TCP timestamp stripping**: Remove TCP timestamp option (kind=8) for anti-fingerprinting
-- Configuration via `SCRUB_CONFIG` array map (14-byte `ScrubConfig` struct, expanded from 8 bytes)
+- **IPv6 hop limit**: raise the hop limit to a configured minimum
+- **Fragment drop**: refuse IPv4 fragments outright when configured
+- Configuration via the `SCRUB_CONFIG` array map (14-byte `ScrubFlags` struct)
 
 ## TC NAT Ingress (tc-nat-ingress)
 
@@ -222,14 +221,15 @@ Packet normalization running after XDP processing:
 ## TC QoS (tc-qos)
 
 - Two entry points in one object: `tc_qos` on TC egress and `tc_qos_ingress` on TC ingress, each applying only the rules whose direction matches
-- Three-level hierarchy: pipes (bandwidth/delay/loss) → queues (WF2Q+ weighted fair) → classifiers (5-tuple + DSCP matching)
+- Three-level hierarchy: pipes (bandwidth, burst, delay, loss, direction) → queues (each names the pipe that shapes it and carries no scheduling of its own) → classifiers (5-tuple + DSCP + VLAN matching)
 - **Token bucket** bandwidth limiting with `bpf_ktime_get_boot_ns` timestamps
 - **Classification ladder** in `QOS_CLASSIFIERS`: nine rule shapes (both hosts and ports, hosts and destination port, hosts only, both ports, destination port, source port, DSCP, protocol, catch-all), walked in two scopes (rules naming a VLAN, then rules naming none). The six host and port shapes are probed with the packet's DSCP and with DSCP open, so a full walk is 16 lookups for an unmarked packet and 30 for a marked one
 - **Empty-shape mask** (`QOS_EMPTY_SHAPES`): userspace publishes which shapes hold no rule, one bit each plus a no-DSCP bit per scope, and the ladder skips them. With no shaping rule loaded the program costs about the floor of the test loop; a stale mask can only be slower, never wrong
 - **Random loss** emulation via `bpf_get_prandom_u32`
-- **LRU_PERCPU_HASH** (`QOS_FLOW_STATE`, 65536 entries) for per-flow token bucket state
+- **Delay** by EDT pacing: `bpf_skb_set_tstamp` stamps a departure time and an `fq` qdisc on the interface holds the packet until then
+- **ARRAY** `QOS_PIPE_STATE` for the token bucket, one per pipe and shared across CPUs so a pipe's rate is not multiplied by the core count
+- **LRU_PERCPU_HASH** (`QOS_FLOW_STATE`, 65536 entries) for each flow's last departure time
 - **PerCpuArray** metrics: total_seen, shaped, dropped_loss, dropped_queue, delayed, errors, events_dropped
-- Scheduler types: fifo, wf2q, fq_codel
 - RingBuf backpressure (same 75% line)
 
 ## Uprobe DLP (uprobe-dlp)
@@ -240,7 +240,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel **6.9+** with BTF. The 6.9 floor covers BPF token delegation and the 6.7-6.8 kfunc batch (`bpf_task_get_cgroup1`, `bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, `bpf_iter_css_task`). See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel **6.9+** with BTF. The 6.9 floor is set by BPF token delegation; the newest kfuncs the programs call (`bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`) arrived in 6.8. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 

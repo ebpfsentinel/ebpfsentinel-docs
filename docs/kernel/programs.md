@@ -385,8 +385,8 @@ QoS traffic shaping. The program sits on both hooks; a pipe shapes one direction
 
 | Map | Type | Max Entries | Description |
 |-----|------|-------------|-------------|
-| `QOS_PIPE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 64 | Pipe definitions (bandwidth_bps, burst_bytes, delay_ms, loss_percent, scheduler) |
-| `QOS_QUEUE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 256 | Queue definitions (pipe_id, weight) |
+| `QOS_PIPE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 64 | Pipe definitions (ns_per_byte, burst_bytes, delay_ns, loss_rate in basis points, direction, group_mask, tenant_id) |
+| `QOS_QUEUE_CONFIG` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 256 | Queue definitions (pipe_id, enabled); a queue only names the pipe that shapes it |
 | `QOS_CLASSIFIERS` | [`HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/) | 1024 | 5-tuple + DSCP classifier rules → queue_id |
 | `QOS_PIPE_STATE` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 64 | Token bucket per pipe (tokens, last refill) |
 | `QOS_FLOW_STATE` | [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) | 65536 | Per-flow departure time for delay pacing |

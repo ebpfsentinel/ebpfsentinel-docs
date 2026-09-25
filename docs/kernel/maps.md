@@ -106,7 +106,7 @@ The capacity is a configuration choice rather than a compile-time constant, and 
 
 #### [`BPF_MAP_TYPE_PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/)
 
-**Kernel:** 4.6+ | **Used by:** All programs
+**Kernel:** 4.6+ | **Used by:** every program but xdp-pass
 
 Fixed-size per-CPU array for **metrics counters**. Each program maintains its own metrics array:
 

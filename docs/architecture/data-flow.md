@@ -16,7 +16,7 @@ flowchart TD
 
         FW_DENY{"Denied?"}
         FW_SCAN --> FW_DENY
-        FW_DROP_1["XDP_DROP"]
+        FW_DROP_1["XDP_DROP +\nemit RingBuf event"]
         FW_DENY -- Yes --> FW_DROP_1
 
         FW_REJECT{"ACTION_REJECT?"}
@@ -26,7 +26,7 @@ flowchart TD
         XDP_TX_1["XDP_TX\n(sent back)"]
         FW_REJECT -- Yes --> REJECT_PROG --> FORGE_RST --> XDP_TX_1
 
-        FW_PASS["XDP_PASS +\nemit RingBuf event"]
+        FW_PASS["XDP_PASS\n(event only for a log rule;\nARP to a VIP tail-calls\nxdp-vip-announcer, slot 3)"]
         FW_REJECT -- No --> FW_PASS
 
         RL_ABSENT{"ratelimit\npresent?"}
@@ -130,9 +130,9 @@ flowchart TD
 
         QOS["tc_qos"]
         QOS_CLASS["Shape ladder\n(skips shapes with no rule)"]
-        QOS_TOKEN["Token bucket bandwidth check\n(per-flow state)"]
+        QOS_TOKEN["Token bucket bandwidth check\n(per-pipe state)"]
         QOS_LOSS["Random loss emulation\n(bpf_get_prandom_u32)"]
-        QOS_DELAY["Delay annotation"]
+        QOS_DELAY["EDT pacing\n(bpf_skb_set_tstamp)"]
         NAT_REWRITE --> QOS --> QOS_CLASS --> QOS_TOKEN --> QOS_LOSS --> QOS_DELAY
 
         QOS_DROP{"Token exhausted\nor loss hit?"}
@@ -206,7 +206,7 @@ flowchart TD
 
     DNS_REV & REP & GEO --> DEDUP
 
-    subgraph SENDERS["Senders (with circuit breaker)"]
+    subgraph SENDERS["Senders (email and webhook behind a circuit breaker)"]
         EMAIL["Email (SMTP)"]
         WEBHOOK["Webhook (HTTP POST)"]
         LOG["Log (file)"]
@@ -319,13 +319,12 @@ Some eBPF maps are updated from userspace:
 | Rate limit country LPM (×2) | Userspace → Kernel | GeoIP country tier reload |
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
-| Syncookie secret | Userspace → Kernel | 32-byte FNV-1a secret for SYN cookie generation |
 | CT_NF_CONN_OFFSETS | Userspace → Kernel | Runtime BTF offsets for `nf_conn` field reads |
-| XDP PROG_ARRAY | Userspace → Kernel | Tail-call wiring: firewall → ratelimit/reject/loadbalancer |
+| XDP PROG_ARRAYs | Userspace → Kernel | Tail-call wiring: firewall → ratelimit/reject/loadbalancer/VIP announcer, ratelimit → syncookie/loadbalancer |
 | Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
 | Threat intel LRU hash maps | Userspace → Kernel | IOC exact-match confirmation |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |
-| DNS blocklist | Userspace → Kernel | Domain blocks |
+| Threat intel or IPS maps, from the DNS blocklist | Userspace → Kernel | Addresses a blocked domain resolved to |
 | LB service/backend maps | Userspace → Kernel | Load balancer service definitions |
 | LB metrics (PerCpuArray) | Kernel → Userspace | Per-CPU forwarding counters |
 | QoS pipe/queue/classifier configs | Userspace → Kernel | QoS policy changes |

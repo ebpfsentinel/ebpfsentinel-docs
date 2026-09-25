@@ -23,7 +23,7 @@ where they are wired together.
 **Pure business logic.** Engines, entities, errors. No I/O, no async, no side effects.
 
 - `#![forbid(unsafe_code)]`
-- Minimal external dependencies: `thiserror`, `serde`, `regex`, `ebpf-common`
+- Minimal external dependencies: `thiserror`, `serde`, `regex`, `sha2`, `lru`, `ebpf-common`
 - Contains about 1200 unit tests, plus property tests on the parsers and engines
 - Each domain follows the same structure:
 
@@ -59,13 +59,13 @@ crates/domain/src/<domain>/
 
 ### adapters
 
-**Port implementations.** HTTP handlers, gRPC services, eBPF loader, redb storage.
+**Port implementations.** gRPC services, eBPF loader, redb storage, alert senders.
 
-- `http/` - Axum handlers for REST API
 - `grpc/` - tonic services for alert streaming
 - `ebpf/` - Aya program loader and map management
 - `storage/` - redb persistence
 - `geoip/` - MaxMind `.mmdb` adapter for GeoIP lookups
+- `alert/`, `auth/`, `threatintel/`, `warden/` - alert senders, token validation, feed fetching, the warden client side
 - `#![deny(unsafe_code)]` at the crate root, lifted file by file (16 files) where a raw syscall or a ring-buffer record read needs it
 
 ### agent
@@ -75,7 +75,8 @@ crates/domain/src/<domain>/
 - Reads config
 - Initializes domain engines
 - Creates app services with port implementations
-- Starts HTTP/gRPC servers
+- Starts HTTP/gRPC servers; the Axum REST handlers live here, under `http/`
+- Carries the CLI, which talks to the REST API
 - Loads eBPF programs
 - Runs the event loop
 
@@ -90,4 +91,4 @@ The hexagonal architecture enables testing at each layer:
 | `adapters` | Integration tests | Real HTTP server, real eBPF (optional) |
 | `agent` | BATS integration tests | Full running binary |
 
-The `TestMetrics` struct implements `MetricsPort` and is used across all domain test modules.
+`TestMetrics` is a small `MetricsPort` implementation declared inside each test module that needs one, in `application` and `adapters`. A metrics port that records nothing, `NoopMetrics`, is shared from `ports::test_utils` behind the `test-utils` feature.
