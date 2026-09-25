@@ -157,7 +157,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 
 ## TC IDS (tc-ids)
 
-- **bpf_get_prandom_u32** for kernel-side sampling
+- **bpf_get_prandom_u32** against the `IDS_SAMPLING_CONFIG` map for kernel-side sampling. No userspace path writes that map, so the program emits every matched event; `ids.sampling` is applied in userspace, on a hash of the address pair
 - **bpf_dynptr_from_skb / bpf_dynptr_size** to measure the full packet, fragments included, before the payload copy
 - **bpf_ringbuf_query** for adaptive backpressure (skip at >75% fill)
 - Rule key is tenant, destination port and protocol with no address, so IPv4 and IPv6 share one table

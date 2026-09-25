@@ -36,7 +36,7 @@ eBPF loads **exclusively** through a BPF token (kernel 6.9+), so the agent is st
 
 ### What is the CPU overhead?
 
-XDP programs run before the kernel network stack, adding minimal overhead. The exact impact depends on rule complexity and traffic volume. IDS sampling (`sample_rate`) reduces userspace CPU usage for high-traffic environments.
+XDP programs run before the kernel network stack, adding minimal overhead. The exact impact depends on rule complexity and traffic volume. IDS sampling (`ids.sampling`) reduces userspace CPU usage for high-traffic environments.
 
 ### How fast is the firewall?
 

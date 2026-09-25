@@ -13,44 +13,56 @@ agent:
 |------|-------------|
 | `native` | Production on supported drivers (`virtio_net`, `mlx5`, `i40e`, `ena`, `gve`, etc.) |
 | `generic` | Development, veth pairs, unsupported drivers |
-| `auto` |  Safe default - kernel tries native first |
+| `auto` | The default: the kernel picks native where the driver has it |
 | `offloaded` | Netronome NFP SmartNICs only |
 
-Check your driver: `ethtool -i eth0 | grep driver`. If it supports native XDP, set `xdp_mode: native` explicitly - this avoids any ambiguity and logs the confirmed mode at startup.
+Check your driver: `ethtool -i eth0 | grep driver`. A requested mode the interface refuses does not stop the agent: the attach falls back to `auto` and logs `XDP kfunc attach failed with requested mode, falling back to auto`. Read the mode the kernel actually granted from the attach log or from the `ebpfsentinel_xdp_attach_mode` gauge rather than from the configuration.
 
 > **Note**: `xdp_mode` is read at program attachment time. Changing it requires a restart or a hot-reload that re-attaches XDP programs (e.g. toggling the firewall off and on).
 
 ## IDS Sampling
 
-For high-traffic environments, enable kernel-side sampling to reduce userspace load:
+Sampling cuts the work done on IDS and IPS events in userspace:
 
 ```yaml
 ids:
-  sample_rate: 100      # Inspect 1-in-100 packets
-  sample_mode: random   # random (per-packet) or hash (per-flow)
+  sampling:
+    mode: hash      # none | random | hash | country_based
+    rate: 0.01      # share of address pairs evaluated, 0.0 to 1.0
 ```
 
-`hash` mode provides consistent per-flow sampling - all packets from the same
-flow are either inspected or skipped.
+`ips.sampling` takes the same keys and gates the IPS blacklist counter.
 
-`random` is random in the kernel and deterministic above it. The IDS program
-draws `bpf_get_prandom_u32` per packet, so a flow inspected once may be skipped
-next time. The same setting also gates the IPS blacklist counter in userspace,
-and there it selects on a hash of the address pair like `hash` does, with a
-different mixing constant: a source counted once is counted every time. Nothing
-in either layer keeps per-flow state to make the two agree.
+| Mode | Keys | Effect |
+|------|------|--------|
+| `none` | - | Every event is evaluated (the default) |
+| `hash` | `rate` | Evaluated when a hash of the source and destination addresses falls under `rate` |
+| `random` | `rate` | The same, with a different mixing of the two addresses |
+| `country_based` | `high_risk_countries`, `high_risk_rate` (default 1.0), `default_rate` (default 0.1) | `high_risk_rate` for sources in the listed countries, `default_rate` for the rest |
+
+Every mode decides on the address pair, `random` included: an address pair evaluated once is evaluated every time, and one skipped is always skipped. Keep that in mind before sampling a detection that needs to see a given source, since a sampled-out pair never raises an alert.
+
+Sampling happens after the kernel has emitted the event, so it does not reduce the ring-buffer traffic from `tc-ids`: it saves rule evaluation, alert routing and the IPS counter, not the kernel-to-userspace path.
 
 ## Rate Limiting Algorithm Selection
 
-| Algorithm | CPU Cost | Memory | Best For |
-|-----------|----------|--------|----------|
-| `token_bucket` | Low | Low | General-purpose rate limiting |
-| `fixed_window` | Lowest | Lowest | Simple rate caps |
-| `sliding_window` | Medium | Medium | Smooth enforcement |
-| `leaky_bucket` | Medium | Medium | Constant output rate |
-| `syn_cookie` | Low | Minimal | SYN flood protection only |
+```yaml
+ratelimit:
+  default_algorithm: token_bucket   # token_bucket | fixed_window | sliding_window | leaky_bucket
+  default_rate: 1000
+  default_burst: 2000
+```
 
-For maximum throughput, use `token_bucket` with `per_ip` scope.
+| Algorithm | Behaviour |
+|-----------|-----------|
+| `token_bucket` | The default. Allows bursts up to `burst`, refills at `rate` |
+| `fixed_window` | Counts per window and resets at its edge, so a burst straddling two windows can pass twice the rate |
+| `sliding_window` | Eight sub-slots per window, which smooths the edge effect of `fixed_window` |
+| `leaky_bucket` | A level that rises by one per packet up to `burst` and drains at `rate`. It is a meter, not a queue: a packet over the level is dropped rather than delayed, so it admits the same bursts as `token_bucket` |
+
+Every bucket is stored in the same fixed-size slot whatever its algorithm, so the choice changes the enforcement curve and not the map memory. Pick it for the behaviour you want.
+
+A rule names one source address (`src_ip`); every source no rule names gets its own bucket from the section defaults, and the number of sources tracked at once is `ratelimit.max_buckets` (see [eBPF Map Sizes](#ebpf-map-sizes)). SYN flood protection is not a rate-limit algorithm: it is the SYN cookie path of the DDoS guard (`ddos`).
 
 ## DNS Cache Sizing
 
@@ -58,18 +70,20 @@ Size the DNS cache based on the number of unique domains in your environment:
 
 ```yaml
 dns:
-  cache_size: 100000     # Default - good for most environments
-  cache_ttl: 3600        # Reduce for dynamic environments
+  cache:
+    max_entries: 100000       # Default
+    min_ttl_secs: 60          # Floor applied to short record TTLs
+    purge_interval_secs: 30   # How often expired entries are swept
 ```
 
-Monitor `ebpfsentinel_dns_cache_entries` to see actual usage.
+Monitor `ebpfsentinel_dns_cache_entries` against `max_entries`, and `ebpfsentinel_dns_cache_evictions_total`: evictions climbing while the cache sits at its ceiling means it is too small for the estate.
 
 ## Firewall Rule Optimization
 
-- **CIDR-only rules** use LPM tries (O(log n)) - faster than rules with port/protocol filters
-- **Fewer rules** = faster linear scan for non-CIDR rules
-- **Lower priority numbers** for frequently-matched rules (evaluated first)
-- Maximum 4096 rules per address family
+- **CIDR-only rules** (an address match and nothing else) go into LPM tries and are looked up in logarithmic time whatever their number.
+- **Every other rule** is scanned linearly in priority order, lowest number first, and the first match wins. Fewer such rules is a faster scan.
+- **Priority is precedence, not a speed knob.** Moving a rule to a lower number changes which rule wins for traffic several rules match, so reorder for the verdict you want, not for speed.
+- Maximum 4096 rules per address family.
 
 ## eBPF Map Sizes
 
@@ -104,26 +118,37 @@ Reduce log verbosity in production:
 
 ```yaml
 agent:
-  log_level: "warn"     # Only warnings and errors
-  log_format: "json"    # Structured for log shippers
+  log_level: "warn"     # error | warn | info | debug | trace
+  log_format: "json"    # json | text
 ```
 
-Per-module: `RUST_LOG=warn,domain::ids=info`
+`RUST_LOG` overrides `log_level` and takes per-module directives: `RUST_LOG=warn,domain::ids=info`.
 
-> **Note:** eBPF hot-path logging (packet processing, map lookups, event emission) is compiled as `debug!()` only. In production builds or with `log_level` above `debug`, these log statements are effectively no-ops with zero overhead. Set `log_level: "debug"` only during development or troubleshooting.
+Debug statements are compiled into release builds and filtered at runtime by the level, so below `debug` they cost a level check and nothing else. Set `log_level: "debug"` only during troubleshooting: on a busy node the per-event lines are what costs.
 
 ## Resource Limits
 
-For Kubernetes, set appropriate resource requests/limits:
+The Helm chart runs two containers per node and sets requests and limits for both:
 
 ```yaml
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "1000m"
+daemonset:
+  resources:            # the agent
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+  warden:
+    resources:          # the warden
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "1000m"
 ```
 
-Monitor `ebpfsentinel_memory_usage_bytes` and `ebpfsentinel_cpu_usage_percent` to right-size.
+These are the chart defaults. The agent's memory limit has to hold its resident size plus the locked map memory charged to its cgroup, which with every feature on is already about 99 MB on 4 CPUs and grows with the CPU count (see [eBPF Map Sizes](#ebpf-map-sizes)). On a large node raise the agent's limit or shrink the per-CPU tables.
+
+Monitor `ebpfsentinel_memory_usage_bytes` and `ebpfsentinel_cpu_usage_percent` to right-size; the first is the process's resident set and does not include the maps.

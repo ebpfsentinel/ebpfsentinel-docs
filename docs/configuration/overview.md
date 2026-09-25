@@ -63,7 +63,7 @@ The `config/examples/` directory contains standalone configuration files for eac
 | File | Feature |
 |------|---------|
 | `firewall.yaml` | L3/L4 rules, LPM trie CIDR, port ranges, VLAN, IPv6 |
-| `ids.yaml` | Rules, kernel-side sampling, L7 detection, threshold |
+| `ids.yaml` | Rules, sampling, L7 detection, threshold |
 | `ips.yaml` | Blacklist config, whitelist, auto-threshold |
 | `dlp.yaml` | Built-in PCI / PII / credential patterns (OSS); custom patterns (Enterprise) |
 | `l7.yaml` | HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB rules |
