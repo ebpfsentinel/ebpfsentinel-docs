@@ -52,7 +52,7 @@ eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | xdp-firewall, xdp-firewall-reject, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-dns, tc-threatintel, tc-qos, uprobe-dlp | Suspend-aware monotonic timestamp for events and state tracking |
 | [`bpf_ktime_get_coarse_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_coarse_ns/) | 5.11+ | xdp-ratelimit | Coarse monotonic timestamp (~1-4ms precision, ~10x faster) for rate limiting windows |
-| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-scrub, tc-qos | Random sampling (IDS), IP ID randomization (scrub), loss emulation (QoS) |
+| [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-scrub, tc-qos | IDS sampling check (the config map is never written, so it never skips), IP ID randomization (scrub), loss emulation (QoS) |
 
 ### QoS & Traffic Control
 

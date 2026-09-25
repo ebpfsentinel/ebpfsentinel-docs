@@ -28,7 +28,7 @@ flowchart TD
     STACK["Kernel Network Stack\n(SKB allocation)"]
 
     subgraph TC["TC ingress (TCX chain, in attach order)"]
-        IDS["tc-ids\nSampling\nL7 signature detection"]
+        IDS["tc-ids\nL7 signature detection"]
         THREATINTEL["tc-threatintel\nBloom filter pre-check\nLRU hash confirmation"]
         DNS["tc-dns\nUDP/TCP port 53 capture"]
         CONNTRACK["tc-conntrack\nKernel conntrack probe\n(state metrics)"]

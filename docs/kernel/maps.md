@@ -220,7 +220,7 @@ A 2-entry Array map controlling packet mirroring for forensic capture:
 | 0 | `ifindex` (u32) | Target interface for mirrored packets |
 | 1 | `enabled` (u32) | 1 = mirror active, 0 = disabled |
 
-When enabled, `bpf_clone_redirect` clones every packet that matches an IDS pattern and is not skipped by sampling, and transmits the copy on the mirror interface. The original packet continues normal processing. Controlled by the enterprise forensics API (`POST /api/v1/enterprise/forensics/mirror/start`, `POST /api/v1/enterprise/forensics/mirror/stop`, `GET /api/v1/enterprise/forensics/mirror`).
+When enabled, `bpf_clone_redirect` clones every packet that matches an IDS pattern, and transmits the copy on the mirror interface. The original packet continues normal processing. Controlled by the enterprise forensics API (`POST /api/v1/enterprise/forensics/mirror/start`, `POST /api/v1/enterprise/forensics/mirror/stop`, `GET /api/v1/enterprise/forensics/mirror`).
 
 ### Probabilistic Maps
 

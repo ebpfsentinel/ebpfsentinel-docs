@@ -25,7 +25,7 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 | 3 | `tc-conntrack` | TC ingress | Probe of kernel netfilter conntrack (IPv4/IPv6) | `bpf_skb_ct_lookup` kfunc, `nf_conn` fields read at offsets resolved from the running kernel's BTF |
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
 | 5 | `tc-nat-egress` | TC egress | SNAT / masquerade (IPv4/IPv6) | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) |
-| 6 | `tc-ids` | TC ingress (egress optional) | Intrusion detection, sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) |
+| 6 | `tc-ids` | TC ingress (egress optional) | Intrusion detection | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) |
 | 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Bloom filter map, LRU hash map (IOC confirmation), VLAN and QinQ tag parsing |
 | 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP and TCP port 53, RingBuf emission |
 | 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
@@ -57,7 +57,7 @@ INGRESS:
                     Kernel Stack (SKB allocation)
                         │
                         ▼
-                    TC ingress (tc-ids)           → sampling + L7 detect
+                    TC ingress (tc-ids)           → L7 detect
                     TC ingress (tc-threatintel)   → Bloom filter + IOC confirmation
                     TC ingress (tc-dns)           → DNS capture
                     TC ingress (tc-conntrack)     → state update
