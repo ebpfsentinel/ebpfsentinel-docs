@@ -158,7 +158,7 @@ edit takes `docker compose restart agent`.
 
 The `charts/ebpfsentinel-enterprise` chart deploys one agent per node as a
 DaemonSet with the warden as a **native sidecar** (init container with
-`restartPolicy: Always`, Kubernetes 1.28+). The release publishes the OSS and
+`restartPolicy: Always`, Kubernetes 1.29+). The release publishes the OSS and
 dashboard charts only, so this one is installed from a checkout of
 `ebpfsentinel-enterprise`:
 

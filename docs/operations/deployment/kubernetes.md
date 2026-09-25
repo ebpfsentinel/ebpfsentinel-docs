@@ -13,7 +13,7 @@ The agent runs as a DaemonSet, one pod per node, installed by the Helm chart
 | `warden` | 0 | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | Privileged broker, run as a native sidecar (an init container with `restartPolicy: Always`). Delegates a bpffs to the agent once, then performs the host-namespace operations the agent cannot: conntrack teardown, routes, gratuitous ARP, the pcap socket pool and the DLP uprobe attach |
 | `agent` | 65534 | none (`drop: [ALL]`) | The agent. Unshares its own user namespace, has the warden stamp the bpffs it opened, loads its eBPF through the token and serves the API |
 
-Native sidecars need **Kubernetes 1.28 or later**. The two containers share the
+Native sidecars need **Kubernetes 1.29 or later** (on 1.28 they sit behind an alpha feature gate that is off by default), and the chart's `kubeVersion` refuses an older cluster. The two containers share the
 warden socket through an `emptyDir`; the agent finds it through
 `EBPFSENTINEL_WARDEN_SOCK`.
 

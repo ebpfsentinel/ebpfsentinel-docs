@@ -24,7 +24,8 @@ What matters is the running kernel, not the release: any distribution booting
 | Ubuntu 24.04 (GA kernel) | No | Ships 6.8 - move to the HWE kernel |
 | RHEL 10 / Rocky 10 | Yes | Ships 6.12 |
 | RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.9+ |
-| Alpine | Yes, with `linux-stable` | `linux-lts` 6.6 is below the floor |
+| Alpine 3.21+ | Yes | `linux-lts` is 6.12 |
+| Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
 | Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
 | Arch Linux | Yes | Rolling |
 | NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.9 |
@@ -57,7 +58,7 @@ unprivileged user namespaces enabled. See the
 
 | Orchestrator | Deployment |
 |-------------|-----------|
-| Kubernetes 1.28+ | DaemonSet with `hostNetwork: true`; the warden runs as a native sidecar (init container with `restartPolicy: Always`), the agent as uid 65534 with every capability dropped. See [Kubernetes](deployment/kubernetes.md) |
+| Kubernetes 1.29+ | DaemonSet with `hostNetwork: true`; the warden runs as a native sidecar (init container with `restartPolicy: Always`), the agent as uid 65534 with every capability dropped. The chart refuses an older cluster: native sidecars are behind an alpha feature gate, off by default, on 1.28. See [Kubernetes](deployment/kubernetes.md) |
 | Docker Compose | `docker-compose.yml` at the repository root: warden and agent services, `network_mode: host` |
 
 ## Kernel Feature Matrix
@@ -73,7 +74,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_skb_get/set_xfrm_info` kfuncs | 6.2+ | XFRM interface metadata in TC |
 | `bpf_skb_get/set_fou_encap` kfuncs | 6.4+ | FOU/GUE encapsulation metadata in TC |
 | `bpf_xdp_metadata_rx_hash` / `rx_timestamp` kfuncs | 6.3+ | NIC hash and hardware timestamp in XDP |
-| `bpf_skb_ct_*` / `bpf_xdp_ct_*` / `bpf_ct_*` kfuncs | 5.18+ (insert 6.0+) | Kernel conntrack lookup and flow kill |
+| `bpf_skb_ct_*` / `bpf_xdp_ct_*` / `bpf_ct_*` kfuncs | 5.18+ (insert 6.0+, `bpf_ct_set_nat_info` 6.1+) | Kernel conntrack lookup and flow kill; NAT entries committed from `tc-nat-ingress` / `tc-nat-egress` |
 | `bpf_dynptr_*` kfuncs | 6.4+ | Full packet length in the IDS and the XDP firewall |
 | `bpf_tcp_raw_gen_syncookie_ipv4/_ipv6` | 6.0+ | Forging the SYN-ACK cookie in `xdp-ratelimit-syncookie` |
 | `bpf_tcp_raw_check_syncookie_ipv4/_ipv6` | 6.0+ | Validating the returning ACK in `xdp-ratelimit` |
@@ -90,7 +91,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `LPM_TRIE` | 4.11+ | CIDR matching |
 | `PERCPU_HASH` | 4.6+ | Lock-free counters |
 | `PROG_ARRAY` + tail call | 4.2+ | Program chaining |
-| `bpf_get_prandom_u32` | 4.1+ | Sampling (IDS, QoS, scrub) |
+| `bpf_get_prandom_u32` | 4.1+ | QoS loss emulation, scrub IP ID randomisation; the IDS sampling check, whose config map nothing writes |
 | `bpf_csum_diff` | 4.6+ | Checksums in scrub |
 
 SYN cookies are computed by the kernel's raw syncookie helpers and the
