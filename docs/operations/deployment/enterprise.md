@@ -68,10 +68,22 @@ helper support was not verified.
 
 ## Bare metal (systemd)
 
-The release tarball carries the agent, the `ebpfsentinel-license` CLI and the
-two licence signing public keys, and nothing else: no warden, no eBPF objects,
-no units. A bare-metal install is therefore built from the enterprise checkout,
-with the OSS repository beside it:
+The release tarball carries everything `install.sh` reads: the agent,
+`enterprise-warden`, the `ebpfsentinel-license` CLI, the eBPF objects under
+`ebpf/`, the default config, both units, the AppArmor profile and the sysctl
+drop-in, plus the two licence signing public keys:
+
+```bash
+tar xzf ebpfsentinel-enterprise-<version>-linux-<arch>.tar.gz
+cd ebpfsentinel-enterprise-<version>-linux-<arch>
+sudo ./install.sh
+sudo install -m 0640 my-license.key /etc/ebpfsentinel/license.key
+sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterprise
+journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
+```
+
+To install from the enterprise checkout instead, with the OSS repository beside
+it, stage the same layout next to `dist/install.sh`:
 
 ```bash
 # eBPF objects, from the OSS repository
