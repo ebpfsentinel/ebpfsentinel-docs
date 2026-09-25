@@ -214,7 +214,7 @@ Everything else about conntrack is a slot under `interface="CT_METRICS"`.
 | `ebpfsentinel_ips_blacklist_size` | Gauge | - | Current blacklist entry count |
 | `ebpfsentinel_ips_blocks_total` | Counter | - | Total IPS enforcement actions applied |
 | `ebpfsentinel_auto_responses_total` | Counter | `policy` | Auto-response enforcements applied, by the policy that matched. Only an enforcement that succeeded is counted; a policy that matched and failed to apply is logged and left out |
-| `ebpfsentinel_ids_ct_dying_total` | Counter | - | Conntrack entries the IDS verdict pipeline marked `IPS_DYING` (flow kill) |
+| `ebpfsentinel_ids_ct_dying_total` | Counter | - | Block-mode IDS verdicts that asked the datapath to kill the flow by collapsing its conntrack entry timeout (the name predates the timeout mechanism) |
 
 ### Threat Intelligence
 

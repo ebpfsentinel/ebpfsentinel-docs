@@ -141,6 +141,6 @@ Each item of `GET /api/v1/ips/blacklist` carries `ip`, `reason`, `auto_generated
 - `ebpfsentinel_ips_blacklist_size` - current blacklist entry count
 - `ebpfsentinel_ips_blocks_total` - enforcement actions applied
 - `ebpfsentinel_auto_responses_total{policy}` - auto-response enforcements applied, by the policy that matched
-- `ebpfsentinel_ids_ct_dying_total` - conntrack entries marked `IPS_DYING` by a flow kill
+- `ebpfsentinel_ids_ct_dying_total` - block-mode verdicts that killed a flow by collapsing its conntrack entry timeout
 - `ebpfsentinel_alerts_total{component="ips", severity}` - IPS alerts generated
 - `ebpfsentinel_alerts_dropped_total{reason="throttle"}` - alerts suppressed by the per-rule rate limit

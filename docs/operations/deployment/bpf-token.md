@@ -94,7 +94,7 @@ the capabilities in the init network namespace:
 | Operation | Path | Held by |
 |-----------|------|---------|
 | All eBPF load/attach (firewall, IDS, IPS, DLP, DNS, DDoS, NAT, QoS, LB) | BPF token | agent (token) |
-| IPS active flow-kill | eBPF `bpf_ct_change_status` IPS_DYING (tc-ids) | agent (token) |
+| IPS active flow-kill | eBPF `bpf_ct_change_timeout` collapsing the conntrack entry (tc-ids, xdp-firewall) | agent (token) |
 | Load-balancer VIP reply | eBPF `xdp-vip-announcer` (XDP_TX) | agent (token) |
 | pcap manual/auto capture | `AF_PACKET` fd opened by the warden, passed to the agent | warden (`CAP_NET_RAW`) |
 | Conntrack snapshot / event poller | warden reads `/proc/net/nf_conntrack` | warden (init netns) |
@@ -262,5 +262,5 @@ in a container (the agent drops to nobody before unsharing).
 **A `conntrack -D` teardown, route change, or VIP ARP does nothing.**
 Confirm the warden is reachable - these are brokered to it. If the agent runs
 without a warden (`EBPFSENTINEL_WARDEN_SOCK` unset), they are unavailable while
-the eBPF datapath (including IPS_DYING flow-kill and `xdp-vip-announcer`) keeps
+the eBPF datapath (including the conntrack-timeout flow-kill and `xdp-vip-announcer`) keeps
 working.

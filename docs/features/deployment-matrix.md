@@ -248,7 +248,7 @@ Because the agent runs in its own user namespace, host-netns operations are
 brokered to the warden in the init network namespace: `conntrack -D` teardown,
 Multi-WAN route application, gratuitous ARP on VIP takeover, and pcap capture
 (the warden opens the `AF_PACKET` sockets and passes the fds). The in-kernel
-equivalents (IPS_DYING flow-kill, `xdp-vip-announcer`) cover the eBPF side.
+equivalents (conntrack-timeout flow-kill, `xdp-vip-announcer`) cover the eBPF side.
 See the [capability matrix](../operations/deployment/bpf-token.md#capability-matrix).
 
 ### When the token cannot be created

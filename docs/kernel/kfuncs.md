@@ -40,12 +40,8 @@ Safe wrappers: `with_skb_ct_lookup` (tc-conntrack), `with_xdp_ct_lookup` (xdp-fi
 | KFunc | Kernel | Acquire/Release | Purpose |
 |-------|--------|-----------------|---------|
 | `bpf_skb_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from a TC classifier |
-| `bpf_xdp_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from XDP; declared, not called by any program |
 | `bpf_ct_insert_entry` | 6.0+ | `KF_ACQUIRE \| KF_RELEASE` | Commit an allocated `nf_conn___init` and return a live `nf_conn*` |
-| `bpf_ct_set_timeout` | 6.0+ | - | Set the initial timeout on an allocated entry; declared, not called by any program |
 | `bpf_ct_change_timeout` | 6.0+ | - | Update the timeout on an inserted entry |
-| `bpf_ct_set_status` | 6.0+ | - | Set the initial status bitmask on an allocated entry; declared, not called by any program |
-| `bpf_ct_change_status` | 6.0+ | - | Update the status bitmask on an inserted entry; declared, not called by any program |
 | `bpf_ct_set_nat_info` | 6.1+ | - | Configure SNAT/DNAT rewrite info on an allocated entry |
 
 Safe wrappers: `CtBuilder` (allocate, configure, insert; used by tc-nat-ingress and tc-nat-egress) and `CtEntry` (`change_timeout` on a live entry). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically.
@@ -80,8 +76,6 @@ Safe wrappers: `xdp_rx_hash` and `xdp_rx_timestamp` (xdp-firewall, xdp-ratelimit
 | `bpf_dynptr_from_skb` | 6.4+ | - | Initialise a dynptr over a TC skb |
 | `bpf_dynptr_from_xdp` | 6.4+ | - | Initialise a dynptr over an XDP frame |
 | `bpf_dynptr_size` | 6.5+ | - | Report the logical size of a dynptr in bytes |
-| `bpf_dynptr_slice` | 6.4+ | - | Declared, not called by any program |
-| `bpf_dynptr_adjust` | 6.5+ | - | Declared, not called by any program |
 
 Safe wrappers: `skb_packet_size` (tc-ids) and `xdp_frame_size` (xdp-firewall) return the full packet size, fragments and multi-buffer frames included, without linearising the packet. The dynptr is a kernel-managed stack object that must stay in the slot the kfunc wrote it to, so each wrapper creates and consumes it in one frame and only the size escapes; returning the dynptr in a struct would move it and the verifier rejects that with `invalid read from stack`.
 
