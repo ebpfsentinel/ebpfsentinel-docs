@@ -11,11 +11,12 @@ cd ebpfsentinel/ebpfsentinel
 # Build eBPF kernel programs (requires nightly)
 cargo xtask ebpf-build
 
-# Build userspace agent
-cargo build --release
+# Build the agent and the warden broker
+cargo build --release --bin ebpfsentinel-agent --bin warden
 ```
 
-The binary is at `target/release/ebpfsentinel-agent`.
+The binaries are `target/release/ebpfsentinel-agent` and `target/release/warden`;
+the eBPF objects land in `target/bpfel-unknown-none/release/`.
 
 ### Verify the Build
 
@@ -25,32 +26,24 @@ The binary is at `target/release/ebpfsentinel-agent`.
 
 ## Docker
 
-### Build the Image
+A deployment is two containers built from two images: the privileged **warden**
+broker and the rootless **agent**. The agent drops every capability, unshares its
+own user namespace, has the warden delegate a bpffs over a shared socket and
+loads its eBPF through a BPF token (kernel 6.9+).
+
+### Build the Images
 
 ```bash
-docker build -t ebpfsentinel .
+docker build -f Dockerfile.agent  -t ebpfsentinel .
+docker build -f Dockerfile.warden -t ebpfsentinel-warden .
 ```
-
-### Run
-
-eBPF loads only through a BPF token (kernel 6.9+). The image entrypoint is the
-launcher (`ebpfsentinel-token-launch`); it creates the token in a child user
-namespace and execs the agent unprivileged, so the container only needs
-`CAP_SYS_ADMIN` for that bootstrap - no separate setup step:
-
-```bash
-docker run --network host \
-  --cap-add SYS_ADMIN --cap-add NET_RAW \
-  --security-opt apparmor=unconfined \
-  -v ./config:/etc/ebpfsentinel \
-  -v /sys/fs/bpf:/sys/fs/bpf \
-  ebpfsentinel
-```
-
-`docker compose up -d` wires the same single service automatically - see
-[Docker deployment](../operations/deployment/docker.md).
 
 ### Docker Compose
+
+`docker-compose.yml` in the repository root wires both services and the socket
+volume they share: the warden holds `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`,
+`SYS_PTRACE`, `BPF` and `PERFMON`, the agent runs as uid 65534 with
+`cap_drop: [ALL]`.
 
 ```bash
 # Edit config/ebpfsentinel.yaml with your interfaces
@@ -63,62 +56,34 @@ docker compose logs -f
 docker compose down
 ```
 
+See [Docker deployment](../operations/deployment/docker.md) for the host
+prerequisites (config ownership, AppArmor user namespaces) and a two-container
+`docker run` equivalent.
+
 ## Kubernetes
 
-Deploy as a DaemonSet (one agent per node):
+Install the Helm chart, which deploys a DaemonSet (one pod per node) carrying the
+warden as a native sidecar beside the agent:
 
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: ebpfsentinel
-  namespace: ebpfsentinel
-spec:
-  selector:
-    matchLabels:
-      app: ebpfsentinel
-  template:
-    metadata:
-      labels:
-        app: ebpfsentinel
-    spec:
-      hostNetwork: true
-      # No init container - the image entrypoint (ebpfsentinel-token-launch)
-      # sets up the delegated bpffs + token in a child userns, then execs the
-      # agent there. CAP_SYS_ADMIN is for that bootstrap; the agent is rootless.
-      containers:
-        - name: agent
-          image: ebpfsentinel:latest
-          args: ["--config", "/etc/ebpfsentinel/config.yaml"]
-          securityContext:
-            allowPrivilegeEscalation: true
-            capabilities:
-              drop: [ALL]
-              add: [SYS_ADMIN]            # launcher bootstrap only
-          volumeMounts:
-            - name: config
-              mountPath: /etc/ebpfsentinel
-            - name: bpf
-              mountPath: /sys/fs/bpf
-              mountPropagation: HostToContainer
-      volumes:
-        - name: config
-          configMap:
-            name: ebpfsentinel-config
-        - name: bpf
-          hostPath:
-            path: /sys/fs/bpf
+```bash
+helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> -n ebpfsentinel --create-namespace
 ```
 
-See [Kubernetes Deployment](../operations/deployment/kubernetes.md) and the [BPF token guide](../operations/deployment/bpf-token.md) for full manifests (RBAC, ConfigMap, services, the launcher token phase).
+The chart needs Kubernetes 1.29 or later. See
+[Kubernetes Deployment](../operations/deployment/kubernetes.md) for the values and
+the [BPF token guide](../operations/deployment/bpf-token.md) for the startup
+sequence.
 
 ## Post-Installation
 
 After installing, verify the agent starts correctly:
 
 ```bash
-# Start the agent
-sudo ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
+# Start the warden, then the agent against its socket
+sudo ./warden serve /run/ebpfsentinel/warden.sock --uid 0 &
+sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
+  ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 
 # Check health (in another terminal)
 curl http://localhost:8080/healthz

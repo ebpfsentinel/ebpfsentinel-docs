@@ -30,7 +30,7 @@ Yes. x86_64 is the primary platform; aarch64/ARM64 is cross-tested.
 
 ### What capabilities does it need?
 
-eBPF loads **exclusively** through a BPF token (kernel 6.9+), so the agent is started by the privileged launcher (`ebpfsentinel-token-launch`), which needs `CAP_SYS_ADMIN` and unprivileged user namespaces to create the token - then execs the agent **unprivileged** (no host capabilities). There is no `CAP_BPF`/`setcap` loading path. In Docker: `--network host --cap-add SYS_ADMIN --security-opt apparmor=unconfined` (the launcher is the image entrypoint); add `--pid host` for host-process uprobe DLP. See the [BPF token guide](operations/deployment/bpf-token.md).
+eBPF loads **exclusively** through a BPF token (kernel 6.9+), and there is no `CAP_BPF`/`setcap` loading path. A deployment is two processes: the **warden** broker holds the host capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`, plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP uprobe), and the **agent** runs with none: it unshares a user namespace, has the warden delegate a bpffs, and loads its programs through the token. Unprivileged user namespaces must be enabled on the host. In Docker the agent runs as uid 65534 with `cap_drop: [ALL]`; `docker compose up -d` wires both containers. See the [BPF token guide](operations/deployment/bpf-token.md).
 
 ## Performance
 
@@ -123,7 +123,7 @@ Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled k
 
 ### Agent fails to start with "permission denied" / no eBPF attached
 
-Start it via the launcher so the BPF token is created - running the agent binary directly fails `BPF_TOKEN_CREATE` outside a user namespace: `sudo ebpfsentinel-token-launch --bpffs /sys/fs/bpf/ebpfsentinel ./ebpfsentinel-agent --config config/ebpfsentinel.yaml`. The launcher needs `CAP_SYS_ADMIN` + unprivileged user namespaces; there is no `setcap` fallback.
+Start the warden first and point the agent at its socket: without `EBPFSENTINEL_WARDEN_SOCK` the agent cannot create a BPF token, logs `BPF token unavailable - running in API-only mode` and attaches nothing. Under systemd, `sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel`; by hand, `sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &` then `sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock ./ebpfsentinel-agent --config config/ebpfsentinel.yaml`. On Ubuntu 24.04 and later, `uid_map: Operation not permitted` means `kernel.apparmor_restrict_unprivileged_userns=1` is blocking the user namespace: load the shipped AppArmor profile. There is no `setcap` fallback.
 
 ### No alerts are generated
 

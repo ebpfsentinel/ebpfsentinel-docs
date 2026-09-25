@@ -6,7 +6,7 @@
 |-------------|-------|
 | Linux kernel | **6.9+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
-| Privileges | A privileged helper (the warden container, or the token launcher on a bare host) delegates a BPF filesystem; the agent unshares a user namespace, creates the BPF token itself and holds no capability. Unprivileged user namespaces must be enabled. No `CAP_BPF`/`setcap` path. |
+| Privileges | The privileged warden (a container, a sidecar or a systemd unit) delegates a BPF filesystem; the agent unshares a user namespace, creates the BPF token itself and holds no capability. Unprivileged user namespaces must be enabled. No `CAP_BPF`/`setcap` path. |
 
 The 6.9 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The minimum is set by BPF token delegation (`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`, 6.9); the newest kfuncs the programs call (see [KFuncs](kfuncs.md)) arrived in 6.8 and do not move it.
 

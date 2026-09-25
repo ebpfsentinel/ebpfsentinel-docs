@@ -44,7 +44,6 @@ const OTHER_BINARIES = new Set([
   'ebpfsentinel-enterprise-warden',
   'ebpfsentinel-license',
   'ebpfsentinel-warden',
-  'ebpfsentinel-token-launch',
   'ebpfsentinel-pod-reader',
   'ebpfsentinel-config',
 ]);

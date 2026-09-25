@@ -29,20 +29,22 @@ BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmli
 ### Capabilities
 
 eBPF loads **exclusively** through a BPF token - there is no `CAP_BPF`/`setcap`
-loading path. The agent is started via the privileged launcher
-(`ebpfsentinel-token-launch`), which creates the token in a child user namespace
-and execs the agent unprivileged. The launcher needs `CAP_SYS_ADMIN` (i.e. root,
-or `CAP_SYS_ADMIN` granted) **and** the host must allow unprivileged user
-namespaces:
+loading path. Two processes share the work: the **warden** broker runs as root,
+and the **agent** unshares its own user namespace, has the warden delegate a
+bpffs over a Unix socket, and creates the token there, holding no capability over
+the host. The host must allow unprivileged user namespaces:
 
 ```bash
-sudo ebpfsentinel-token-launch \
-  --bpffs /sys/fs/bpf/ebpfsentinel \
+sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &
+sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
   ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 ```
 
-Running the agent binary directly would fail `BPF_TOKEN_CREATE` (`EOPNOTSUPP`
-outside a user namespace) and fall back to API-only mode. See the
+The release tarball installs both as systemd units (`ebpfsentinel-warden` and
+`ebpfsentinel`). Without `EBPFSENTINEL_WARDEN_SOCK` the agent cannot create a
+token and starts in API-only mode with no eBPF loaded. On Ubuntu 24.04 and later,
+`kernel.apparmor_restrict_unprivileged_userns=1` blocks the namespace unless the
+shipped AppArmor profile is loaded. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
 ### Supported Distributions
