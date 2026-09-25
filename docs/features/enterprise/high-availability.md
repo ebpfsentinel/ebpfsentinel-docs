@@ -238,7 +238,7 @@ Controls agent behavior when it loses contact with its peer and enters a degrade
 |--------|----------|
 | `continue` | Default. Keep running normally with a warning. Accept configuration changes. |
 | `read-only` | Keep current eBPF rules active. Reject configuration changes via the API (returns `503 Service Unavailable`). |
-| `fail-closed` | Everything `read-only` does, plus a deny-all posture on the datapath. Only the anti-lockout ports stay reachable. |
+| `fail-closed` | Everything `read-only` does, plus a deny-all posture on the datapath. Only the anti-lockout ports and the channel to the configured peers stay reachable. |
 
 ### ClusterHealth
 
@@ -367,6 +367,28 @@ anti-lockout off:
 
 The enterprise API port cannot be taken out of the set, so a node in the
 posture always answers on its API.
+
+#### Hearing the peers again
+
+The node leaves the posture when it hears from its peers, so the posture keeps
+that channel open. Every address in `ha.peers` keeps two TCP paths and no third:
+
+| Rule ID | Matches |
+|---------|---------|
+| `fail-closed-peer-<address>-<port>` | From the peer's address and the port this node dials it at: the answers to this node's heartbeats and vote requests |
+| `fail-closed-peer-<address>-in` | From the peer's address to the port of `ha.listen_addr`: the peer's own heartbeats and vote requests |
+
+They are `system` rules at priority `0`, above the catch-all denies, and each
+lands in the array of its own address family. Without them the catch-all deny
+drops the answers to the node's own heartbeats as well as every heartbeat a peer
+sends it, so an isolated node would never see the cluster come back and would
+stay closed until somebody restarted it.
+
+The rules name addresses, because nothing resolves a name once the posture is in
+force. A peer given as a hostname is resolved when the agent starts, to every
+address it resolves to; a peer that does not resolve then is logged and left out
+of the channel, and a peer whose address changes after boot is reached by the
+old one until the agent restarts.
 
 **Recovery**: when a peer becomes reachable again the node resyncs state via
 snapshot replication and leaves degraded mode. Writes are accepted again, and if
