@@ -45,7 +45,10 @@ flow does not come back through conntrack.
 | 4 | `FIREWALL_RULES` / `FIREWALL_RULES_V6` (Array, 4096) + `bpf_loop` | O(n) | Every other rule |
 
 Userspace places each rule in the cheapest map able to express it, so only
-rules combining several criteria reach the scan. The scan uses
+rules combining several criteria reach the scan. A rule scoped to a tenant or
+an interface group, or carrying a state ceiling or a DSCP mark, goes to the
+scan whatever its criteria, because the LPM and hash levels answer with an
+action and no rule to read the rest from. The scan uses
 [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) (kernel 5.17+),
 so the verifier checks the callback body once whatever the rule count.
 
@@ -74,6 +77,18 @@ A `pass` or `log` rule on a NEW flow checks its per-source limits
 (`check_connection_limits`, counters in `CT_SRC_COUNTERS`). A source over the
 limit is refused, flagged overloaded and inserted into the overload set above,
 where it stays until the configured TTL runs out.
+
+#### DSCP Marking
+
+A `pass` or `log` rule carrying `dscp_mark` rewrites the packet's DSCP before
+the packet goes on, keeping the two ECN bits. On IPv4 the TOS byte is written
+and the header checksum is patched incrementally over the one 16-bit word that
+holds it; on IPv6 the traffic class is written across the first two bytes and
+the flow label is left alone. The transport checksums cover neither field, so
+they stay valid. The mark is read off the matched rule by its index, so
+userspace never puts a marking rule in the LPM or hash levels: it always goes
+through the scan. `deny`, `reject` and a packet refused by a connection limit
+are not marked.
 
 #### Zone Resolution
 

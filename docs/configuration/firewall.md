@@ -85,7 +85,7 @@ firewall:
 | `src_mac` | `string` | No | Source MAC address (`aa:bb:cc:dd:ee:ff`) |
 | `dst_mac` | `string` | No | Destination MAC address |
 | `dscp_match` | `integer` | No | Match DSCP value (0-63, omit = any) |
-| `dscp_mark` | `integer` | No | Set DSCP value on matched packets (0-63) |
+| `dscp_mark` | `integer` | No | Rewrite the DSCP of packets this rule passes (0-63). Applied by `allow` and `log` rules, ECN bits kept; the rule is always evaluated in the linear scan |
 | `state` | `[string]` | No | Conntrack state filter: `new`, `established`, `related`, `invalid`, `syn_sent`, `syn_recv`, `fin_wait`, `close_wait`, `time_wait` |
 | `src_alias` | `string` | No | Named IP alias for source (ignored if `src_ip` is also set) |
 | `dst_alias` | `string` | No | Named IP alias for destination (ignored if `dst_ip` is also set) |

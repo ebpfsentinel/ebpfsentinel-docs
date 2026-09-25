@@ -94,7 +94,7 @@ to all of them:
 
 The most feature-rich eBPF program. Processes packets through a 5-phase pipeline:
 
-1. **Phase 0 - Overload and conntrack fast-path**: a source in the overload IP set (set 255) is dropped while its mark stands; then the kernel conntrack entry is looked up with `bpf_xdp_ct_lookup`, and established connections skip rule evaluation.
+1. **Phase 0 - Overload and conntrack fast-path**: a source in the overload IP set (set 255) is dropped while its mark stands; then the kernel conntrack entry is looked up with `bpf_xdp_ct_lookup`. The state does not skip rule evaluation: it feeds `state` filters, and an established or related flow no rule matched is passed rather than sent to the default policy.
 2. **Phase 1 - LPM Trie** (O(log n)): CIDR-only rules in four tries (`FW_LPM_SRC_V4`, `FW_LPM_DST_V4`, `FW_LPM_SRC_V6`, `FW_LPM_DST_V6`).
 3. **Phase 1b / 1c - Hash lookups** (O(1)): exact 5-tuple rules, then protocol-and-port rules.
 4. **Phase 2 - Linear scan** (`bpf_loop`): rules with port ranges, VLAN, TCP flags, ICMP type/code, MAC, DSCP, aliases, conntrack state, negation. Priority order, first match wins.
@@ -109,7 +109,7 @@ Key eBPF features:
 - Inline `VlanHdr` / `Ipv6Hdr` parsing
 - `bpf_loop` for iterating large rule sets
 - TCP flags matching (`match/mask` notation), ICMP type/code filtering
-- MAC address matching (L2), DSCP classification
+- MAC address matching (L2), DSCP classification and marking (`dscp_mark` on a passed packet, ECN kept, IPv4 checksum patched incrementally)
 - IP set maps for aliases and overload blacklist
 - Per-source state counters for connection limit enforcement
 - **Reject action** via tail-call to `xdp-firewall-reject` (slot 1) - forges TCP RST (IPv4/IPv6) or ICMP/ICMPv6 Destination Unreachable in a separate program with its own 512-byte stack budget, then transmits back via `XDP_TX`

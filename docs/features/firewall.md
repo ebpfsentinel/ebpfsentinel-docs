@@ -163,7 +163,7 @@ Source and destination MAC addresses can be matched for L2 access control:
 
 ### DSCP / QoS
 
-Rules can match on DSCP values and mark packets for downstream QoS queuing:
+Rules can match on DSCP values and mark packets for downstream QoS queuing. The mark is written in XDP by an `allow` or `log` rule, keeping the ECN bits and, on IPv4, patching the header checksum; a rule carrying a mark is always evaluated in the linear scan:
 
 ```yaml
 - id: voip-priority
