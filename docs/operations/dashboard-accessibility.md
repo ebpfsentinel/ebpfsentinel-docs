@@ -1,83 +1,96 @@
 # Dashboard Accessibility
 
-The eBPFsentinel dashboard targets **WCAG 2.2 Level AA** conformance. SOC analysts using screen readers, keyboard-only navigation, or high-contrast modes can perform all critical actions - from triaging alerts to blocking IPs - without a mouse.
+The eBPFsentinel dashboard targets **WCAG 2.2 Level AA**. This page says what
+is checked automatically, what the interface does for keyboard and screen-reader
+users, and where it falls short.
 
-## Conformance Level
+## What is checked
 
-| Standard | Level | Status |
-|----------|-------|--------|
-| WCAG 2.2 | AA | Tested |
+| Standard | Level | How |
+|----------|-------|-----|
+| WCAG 2.2 | AA | axe-core on six routes, light and dark |
 | WCAG 2.2 | AAA | Not targeted |
-| Section 508 | - | Covered by AA |
 
-## What We Test
+The end-to-end suite runs axe-core through Playwright with the `wcag2a`,
+`wcag2aa` and `wcag22aa` rule tags and fails on any **critical** or **serious**
+violation. It covers six routes, each in the light and the dark theme: Overview
+(`/`), Alerts (`/alerts`), Fleet (`/fleet`), Topology (`/topology`), Compliance
+(`/compliance`) and Audit & License (`/audit-license`). Every other route is
+covered by component tests and review, not by axe-core.
 
-The end-to-end suite runs axe-core via Playwright against six routes in both light and dark themes, asserting no **critical** or **serious** violation. It is a `workflow_dispatch` run rather than a pull-request gate: the suite needs the `:dev` images of the agent, the enterprise agent and the dashboard, and the enterprise manifest is private, so the automatic triggers are off until those images are published.
+The suite is a `workflow_dispatch` run rather than a pull-request gate: it pulls
+the `:dev` images of the agent, the enterprise agent and the dashboard, and the
+enterprise manifest is private, so the automatic triggers stay off until those
+images are published.
 
-Tested routes: Overview (`/`), Alerts, Fleet, Flow Graph, Compliance, Audit & License. Every other route is covered by the component tests and by review rather than by axe-core.
+## Keyboard
 
-## Keyboard Navigation
-
-All interactive elements are reachable via `Tab` / `Shift+Tab`. Additional keyboard support:
+Every interactive element is reachable with `Tab` / `Shift+Tab`.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+K` / `Cmd+K` | Open command palette |
-| `Escape` | Close modal or command palette |
-| `Enter` | Activate focused button or palette item |
-| `↑` / `↓` | Navigate command palette results |
-| `Tab` / `Shift+Tab` | Cycle through interactive elements |
+| `Ctrl+K` / `Cmd+K` | Open the command palette |
+| `↑` / `↓` | Move through palette results |
+| `Enter` | Run the selected palette entry, or activate the focused control |
+| `Escape` | Close the palette or a dialog |
 
-### Command Palette
+### Command palette
 
-Press `Ctrl+K` to open a fuzzy search over routes and actions (navigate, toggle theme, block IP, acknowledge alert). Arrow keys select, Enter activates, Escape closes.
+The palette searches, in this order:
 
-### Modal Focus Trapping
+- the actions the screen on display publishes (the alert list, an alert's
+  detail and flow analytics publish theirs);
+- the console-wide switches: toggle the theme, change the language, sign out;
+- every route the signed-in user can reach, grouped as in the sidebar.
 
-When a modal is open (Block IP, Push Config, Generate Report), keyboard focus is trapped inside it. `Tab` wraps from the last to the first focusable element. `Escape` closes.
+It is loaded on first use, so the first `Ctrl+K` of a session fetches it.
 
-## Visual Accessibility
+### Dialogs
 
-### Color Contrast
+The palette and the agent enrolment dialog are modal dialogs: focus moves into
+the dialog when it opens, stays inside it while it is open, and returns to the
+control that opened it when `Escape` closes it.
 
-All text meets the minimum contrast ratios:
+## Visual
 
-- **Normal text** (< 18pt): 4.5:1 against background
-- **Large text** (≥ 18pt or 14pt bold): 3:1 against background
-- Both light and dark themes are validated
+- **Contrast.** Both themes are held to the AA ratios (4.5:1 for normal text,
+  3:1 for large text) by axe-core's contrast rule on the six routes above.
+- **Focus.** A focused control draws a ring on `:focus-visible` from the
+  charter's ring token; a mouse click does not draw it.
+- **Theme.** The first visit starts from `prefers-color-scheme`; the theme is
+  then stored in the browser and wins over a later change of the system setting.
 
-### Focus Indicators
+## Screen readers
 
-Every focusable element shows a visible `2px solid` outline on `:focus-visible`. Mouse clicks do not trigger the focus ring (`:focus:not(:focus-visible)` suppresses it).
+- The shell uses landmark elements; the sidebar is a `<nav>` labelled
+  "Primary navigation".
+- The palette input is a `combobox` over a `listbox`, with
+  `aria-activedescendant` following the highlighted result.
+- Charts (time series, the severity donut) are inline SVG with `role="img"` and
+  an `aria-label` that states what the chart shows.
+- On the flow analytics screen each Sankey node is a focusable button with a
+  label, and `Enter` applies it as a filter, as a click does. The flow records
+  table beneath carries the same data.
+- The topology graph is one `role="img"` with a summary label, and the table
+  under it lists every flow the picture draws.
 
-### Reduced Motion
+## Known limitations
 
-Users with `prefers-reduced-motion: reduce` get instant transitions instead of animations. The right sheet, modals, and all CSS transitions are disabled.
+- **Reduced motion.** `prefers-reduced-motion` is honoured by the in-page jumps
+  on the flow analytics screen only; dialog and sheet transitions still animate.
+- **Topology.** The graph itself is not navigable node by node; the table under
+  it is the accessible reading.
+- **Coverage.** axe-core runs on six routes; the others are not scanned.
 
-## Screen Reader Support
+## Reporting an accessibility issue
 
-- All routes use semantic HTML (`<nav>`, `<main>`, `<header>`, `<button>`, `<table>`)
-- Icon-only buttons have `aria-label` attributes
-- Modals use `role="dialog"` with `aria-modal="true"`
-- The sidebar has `aria-label="Primary navigation"`
-- The action toolbar uses `role="toolbar"` with `aria-label="Alert actions"`
-- The command palette uses `role="combobox"` with `aria-activedescendant` tracking
-
-## Known Limitations
-
-- **Charts**: ECharts (via charming/WASM canvas) are not screen-reader accessible. Hover/focus states show text labels, and tabular data is available alongside each chart.
-- **Flow graph**: The force-directed graph is canvas-based. A tabular alternative is available in the node/edge detail sheets.
-
-## Reporting an Accessibility Issue
-
-If you encounter an accessibility barrier:
-
-1. Open a GitHub issue at the dashboard repository
-2. Use the label `a11y`
+1. Open a GitHub issue at the dashboard repository.
+2. Use the label `a11y`.
 3. Include:
-   - The route and action you were performing
-   - Your browser, OS, and assistive technology (screen reader, magnifier, etc.)
-   - A screenshot or screen recording if possible
-   - The expected vs. actual behavior
+   - the route and the action you were performing;
+   - your browser, OS and assistive technology (screen reader, magnifier, etc.);
+   - a screenshot or screen recording if possible;
+   - the expected and the actual behaviour.
 
-We treat `critical` and `serious` a11y issues with the same priority as security bugs.
+`critical` and `serious` accessibility issues get the same priority as security
+bugs.
