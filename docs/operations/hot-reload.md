@@ -79,7 +79,7 @@ xdp-firewall ─┬─ slot 0 → xdp-ratelimit ─┬─ slot 0 → xdp-ratelim
               └─ slot 3 → xdp-vip-announcer
 ```
 
-Only the root, the first of firewall, ratelimit and loadbalancer that is enabled, is attached to the interfaces; the others are loaded as tail-call targets. `xdp-firewall-reject` and `xdp-ratelimit-syncookie` come and go with their parent, and `xdp-vip-announcer` is loaded at startup when the firewall is and stays loaded, so a firewall loaded again is wired back to it.
+Only the root, the first of firewall, ratelimit and loadbalancer that is enabled, is attached to the interfaces; the others are loaded as tail-call targets. `xdp-firewall-reject` and `xdp-ratelimit-syncookie` come and go with their parent, and `xdp-vip-announcer` is loaded with the first firewall, at startup or by the reload that first enables it, when `loadbalancer.announce` names a role, and stays loaded, so a firewall loaded again is wired back to it.
 
 When the root stays the same, a program disabled has its slot cleared (the tail call becomes a no-op and the packet continues) and a program enabled is loaded behind the root and wired into its slot.
 
@@ -98,6 +98,8 @@ Every map but the ring buffers is pinned under `/sys/fs/bpf/ebpfsentinel/` by na
 - Per-program counters, which carry on rather than restart from zero
 
 The services push their rules again when a program is wired in, so a table that was empty is filled. The pins are removed at shutdown.
+
+A firewall a reload enables for the first time, because the agent started with `firewall.enabled: false`, gets everything a startup firewall gets: the LPM tries go to the alias, IPS and anti-DDoS services, which install what they kept while the datapath had nowhere to put it (the IPS blacklist with its remaining lifetime, the countries the anti-DDoS engine blocked, the content last pushed into external aliases), the IP set map goes to the alias service, the per-zone counters are exported and the VIP announcer is loaded behind it. A firewall loaded again after that reuses the same pinned maps and the managers the services already hold. The per-zone counter export stops with the firewall and starts again with it, from where the pinned counters stand rather than from zero.
 
 ## Validation
 
