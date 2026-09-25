@@ -1,6 +1,6 @@
 # eBPF Helper Functions
 
-eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required. The authoritative list is the requirement table the agent probes with (`crates/adapters/src/ebpf/helper_probe.rs`), which a unit test keeps in step with the program sources.
+eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required. The authoritative list is the requirement table the agent probes with (`crates/adapters/src/ebpf/helper_probe.rs`), which a unit test keeps in step with the program sources in both directions: a helper a program calls must be listed, and a helper listed must be called. The test follows the calls a program makes through the `ebpf_helpers` macros (`emit_packet_event!`, `ringbuf_has_backpressure!`) and through aya's methods (`tail_call`, `redirect`, `load`, `store`), not only the ones spelled `bpf_*(` in its own source.
 
 ## Helper Reference
 
@@ -8,11 +8,10 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/) | 4.1+ | tc-nat-ingress, tc-nat-egress | Rewrite packet bytes in-place (IP/port for NAT) |
-| [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | 4.5+ | tc-ids, tc-dns | Load packet bytes into stack buffer for L7/DNS payload capture |
-| [`bpf_xdp_adjust_meta`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_meta/) | 4.15+ | xdp-firewall | Prepend metadata area before packet data for XDP-to-TC passing |
+| [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/) | 4.1+ | tc-nat-ingress, tc-nat-egress, tc-scrub | Rewrite packet bytes in place (address and port for NAT, TTL, IP ID and TCP options for scrub) |
+| [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | 4.5+ | tc-ids, tc-dns, tc-scrub | Load packet bytes into a stack buffer: L7 and DNS payload capture, TCP option normalisation |
 | [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.15+ | xdp-firewall-reject, xdp-ratelimit-syncookie | Grow or shrink packet tail for reject responses and SYN cookie forging |
-| [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | 4.2+ | tc-ids | Clone packet and redirect copy to mirror interface for forensic capture (enterprise) |
+| [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | 4.2+ | tc-ids | Clone the packet to a mirror interface for forensic capture (enterprise) |
 
 ### Checksum
 
@@ -20,28 +19,30 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 4.1+ | tc-nat-*, tc-scrub | Update IP header checksum after field modification |
 | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | 4.1+ | tc-nat-*, tc-scrub | Update TCP/UDP checksum after port/addr rewrite or MSS clamping |
+| [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.1+ | tc-scrub | Checksum delta over a rewritten block of TCP options |
 
 ### Routing & Redirect
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-firewall, xdp-loadbalancer | Redirect using DevMap (wire-speed LB forwarding) or CpuMap (DDoS CPU steering) |
+| [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-firewall, xdp-loadbalancer | Redirect through `CpuMap.redirect()` / `DevMap.redirect()`: DevMap (wire-speed LB forwarding) or CpuMap (DDoS CPU steering) |
 | [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding - drops oversized packets |
+| [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | Kernel FIB lookup for route enrichment |
 
 ### Tail Call & Program Chaining
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/) | 4.2+ | xdp-firewall, xdp-ratelimit | Chain XDP programs via `ProgramArray.tail_call()`: firewall → ratelimit → loadbalancer, firewall → reject, ratelimit → syncookie |
+| [`bpf_tail_call`](https://docs.ebpf.io/linux/helper-function/bpf_tail_call/) | 4.2+ | xdp-firewall, xdp-ratelimit | Chain XDP programs via `ProgramArray.tail_call()`: the firewall hands over to reject, the VIP announcer, ratelimit or the load balancer; ratelimit hands over to syncookie or the load balancer |
 
 ### Event Emission (RingBuf)
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | All programs with events | Reserve space in ring buffer for event writing |
-| [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | All programs with events | Submit a reserved ring buffer entry to userspace |
-| [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | All programs with events | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
-| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | tc-dns | Query ring buffer fill level for 75% backpressure (via `ringbuf_has_backpressure!` macro) |
+| [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | The eight event-emitting programs | Reserve space in ring buffer for event writing |
+| [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | The eight event-emitting programs | Submit a reserved ring buffer entry to userspace |
+| [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | The eight event-emitting programs | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
+| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | The eight event-emitting programs | Unconsumed bytes in the ring: the 75% backpressure check and the choice of wakeup flag on submit |
 
 `RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target - see [KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69---evaluated-not-used).
 
@@ -49,7 +50,7 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | All programs | Suspend-aware monotonic timestamp for events and state tracking |
+| [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | xdp-firewall, xdp-firewall-reject, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-dns, tc-threatintel, tc-qos, uprobe-dlp | Suspend-aware monotonic timestamp for events and state tracking |
 | [`bpf_ktime_get_coarse_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_coarse_ns/) | 5.11+ | xdp-ratelimit | Coarse monotonic timestamp (~1-4ms precision, ~10x faster) for rate limiting windows |
 | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) | 4.1+ | tc-ids, tc-scrub, tc-qos | Random sampling (IDS), IP ID randomization (scrub), loss emulation (QoS) |
 
@@ -77,35 +78,45 @@ eBPFsentinel calls 32 kernel helper functions across its 16 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids | Stable per-connection identifier for flow correlation (TC context only) |
+| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-threatintel, tc-qos | Stable per-connection identifier for flow correlation (TC context only) |
 | [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read user-space SSL buffer for DLP inspection |
 | [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | tc-conntrack, xdp-firewall | Read `nf_conn->status` at runtime BTF-resolved offsets |
 | [`bpf_get_current_pid_tgid`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_pid_tgid/) | 4.2+ | uprobe-dlp | Process identification for DLP alerts |
-| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns | Cgroup ID for container/pod correlation |
+| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns, tc-threatintel, tc-qos | Cgroup ID for container/pod correlation |
 | [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Cgroup ID of the socket behind an egress packet |
 
 ### System Info
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_get_smp_processor_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_smp_processor_id/) | 4.1+ | All programs | Current CPU ID for per-CPU metrics and CpuMap steering |
-| [`bpf_map_lookup_elem`](https://docs.ebpf.io/linux/helper-function/bpf_map_lookup_elem/) | 3.19+ | All programs | Map read on every packet path |
+| [`bpf_get_smp_processor_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_smp_processor_id/) | 4.1+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, tc-qos | CPU recorded in each packet event |
+| [`bpf_map_lookup_elem`](https://docs.ebpf.io/linux/helper-function/bpf_map_lookup_elem/) | 3.19+ | All programs (the probe's base set) | Map read on every packet path |
 
 ## Backpressure Pattern
 
-All event-emitting programs implement adaptive backpressure to avoid overwhelming userspace:
+Every event-emitting program except `uprobe-dlp` refuses to reserve once the
+ring is more than three quarters full, counting the skipped event in its own
+metrics map. The threshold is computed at compile time from the ring's size
+(`ebpf_helpers::ringbuf`):
 
 ```
-if bpf_ringbuf_query(BPF_RB_AVAIL_DATA) > capacity * 0.75 {
-    // Buffer >75% full - skip event emission
-    metrics.events_dropped += 1;
-    return TC_ACT_OK;
+let backlog = bpf_ringbuf_query(&EVENTS, BPF_RB_AVAIL_DATA);
+if backlog > EVENTS_MAX_ENTRIES * 3 / 4 {
+    metrics.events_dropped += 1;   // skip the event, keep the packet verdict
+    return;
 }
-// Normal path: reserve / fill / submit via RingBuf
-let entry = bpf_ringbuf_reserve(sizeof(PacketEvent));
+let entry = bpf_ringbuf_reserve(&EVENTS, size_of::<PacketEvent>());
 // ... fill fields ...
-bpf_ringbuf_submit(entry);
+bpf_ringbuf_submit(entry, if backlog >= 64 KiB { BPF_RB_FORCE_WAKEUP }
+                          else { BPF_RB_NO_WAKEUP });
 ```
+
+The submit flag batches reader wakeups: below 64 KiB of backlog the record is
+committed without waking userspace, and the reader's periodic drain picks it
+up. `uprobe-dlp` uses the same wakeup rule without the 75% cut, so a reserve
+there fails only when the ring is full. `tc-dns` checks backpressure but keeps
+the kernel's default wakeup, because a DNS answer has to reach the domain
+cache before the connection it resolved for.
 
 ## Packet Mirroring Pattern (Enterprise)
 
@@ -120,18 +131,13 @@ if mirror_enabled == 1 && mirror_ifindex > 0 {
 }
 ```
 
-## XDP-to-TC Metadata Passing
+## Parse Once per TC Chain
 
-The firewall uses `bpf_xdp_adjust_meta` to pass context to downstream TC programs without re-parsing:
-
-```
-XDP program:
-  bpf_xdp_adjust_meta(ctx, -(int)sizeof(struct metadata))
-  metadata->rule_id = matched_rule
-  metadata->flags   = action_flags
-
-TC program:
-  struct metadata *md = (void *)(long)ctx->data_meta
-  if (md + 1 > data) return TC_ACT_OK;
-  // Use md->rule_id directly - no re-parsing needed
-```
+No metadata is passed from XDP to TC. The TC programs on one interface share a
+single parse instead: the first classifier of the chain writes the offsets,
+ports, VLAN, flags and tenant it found into the 20 bytes of `skb->cb`, and the
+ones after it read them back (`ebpf_helpers::pktmeta`). The words are guarded
+by a magic byte and a check word folded over the payload words, the packet
+length and the interfaces, so a control block written by the transport or by
+another device's chain fails the check and the packet is parsed again. The two
+NAT classifiers invalidate the words after rewriting a packet.
