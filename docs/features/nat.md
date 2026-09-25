@@ -10,7 +10,7 @@ eBPFsentinel provides kernel-speed NAT via two TC classifier programs (`tc-nat-i
 | `dnat` | Ingress | Rewrite destination address and/or port |
 | `masquerade` | Egress | SNAT using the outgoing interface's IP (dynamic) |
 | `one_to_one` | Both | Bidirectional 1:1 mapping between external and internal IPs |
-| `redirect` | Ingress | DNAT to localhost on a specific port |
+| `redirect` | Ingress | Keeps the destination address and rewrites the port, so the flow lands on a local socket |
 | `port_forward` | Ingress | Map external port range to internal address + port range |
 
 ## Rule Structure
