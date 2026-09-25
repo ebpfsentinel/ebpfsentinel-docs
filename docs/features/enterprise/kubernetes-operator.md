@@ -77,6 +77,91 @@ helm install ebpfsentinel-operator charts/ebpfsentinel-operator \
     --set enterprise.license.existingSecret=ebpfsentinel-license
 ```
 
+## Reporting to the vendor portal
+
+An enterprise estate reports itself to the customer portal through
+`spec.portal` on the `EnterpriseSettings` resource that names its licence. Two
+credentials are involved and they are kept apart on purpose: the **join secret**
+says the deployment exists and is what the subscription is measured against,
+and the **ingest secret** sends counters, which is a choice made and unmade
+separately. Both are minted on the deployment's page in the portal and shown
+once.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Turns the report on. Off, nothing is sent and the portal does not count this estate |
+| `baseUrl` | string | - | Where the portal answers. HTTPS unless it is loopback |
+| `joinSecretRef` | `{name, key}` | - | Secret holding the deployment's join secret |
+| `agentName` | string | host name | What each machine calls itself in the fleet list. Set it only where the host name changes on every restart, because a new name enrols a new agent |
+| `statePath` | string | `/var/lib/ebpfsentinel/portal/enrolment.json` | Where the per-agent credential handed back at enrolment is kept |
+| `caCertSecretRef` | `{name, key}` | - | Secret holding an extra PEM to trust, for an estate egressing through an inspecting proxy. Added to the system roots, never replacing them |
+| `telemetryEnabled` | bool | `false` | Sends counters as well as saying the machine exists |
+| `ingestSecretRef` | `{name, key}` | - | Secret holding the deployment's ingest secret. Neither the licence key nor the join secret |
+| `telemetryIntervalSeconds` | integer | 300 | Seconds between two batches of counters, held between a minute and a day by the agent |
+
+Create the two Secrets from a silent prompt, so the value lands in neither the
+shell history nor the process list:
+
+```bash
+read -rsp 'Join secret: ' JOIN && printf '%s' "$JOIN" | \
+  kubectl -n ebpfsentinel create secret generic ebpfsentinel-portal-join \
+    --from-file=join-secret=/dev/stdin && unset JOIN
+
+read -rsp 'Ingest secret: ' INGEST && printf '%s' "$INGEST" | \
+  kubectl -n ebpfsentinel create secret generic ebpfsentinel-portal-ingest \
+    --from-file=ingest-secret=/dev/stdin && unset INGEST
+```
+
+Then name them:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EnterpriseSettings
+metadata:
+  name: default
+  namespace: ebpfsentinel
+spec:
+  target:
+    all: true
+  licenseSecretRef:
+    name: ebpfsentinel-license
+    key: license.lic
+  portal:
+    enabled: true
+    baseUrl: https://portal.ebpfsentinel.io
+    joinSecretRef:
+      name: ebpfsentinel-portal-join
+      key: join-secret
+    telemetryEnabled: true
+    ingestSecretRef:
+      name: ebpfsentinel-portal-ingest
+      key: ingest-secret
+```
+
+Leave `telemetryEnabled` off and `ingestSecretRef` out to be counted without
+sending counters; turn telemetry on for the deployment in the portal first, since
+the portal refuses to mint an ingest secret while it is off.
+
+The operator resolves `joinSecretRef` and `ingestSecretRef` into the agent's
+configuration document, which is itself the `<agent>-config` Secret described
+above, and mounts `caCertSecretRef` as a file. Rotating either secret is
+therefore a Secret edit followed by the rollout the checksum triggers. Several
+join secrets can be live at once in the portal, so mint the new one, update the
+Secret, let the DaemonSet roll, then withdraw the old one.
+
+The enrolment state under `statePath` lives inside the pod unless a volume is
+mounted there through `extraVolumes` and `extraVolumeMounts` on the
+`EbpfSentinelAgent`. Losing it is not a new machine: an agent that joins again
+under the same name is the same agent with a fresh credential, and with the
+node's network namespace joined, which is the default, the name is the node's
+own. It does need the join secret to still be live, so a Secret pointing at a
+withdrawn join secret leaves a restarted pod unable to report.
+
+The fields behave exactly as the agent's own
+[vendor portal reporting](../../configuration/enterprise.md#vendor-portal-reporting)
+section, and the whole path from purchase to machines reporting is walked in
+[From purchase to reporting agents](../../getting-started/from-purchase-to-reporting-agents.md).
+
 ## Deploying without the operator
 
 The operator is not required. An agent runs as a plain DaemonSet with a

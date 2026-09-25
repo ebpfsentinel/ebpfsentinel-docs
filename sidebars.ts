@@ -13,6 +13,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/installation',
         'getting-started/quickstart',
         'getting-started/concepts',
+        'getting-started/from-purchase-to-reporting-agents',
       ],
     },
     {

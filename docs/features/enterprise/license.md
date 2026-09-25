@@ -4,7 +4,14 @@
 
 ## Overview
 
-The enterprise license system gates feature activation at runtime using Ed25519 + ML-DSA-65 dual-signed license keys bound to specific machines. It includes anti-tamper protections, air-gapped activation workflow, and cryptographic feature isolation.
+The enterprise license system gates feature activation at runtime using Ed25519 + ML-DSA-65 dual-signed license keys. A key bought from the customer portal is a fleet key: one file, installed unchanged on every node. Binding a key to one machine is the air-gapped activation path, for an estate that cannot reach the portal. The system also includes anti-tamper protections and cryptographic feature isolation.
+
+Two kinds of key exist, and they differ in one field:
+
+| Key | Where it comes from | `machine_fingerprint` | Installed on |
+|---|---|---|---|
+| Fleet key | The **Licence keys** page of the customer portal | absent | every node, the same file |
+| Machine-bound key | The [air-gap activation workflow](#air-gap-activation-workflow) | the fingerprint of one machine | that machine only |
 
 ## License Key Format
 
@@ -20,13 +27,14 @@ The enterprise license system gates feature activation at runtime using Ed25519 
   "issued_at": "2026-03-14T00:00:00Z",
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
-  "max_cores_per_agent": 32,
-  "machine_fingerprint": "ca9240c0e28de960..."
+  "max_cores_per_agent": 32
 }
 ```
 
 `max_cores_per_agent` is optional. A license issued without it is read as
-unlimited.
+unlimited. `machine_fingerprint` is optional too: a fleet key carries none, and
+a machine-bound key carries the SHA-256 fingerprint of the one machine it was
+activated for.
 
 ## Available Features
 
@@ -47,6 +55,46 @@ unlimited.
 | `tls-intelligence` | TLS threat intelligence & PQC compliance |
 | `network-forensics` | Ring buffer capture & flow timeline |
 | `automated-response` | Policy engine & SOAR webhook integration |
+
+## Keys bought from the portal
+
+A key issued from the customer portal is a **fleet key**. It carries the
+organisation, the features the tier admits, the expiry, `max_agents` and the
+per-node size band, and **no machine binding**: the payload has no
+`machine_fingerprint` at all. The same file goes on every node of the estate,
+and a node that is rebuilt, replaced or rescheduled onto another machine keeps
+working with it. Replacing a node is not a licensing event.
+
+The fleet size is carried by `max_agents` rather than by one key per machine.
+The agent reports it at `GET /api/v1/license`, and the portal's **Entitlement**
+page counts the machines actually reporting against it and against the contract,
+so an estate that has outgrown what it bought is visible there rather than on a
+node that refused to start.
+
+To get one:
+
+1. Hold a paid subscription. Keys are issued from a contract, never before it.
+2. Arm a second factor on your account, an authenticator or a sign-in device.
+   The portal refuses to issue a key to an account held by a password alone.
+3. As an owner or an administrator of the organisation, open **Licence keys**,
+   choose **Issue a key** and re-type your password.
+4. Choose **Download the key**. The file is named after the organisation, for
+   example `ebpfsentinel-acme.lic`.
+5. Verify it before installing it, with the two commands the page prints under
+   **Check this file yourself**: `sha256sum` against the fingerprint shown beside
+   the key, and [`ebpfsentinel-license inspect`](#inspect-license) against the
+   published public keys.
+
+Installing it is covered per deployment shape in
+[Enterprise Deployment](../../operations/deployment/enterprise.md), and the whole
+path from purchase to machines reporting is walked in
+[From purchase to reporting agents](../../getting-started/from-purchase-to-reporting-agents.md).
+
+Replacing a key (**Replace this key**) signs a new one and stands the old one down
+in the portal in the same step. Nothing reaches an agent from there: an agent
+keeps the key it loaded until the new file is installed and the agent restarted. An estate with no
+route to the portal takes the **Offline bundle** from the same page instead, and
+checks it with [`ebpfsentinel-license bundle`](#check-an-offline-bundle).
 
 ## Host Size Band
 
@@ -72,7 +120,10 @@ signatures.
 
 ## Machine Fingerprint Binding
 
-Licenses are bound to specific machines via a SHA-256 fingerprint computed from:
+Fingerprint binding is the **air-gapped activation path**. A key bought from
+the portal is not bound to any machine; a key produced by the
+[air-gap activation workflow](#air-gap-activation-workflow) is bound to the one
+machine that generated the request, through a SHA-256 fingerprint computed from:
 
 - `/etc/machine-id` (or `/var/lib/dbus/machine-id`)
 - CPU brand string (`/proc/cpuinfo`)
@@ -91,39 +142,14 @@ features, so `activate` refuses it. The file that crosses an air gap is the one
 `generate-request` writes, and every flag of the three agent commands is in the
 [CLI reference](../../cli-reference/index.md#enterprise-agent-commands).
 
-Wildcard fingerprint (`*`) is supported for development/testing licenses.
+A key carrying a fingerprint is refused on any other machine. A key carrying
+none, which is every key the portal issues, is accepted on any machine.
 
-## License Management CLI
+## Checking a License
 
-### Generate Keypair
+These are the customer's tools. They take published public keys and never a
+signing key, so they can be run anywhere a key or a bundle is received.
 
-```bash
-ebpfsentinel-license keygen \
-  --private-key license-signing.key \
-  --public-key license-signing.pub \
-  --pq-private-key license-signing-pq.key \
-  --pq-public-key license-signing-pq.pub
-```
-
-This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are required: licenses are post-quantum dual-signed and verified against both public keys.
-
-### Generate License
-
-```bash
-# Dual-signed license (Ed25519 + ML-DSA-65)
-ebpfsentinel-license generate \
-  --signing-key license-signing.key \
-  --pq-signing-key license-signing-pq.key \
-  --org "Acme Corp" \
-  --features advanced-dlp,ml-detection \
-  --expires 2027-01-01 \
-  --max-agents 50 \
-  --max-cores-per-agent 32 \
-  --fingerprint ca9240c0e28de960... \
-  --output license.key
-```
-
-Both `--signing-key` and `--pq-signing-key` are required - every license is post-quantum dual-signed.
 
 ### Inspect License
 
@@ -172,6 +198,48 @@ For every key in the bundle the tool recomputes the SHA-256 of the signed docume
 | `--output-dir <dir>` | Writes each accepted key as `<fingerprint>.lic`, byte-identical to the signed source |
 
 Every failure in the bundle is reported before the command aborts - an operator across an air gap gets one run. The exit code is non-zero if any key was refused or if a revoked file is still present on disk.
+
+## Vendor Tools: Signing Keys and Licenses
+
+`keygen` and `generate` are the vendor's tools. They need the private signing
+keys, which are held by the vendor on a host with no inbound route, and a
+customer never runs them: a key signed with any other pair is refused by every
+agent, because the agent verifies against the published public keys. They are
+documented here so that what the portal signs, and what a test license built
+for a lab contains, can be read.
+
+### Generate Keypair
+
+```bash
+ebpfsentinel-license keygen \
+  --private-key license-signing.key \
+  --public-key license-signing.pub \
+  --pq-private-key license-signing-pq.key \
+  --pq-public-key license-signing-pq.pub
+```
+
+This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are required: licenses are post-quantum dual-signed and verified against both public keys.
+
+### Generate License
+
+```bash
+# Dual-signed license (Ed25519 + ML-DSA-65)
+ebpfsentinel-license generate \
+  --signing-key license-signing.key \
+  --pq-signing-key license-signing-pq.key \
+  --org "Acme Corp" \
+  --features advanced-dlp,ml-detection \
+  --expires 2027-01-01 \
+  --max-agents 50 \
+  --max-cores-per-agent 32 \
+  --fingerprint ca9240c0e28de960... \
+  --output license.key
+```
+
+Both `--signing-key` and `--pq-signing-key` are required - every license is post-quantum dual-signed.
+
+`--fingerprint` defaults to `*`, which produces a fleet key with no machine
+binding, the same shape the portal issues.
 
 ## Air-Gap Activation Workflow
 
@@ -303,7 +371,7 @@ What happens at startup, when the agent decides what to run:
 - Missing license: runs in OSS mode, every enterprise feature disabled
 - Invalid signature: rejects the license and runs in OSS mode
 - Expired license: rejects the license and runs in OSS mode
-- Fingerprint mismatch: rejects the license with a clear error
+- Fingerprint mismatch, on a machine-bound key only: rejects the license with a clear error. A fleet key carries no fingerprint and is never refused for it
 - Host larger than the licensed size band: rejects the license and runs in OSS mode
 
 What happens when a license expires while the agent is running:
@@ -339,7 +407,7 @@ Returns license status (200 OK or 402 Payment Required):
   "max_agents": 50,
   "max_cores_per_agent": 32,
   "host_cores": 30,
-  "machine_fingerprint": "ca9240c0...",
+  "machine_fingerprint": "*",
   "air_gap_enabled": false,
   "signed_payload": "eyJvcmciOiJBY21lIENvcnAiLCA...",
   "ed25519_signature": "MEUCIQDf4b1c07a9d5e4...",
@@ -348,7 +416,8 @@ Returns license status (200 OK or 402 Payment Required):
 }
 ```
 
-`host_cores` is what this machine measured, reported next to the ceiling so a
+`machine_fingerprint` is the fingerprint a machine-bound key was activated for,
+and `*` for a fleet key, which is bound to no machine. `host_cores` is what this machine measured, reported next to the ceiling so a
 fleet audit can see the headroom left before a resize takes a node out of band.
 `max_cores_per_agent` is always sent, `0` meaning no ceiling; `host_cores` is
 left out where the count could not be read.

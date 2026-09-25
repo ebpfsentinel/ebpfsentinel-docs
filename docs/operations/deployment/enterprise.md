@@ -17,6 +17,10 @@ The agent reaches the warden over an `AF_UNIX` socket given by
 reading `/proc` directly (bare-metal root). The extended-TLS scan is brokered
 whenever the socket is set, so the rootless agent never needs `CAP_SYS_PTRACE`.
 
+Where the licence key and the join secret used below come from, and how to
+confirm afterwards that every node is reporting, is walked in
+[From purchase to reporting agents](../../getting-started/from-purchase-to-reporting-agents.md).
+
 ## Prerequisites
 
 - Linux kernel **6.9+** with BTF (`/sys/kernel/btf/vmlinux`).
@@ -215,6 +219,38 @@ Key values:
 | `daemonset.hostPID` | `true` | Node-wide DLP visibility (set `false` to scope to the pod) |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty keeps it on an `emptyDir` |
+| `portal.enabled` | `false` | Enrol with the vendor portal and report in |
+| `portal.baseUrl` | `""` | Where the portal answers (required when enabled) |
+| `portal.agentName` | `""` | Name each agent reports under; empty means the node's host name |
+| `portal.joinSecret.secretName` / `portal.joinSecret.key` | `""` / `join-secret` | Existing Secret holding the join secret (required when enabled) |
+| `portal.telemetry.enabled` | `false` | Send the optional analytics readings |
+| `portal.telemetry.intervalSeconds` | `300` | Gap between two readings, held between 60 and 86400 |
+| `portal.ingestSecret.secretName` / `portal.ingestSecret.key` | `""` / `ingest-secret` | Existing Secret holding the ingest secret (required when telemetry is enabled) |
+
+The portal's two secrets are only ever read from Secrets you create, never from
+values, so they stay out of the release history. They reach the agent container
+alone, as `EBPFSENTINEL_PORTAL_JOIN_SECRET` and
+`EBPFSENTINEL_PORTAL_INGEST_SECRET`, and the chart refuses to render when a
+switch is on and the Secret it needs is not named. The portal prints the exact
+commands beside each secret it mints and beside the key you download, with its
+own address filled in; they read the secret from a prompt that does not echo
+rather than taking it as an argument:
+
+```bash
+read -rsp 'Join secret: ' SECRET && echo
+printf '%s' "$SECRET" | kubectl -n ebpfsentinel create secret generic ebpfsentinel-portal-join \
+  --from-file=join-secret=/dev/stdin
+unset SECRET
+
+helm upgrade ebpfsentinel-enterprise charts/ebpfsentinel-enterprise -n ebpfsentinel \
+  --reuse-values \
+  --set portal.enabled=true \
+  --set portal.baseUrl=https://portal.ebpfsentinel.io \
+  --set portal.joinSecret.secretName=ebpfsentinel-portal-join
+```
+
+What the agent does with them is described under
+[Vendor portal reporting](../../configuration/enterprise.md#vendor-portal-reporting).
 
 The warden holds the host capabilities
 (`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`); the agent stays

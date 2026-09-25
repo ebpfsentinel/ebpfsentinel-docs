@@ -497,8 +497,12 @@ so one sample is a baseline and the window opens with the second. A delivery
 that fails keeps its window, and the next attempt reports the whole gap rather
 than losing it.
 
-Two numbers cannot be measured by this build and are sent as zero: how full the
-busiest eBPF map is, and how many loads the verifier refused.
+Three numbers travel only where the agent measured them: how full the busiest
+eBPF map is, how many loads the verifier refused, and how many programs loaded
+but could not be attached. A build or a machine that did not measure one sends
+nothing for it rather than a zero, so the portal can say a figure is unmeasured
+instead of printing a clean result. Which map is fullest never leaves the
+machine, only how full it is.
 
 ### Validation Rules
 
