@@ -126,7 +126,7 @@ reporting an idle datapath.
 ### Datapath Ring Buffers
 
 Each eBPF program hands its events to userspace through a ring buffer. These
-three metrics account for that handover, labelled by the producing program
+four metrics account for that handover, labelled by the producing program
 (`source`): `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`, `tc-ids`,
 `tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-qos`, `uprobe-dlp`.
 
@@ -135,6 +135,7 @@ three metrics account for that handover, labelled by the producing program
 | `ebpfsentinel_ringbuf_events_total` | Counter | `source` | Records drained from the ring buffer |
 | `ebpfsentinel_ringbuf_events_dropped_total` | Counter | `source`, `reason` | Records drained then lost before the processing pipeline. `reason="channel_full"` is backpressure on the processing channel; `decode_failed` and `truncated_record` mean the record itself could not be read |
 | `ebpfsentinel_ringbuf_latency_seconds` | Histogram | `source` | Delay between the kernel committing a record and userspace draining it |
+| `ebpfsentinel_ringbuf_drains_total` | Counter | `source`, `trigger` | Drain passes that found at least one record. `trigger="wakeup"` is a pass the kernel started because a batch had built up; `trigger="tick"` is the reader's own 10 ms drain collecting records that never reached that point |
 
 Reading them together tells you where events are lost. The kernel refuses to
 emit when the ring is above 75% full, and counts that refusal in the
@@ -144,6 +145,19 @@ counts what it received and then had to throw away because the processing
 channel was saturated. A rising `ringbuf_latency_seconds` with no drops means
 the pipeline is keeping up but falling behind; drops on top of it mean it is
 not keeping up at all.
+
+The programs do not wake the reader for every record. A record is committed
+silently until 64 KiB are waiting in the ring, about 630 packet events or 15
+DLP events, and only then does the kernel wake the reader, which drains the
+whole batch in one pass. Anything that never reaches that point is collected
+by the reader's own drain every 10 ms, so at a low event rate
+`ringbuf_latency_seconds` sits at a few milliseconds rather than at the
+microseconds a per-record wakeup would give, and under a flood the reader
+wakes once per batch rather than once per packet. `ringbuf_events_total`
+divided by `ringbuf_drains_total` for the same source is the batch size.
+`tc-dns` is the exception: a DNS answer has to reach the domain cache before
+the connection it resolved for, so it still wakes the reader for every record
+and reports only `trigger="wakeup"`.
 
 ### Rules and Configuration
 
