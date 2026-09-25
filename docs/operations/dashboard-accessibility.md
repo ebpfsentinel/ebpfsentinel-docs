@@ -73,11 +73,12 @@ control that opened it when `Escape` closes it.
   table beneath carries the same data.
 - The topology graph is one `role="img"` with a summary label, and the table
   under it lists every flow the picture draws.
+- `prefers-reduced-motion: reduce` is honoured everywhere: dialog and sheet
+  transitions, loading skeletons and hover fades finish at once, and the in-page
+  jumps on the flow analytics screen do not scroll smoothly.
 
 ## Known limitations
 
-- **Reduced motion.** `prefers-reduced-motion` is honoured by the in-page jumps
-  on the flow analytics screen only; dialog and sheet transitions still animate.
 - **Topology.** The graph itself is not navigable node by node; the table under
   it is the accessible reading.
 - **Coverage.** axe-core runs on six routes; the others are not scanned.
