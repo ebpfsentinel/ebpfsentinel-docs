@@ -91,7 +91,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `PERCPU_HASH` | 4.6+ | Lock-free counters |
 | `PROG_ARRAY` + tail call | 4.2+ | Program chaining |
 | `bpf_get_prandom_u32` | 4.1+ | Sampling (IDS, QoS, scrub) |
-| `bpf_csum_diff` | 4.1+ | Checksums in scrub |
+| `bpf_csum_diff` | 4.6+ | Checksums in scrub |
 
 SYN cookies are computed by the kernel's raw syncookie helpers and the
 SYN-ACK is written by `xdp-ratelimit-syncookie` and sent back with `XDP_TX`;

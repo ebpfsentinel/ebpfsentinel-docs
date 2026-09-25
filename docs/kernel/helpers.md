@@ -19,7 +19,7 @@ eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page 
 |--------|--------|---------|---------|
 | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) | 4.1+ | tc-nat-*, tc-scrub | Update IP header checksum after field modification |
 | [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) | 4.1+ | tc-nat-*, tc-scrub | Update TCP/UDP checksum after port/addr rewrite or MSS clamping |
-| [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.1+ | tc-scrub | Checksum delta over a rewritten block of TCP options |
+| [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.6+ | tc-scrub | Checksum delta for the rewritten IP fields and TCP options |
 
 ### Routing & Redirect
 

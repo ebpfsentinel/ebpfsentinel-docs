@@ -40,15 +40,15 @@ Safe wrappers: `with_skb_ct_lookup` (tc-conntrack), `with_xdp_ct_lookup` (xdp-fi
 | KFunc | Kernel | Acquire/Release | Purpose |
 |-------|--------|-----------------|---------|
 | `bpf_skb_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from a TC classifier |
-| `bpf_xdp_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from XDP |
+| `bpf_xdp_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from XDP; declared, not called by any program |
 | `bpf_ct_insert_entry` | 6.0+ | `KF_ACQUIRE \| KF_RELEASE` | Commit an allocated `nf_conn___init` and return a live `nf_conn*` |
-| `bpf_ct_set_timeout` | 6.0+ | - | Set the initial timeout on an allocated entry |
+| `bpf_ct_set_timeout` | 6.0+ | - | Set the initial timeout on an allocated entry; declared, not called by any program |
 | `bpf_ct_change_timeout` | 6.0+ | - | Update the timeout on an inserted entry |
-| `bpf_ct_set_status` | 6.0+ | - | Set the initial status bitmask on an allocated entry |
-| `bpf_ct_change_status` | 6.0+ | - | Update the status bitmask on an inserted entry |
+| `bpf_ct_set_status` | 6.0+ | - | Set the initial status bitmask on an allocated entry; declared, not called by any program |
+| `bpf_ct_change_status` | 6.0+ | - | Update the status bitmask on an inserted entry; declared, not called by any program |
 | `bpf_ct_set_nat_info` | 6.1+ | - | Configure SNAT/DNAT rewrite info on an allocated entry |
 
-Safe wrappers: `CtBuilder` (allocate, configure, insert; used by tc-nat-ingress and tc-nat-egress) and `CtEntry` (`change_timeout`, `change_status` on a live entry). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically.
+Safe wrappers: `CtBuilder` (allocate, configure, insert; used by tc-nat-ingress and tc-nat-egress) and `CtEntry` (`change_timeout` on a live entry). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically.
 
 `kill_flow_via_skb_ct` (tc-ids) and `kill_flow_via_xdp_ct` (xdp-firewall) terminate a flow from inside the program: lookup, collapse the entry's timeout to one millisecond so the conntrack garbage collector reaps it, release. `IPS_DYING` cannot be used for this: it is in the kernel's unchangeable status mask and a BPF program asking for it is refused.
 

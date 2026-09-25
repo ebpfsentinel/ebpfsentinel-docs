@@ -20,18 +20,18 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 
 | # | Program | Hook | Purpose | Key Kernel Features |
 |---|---------|------|---------|---------------------|
-| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, conntrack fast-path |
-| 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | PerCPU hash token buckets, `bpf_ktime_get_coarse_ns`, kernel raw SYN cookie check, tail calls to `xdp-ratelimit-syncookie` and `xdp-loadbalancer` |
-| 3 | `tc-conntrack` | TC ingress | TCP/UDP/ICMP state machine (IPv4/IPv6) | LRU hash, bidirectional key normalization, packet+byte counters, unified V4/V6 state machine |
+| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, hash maps, `bpf_loop` rule scan, kernel conntrack lookup, PROG_ARRAY tail-call |
+| 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | Per-CPU LRU hash buckets, `bpf_ktime_get_coarse_ns`, oversized ICMP drop, kernel raw SYN cookie check, tail calls to `xdp-ratelimit-syncookie` and `xdp-loadbalancer` |
+| 3 | `tc-conntrack` | TC ingress | Probe of kernel netfilter conntrack (IPv4/IPv6) | `bpf_skb_ct_lookup` kfunc, `nf_conn` fields read at offsets resolved from the running kernel's BTF |
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
 | 5 | `tc-nat-egress` | TC egress | SNAT / masquerade (IPv4/IPv6) | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) |
 | 6 | `tc-ids` | TC ingress (egress optional) | Intrusion detection, sampling | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) |
 | 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Bloom filter map, LRU hash map (IOC confirmation), VLAN and QinQ tag parsing |
-| 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP:53 identification, RingBuf emission |
+| 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP and TCP port 53, RingBuf emission |
 | 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
-| 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, IPv4/IPv6) | [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
-| 11 | `xdp-loadbalancer` | XDP | L4 load balancing (TCP/UDP/TLS passthrough) | Destination IP/port rewrite, MAC swap, checksum fixup, per-service round-robin, health-aware backend selection |
-| 12 | `tc-qos` | TC egress, plus `tc_qos_ingress` on ingress | QoS / traffic shaping | Token bucket bandwidth limiting, WF2Q+ queuing, 4-level classifier, delay/loss emulation |
+| 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, TCP flags, ECN, TOS, TCP timestamps, fragment drop, IPv4/IPv6) | [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/), [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
+| 11 | `xdp-loadbalancer` | XDP | L4 load balancing (TCP/UDP/TLS passthrough) | L2 direct server return or DNAT, DEVMAP redirect or `XDP_TX`, round-robin / IP hash / weighted / Maglev, health-aware backend selection |
+| 12 | `tc-qos` | TC egress, plus `tc_qos_ingress` on ingress | QoS / traffic shaping | Per-pipe token bucket with ECN CE marking, wildcard classifier ladder, loss emulation, delay through EDT timestamps (`fq` qdisc) |
 | 13 | `xdp-firewall-reject` | XDP (tail call) | Forges TCP RST / ICMP unreachable for REJECT rules | `XDP_TX`, per-source reply rate limit, `PKT_CTX` shared with `xdp-firewall` |
 | 14 | `xdp-ratelimit-syncookie` | XDP (tail call) | Answers a SYN flood with a SYN-ACK cookie | Kernel raw SYN cookie generation, `XDP_TX` |
 | 15 | `xdp-vip-announcer` | XDP (tail call) | Answers ARP for load-balancer virtual IPs while this node is the elected speaker | `XDP_TX`, fixed 28-byte ARP rewrite |

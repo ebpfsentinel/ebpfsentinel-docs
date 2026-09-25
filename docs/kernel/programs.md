@@ -187,7 +187,7 @@ forged SYN+ACK instead of reaching the host:
 
 The LPM lookup runs **before** per-IP rule matching. If a source IP falls within a country tier's CIDR range, the tier's `RateLimitConfig` is applied instead of the per-IP or default config. Country CIDRs are loaded from the GeoIP database at startup and config reload.
 
-Timestamps use [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) - monotonic and suspend-aware (accurate after sleep/hibernate).
+Bucket refills and window checks read `bpf_ktime_get_coarse_ns`, whose millisecond precision is enough for rate limiting and which costs far less per packet. Event timestamps use [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/), monotonic and suspend-aware.
 
 ---
 
