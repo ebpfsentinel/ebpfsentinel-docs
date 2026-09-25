@@ -20,7 +20,7 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 
 | # | Program | Hook | Purpose | Key Kernel Features |
 |---|---------|------|---------|---------------------|
-| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, CPUMAP, conntrack fast-path |
+| 1 | `xdp-firewall` | XDP | Stateful L3/L4 packet filtering | LPM trie, PROG_ARRAY tail-call, conntrack fast-path |
 | 2 | `xdp-ratelimit` | XDP | DDoS protection & rate limiting | PerCPU hash token buckets, `bpf_ktime_get_coarse_ns`, kernel raw SYN cookie check, tail calls to `xdp-ratelimit-syncookie` and `xdp-loadbalancer` |
 | 3 | `tc-conntrack` | TC ingress | TCP/UDP/ICMP state machine (IPv4/IPv6) | LRU hash, bidirectional key normalization, packet+byte counters, unified V4/V6 state machine |
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
@@ -42,7 +42,7 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 ```
 INGRESS:
   NIC → XDP (xdp-firewall)
-          ├── XDP_DROP / XDP_PASS / CPUMAP redirect → [end of XDP]
+          ├── XDP_DROP / XDP_PASS → [end of XDP]
           └── tail_call (XDP_PROG_ARRAY)
                 ├── slot 0 → xdp-ratelimit
                 │             ├── XDP_DROP / XDP_PASS

@@ -25,7 +25,7 @@ eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-firewall, xdp-loadbalancer | Redirect through `CpuMap.redirect()` / `DevMap.redirect()`: DevMap (wire-speed LB forwarding) or CpuMap (DDoS CPU steering) |
+| [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-loadbalancer | Redirect through `DevMap.redirect()` for wire-speed LB forwarding |
 | [`bpf_check_mtu`](https://docs.ebpf.io/linux/helper-function/bpf_check_mtu/) | 5.12+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | Validate MTU before passing/forwarding - drops oversized packets |
 | [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall | Kernel FIB lookup for route enrichment |
 

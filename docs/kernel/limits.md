@@ -12,6 +12,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | xdp-firewall | LPM CIDR entries (per direction per family) | 131,072 |
 | xdp-firewall | IP set entries (IPv4) | 65,536 |
 | xdp-firewall | Interface groups | 31 |
+| xdp-firewall | Per-source state counters | 65,536 when a per-source limit is set, 1,024 otherwise |
+| xdp-firewall-reject | Throttled reject sources | 65,536 when a rule forges a refusal, 1,024 otherwise |
 | xdp-ratelimit | Rate limit configs | 10,240 |
 | xdp-ratelimit | Tracked source IPs (bucket state) | `ratelimit.max_buckets`, 65,536 by default |
 | xdp-ratelimit | Country CIDRs (per family) | 131,072 |
@@ -22,18 +24,16 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | xdp-loadbalancer | Services | 4,096 |
 | xdp-loadbalancer | Backends per service | 256 |
 | xdp-loadbalancer | Backends total | 65,536 |
-| tc-conntrack | IPv4 connections | 262,144 |
-| tc-conntrack | IPv6 connections | 65,536 |
-| tc-conntrack | Per-source counters | 65,536 |
+| xdp-loadbalancer | Maglev services | 256 |
+| xdp-vip-announcer | Virtual IPs | 256 |
+| tc-conntrack | Connections | Kernel netfilter table (`nf_conntrack_max`) |
 | tc-nat-ingress | DNAT rules (IPv4) | 256 |
 | tc-nat-ingress | DNAT rules (IPv6) | 128 |
-| tc-nat-ingress | Exact-match NAT hash | 16,384 |
 | tc-nat-ingress | NPTv6 rules | 64 |
-| tc-nat-ingress | Hairpin CT entries | 16,384 |
+| tc-nat-ingress | Hairpin CT entries | 16,384 with hairpin NAT on, 1,024 otherwise |
 | tc-nat-egress | SNAT rules (IPv4) | 256 |
 | tc-nat-egress | SNAT rules (IPv6) | 128 |
-| tc-nat-egress | NAT port allocations | 65,536 |
-| tc-ids | IDS patterns | 10,240 |
+| tc-ids | IDS patterns (destination-keyed and source-keyed) | 10,240 each |
 | tc-ids | L7 inspection ports | 256 |
 | tc-threatintel | IOCs per family | `threatintel.max_entries`, derived from the feeds, up to 4,194,304 |
 | tc-threatintel | Bloom filter per family | same as the IOC table |
@@ -55,14 +55,20 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | LPM CIDR entries (per direction per family) | 131,072 | `FW_LPM_SRC_V4` / `FW_LPM_DST_V4` / `FW_LPM_SRC_V6` / `FW_LPM_DST_V6` (LPM Trie, `MAX_LPM_RULES`) |
 | IP set entries (IPv4) | 65,536 | `FW_IPSET_V4` (HashMap, `MAX_IPSET_ENTRIES_V4`) |
 | IP set aliases | 255 | Set ids 1-255 (id 0 means the rule matches no set) |
-| Per-source state counters | 65,536 | `CT_SRC_COUNTERS` (HashMap, `CT_SRC_COUNTER_MAX`) |
+| Per-source state counters | 65,536 when `conntrack.max_src_states` or `conntrack.max_src_conn_rate` is set, 1,024 otherwise | `CT_SRC_COUNTERS` (HashMap, `CT_SRC_COUNTER_MAX`, sized at load) |
 | Per-rule state counters | 4,096 | `FW_RULE_STATE_COUNT` (Array, `MAX_FIREWALL_RULES`) |
 | Interface groups | 31 | Bits 0-30 in `INTERFACE_GROUPS` bitmask (bit 31 = inversion) |
 | Conntrack entries | Kernel-managed | Kernel netfilter (no BPF shadow tables) |
-| DEVMAP redirect targets | 256 | `LB_DEVMAP` (xdp-loadbalancer) |
-| CPUMAP CPU targets | 128 | `DDOS_CPUMAP` (xdp-firewall) |
 | Tail-call programs | 4 | `XDP_PROG_ARRAY` (ProgramArray) |
 | RingBuf size | 1 MB | `EVENTS` |
+
+### xdp-firewall-reject
+
+| Resource | Limit | Map / Constant |
+|----------|-------|----------------|
+| Throttled reject sources | 65,536 when a firewall rule forges a refusal, 1,024 otherwise | `REJECT_RATELIMIT` (LRU Hash, sized at load) |
+
+No RingBuf. Reads the parsed offsets from `PKT_CTX`, shared with `xdp-firewall`.
 
 ### xdp-ratelimit
 
@@ -80,7 +86,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | DDoS connection table | `ddos.connection_tracking.max_entries` (65,536 by default, 1,024 to 4,194,304) | `CONN_TABLE` (LruPerCpuHash, sized at load) |
 | Half-open connection counters | `ddos.max_tracked_sources` | `HALF_OPEN_COUNTERS` (LruPerCpuHash, sized at load) |
 | Flood counters | `ddos.max_tracked_sources` | `FLOOD_COUNTERS` (LruPerCpuHash, sized at load) |
-| SYN cookie secrets | 1 | `SYNCOOKIE_SECRET` (Array, 32 bytes) |
+| Tail-call programs | 2 used of 4 | `RL_PROG_ARRAY` (ProgramArray): slot 0 `xdp-ratelimit-syncookie`, slot 1 `xdp-loadbalancer` |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 1 MB | `EVENTS` |
 
@@ -92,7 +98,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | 8 | ~42 MB | ~87 MB |
 | 16 | ~84 MB | ~174 MB |
 
-The per-CPU part is what moves with the machine; the rest of the loaded maps is about 56 MB whatever the CPU count. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
+The per-CPU part is what moves with the machine. With every feature enabled the agent locked 71 MB in total on 4 CPUs, so the rest of the loaded maps is about 28 MB. SYN cookies use the kernel's own secret through the raw SYN cookie helpers; there is no cookie secret map. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 ### xdp-loadbalancer
 
@@ -102,22 +108,25 @@ The per-CPU part is what moves with the machine; the rest of the loaded maps is 
 | Backends per service | 256 | `LB_MAX_BACKENDS_V2` (slot: `service_id × 256 + [0..255]`) |
 | Backends total | 65,536 | `LB_BACKENDS` (HashMap, `MAX_LB_BACKENDS_TOTAL`) |
 | Round-robin state entries | 4,096 | `LB_RR_STATE` (PerCpuArray, `MAX_LB_SERVICES`) |
+| Maglev services | 256 | `LB_MAGLEV` (HashMap, `MAX_MAGLEV_SERVICES`) |
+| Backend MAC entries | 65,536 | `LB_BACKEND_MAC` (HashMap, `MAX_LB_BACKEND_MAC`) |
+| DEVMAP redirect targets | 256 | `LB_DEVMAP` (DevMap) |
 | RingBuf size | 1 MB | `EVENTS` |
 
 ### tc-conntrack
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| Conntrack entries | Kernel-managed | Kernel netfilter via `bpf_skb_ct_lookup` kfunc |
-| Per-source connection counters | 65,536 | `CT_SRC_COUNTER` (`CT_SRC_COUNTER_MAX`) |
+| Conntrack entries | Kernel-managed | Kernel netfilter via the `bpf_skb_ct_lookup` kfunc, bounded by `nf_conntrack_max` |
+| Config entries | 1 | `CT_CONFIG` (Array) |
 
-LRU eviction handles overflow - oldest connections are evicted automatically. No RingBuf.
+The program keeps no connection table of its own, so there is no BPF-side eviction: the kernel's conntrack table and its timeouts decide what is tracked. No RingBuf.
 
 ### tc-scrub
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| Config entries | 1 | `SCRUB_CONFIG` (PerCpuArray, index 0) |
+| Config entries | 1 | `SCRUB_CONFIG` (Array, index 0) |
 | Max MSS clamp | 65,535 | `u16` field |
 | Min TTL / hop limit | 255 | `u8` field |
 
@@ -129,9 +138,8 @@ No RingBuf, no rule maps. Single global config.
 |----------|-------|----------------|
 | DNAT rules (IPv4) | 256 | `NAT_DNAT_RULES` (Array, `MAX_NAT_RULES`) |
 | DNAT rules (IPv6) | 128 | `NAT_DNAT_RULES_V6` (Array, `MAX_NAT_RULES_V6`) |
-| Exact-match NAT entries | 16,384 | `NAT_HASH_DNAT` (HashMap, `MAX_NAT_HASH_EXACT`) |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
-| Hairpin CT entries | 16,384 | `NAT_HAIRPIN_CT` (LRU Hash, `MAX_HAIRPIN_CT`) |
+| Hairpin CT entries | 16,384 with `nat.hairpin.enabled`, 1,024 otherwise | `NAT_HAIRPIN_CT` (LRU Hash, `MAX_HAIRPIN_CT`, sized at load) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 
 No RingBuf.
@@ -142,9 +150,7 @@ No RingBuf.
 |----------|-------|----------------|
 | SNAT rules (IPv4) | 256 | `NAT_SNAT_RULES` (Array, `MAX_NAT_RULES`) |
 | SNAT rules (IPv6) | 128 | `NAT_SNAT_RULES_V6` (Array, `MAX_NAT_RULES_V6`) |
-| Exact-match NAT entries | 16,384 | `NAT_HASH_SNAT` (HashMap, `MAX_NAT_HASH_EXACT`) |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
-| Port allocations | 65,536 | `NAT_PORT_ALLOC` (LRU Hash, `MAX_NAT_PORT_ALLOC`) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 
 No RingBuf.
@@ -154,12 +160,13 @@ No RingBuf.
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
 | IDS patterns | 10,240 | `IDS_PATTERNS` (HashMap, port+protocol key) |
+| Source-keyed IDS patterns | 10,240 | `IDS_SRC_PATTERNS` (HashMap) |
 | L7 inspection ports | 256 | `L7_PORTS` (HashMap, `MAX_L7_PORTS`) |
 | L7 payload capture | 2,048 bytes | `MAX_L7_PAYLOAD` (compact: 512 bytes `SMALL_L7_PAYLOAD`) |
-| Sampling rate | 0-100% | `IDS_SAMPLING_CONFIG` (Array) |
-| L7 signatures detected | 4 | HTTP GET, HTTP POST, TLS, SSH |
+| Sampling rate | 0-100% | `IDS_SAMPLING_CONFIG` (Array, random threshold) |
+| Tenant cgroups | 4,096 | `TENANT_CGROUP_MAP` (HashMap) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
-| RingBuf size | 4 MB | `EVENTS` (variable-size via `bpf_dynptr`) |
+| RingBuf size | 4 MB | `EVENTS` (two record sizes, 512 B and 2 KiB payload) |
 | Backpressure threshold | 75% | Events dropped when buffer >75% full |
 
 **Rationale for the 2 KiB payload budget**: full HTTP/1.1 request
@@ -170,6 +177,8 @@ HTTP request lines, TLS record headers, and protocol signatures -
 it is selected when the TCP payload is ≤ 512 bytes, saving 1 536 B
 per RingBuf entry. The 4 MiB ring buffer absorbs the larger events
 without backpressure drops at typical enterprise rates.
+
+The program forwards the payload; protocol detection runs in userspace.
 
 ### tc-threatintel
 
@@ -191,6 +200,7 @@ The capacity follows the enabled feeds' `max_iocs` unless set by hand, up to fou
 | DNS payload capture | 512 bytes | `DNS_MAX_PAYLOAD` |
 | RingBuf size | 256 KB | `DNS_EVENTS` |
 | Captured protocols | 1 | UDP port 53 only |
+| Backpressure threshold | 75% | Events dropped when buffer >75% full |
 
 Raw DNS wire-format forwarded to userspace. No rule maps.
 
@@ -206,17 +216,29 @@ Raw DNS wire-format forwarded to userspace. No rule maps.
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 1 MB | `EVENTS` |
 
+The `tc_qos_ingress` program in the same object shares these maps.
+
 ### uprobe-dlp
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| Concurrent SSL reads tracked | 10,240 | `SSL_READ_ARGS` (HashMap, per-task) |
+| Concurrent SSL reads tracked | 10,240 | `SSL_READ_ARGS` (LRU Hash, per task) |
 | DLP excerpt size | 4,096 bytes | `DLP_MAX_EXCERPT` (compact: 256 bytes `DLP_SMALL_EXCERPT`) |
 | Hooked functions | 2 | `SSL_write`, `SSL_read` |
 | Supported libraries | 2 | OpenSSL, BoringSSL |
-| RingBuf size | 4 MB | `EVENTS` (variable-size via `bpf_dynptr`) |
+| RingBuf size | 4 MB | `EVENTS` (two record sizes, 256 B and 4 KiB excerpt) |
 
-Larger RingBuf because DLP events carry L7 payload content.
+Larger RingBuf because DLP events carry L7 payload content. There is no 75% cut here: a record is lost only when the ring is full.
+
+### xdp-vip-announcer
+
+| Resource | Limit | Map / Constant |
+|----------|-------|----------------|
+| Virtual IPs | 256 | `VIP_SET` (HashMap, `MAX_VIPS`) |
+| Interface MACs | 64 | `IFACE_MAC` (HashMap, `MAX_IFACE_MAC`) |
+| Self-owned bindings | 256 | `SELF_OWNED_BINDINGS` (HashMap, `MAX_SELF_BINDINGS`) |
+
+No RingBuf.
 
 ## Global Limits
 
@@ -226,7 +248,9 @@ Larger RingBuf because DLP events carry L7 payload content.
 | Interfaces tracked | 64 | `INTERFACE_GROUPS` max entries |
 | Zones | 256 | `MAX_ZONE_ENTRIES` |
 | Zone policies | 64 | `MAX_ZONE_POLICIES` |
-| Total RingBuf memory | 10.25 MB | Sum of all program RingBuf allocations |
+| Tenant VLANs / interfaces | 1,024 each | `TENANT_VLAN_MAP` / `TENANT_IFINDEX_MAP` |
+| Tenant subnets | 4,096 IPv4, 2,048 IPv6 | `TENANT_SUBNET_V4` / `TENANT_SUBNET_V6` (LPM Trie) |
+| Total RingBuf memory | 13.25 MB | 4 MB each for `tc-ids` and `uprobe-dlp`, 1 MB each for the five other packet programs that report, 256 KB for `tc-dns`; each ring is private to its program |
 | Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
-| TC programs per hook | 6 ingress, 2 egress | Ordered by priority in TC classifier chain |
+| TC programs per hook | 7 ingress, 3 egress | TCX links appended in attach order; `tc-ids` on egress only with `inspect_egress` or the cgroup resolver |
 | eBPF programs total | 16 | 7 XDP + 8 TC + 1 uprobe (`xdp-pass` is test-only) |

@@ -347,7 +347,6 @@ The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule
 
 ### Advanced XDP Features
 
-- **CPU steering** via `CPUMAP` for NUMA-aware packet distribution
 - **FIB routing enrichment** via `bpf_fib_lookup` for next-hop and routing anomaly detection
 - **MTU validation** via `bpf_check_mtu` before pass and redirect operations - drops oversized packets and increments `mtu_exceeded` Prometheus metric
 

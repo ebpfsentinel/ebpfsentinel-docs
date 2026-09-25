@@ -85,7 +85,6 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_ktime_get_boot_ns` | 5.8+ | Suspend-aware timestamps |
 | CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere |
 | `bpf_fib_lookup` | 4.18+ | FIB routing enrichment in the XDP firewall |
-| `CPUMAP` | 4.15+ | CPU steering under DDoS |
 | `DEVMAP` | 4.14+ | Load balancer redirect to a backend interface |
 | `bpf_get_socket_cookie` | 4.12+ | Flow tracking |
 | `LPM_TRIE` | 4.11+ | CIDR matching |
