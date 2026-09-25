@@ -19,7 +19,7 @@ Each of these is handed to its service, which rewrites the kernel maps of the pr
 - Firewall rules, mode, interface scope and anti-lockout
 - Rule schedules
 - IDS, IPS and L7 rules, modes and sampling
-- Rate limit policies and country tiers, DDoS policies
+- Rate limit policies, defaults (`default_rate`, `default_burst`, `default_algorithm`) and country tiers, DDoS policies
 - DLP settings: enabled switch, mode and the built-in patterns the file re-tunes
 - Connection tracking settings
 - NAT rules (DNAT, SNAT, NPTv6) and hairpin
@@ -98,6 +98,8 @@ Every map but the ring buffers is pinned under `/sys/fs/bpf/ebpfsentinel/` by na
 - Per-program counters, which carry on rather than restart from zero
 
 The services push their rules again when a program is wired in, so a table that was empty is filled. The pins are removed at shutdown.
+
+A rate limiter a reload enables gets its defaults and its country tiers, which resolve through aliases into its own LPM tries.
 
 A firewall a reload enables for the first time, because the agent started with `firewall.enabled: false`, gets everything a startup firewall gets: the LPM tries go to the alias, IPS and anti-DDoS services, which install what they kept while the datapath had nowhere to put it (the IPS blacklist with its remaining lifetime, the countries the anti-DDoS engine blocked, the content last pushed into external aliases), the IP set map goes to the alias service, the per-zone counters are exported and the VIP announcer is loaded behind it. A firewall loaded again after that reuses the same pinned maps and the managers the services already hold. The per-zone counter export stops with the firewall and starts again with it, from where the pinned counters stand rather than from zero.
 
