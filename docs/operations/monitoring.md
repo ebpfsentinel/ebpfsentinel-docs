@@ -5,7 +5,9 @@
 The agent serves `/metrics` on a dedicated listener bound to `agent.metrics_port`
 (default `9090`), so the metrics port can be scraped while the control-API port
 (`agent.http_port`, default `8080`) is firewalled. `/metrics` is also reachable
-on the API port. See [Prometheus Metrics](../api-reference/prometheus-metrics.md)
+on the API port. Both answer under the same rate limit, and when authentication
+is enabled both require a token unless `auth.metrics_auth_required` is `false`
+(it defaults to `true`). See [Prometheus Metrics](../api-reference/prometheus-metrics.md)
 for the full catalog.
 
 ### Scrape Configuration
@@ -16,6 +18,9 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
     scrape_interval: 15s
+    # With auth enabled and metrics_auth_required left on:
+    # authorization:
+    #   credentials_file: /etc/prometheus/ebpfsentinel.token
 ```
 
 ### Key Alerts
@@ -124,15 +129,17 @@ fails the boot too.
 
 ## Structured Logging
 
-JSON logs by default:
+JSON logs on stdout by default, one object per line, with the event's fields
+flattened beside the message and the `service` span (name and version) attached:
 
 ```json
-{"timestamp":"2026-02-19T10:00:00Z","level":"INFO","target":"agent","message":"agent started","version":"0.1.0"}
+{"timestamp":"2026-02-19T10:00:00.000000Z","level":"INFO","message":"eBPFsentinel agent starting","config_path":"/etc/ebpfsentinel/config.yaml","log_level":"info","log_format":"json","xdp_mode":"auto","interfaces":"[\"eth0\"]","target":"ebpfsentinel_agent::startup","span":{"service.name":"ebpfsentinel","service.version":"...","name":"service"},"spans":[...]}
 ```
 
-Switch to text: `--log-format text`
+Switch to human-readable output with `--log-format text` or `agent.log_format: text`.
 
-Per-module filtering: `RUST_LOG=domain=debug,adapters::http=trace`
+`RUST_LOG`, when set, replaces the configured level with a per-module filter:
+`RUST_LOG=info,application=debug,adapters::http=trace`.
 
 ## Health Checks
 
@@ -140,7 +147,9 @@ Per-module filtering: `RUST_LOG=domain=debug,adapters::http=trace`
 # Liveness
 curl http://localhost:8080/healthz
 
-# Readiness (eBPF programs loaded)
+# Readiness: 200 when the eBPF programs are loaded, no kernel helper they
+# need is missing and no attachment was refused; 503 otherwise, with the
+# reason in the body (ebpf_loaded, kernel_helpers_missing, attach_blocked)
 curl http://localhost:8080/readyz
 
 # Full status
