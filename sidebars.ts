@@ -110,6 +110,7 @@ const sidebars: SidebarsConfig = {
         'configuration/response',
         'configuration/capture',
         'configuration/interface-groups',
+        'configuration/namespaces',
         'configuration/zones',
         'configuration/geoip',
         'configuration/auth',

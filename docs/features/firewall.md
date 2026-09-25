@@ -15,8 +15,8 @@ Firewall rules can be scoped to control where they apply:
 | Scope | Description |
 |-------|-------------|
 | **Global** | Rule applies to all interfaces and namespaces (default) |
-| **Interface(`name`)** | Rule applies only to traffic on the named interface |
-| **Namespace(`name`)** | Rule is owned by the named eBPFsentinel namespace: an `operator` needs that namespace in its `namespaces` claim to write it. The namespace does not narrow the traffic (one interface carries several namespaces), so restrict it with its own match fields: addresses, ports, protocol, VLAN or `interfaces` groups |
+| **Interface(`name`)** | Rule applies only to traffic on the named interface, enforced in the kernel. The interface must be one of `agent.interfaces`, and it takes one bit of the 31 shared with `interface_groups` (see [Interface Groups](../configuration/interface-groups.md)) |
+| **Namespace(`name`)** | Rule is owned by the named eBPFsentinel namespace: an `operator` needs that namespace in its `namespaces` claim to write it. The namespace does not narrow the traffic (one interface carries several namespaces), so restrict it with its own match fields: addresses, ports, protocol, VLAN or `interfaces` groups. An `operator` writing one through the API must keep a source or destination inside the namespace's [`cidrs`](../configuration/namespaces.md) |
 
 Scope values are validated at config load and API ingestion, by one rule
 reached from both:

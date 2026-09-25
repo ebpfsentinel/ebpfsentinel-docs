@@ -116,7 +116,10 @@ label that role-based access checks against the `namespaces` claim of an
 to one interface, so one NIC can carry traffic governed by several namespaces,
 each owned by a different team. What a namespace rule matches is set by its own
 fields (addresses, ports, protocol, VLAN, `interfaces` groups), never by the
-namespace name.
+namespace name. What keeps an operator's rule on their own team's traffic is
+the [`namespaces`](../configuration/namespaces.md) section: it binds each
+namespace to CIDRs, and a rule an operator writes must match a source or
+destination inside them.
 
 ### IDS/IPS, Threat Intelligence, DNS Intelligence, L7 Firewall
 

@@ -24,6 +24,12 @@ Each entry under `interface_groups` is a group name mapped to its configuration:
 
 Maximum 31 groups (groups are stored as a 31-bit mask, with bit 31 reserved for inversion).
 
+The same 31 bits also carry firewall rules scoped to one interface: every
+interface in `agent.interfaces` takes the next free bit after the named groups,
+in the order it is listed, so the kernel can hold a rule to that interface. An
+interface left without a bit cannot carry an interface-scoped rule, and such a
+rule fails the configuration load. Keep groups plus interfaces within 31.
+
 ## Inversion
 
 When referencing interface groups in rules (firewall, QoS classifiers, QoS pipes, etc.), prefix the group name with `"!"` to invert the match. For example, `"!lan"` means "all interfaces except those in the lan group."

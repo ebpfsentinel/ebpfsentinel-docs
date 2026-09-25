@@ -119,7 +119,7 @@ auth:
 | Role | Permissions |
 |------|-------------|
 | `admin` | Full access to all endpoints |
-| `operator` | Every write the `viewer` role is refused, **except** firewall rules whose scope is `global` or an interface: those are admin-only. A namespace-scoped rule needs that namespace in the identity's `namespaces` claim, and an identity with no `namespaces` claim at all grants no namespace rather than all of them |
+| `operator` | Every write the `viewer` role is refused, **except** firewall rules whose scope is `global` or an interface: those are admin-only. A namespace-scoped rule needs that namespace in the identity's `namespaces` claim, and an identity with no `namespaces` claim at all grants no namespace rather than all of them. The rule must also match a source or destination inside that namespace's [`cidrs`](../configuration/namespaces.md), or it is refused with `NAMESPACE_TRAFFIC_FORBIDDEN` |
 | `viewer` | Read-only access to all endpoints |
 
 A token carrying no `role` claim is treated as `viewer`.

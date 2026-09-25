@@ -76,7 +76,7 @@ firewall:
 | `src_port` | `string` | No | Source port or range (`80`, `1024-65535`) |
 | `dst_port` | `string` | No | Destination port or range |
 | `vlan_id` | `integer` | No | 802.1Q VLAN ID (0--4094). Omit to match any VLAN, `0` matches untagged traffic only |
-| `scope` | `string` or `map` | No | `global`, a bare interface name (`eth0`), or a map `{ interface: <name> }` / `{ namespace: <name> }` |
+| `scope` | `string` or `map` | No | `global`, a bare interface name (`eth0`), or a map `{ interface: <name> }` / `{ namespace: <name> }`. An interface must be in `agent.interfaces`; a namespace is bound to its addresses by [`namespaces`](namespaces.md) |
 | `flags` | `string` | No | TCP flags in `match/mask` notation (`S/SA`, `A/A`, `F/F`, `R/R`) |
 | `icmp_type` | `integer` or `string` | No | ICMP type number or name (`echo-request`, `8`) |
 | `icmp_code` | `integer` | No | ICMP code number |
