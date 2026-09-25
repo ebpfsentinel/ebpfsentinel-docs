@@ -68,21 +68,63 @@ helper support was not verified.
 
 ## Bare metal (systemd)
 
-The `dist/` directory ships two units and an installer:
+The release tarball carries the agent, the `ebpfsentinel-license` CLI and the
+two licence signing public keys, and nothing else: no warden, no eBPF objects,
+no units. A bare-metal install is therefore built from the enterprise checkout,
+with the OSS repository beside it:
 
 ```bash
-# From a directory holding the built binaries (ebpfsentinel-enterprise-agent,
-# enterprise-warden, ebpfsentinel-license), the dist/ files and ebpfsentinel.yaml:
+# eBPF objects, from the OSS repository
+(cd ../ebpfsentinel && cargo xtask ebpf-build)
+cargo build --release --bin ebpfsentinel-enterprise-agent --bin enterprise-warden --bin ebpfsentinel-license
+
+# Stage what install.sh expects next to it
+cp target/release/{ebpfsentinel-enterprise-agent,enterprise-warden,ebpfsentinel-license} dist/
+mkdir -p dist/ebpf && cp ../ebpfsentinel/target/bpfel-unknown-none/release/* dist/ebpf/
+cp config/ebpfsentinel.yaml dist/
+
 sudo ./dist/install.sh
-sudo cp my-license.key /etc/ebpfsentinel/license.key
+sudo install -m 0640 my-license.key /etc/ebpfsentinel/license.key
 sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterprise
 journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
 ```
 
-The agent unit `Wants` (not `Requires`) the warden and waits for its socket before
-starting; a warden restart does not tear the agent down. On bare metal the two
-share the host PID namespace, so the warden reads `/proc` directly - no
-`/host/proc` mount is needed.
+`install.sh` reads everything from its own directory. It checks the kernel
+version and BTF, then:
+
+- installs `ebpfsentinel-enterprise-agent`, `enterprise-warden` and
+  `ebpfsentinel-license` into `/usr/local/bin/`;
+- copies the eBPF objects into `/usr/local/lib/ebpfsentinel/`;
+- installs the config to `/etc/ebpfsentinel/config.yaml` with mode `0640`, and
+  leaves an existing one untouched;
+- creates `/var/lib/ebpfsentinel/`, `captures/` and `data/` under it;
+- installs both units and runs `systemctl daemon-reload`;
+- on hosts where `kernel.apparmor_restrict_unprivileged_userns=1`, loads the
+  per-binary AppArmor profile, or installs the sysctl drop-in when
+  `apparmor_parser` is absent.
+
+It enables and starts nothing.
+
+What the units do:
+
+- **`ebpfsentinel-enterprise-warden.service`** runs
+  `enterprise-warden serve /run/ebpfsentinel/warden.sock --uid 0`, with
+  `RuntimeDirectory=ebpfsentinel` creating the socket directory.
+- **`ebpfsentinel-enterprise.service`** sets `EBPFSENTINEL_WARDEN_SOCK` and
+  `EBPFSENTINEL_LICENSE=/etc/ebpfsentinel/license.key`, waits up to ten seconds
+  for the warden socket, then runs
+  `ebpfsentinel-enterprise-agent --config /etc/ebpfsentinel/config.yaml` from
+  `/var/lib/ebpfsentinel`, where the relative `data/*.redb` paths resolve. It
+  `Wants` rather than `Requires` the warden, so a warden restart does not stop
+  the agent.
+
+On bare metal the two share the host PID namespace, so the warden reads `/proc`
+directly and no `/host/proc` mount is needed. The enterprise API listens on
+`127.0.0.1:8444` unless `--bind-address` says otherwise.
+
+The enterprise agent builds its datapath once at boot: it has no config file
+watcher, no SIGHUP handling and no reload route, so the unit carries no
+`ExecReload` and a config edit takes `systemctl restart ebpfsentinel-enterprise`.
 
 ## Docker Compose
 
@@ -103,14 +145,25 @@ proc-TLS scan; both services run `network_mode: host` and `pid: host`. The agent
 runs as `65534:65534`, `cap-drop: ALL`, with the tailored
 `dist/seccomp/ebpfsentinel-agent.json` profile (the Docker default plus an
 allow-list for the `unshare`/`mount`/`bpf` syscalls the rootless bootstrap needs).
+The license is mounted at `/etc/ebpfsentinel/license.key`, the path the shipped
+config names in `enterprise.license_path`.
+
+The agent's state lives on the `ebpfsentinel-state` volume at
+`/var/lib/ebpfsentinel`, the image's working directory and owned by 65534: the
+redb stores under `data/`, GeoIP databases and the telemetry installation
+identifier. Captures go to the `ebpfsentinel-captures` volume under it. A config
+edit takes `docker compose restart agent`.
 
 ## Kubernetes (Helm)
 
 The `charts/ebpfsentinel-enterprise` chart deploys one agent per node as a
 DaemonSet with the warden as a **native sidecar** (init container with
-`restartPolicy: Always`, Kubernetes 1.28+):
+`restartPolicy: Always`, Kubernetes 1.28+). The release publishes the OSS and
+dashboard charts only, so this one is installed from a checkout of
+`ebpfsentinel-enterprise`:
 
 ```bash
+git clone https://github.com/ebpfsentinel/ebpfsentinel-enterprise.git && cd ebpfsentinel-enterprise
 helm install ent charts/ebpfsentinel-enterprise \
   --namespace ebpfsentinel --create-namespace \
   --set image.repository=ghcr.io/ebpfsentinel/ebpfsentinel-enterprise \
@@ -135,8 +188,12 @@ Key values:
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 
 The warden holds the host capabilities
-(`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`) and mounts host
-`/proc` and `/sys/fs/cgroup` read-only; the agent stays `cap-drop: ALL`. The
+(`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`); the agent stays
+`cap-drop: ALL`. Both containers mount host `/proc` read-only at `/host/proc`,
+and the agent also mounts host `/sys/fs/cgroup` read-only for cgroup attribution.
+The config is a ConfigMap whose checksum is a pod annotation, so a values change
+rolls the DaemonSet. The chart mounts no state volume: the redb stores, GeoIP
+databases and captures live in the container filesystem and go with the pod. The
 chart exposes the enterprise API (8444) and the HA peer gRPC port (9443), and
 nothing else: this binary opens one HTTP listener, so the REST surface,
 `/metrics` and the `/healthz` and `/readyz` probes are all served on 8444 and
