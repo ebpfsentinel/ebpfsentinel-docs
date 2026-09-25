@@ -273,7 +273,7 @@ firewall:
     ports: [22]
 ```
 
-The agent's own REST and gRPC ports (`agent.http_port`, `agent.grpc_port`) are always kept open on top of `ports`. Anti-lockout rules are marked as `system: true` and cannot be deleted via the API.
+The agent's own REST and gRPC ports (`agent.http_port`, `agent.grpc_port`) are always kept open on top of `ports`. Each port is kept open over IPv4 and IPv6, as two rules (`anti-lockout-<port>` and `anti-lockout-<port>-v6`). Anti-lockout rules are marked as `system: true` and cannot be deleted via the API.
 
 ### Packet Normalization (Scrub)
 
