@@ -43,9 +43,13 @@ docker build -f Dockerfile.warden -t ebpfsentinel-warden .
 Confirm the token was created, rather than an API-only fallback:
 
 ```bash
-docker exec ebpfsentinel sh -c 'curl -s localhost:9090/metrics | grep bpf_token_used'
+docker exec ebpfsentinel ebpfsentinel-agent metrics | grep bpf_token_used
 # expect: ebpfsentinel_bpf_token_used 1
 ```
+
+The agent image is distroless and carries no shell and no `curl`, so the check
+goes through the agent's own CLI. With host networking a `curl -s
+localhost:9090/metrics` from the host reaches the same endpoint.
 
 ## Docker Compose
 
@@ -109,6 +113,8 @@ services:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
       - warden-sock:/run/ebpfsentinel:ro
+      - ebpfsentinel-state:/var/lib/ebpfsentinel
+      - ebpfsentinel-captures:/var/lib/ebpfsentinel/captures
       - type: tmpfs              # a container's /sys is read-only
         target: /sys/fs/bpf
         tmpfs:
@@ -116,7 +122,17 @@ services:
 
 volumes:
   warden-sock:
+  ebpfsentinel-state:
+  ebpfsentinel-captures:
 ```
+
+The agent image's working directory is `/var/lib/ebpfsentinel`, owned by uid
+65534, so the relative `data/*.redb` paths of the default config (audit, alerts,
+rule change history) land in `/var/lib/ebpfsentinel/data/`, beside the GeoIP
+databases and the telemetry installation identifier. A named volume there keeps
+all of it across a container recreate: without it the stores live in the
+container's writable layer and the telemetry identifier is minted again on
+every new container.
 
 Two of those lines are easy to get wrong:
 
@@ -162,6 +178,8 @@ docker run -d --name ebpfsentinel \
   -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
   -v /proc:/host/proc:ro \
   -v warden-sock:/run/ebpfsentinel:ro \
+  -v ebpfsentinel-state:/var/lib/ebpfsentinel \
+  -v ebpfsentinel-captures:/var/lib/ebpfsentinel/captures \
   --tmpfs /sys/fs/bpf:mode=1777 \
   ghcr.io/ebpfsentinel/ebpfsentinel
 ```
@@ -239,6 +257,8 @@ hosts even though the container uses host networking.
 |-----------|---------------|-----------|---------|
 | `warden-sock` (named volume) | `/run/ebpfsentinel` | warden (rw), agent (ro) | warden control socket |
 | `./config/ebpfsentinel.yaml` | `/etc/ebpfsentinel/config.yaml` | agent | configuration, hot-reloaded on write |
+| `ebpfsentinel-state` (named volume) | `/var/lib/ebpfsentinel` | agent | redb stores under `data/`, GeoIP databases, telemetry installation identifier |
+| `ebpfsentinel-captures` (named volume) | `/var/lib/ebpfsentinel/captures` | agent | packet capture files (`{id}.pcap`) |
 | `tmpfs` | `/sys/fs/bpf` | agent | mountpoint for the delegated bpffs |
 | `/proc` | `/host/proc` (ro) | both | container resolver and DLP library discovery |
 | `/sys/fs/cgroup` | `/sys/fs/cgroup` (ro) | agent | cgroup-id to container attribution |
