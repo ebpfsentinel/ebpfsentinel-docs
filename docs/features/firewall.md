@@ -270,10 +270,10 @@ firewall:
   anti_lockout:
     enabled: true
     interfaces: ["eth0"]
-    ports: [22, 8080, 50051]
+    ports: [22]
 ```
 
-Anti-lockout rules are marked as `system: true` and cannot be deleted via the API.
+The agent's own REST and gRPC ports (`agent.http_port`, `agent.grpc_port`) are always kept open on top of `ports`. Anti-lockout rules are marked as `system: true` and cannot be deleted via the API.
 
 ### Packet Normalization (Scrub)
 
@@ -373,7 +373,7 @@ firewall:
   anti_lockout:
     enabled: true
     interfaces: ["eth0"]
-    ports: [22, 8080, 50051]
+    ports: [22]
   scrub:
     enabled: true
     max_mss: 1440

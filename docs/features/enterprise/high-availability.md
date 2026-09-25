@@ -345,8 +345,9 @@ rules that were loaded before it and the anti-lockout setting.
 A node in the deny-all posture must still be recoverable, so **anti-lockout is
 forced on for the duration of the posture**, whatever
 `firewall.anti_lockout.enabled` says, and restored to its configured value on
-exit. The anti-lockout ports (`22`, `8080` and `50051` by default) keep their
-`pass` rules and stay reachable.
+exit. The anti-lockout ports (`22` by default, plus the enterprise API port
+set by `--enterprise-port`, `8444` by default) keep their `pass` rules and stay
+reachable.
 
 This is forced rather than respected because of who enters the posture. An
 operator who disables anti-lockout and writes a deny-all rule has made a choice
@@ -360,22 +361,23 @@ anti-lockout off:
 
 | `firewall.anti_lockout` | What stays reachable while the posture is in force |
 |---|---|
-| `interfaces: []` (default) | The listed ports, on every interface |
-| `interfaces: [mgmt0]` | The listed ports, on `mgmt0` only |
-| `ports: []` | Nothing. The node closes completely and needs console access |
+| `interfaces: []` (default) | The listed ports and the enterprise API port, on every interface |
+| `interfaces: [mgmt0]` | The listed ports and the enterprise API port, on `mgmt0` only |
+| `ports: []` | The enterprise API port only; SSH closes |
 
-A deployment that sets `ports: []` has chosen a node it cannot reach over the
-network while partitioned. That is a supportable choice for an appliance with
-out-of-band access, and it is the one case where the posture does not leave a way
-back in.
+The enterprise API port cannot be taken out of the set, so a node in the
+posture always answers on its API.
 
 **Recovery**: when a peer becomes reachable again the node resyncs state via
 snapshot replication and leaves degraded mode. Writes are accepted again, and if
 the deny-all posture was installed it is lifted - the rules, the mode and the
 anti-lockout setting that were in force before it are put back, rather than
 recomputed from configuration, so changes made through the API since boot are not
-lost. Lifting is attempted on every recovery rather than only where this process
-installed the posture, because a node that restarted while closed has no memory
+lost. A rule added or deleted while the posture is in force is checked at once,
+refused if it would be refused outside the posture, and kept for this moment
+rather than applied, since applying it would reopen a node the cluster believes
+is closed. Lifting is attempted on every recovery rather than only where this
+process installed the posture, because a node that restarted while closed has no memory
 of installing one and would otherwise never open again.
 
 ### Configuration

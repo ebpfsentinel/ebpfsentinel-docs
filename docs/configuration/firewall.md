@@ -12,7 +12,7 @@ firewall:
   anti_lockout:
     enabled: true
     interfaces: ["eth0"]
-    ports: [22, 8080, 50051]
+    ports: [22]
   scrub:
     enabled: true
     max_mss: 1440
@@ -115,11 +115,11 @@ resolves to nothing drops its rule instead of widening it. See
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable anti-lockout protection |
 | `interfaces` | `[string]` | `[]` | Management interfaces (e.g., `["eth0"]`), each one of `agent.interfaces`; empty = all interfaces |
-| `ports` | `[integer]` | `[22, 8080, 50051]` | Management TCP ports kept reachable; `0` is refused |
+| `ports` | `[integer]` | `[22]` | Management TCP ports kept reachable besides the agent's own API ports; `0` is refused |
 
-Anti-lockout rules are injected at priority 0 (highest precedence) and marked as `system: true`. They cannot be deleted via the API. They are installed from the first rule load at startup and rebuilt from this section on every configuration reload, so a changed port list takes effect without a restart. The list is not derived from `agent.http_port` and `agent.grpc_port`: an agent listening elsewhere must name those ports here.
+Anti-lockout rules are injected at priority 0 (highest precedence) and marked as `system: true`. They cannot be deleted via the API. They are installed from the first rule load at startup and rebuilt from this section on every configuration reload, so a changed port list takes effect without a restart. `agent.http_port` and `agent.grpc_port` are always added to the list, so an agent moved off the default ports keeps its own API reachable without the list being edited to follow it; `ports` names what else to keep open, such as SSH.
 
-While the deny-all posture is in force, anti-lockout stays on whatever `enabled` says; the configured value applies again when the posture is lifted.
+While the deny-all posture is in force, anti-lockout stays on whatever `enabled` says; the configured value applies again when the posture is lifted. A configuration reload during the posture does not reopen the node: the new port list is installed at once, while the new rules and mode are checked, kept, and applied when the posture is lifted.
 
 ### Scrub (Packet Normalization)
 
