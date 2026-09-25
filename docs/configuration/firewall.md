@@ -114,10 +114,12 @@ resolves to nothing drops its rule instead of widening it. See
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable anti-lockout protection |
-| `interfaces` | `[string]` | `[]` | Management interfaces (e.g., `["eth0"]`); empty = all interfaces |
-| `ports` | `[integer]` | `[22, 8080, 50051]` | Management ports kept reachable |
+| `interfaces` | `[string]` | `[]` | Management interfaces (e.g., `["eth0"]`), each one of `agent.interfaces`; empty = all interfaces |
+| `ports` | `[integer]` | `[22, 8080, 50051]` | Management TCP ports kept reachable; `0` is refused |
 
-Anti-lockout rules are injected at priority 0 (highest precedence) and marked as `system: true`. They cannot be deleted via the API.
+Anti-lockout rules are injected at priority 0 (highest precedence) and marked as `system: true`. They cannot be deleted via the API. They are installed from the first rule load at startup and rebuilt from this section on every configuration reload, so a changed port list takes effect without a restart. The list is not derived from `agent.http_port` and `agent.grpc_port`: an agent listening elsewhere must name those ports here.
+
+While the deny-all posture is in force, anti-lockout stays on whatever `enabled` says; the configured value applies again when the posture is lifted.
 
 ### Scrub (Packet Normalization)
 
