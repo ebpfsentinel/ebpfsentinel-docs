@@ -66,7 +66,8 @@ The trampoline is a no-op when no warden socket is configured
 
 The warden is a small privileged binary (`warden serve <socket> --uid <n>`) that
 loads no eBPF and holds no maps. It runs in the **initial network namespace**
-with `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW`, and answers only a
+with `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW`, plus `CAP_SYS_PTRACE` /
+`CAP_BPF` / `CAP_PERFMON` for DLP, and answers only a
 narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
 
 - **bpffs delegation** + handing back the module-BTF fds (so module kfuncs like
@@ -76,6 +77,9 @@ narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
 - **route** programming (multi-WAN failover).
 - **gratuitous ARP** on VIP takeover.
 - on-demand **pcap** capture sockets.
+- the DLP **`/proc` scan** for processes linking `libssl` (reading another
+  process's `/proc/<pid>/root` needs `CAP_SYS_PTRACE`), and the DLP **uprobe
+  `BPF_LINK_CREATE`** on the agent's program fd (`CAP_BPF` + `CAP_PERFMON`).
 
 `--uid` is the only uid served, checked via `SO_PEERCRED`: on bare-metal the
 agent runs as root and maps namespace-0 to real root, so it presents `0`; in a
@@ -97,10 +101,12 @@ the capabilities in the init network namespace:
 | `conntrack -D` retroactive teardown on a new deny rule | warden netlink | warden (`CAP_NET_ADMIN`) |
 | Multi-WAN policy routing (`ip rule` / `ip route`) | warden netlink | warden (`CAP_NET_ADMIN`) |
 | Gratuitous ARP on VIP takeover | warden `AF_PACKET` | warden (`CAP_NET_RAW`) |
+| DLP target discovery (`libssl` in other processes and containers) | warden `/proc` scan | warden (`CAP_SYS_PTRACE`) |
+| DLP uprobe attach | warden `BPF_LINK_CREATE` on the agent's program fd | warden (`CAP_BPF` + `CAP_PERFMON`) |
 
 Because the warden runs in the init network namespace, the host-netns operations
 that a userns agent cannot perform (conntrack teardown, route programming,
-gratuitous ARP, packet capture) **all work** - they are brokered, not dropped.
+gratuitous ARP, packet capture, DLP uprobe attach) **all work** - they are brokered, not dropped.
 
 ### Why not just run the agent as root?
 
@@ -159,9 +165,10 @@ docker compose up -d
 docker compose logs -f
 ```
 
-The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` with
+The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` /
+`CAP_SYS_PTRACE` / `CAP_BPF` / `CAP_PERFMON` with
 `apparmor=unconfined` + `seccomp=unconfined` (it does `fsconfig` + netlink +
-`AF_PACKET`). The agent container holds **no** capabilities but still runs
+`AF_PACKET` + the DLP uprobe link). The agent container holds **no** capabilities but still runs
 `apparmor=unconfined` and a tailored seccomp profile
 (`dist/seccomp/ebpfsentinel-agent.json`, the Docker default plus an
 unconditional allow for `unshare` / the `mount` family / `bpf`): it self-unshares
@@ -184,7 +191,7 @@ daemonset:
     securityContext:
       runAsUser: 0
       capabilities:
-        add: [SYS_ADMIN, NET_ADMIN, NET_RAW]
+        add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON]
         drop: [ALL]
       appArmorProfile: { type: Unconfined }
       seccompProfile: { type: Unconfined }
