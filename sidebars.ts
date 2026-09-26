@@ -18,6 +18,18 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Customer Portal',
+      items: [
+        'portal/overview',
+        'portal/signing-in',
+        'portal/billing-and-licence-keys',
+        'portal/single-sign-on',
+        'portal/audit-log',
+        'portal/your-data',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Features',
       items: [
         'features/overview',

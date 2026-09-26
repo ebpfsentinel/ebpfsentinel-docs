@@ -11,7 +11,8 @@ anybody at our end.
 
 Each screen named below sits under your organisation, at
 `https://portal.ebpfsentinel.io/o/<your-organisation>/`, and is reached from the
-navigation beside it.
+navigation beside it. What every screen holds, and which roles open it, is in
+[Finding Your Way Around the Portal](../portal/overview.md).
 
 ## Before you start
 
@@ -81,7 +82,7 @@ this page that are left, each ticked from what the portal already holds and
 each with a link to the screen where it is done. The payment reads as waiting
 until the seller has reported it, usually within a minute; **Check again**
 reads everything once more. The list is also reachable from your organisation's
-landing screen while anything on it is left, and goes away once the last step
+**Overview** while anything on it is left, and goes away once the last step
 is done. Once the seller has reported the payment, the owners, administrators
 and billing members of the organisation also receive a mail saying the contract
 is in force and what is left to do, so nobody has to sit on the screen waiting
@@ -111,15 +112,15 @@ ask:
 ## 2. Arm a second factor
 
 A licence key is not issued to an account held by a password alone. Open your
-account, then **Second factors and sign-in devices**, and arm one of:
+account, then **Second factors and passkeys**, and arm one of:
 
 - **Authenticator**: an app on a device you hold. Add it by scanning the QR
   code with the app, or by typing the secret written out beside it, then type
   back the code it shows. Keep the recovery codes it prints: they are shown
   once, so copy them into your password manager or download them as a text
   file before you leave the screen.
-- **Devices**: a passkey on this computer or a hardware key. It signs you in on
-  its own.
+- **Passkeys**: a passkey on this computer or phone, or a hardware key. It
+  signs you in on its own.
 
 Either one is enough.
 
@@ -128,8 +129,9 @@ removing a device each send a mail to the account it happened to. Issuing or
 replacing a key mails every owner and administrator of the organisation, a
 change of role mails the member whose role moved, an accepted invitation mails
 the person who sent it, and closing an account sends one last mail to the
-address it held. A mail you did not expect is the signal to open **Security** and
-end the sessions you do not recognise. No mail from the portal carries a code,
+address it held. A mail you did not expect is the signal to open **Your
+account** and end the sessions you do not recognise, see
+[Signing In](../portal/signing-in.md). No mail from the portal carries a code,
 a key or a link that signs you in.
 
 ## 3. Issue and verify the licence key
@@ -162,7 +164,7 @@ within the organisation.
 
 Open the deployment and, under **Join secrets**, choose **Mint a join secret**.
 The portal asks for your password again and shows the secret **once**: only a
-digest of it is kept, so copy it before choosing **I have it**.
+digest of it is kept, so copy it before choosing **I have copied it**.
 
 The installation steps for your deployment shape are printed beside it, with
 the portal's address filled in. The secret itself is left out of them on
@@ -249,3 +251,12 @@ If a node is missing, the agent says why in its own log: a refused join secret
 is an HTTP 401, a portal it cannot reach is retried with a backoff that grows to
 fifteen minutes, and `GET /api/v1/license` on the agent shows whether the key
 was accepted.
+
+## See also
+
+- [Finding Your Way Around the Portal](../portal/overview.md)
+- [Signing In](../portal/signing-in.md)
+- [Billing and Licence Keys](../portal/billing-and-licence-keys.md)
+- [Single Sign-On and Provisioning](../portal/single-sign-on.md)
+- [Audit Log and Activity](../portal/audit-log.md)
+- [Your Data](../portal/your-data.md)
