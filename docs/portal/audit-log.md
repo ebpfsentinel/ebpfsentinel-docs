@@ -15,6 +15,12 @@ one was recorded, the address the request came from. An act on a deployment
 names the deployment it was done in. A line whose author has since left the
 organisation names no author.
 
+A refusal that has only one possible cause says it under the line: configuring
+the identity provider is refused when its discovery document cannot be read,
+and the line names the provider address that was tried; proving a domain is
+refused when the TXT record is not found yet. A refused sign-in has several
+causes and the log keeps none of them, so it says only that it was refused.
+
 The acts are grouped under **What happened**:
 
 - Accounts and sign-ins
@@ -28,6 +34,11 @@ The acts are grouped under **What happened**:
 The last group is what our support ran because you or a colleague asked, such as
 a password recovery or an invitation sent again. Those lines are written by the
 portal, not by a person at our end.
+
+What belongs to one person rather than to the organisation - a password changed,
+a second factor enrolled, a session ended, a refused sign-in - is never written
+here, so the organisation's filter does not offer it. Each person reads those in
+their own activity, below.
 
 ## Your own activity
 

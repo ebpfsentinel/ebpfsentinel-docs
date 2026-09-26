@@ -50,9 +50,11 @@ navigation beside it. What every screen holds, and which roles open it, is in
 - The organisation's name can be changed under **Settings** by an owner or an
   administrator. The address `/o/<your-organisation>/` stays as it was, because
   it is the one your colleagues already hold.
-- An owner can close an organisation that holds no contract and no deployment,
-  also under **Settings**: type its name back, re-type your password when asked, and it is
-  gone for every member. This is how an organisation created by mistake, for
+- An owner can close an organisation that never held a contract and never
+  registered a deployment, also under **Settings**: type its name back, re-type
+  your password when asked, and it is gone for every member. A deployment that
+  was stood down still counts, because its history is what the estate was
+  measured against. This is how an organisation created by mistake, for
   instance by signing up before accepting an invitation, is removed.
 - The enterprise [prerequisites](prerequisites.md): a kernel of 6.9 or later with
   BTF, on every node you mean to protect.
@@ -74,6 +76,11 @@ estate.
 If your account holds no second factor yet, the screen says so before you pay:
 issuing the key afterwards asks for one (step 2), so arming it now means the key
 is not held up once the payment lands. It does not stop you buying.
+
+An organisation holds one contract at a time. Reached with one already running,
+the screen offers no form and sends you back to **Billing**, where **Move to
+another plan** changes it; with an order still waiting for payment, it asks you
+to finish that order at the seller's checkout or withdraw it first.
 
 **Go to the checkout** takes you to the seller of record's own page, where the
 card is taken and the tax added; we never see the card. You come straight back
@@ -225,7 +232,10 @@ Turning telemetry off withdraws the ingest secrets and leaves the estate counted
 
 On **Analytics**, the estate reads **No agent reporting** rather than a health
 word until at least one agent has sent a reading, and while every deployment
-collecting has gone quiet. A stood-down deployment reads **Stood down** and
+collecting has gone quiet. While any enrolled machine in a live deployment has
+stopped reporting, it reads **Machines not reporting** rather than a health
+word, with a link to the ones that went quiet. Each deployment says whether its
+telemetry is **Turned on** or **Turned off**. A stood-down deployment reads **Stood down** and
 nothing else, and each of the busiest machines carries its deployment in
 brackets, so two nodes with the same name are two rows you can tell apart. The
 only machine name the portal holds is the one each agent joined under.

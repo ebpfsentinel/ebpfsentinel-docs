@@ -56,7 +56,7 @@ An address you were sent for a section your role does not open says which roles
 hold it and names the people in the organisation who can do it for you.
 
 **People** shows, for every member, either **Second factor on** or **Password
-only - no key can be issued to them**, so an owner can see who would be refused
+only - they cannot issue a licence key until they add a second factor**, so an owner can see who would be refused
 before asking them to issue a key.
 
 **Settings** carries a **Billing details** panel. The legal name, the billing

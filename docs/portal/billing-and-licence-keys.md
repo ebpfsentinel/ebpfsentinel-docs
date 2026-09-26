@@ -62,14 +62,21 @@ then **Withdraw it**. Nothing was charged.
 ### Documents
 
 **Documents** lists what the seller issued, one per payment, each opening the
-seller's own copy in a new tab. A document appears once a payment has gone
-through.
+seller's own copy in a new tab. A document appears a few minutes after the
+seller reports the payment it covers, so a payment made moments ago may not be
+listed yet.
 
 ## Licences
 
 **Licence keys** lists the key in force with the date it was issued, what it
 admits, its fingerprint and the days left. Every act on this screen asks for
 your password again, except revoking.
+
+A key runs to the end of the period the seller last reported paid, plus seven
+days of grace so a late payment never stops your estate on the day. The date
+comes from the payment, not from the moment the key was signed, so replacing a
+key keeps the same date, and a key asked for after a renewal carries the new
+period.
 
 - **Issue a key** signs a key from the paid contract. It is refused to an account
   holding no second factor, see [Signing In](signing-in.md).

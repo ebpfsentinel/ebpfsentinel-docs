@@ -70,7 +70,8 @@ you out.
 ### Your colleagues
 
 **People**, inside an organisation, shows beside each member either **Second
-factor on** or **Password only - no key can be issued to them**, so an owner
+factor on** or **Password only - they cannot issue a licence key until
+they add a second factor**, so an owner
 knows before asking somebody to issue a key.
 
 ## Everything signed in as you
