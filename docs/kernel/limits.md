@@ -31,6 +31,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | tc-nat-ingress | DNAT rules (IPv6) | 128 |
 | tc-nat-ingress | NPTv6 rules | 64 |
 | tc-nat-ingress | Hairpin CT entries | 16,384 with hairpin NAT on, 1,024 otherwise |
+| tc-nat-ingress, tc-nat-egress | DNAT and SNAT reply tuples | 65,536 per table with NAT on, 1,024 otherwise |
 | tc-nat-egress | SNAT rules (IPv4) | 256 |
 | tc-nat-egress | SNAT rules (IPv6) | 128 |
 | tc-ids | IDS patterns (destination-keyed and source-keyed) | 10,240 each |
@@ -139,6 +140,8 @@ No RingBuf, no rule maps. Single global config.
 | DNAT rules (IPv4) | 256 | `NAT_DNAT_RULES` (Array, `MAX_NAT_RULES`) |
 | DNAT rules (IPv6) | 128 | `NAT_DNAT_RULES_V6` (Array, `MAX_NAT_RULES_V6`) |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
+| DNAT reply tuples (IPv4, IPv6) | 65,536 each with `nat.enabled`, 1,024 otherwise | `NAT_DNAT_REVERSE` / `NAT_DNAT_REVERSE_V6` (LRU Hash, `MAX_NAT_REVERSE_ENTRIES`, sized at load, shared with tc-nat-egress) |
+| SNAT reply tuples (IPv4, IPv6) | 65,536 each with `nat.enabled`, 1,024 otherwise | `NAT_SNAT_REVERSE` / `NAT_SNAT_REVERSE_V6` (LRU Hash, `MAX_NAT_REVERSE_ENTRIES`, sized at load, shared with tc-nat-egress) |
 | Hairpin CT entries | 16,384 with `nat.hairpin.enabled`, 1,024 otherwise | `NAT_HAIRPIN_CT` (LRU Hash, `MAX_HAIRPIN_CT`, sized at load) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 
@@ -150,6 +153,7 @@ No RingBuf.
 |----------|-------|----------------|
 | SNAT rules (IPv4) | 256 | `NAT_SNAT_RULES` (Array, `MAX_NAT_RULES`) |
 | SNAT rules (IPv6) | 128 | `NAT_SNAT_RULES_V6` (Array, `MAX_NAT_RULES_V6`) |
+| DNAT and SNAT reply tuples | Shared with tc-nat-ingress, see above | `NAT_DNAT_REVERSE`, `NAT_SNAT_REVERSE` and their `_V6` variants |
 | NPTv6 rules | 64 | `NPTV6_RULES` (Array, `MAX_NPTV6_RULES`) |
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 

@@ -317,7 +317,7 @@ Destination NAT for incoming packets (IPv4 and IPv6):
 - IPv4: checksum updates via [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/) + [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/)
 - IPv6: L4 pseudo-header checksum update only (4-word loop, no IP header checksum in IPv6)
 - `NatRuleEntryV6` with `[u32; 4]` address/mask fields for IPv6 rule matching
-- **Kernel conntrack**: the translation is handed to netfilter with `bpf_ct_set_nat_info`, so the return path is reversed by the kernel and `conntrack -L` shows the mapping
+- **Return path**: each DNAT records the reply tuple in `NAT_DNAT_REVERSE` / `NAT_DNAT_REVERSE_V6` (LRU, 65,536 with `nat.enabled`), which tc-nat-egress reads to rewrite the reply source back to the address and port the client first saw; replies to SNAT flows are looked up here in `NAT_SNAT_REVERSE` / `NAT_SNAT_REVERSE_V6` and their destination rewritten back. Netfilter only sees the translated tuple and tracks it as an ordinary flow
 - **Interface groups and tenants**: NAT rules carry a `group_mask` (`INTERFACE_GROUPS` map) and a `tenant_id` (`TENANT_SUBNET_V4/V6`)
 
 ---
@@ -334,7 +334,7 @@ Source NAT for outgoing packets (IPv4 and IPv6):
 - **Port allocation**: hash-based ephemeral port selection (IPv6 uses XOR-fold of `[u32; 4]` to `u32`)
 - **Rule lookup**: `NAT_SNAT_RULES` / `NAT_SNAT_RULES_V6` (Array, 256 rules each) scanned with `bpf_loop`, the same way as tc-nat-ingress
 - **Tunnel steering**: a matched rule can set the XFRM interface metadata and the FOU/GUE encapsulation of the packet
-- **Kernel conntrack**: the mapping is handed to netfilter with `bpf_ct_set_nat_info`, which reverses it on the return path
+- **Return path**: each SNAT records the reply tuple in `NAT_SNAT_REVERSE` / `NAT_SNAT_REVERSE_V6` (LRU, 65,536 with `nat.enabled`) for tc-nat-ingress to reverse, and replies to DNAT flows are looked up here in `NAT_DNAT_REVERSE` / `NAT_DNAT_REVERSE_V6` and their source rewritten back
 - Same checksum strategy as tc-nat-ingress (L3+L4 for IPv4, L4-only for IPv6)
 - **Interface groups and tenants**: NAT rules carry a `group_mask` (`INTERFACE_GROUPS` map) and a `tenant_id`
 

@@ -74,7 +74,7 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_skb_get/set_xfrm_info` kfuncs | 6.2+ | XFRM interface metadata in TC |
 | `bpf_skb_get/set_fou_encap` kfuncs | 6.4+ | FOU/GUE encapsulation metadata in TC |
 | `bpf_xdp_metadata_rx_hash` / `rx_timestamp` kfuncs | 6.3+ | NIC hash and hardware timestamp in XDP |
-| `bpf_skb_ct_*` / `bpf_xdp_ct_*` / `bpf_ct_*` kfuncs | 5.18+ (insert 6.0+, `bpf_ct_set_nat_info` 6.1+) | Kernel conntrack lookup and flow kill; NAT entries committed from `tc-nat-ingress` / `tc-nat-egress` |
+| `bpf_skb_ct_*` / `bpf_xdp_ct_*` / `bpf_ct_*` kfuncs | 5.18+ (`bpf_ct_change_timeout` 6.0+) | Kernel conntrack lookup and flow kill |
 | `bpf_dynptr_*` kfuncs | 6.4+ | Full packet length in the IDS and the XDP firewall |
 | `bpf_tcp_raw_gen_syncookie_ipv4/_ipv6` | 6.0+ | Forging the SYN-ACK cookie in `xdp-ratelimit-syncookie` |
 | `bpf_tcp_raw_check_syncookie_ipv4/_ipv6` | 6.0+ | Validating the returning ACK in `xdp-ratelimit` |

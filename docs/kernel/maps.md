@@ -270,6 +270,7 @@ Several maps are written from userspace when configuration changes:
 | NAT NPTv6 rule count (×2) | Userspace → Kernel | NPTv6 rule count for `bpf_loop` |
 | NAT hairpin config | Userspace → Kernel | Hairpin NAT enabled/subnet/SNAT IP |
 | NAT hairpin CT (LRU) | Kernel ↔ Kernel | Hairpin reverse mapping (forward/return) |
+| NAT reverse tables (LRU) | Kernel ↔ Kernel | Reply tuple of each DNAT and SNAT flow, written on the way out and read on the way back |
 | QoS pipe configs (Array) | Userspace → Kernel | Pipe add/delete |
 | QoS queue configs (Array) | Userspace → Kernel | Queue add/delete |
 | QoS classifiers (HashMap) | Userspace → Kernel | Classifier add/delete |
@@ -306,6 +307,15 @@ Connection tracking uses **kernel netfilter** directly via `bpf_skb_ct_lookup` /
 | `NPTV6_RULE_COUNT` (egress) | Array | 1 | `u32` | tc-nat-egress |
 
 Each NPTv6 rule entry contains: `internal_prefix: [u32; 4]`, `external_prefix: [u32; 4]`, `prefix_len: u8`, and a pre-computed `adjustment: u16` for checksum-neutral translation. The rule count map drives the `bpf_loop` iteration bound.
+
+#### Reverse NAT Maps
+
+| Map | Type | Max Entries | Used By |
+|-----|------|-------------|---------|
+| `NAT_DNAT_REVERSE`, `NAT_DNAT_REVERSE_V6` | LruHashMap | 65,536 each when `nat.enabled`, 1,024 otherwise | tc-nat-ingress (writes), tc-nat-egress (reads) |
+| `NAT_SNAT_REVERSE`, `NAT_SNAT_REVERSE_V6` | LruHashMap | 65,536 each when `nat.enabled`, 1,024 otherwise | tc-nat-egress (writes), tc-nat-ingress (reads) |
+
+Each map is keyed by the reply tuple exactly as it arrives on the wire and holds the address and port to restore: the original destination for a DNAT reply's source, the original source for an SNAT reply's destination. Both programs declare the maps under the same name, so the pin makes them one map in the kernel. A hairpin flow records no DNAT reverse entry; its reply is undone through `NAT_HAIRPIN_CT`.
 
 #### Hairpin NAT Maps
 

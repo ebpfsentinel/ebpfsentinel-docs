@@ -88,7 +88,7 @@ visible.
 | `DNS_METRICS` | `tc-dns` | `inspected`, `emitted`, `errors`, `events_dropped`, `total_seen` |
 | `DLP_METRICS` | `uprobe-dlp` | `write_events`, `read_events`, `errors`, `events_dropped`, `total_seen` |
 | `CT_METRICS` | `tc-conntrack` | `new`, `established`, `closed`, `invalid`, `evicted`, `errors`, `lookups`, `hits`, `total_seen`, `kfunc_lookups`, `kfunc_hits`, `kfunc_misses`, `kfunc_state_new`, `kfunc_state_established`, `kfunc_state_related`, `kfunc_state_invalid`, `kfunc_marked`, `kfunc_read_errors` |
-| `NAT_METRICS` | `tc-nat-ingress`, `tc-nat-egress` | `snat_applied`, `dnat_applied`, `masq_applied`, `port_alloc_fail`, `errors`, `total_seen`, `nptv6_translated`, `hairpin_applied`, `kfunc_delegated`, `kfunc_fallback`, `xfrm_steered`, `fou_encap` |
+| `NAT_METRICS` | `tc-nat-ingress`, `tc-nat-egress` | `snat_applied`, `dnat_applied`, `masq_applied`, `port_alloc_fail`, `errors`, `total_seen`, `nptv6_translated`, `hairpin_applied`, `reverse_applied`, `reverse_untracked`, `xfrm_steered`, `fou_encap` |
 | `SCRUB_METRICS` | `tc-scrub` | `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped` |
 | `DDOS_METRICS` | `xdp-ratelimit`, `xdp-ratelimit-syncookie` | `syn_rcv`, `syn_flood_drops`, `icmp_pass`, `icmp_drop`, `amp_passed`, `amp_dropped`, `oversized_icmp`, `errors`, `events_dropped`, `conn_tracked`, `half_open_drops`, `rst_flood_drops`, `fin_flood_drops`, `ack_flood_drops`, `total_seen`, `syncookie_sent`, `syncookie_valid`, `syncookie_invalid` |
 | `LB_METRICS` | `xdp-loadbalancer` | `forwarded`, `no_backend`, `bytes_forwarded`, `events_dropped`, `total_seen`, `mtu_exceeded` |
@@ -100,10 +100,14 @@ Three of these repay reading in pairs.
 `ddos.connection_tracking` is enabled, since that is what arms the TCP state
 machine they belong to.
 
-`kfunc_delegated` against `kfunc_fallback` under `NAT_METRICS` says how much
-of the translation the kernel is doing: the first counts translations handed
-to the kernel's own conntrack kfuncs, the second counts those the agent had to
-do itself because the running kernel did not offer them.
+`reverse_applied` against `reverse_untracked` under `NAT_METRICS` says whether
+replies find their way back. The NAT programs reverse their own translations:
+each forward translation records the reply tuple in an LRU table, and
+`reverse_applied` counts replies rewritten back to the address and port the
+peer first saw. `reverse_untracked` counts forward translations whose reply
+tuple could not be recorded, so their replies will leave untranslated; it
+should stay at zero. `port_alloc_fail` counts a reply tuple already recorded
+for a different original flow, which is overwritten by the newer one.
 
 `kfunc_read_errors` under `CT_METRICS` is a correctness signal rather than a
 volume one. The four `kfunc_state_*` counters read `nf_conn` fields at BTF

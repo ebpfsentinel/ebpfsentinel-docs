@@ -111,9 +111,7 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya still
 |---------|-----------|---------|-----------|
 | `bpf_skb_ct_lookup` / `bpf_ct_release` | 5.18+ | tc-conntrack, tc-ids | Read kernel netfilter conntrack from TC |
 | `bpf_xdp_ct_lookup` / `bpf_ct_release` | 5.18+ | xdp-firewall | Read kernel netfilter conntrack from XDP |
-| `bpf_skb_ct_alloc` / `bpf_ct_insert_entry` | 6.0+ | tc-nat-ingress, tc-nat-egress | Create the conntrack entry that carries a NAT mapping |
 | `bpf_ct_change_timeout` | 6.0+ | tc-ids, xdp-firewall | Kill a flow by expiring its conntrack entry |
-| `bpf_ct_set_nat_info` | 6.1+ | tc-nat-ingress, tc-nat-egress | Hand the SNAT/DNAT mapping to the kernel |
 | `bpf_skb_get_xfrm_info` / `bpf_skb_set_xfrm_info` | 6.2+ | tc-nat-ingress (get), tc-nat-egress (set) | IPsec interface steering via `xfrmi` devices |
 | `bpf_xdp_metadata_rx_hash` / `bpf_xdp_metadata_rx_timestamp` | 6.3+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | NIC RSS hash and hardware RX timestamp |
 | `bpf_dynptr_from_skb` / `bpf_dynptr_from_xdp` / `bpf_dynptr_size` | 6.4+ | tc-ids (skb), xdp-firewall (xdp) | Full packet length, fragments included |

@@ -64,7 +64,7 @@ The `CT_CONFIG` Array map (shared via BPF pinning) holds conntrack thresholds. T
 - **Firewall**: Established/related connections bypass full rule evaluation via kfunc-based CT fast-path
 - **DDoS Protection**: Half-open connection counts feed the SYN flood detector
 - **IPS**: `kill_flow_via_skb_ct` / `kill_flow_via_xdp_ct` mark CT entries as DYING on DROP verdict
-- **NAT**: `bpf_skb_ct_alloc` + `bpf_ct_set_nat_info` delegate NAT to kernel netfilter
+- **NAT**: the NAT programs reverse their own translations from their own tables, so netfilter only ever sees the translated tuple and tracks it as an ordinary flow
 
 ## REST API
 

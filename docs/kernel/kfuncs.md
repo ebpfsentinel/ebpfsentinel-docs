@@ -19,9 +19,9 @@ The kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.9**
 The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.rs`. The safe wrappers keep the verifier's `KF_ACQUIRE` / `KF_RELEASE` pairing through two patterns:
 
 - **Closure-scoped** (`with_*` helpers) - the kernel reference lives for the duration of the closure body and is released on every path on the way out.
-- **`Drop`-based** (`CtBuilder`, `CtEntry`) - the wrapper owns the kernel reference and releases it in `Drop` if the caller never transitions through `insert()`.
+- **`Drop`-based** (`CtEntry`) - the wrapper owns the kernel reference and releases it in `Drop`.
 
-Host-side stubs keep live-reference counters (`host_ct_live_count`, `host_ct_init_live_count`) so unit tests assert acquire/release balance outside a real BPF context.
+Host-side stubs keep live-reference counters (`host_ct_live_count`) so unit tests assert acquire/release balance outside a real BPF context.
 
 ## KFunc Reference
 
@@ -31,20 +31,19 @@ Host-side stubs keep live-reference counters (`host_ct_live_count`, `host_ct_ini
 |-------|--------|-----------------|---------|
 | `bpf_skb_ct_lookup` | 5.18+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up an existing conntrack entry from a TC classifier |
 | `bpf_xdp_ct_lookup` | 5.18+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up an existing conntrack entry from XDP context |
-| `bpf_ct_release` | 5.18+ | `KF_RELEASE` | Release any `nf_conn*` / `nf_conn___init*` reference |
+| `bpf_ct_release` | 5.18+ | `KF_RELEASE` | Release an `nf_conn*` reference |
 
 Safe wrappers: `with_skb_ct_lookup` (tc-conntrack), `with_xdp_ct_lookup` (xdp-firewall). The closure body owns the live `nf_conn` reference; release is automatic on every exit path.
 
-### Conntrack write-side delegation (kernel 6.0 / 6.1)
+### Conntrack timeout (kernel 6.0)
 
 | KFunc | Kernel | Acquire/Release | Purpose |
 |-------|--------|-----------------|---------|
-| `bpf_skb_ct_alloc` | 6.0+ | `KF_ACQUIRE \| KF_RET_NULL` | Allocate a new conntrack entry from a TC classifier |
-| `bpf_ct_insert_entry` | 6.0+ | `KF_ACQUIRE \| KF_RELEASE` | Commit an allocated `nf_conn___init` and return a live `nf_conn*` |
-| `bpf_ct_change_timeout` | 6.0+ | - | Update the timeout on an inserted entry |
-| `bpf_ct_set_nat_info` | 6.1+ | - | Configure SNAT/DNAT rewrite info on an allocated entry |
+| `bpf_ct_change_timeout` | 6.0+ | - | Update the timeout on a live entry |
 
-Safe wrappers: `CtBuilder` (allocate, configure, insert; used by tc-nat-ingress and tc-nat-egress) and `CtEntry` (`change_timeout` on a live entry). `CtBuilder::Drop` releases an un-inserted `nf_conn___init` automatically.
+Safe wrapper: `CtEntry` (`change_timeout` on a live entry).
+
+No program writes a conntrack entry. The NAT programs used to hand their mappings to netfilter with `bpf_skb_ct_alloc`, `bpf_ct_set_nat_info` and `bpf_ct_insert_entry`, but TC ingress runs before netfilter's PREROUTING and TC egress after its POSTROUTING, so netfilter only ever sees the translated tuple: an entry inserted for the untranslated one collided with the entry netfilter created for the same flow, and TCP replies were dropped. The NAT programs now reverse their own translations from their own LRU tables.
 
 `kill_flow_via_skb_ct` (tc-ids) and `kill_flow_via_xdp_ct` (xdp-firewall) terminate a flow from inside the program: lookup, collapse the entry's timeout to one millisecond so the conntrack garbage collector reaps it, release. `IPS_DYING` cannot be used for this: it is in the kernel's unchangeable status mask and a BPF program asking for it is refused.
 
