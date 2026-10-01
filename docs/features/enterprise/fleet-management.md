@@ -251,7 +251,7 @@ Full introspection of the registered agent.
 
 Each entry carries that program's own state, so a node whose NAT ingress program was rejected while its firewall attached reports `tc-nat-ingress: false` beside `xdp-firewall: true`, and the heartbeat above it reports `degraded`.
 
-The list is what the datapath registered rather than a fixed catalogue: a program this build never attempted is absent rather than reported as `false`, and an agent that loaded nothing returns an empty list. The same states are readable per program on `/metrics` as `ebpfsentinel_ebpf_program_status`, under the same names.
+The list is what the datapath registered rather than a fixed catalogue: a program this build never attempted is absent rather than reported as `false`, and an agent that loaded nothing returns an empty list. The same states are readable per program on `/metrics` as `ebpfsentinel_ebpf_program_status`, under the same names, for the programs the configuration asks for: a feature turned off publishes no series there, so a zero on the gauge is always a load that was refused, while this list keeps answering for the program.
 
 Returns 404 if the agent has not been registered.
 

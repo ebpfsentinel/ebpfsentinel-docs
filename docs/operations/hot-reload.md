@@ -157,7 +157,7 @@ The list follows reloads: a program a reload loads or unloads is reported as it 
 | Metric | Description |
 |--------|-------------|
 | `ebpfsentinel_rules_reloads_total{component, result}` | Counter per component (`firewall`, `ids`, `nat`, ...) and result (`success`/`failure`) |
-| `ebpfsentinel_ebpf_program_status{program}` | Gauge: 1 if loaded, 0 if not; follows reloads |
+| `ebpfsentinel_ebpf_program_status{program}` | Gauge: 1 if loaded, 0 if the load was refused; follows reloads. A program a reload turns off loses its series rather than reading 0, which the status endpoint above still reports as `false` |
 
 ## Example: Enable IDS at Runtime
 

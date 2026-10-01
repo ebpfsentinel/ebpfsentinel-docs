@@ -49,6 +49,10 @@ groups:
         for: 1m
         annotations:
           summary: "eBPF program not loaded: {{ $labels.program }}"
+          description: >-
+            Only a program the configuration asks for has a series here, so
+            zero is a load this agent wanted and did not get rather than a
+            feature somebody turned off.
 
       - alert: EbpfAttachBlocked
         expr: ebpfsentinel_ebpf_attach_blocked > 0
