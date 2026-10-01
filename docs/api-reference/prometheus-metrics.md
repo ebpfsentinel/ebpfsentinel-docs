@@ -2,18 +2,21 @@
 
 ## Which port each registry is on
 
-There are two registries and they are scraped separately, because the two
-agents are two binaries: neither one exposes the other's series.
+There are two registries, told apart by their prefix, and which ports carry
+them depends on which binary is running.
 
 | Registry | Prefix | Scraped from | Also served on |
 |----------|--------|--------------|----------------|
-| OSS agent | `ebpfsentinel_` | `:9090/metrics`, the dedicated metrics listener (`agent.metrics_port`) | `:8080/metrics`, the control API (`agent.http_port`) |
+| OSS agent | `ebpfsentinel_` | `:9090/metrics`, the dedicated metrics listener (`agent.metrics_port`) | `:8080/metrics`, the control API (`agent.http_port`), and `:8444/metrics` where the enterprise agent is what is running |
 | Enterprise agent | `ebpfsentinel_ent_` | `:8444/metrics`, the enterprise API (`--enterprise-port`) | - |
 
 The OSS registry has a listener of its own so a scraper can reach it while the
 control API port stays firewalled off. The enterprise agent runs no second
-listener: its `/metrics` is on the enterprise API port and carries the
-enterprise registry only.
+listener, so its single `/metrics` carries both registries in one exposition:
+that binary builds the datapath itself and an estate running it has no other
+port to read the datapath's own counters from. The prefixes are disjoint, so
+nothing is declared twice and a query written against either registry reads the
+same on either edition.
 
 ## How to read this page
 
@@ -677,8 +680,10 @@ scrape_configs:
       - targets: ['localhost:9090']
     scrape_interval: 15s
 
-  # The enterprise registry is a second target: it lives on the enterprise API
-  # port, and with `auth.enabled: true` the job needs a credential.
+  # The enterprise port, which serves both registries. Where the enterprise
+  # agent is the only one running, this job is the whole of it and the one
+  # above has nothing to scrape. With `auth.enabled: true` it needs a
+  # credential.
   - job_name: ebpfsentinel-enterprise
     scheme: https
     static_configs:

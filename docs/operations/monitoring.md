@@ -10,6 +10,13 @@ is enabled both require a token unless `auth.metrics_auth_required` is `false`
 (it defaults to `true`). See [Prometheus Metrics](../api-reference/prometheus-metrics.md)
 for the full catalog.
 
+An Enterprise deployment scrapes one port instead of two. That binary opens a
+single listener (`8444` by default), builds the datapath itself and never
+starts `9090` or `8080`, so its `/metrics` serves the datapath's own
+`ebpfsentinel_` series alongside the `ebpfsentinel_ent_` ones and every query
+on this page answers there unchanged. Point the scrape at `8444` and drop the
+other two targets.
+
 ### Scrape Configuration
 
 ```yaml

@@ -283,10 +283,9 @@ Enterprise DLP capabilities are activated by the separate enterprise repository,
 - `ebpfsentinel_packet_processing_duration_seconds{program="dlp"}` - time spent dispatching one DLP event
 - `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, plus `ktls_events`, `ktls_suppressed` and `ktls_unreadable` from the kernel TLS probes, which Enterprise attaches)
 
-The kernel-side counters are registered in the open-source registry and served
-on the open-source agent's own listener. The enterprise binary opens one
-listener and serves the enterprise registry on it, so an estate running only
-the enterprise agent reads the DLP path through
-`ebpfsentinel_ent_dlp_hyperscan_matches_total` and the alert stream rather than
-through these slots: their absence on that port is the port and not a datapath
-that counted nothing.
+The kernel-side counters belong to the open-source registry, which the
+enterprise binary serves on its own single listener (`8444`) beside the
+enterprise registry, so these slots read the same on either edition's
+`/metrics`. They are polled out of their maps every ten seconds: a
+`PerCpuArray` wakes nobody when the kernel writes to it, so a reading is as
+fresh as the last tick and never fresher.

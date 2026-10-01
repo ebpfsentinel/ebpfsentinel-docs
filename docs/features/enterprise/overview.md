@@ -57,7 +57,7 @@ Nine routes are mounted whatever the license carries:
 | `PATCH` | `/api/v1/alerts/{id}/triage` | operator | none | Set one alert's status or assignee, or append a note. |
 | `POST` | `/api/v1/alerts/triage` | operator | none | Apply one triage change to at most 1000 alerts. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
-| `GET` | `/metrics` | none | none | OpenMetrics text output for every enterprise metric. |
+| `GET` | `/metrics` | none | none | OpenMetrics text output for every metric this process keeps: the `ebpfsentinel_ent_` registry and the datapath's own `ebpfsentinel_` one, in one exposition. |
 | `GET` | `/healthz` | none | none | Liveness. Answers 200 while the process is running. |
 | `GET` | `/readyz` | none | none | Readiness. 200 once this node is doing what its role asks of it, 503 otherwise. |
 
@@ -66,6 +66,16 @@ orchestrator has no credential, and a license that cannot be read is exactly
 when an operator needs the pod to keep answering why. They are served on the
 enterprise API port like everything else, because this binary opens one HTTP
 listener and never starts the open-source agent's.
+
+That one listener is also why `/metrics` carries both registries rather than
+the enterprise one alone: this binary builds the datapath through its own
+activator, so an estate running it has no other port on which the packet,
+firewall, IDS and DLP counters could answer. The prefixes are disjoint, so the
+join declares no family twice and a query written for either edition reads the
+same here. The kernel-side counters are polled out of their maps, every ten
+seconds for the counters and every thirty for what the kernel granted the
+datapath, because an eBPF per-CPU array notifies nobody when the kernel writes
+to it.
 
 The four alert routes are free of the license and not free of the
 configuration: they are mounted only where the OSS datapath was activated and
