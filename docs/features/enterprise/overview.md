@@ -47,12 +47,15 @@ feature each one requires in
 license does not carry is never mounted, so a call to one of its paths answers
 `404 Not Found` rather than `403 Forbidden`.
 
-Six routes are mounted whatever the license carries:
+Nine routes are mounted whatever the license carries:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/license` | viewer | none | What the license itself says. Gating this on a feature would leave an expired deployment with no way to read why it had stopped working. |
 | `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
+| `GET` | `/api/v1/alerts/{id}` | viewer | none | Read one stored alert by identifier. |
+| `PATCH` | `/api/v1/alerts/{id}/triage` | operator | none | Set one alert's status or assignee, or append a note. |
+| `POST` | `/api/v1/alerts/triage` | operator | none | Apply one triage change to at most 1000 alerts. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
 | `GET` | `/metrics` | none | none | OpenMetrics text output for every enterprise metric. |
 | `GET` | `/healthz` | none | none | Liveness. Answers 200 while the process is running. |
@@ -64,9 +67,14 @@ when an operator needs the pod to keep answering why. They are served on the
 enterprise API port like everything else, because this binary opens one HTTP
 listener and never starts the open-source agent's.
 
-`/api/v1/alerts` is free of the license and not free of the configuration: it is
-mounted only where the OSS datapath was activated and its alert store opened, so
-an enterprise agent running no OSS datapath answers `404 Not Found` there too.
+The four alert routes are free of the license and not free of the
+configuration: they are mounted only where the OSS datapath was activated and
+its alert store opened, so an enterprise agent running no OSS datapath answers
+`404 Not Found` there too. Triage is `operator` where reading is `viewer`,
+because a status or an assignee is a claim about who is handling an incident
+and a note is written under the identity the agent authenticated, not under the
+`author` the caller sent. Bodies and responses are the open-source ones, in
+[REST API](../../api-reference/rest-api.md#patch-apiv1alertsidtriage).
 
 ## Enterprise Architecture
 

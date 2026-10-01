@@ -607,6 +607,48 @@ alert shape `GET /api/v1/alerts` returns for a row.
 curl http://localhost:8080/api/v1/alerts/alert-001
 ```
 
+#### PATCH /api/v1/alerts/{id}/triage
+
+Change one alert's status or assignee, or append a note to it. A field left out
+of the body stays as it was, and `"assignee": null` takes the alert off whoever
+held it, so the two are different requests rather than one.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `status` | string | `open`, `acknowledged`, `investigating` or `resolved` |
+| `assignee` | string or `null` | At most 128 characters. `null` unassigns |
+| `note` | string | Appended, never replacing. At most 4096 characters, and an alert holds at most 200 |
+| `author` | string | Who is writing, when a console writes on a person's behalf. Defaults to the authenticated identity |
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/alerts/alert-001/triage \
+  -H "Content-Type: application/json" \
+  -d '{"status":"investigating","assignee":"soc-l2","note":"matches last week's scan"}'
+```
+
+Returns the alert's whole triage after the change: `alert_id`, `status`,
+`assignee`, `updated_ns`, and `notes`, each note carrying `author`, `via` (the
+identity the agent authenticated the write under, which is why a forged
+`author` is still attributable), `at_ns` and `text`. `400` on an unknown
+status, an empty change, or a value past one of the ceilings above; `404` when
+no alert carries that identifier; `503` when no alert store is configured.
+
+#### POST /api/v1/alerts/triage
+
+Apply one change to many alerts. The body is the same as above plus `ids`, at
+most 1000 of them.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/alerts/triage \
+  -H "Content-Type: application/json" \
+  -d '{"ids":["alert-001","alert-002"],"status":"resolved"}'
+```
+
+Returns `updated`, the identifiers the change was applied to, and `missing`,
+the ones the store no longer holds. A missing alert is reported rather than
+failing the call, so a console triaging a list it read a moment ago gets the
+rest of the work done.
+
 #### POST /api/v1/alerts/{id}/false-positive
 
 Mark an alert as false positive.
@@ -1549,6 +1591,8 @@ curl http://localhost:8080/metrics
 | GET | `/api/v1/alerts/{id}` | Yes | Read one alert |
 | GET | `/api/v1/alerts/stream` | Yes | SSE live alert feed (`Last-Event-ID` resume) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Yes | Mark false positive |
+| PATCH | `/api/v1/alerts/{id}/triage` | Yes | Set status or assignee, append a note |
+| POST | `/api/v1/alerts/triage` | Yes | Apply one triage change to many alerts |
 | GET | `/api/v1/audit/logs` | Yes | List audit logs |
 | GET | `/api/v1/audit/rules/{id}/history` | Yes | Rule change history |
 | GET | `/api/v1/ddos/status` | Yes | DDoS protection status |

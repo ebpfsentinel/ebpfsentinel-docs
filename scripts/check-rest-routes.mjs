@@ -66,7 +66,9 @@ const FEATURE_DOCS = [
 ];
 
 // Mounted whatever the license carries, so they belong to no feature. They are
-// documented on the enterprise overview page instead.
+// documented on the enterprise overview page instead. Matched as prefixes the
+// same way FEATURE_DOCS is, so a route added under one of them - a second verb
+// on an alert, say - is agent-wide too rather than a path nothing claims.
 const AGENT_WIDE_DOC = 'overview.md';
 const AGENT_WIDE = [
   '/api/v1/alerts',
@@ -232,7 +234,9 @@ function documentedPairs(text) {
 }
 
 function docFor(path) {
-  if (AGENT_WIDE.includes(path)) return AGENT_WIDE_DOC;
+  if (AGENT_WIDE.some((p) => path === p || path.startsWith(`${p}/`))) {
+    return AGENT_WIDE_DOC;
+  }
   let best = null;
   for (const [prefix, doc] of FEATURE_DOCS) {
     if (path !== prefix && !path.startsWith(`${prefix}/`)) continue;

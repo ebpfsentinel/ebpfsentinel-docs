@@ -186,6 +186,9 @@ Mounted whatever the license carries, on every enterprise agent.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `GET` | `/api/v1/alerts` | viewer | `alerts:read` | none | Query the OSS datapath alert store. |
+| `GET` | `/api/v1/alerts/{id}` | viewer | `alerts:read` | none | Read one stored alert by identifier. |
+| `PATCH` | `/api/v1/alerts/{id}/triage` | operator | `alerts:write` | none | Set one alert's status or assignee, or append a note. |
+| `POST` | `/api/v1/alerts/triage` | operator | `alerts:write` | none | Apply one triage change to at most 1000 alerts. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | `config:read` | none | Return what the startup helper probe learned about this kernel. |
 | `GET` | `/metrics` | none | `none` | none | Returns `OpenMetrics` text output for all enterprise metrics. |
 | `GET` | `/healthz` | none | `none` | none | Liveness probe. `200` while the process is running. |
