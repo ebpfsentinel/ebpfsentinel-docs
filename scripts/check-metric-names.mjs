@@ -69,6 +69,10 @@ const TOKEN = /ebpfsentinel_[a-z0-9_]+/g;
 // `ebpfsentinel_rbac_state.redb` would otherwise be reported as a name no
 // registry exposes, which is a failure nobody can act on.
 const FILE_EXTENSION = /^\.[a-z0-9]+/;
+// A token followed by `::` is a Rust path, not a series. The agent's crates are
+// named after it too, so a log sample carrying `ebpfsentinel_agent::startup`
+// would otherwise be reported as a metric no registry exposes.
+const MODULE_PATH = /^::/;
 const HISTOGRAM_SUFFIXES = ['_bucket', '_sum', '_count'];
 
 function fail(lines) {
@@ -198,7 +202,8 @@ for (const file of markdownFiles(docsRoot).sort()) {
   lines.forEach((line, index) => {
     for (const match of line.matchAll(TOKEN)) {
       const token = match[0];
-      if (FILE_EXTENSION.test(line.slice(match.index + token.length))) continue;
+      const after = line.slice(match.index + token.length);
+      if (FILE_EXTENSION.test(after) || MODULE_PATH.test(after)) continue;
       if (exposed.has(token)) {
         named.add(token);
         continue;

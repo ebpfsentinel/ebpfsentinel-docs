@@ -319,6 +319,8 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_thread_count` | Gauge | - | Threads in the process |
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=failed). `program` is the artefact name, `xdp-firewall` and not `xdp_firewall`, the same word `/api/v1/ebpf/status` and the fleet API use |
 | `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
+| `ebpfsentinel_ebpf_verifier_rejections` | Gauge | - | Program loads the kernel verifier refused. Exports nothing until something has been loaded, so an absent series is a datapath that never tried rather than one the verifier accepted |
+| `ebpfsentinel_ebpf_map_fill_permille` | Gauge | `map` | How full a map is, in parts per thousand. Only the maps that refuse an insert when full are measured, so a map with no series here is one nobody could measure rather than one sitting empty |
 | `ebpfsentinel_xdp_attach_mode` | Gauge | `interface`, `mode` | The XDP mode actually in force (1=in force). `mode` is `native`, `generic`, `offloaded`, `multiple` or `unknown` |
 | `ebpfsentinel_bpf_token_used` | Gauge | - | eBPF loaded through a BPF token (1=token-loaded, 0=API-only or no eBPF) |
 
