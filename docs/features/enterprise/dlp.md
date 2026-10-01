@@ -197,17 +197,18 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> **Two of the five libraries are probed; three are discovery only.**
+> **Three of the five libraries are probed; two are discovery only.**
 > GnuTLS and statically linked BoringSSL are attached: their write and
 > read entry points take the same `(handle, buffer, length)` shape as
 > OpenSSL's, so the existing `uprobe-dlp` programs read them correctly at
-> the offsets the scan resolved. Go `crypto/tls`, Java JSSE and kernel
+> the offsets the scan resolved. Go `crypto/tls` is attached through
+> programs of its own, which read Go's register ABI. Java JSSE and kernel
 > TLS are discovered, reported and left unattached, because each needs a
 > program the agent does not carry - see the per-library table below for
 > the reason in each case. Attaching there anyway would produce a probe
 > that fires and captures nothing, which reads as coverage.
 >
-> For the three unattached libraries the agent publishes the attachment
+> For the two unattached libraries the agent publishes the attachment
 > plan, so an operator can see exactly which binaries and symbols would
 > be probed and verify the resolved offsets against the build they
 > belong to.
@@ -224,7 +225,7 @@ library the workload links against.
 
 | Library | Detection | Hook target | Status | Typical workloads |
 |---------|-----------|-------------|--------|-------------------|
-| **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse | `crypto/tls.(*Conn).Write` / `.Read` uprobes, Go ≥1.17 register ABI, Go <1.17 stack ABI | Discovery only - the Go register ABI passes the buffer differently, so the OpenSSL-shaped programs would read the wrong register | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
+| **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse; functions found in `.symtab`, or in `.gopclntab` for a stripped binary | Entry uprobes on `crypto/tls.(*Conn).Write` / `.Read`, plus one uprobe on every return instruction of `Read` | **Attached** on amd64 (Go 1.17+) and arm64 (Go 1.18+); older releases pass arguments on the stack and are discovery only | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
 | **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Discovery only - plaintext lives in a JVM heap object, not in a flat buffer the probe can copy | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
 | **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
 | **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | Discovery only - a kernel hook, not a uprobe; needs a kprobe program the agent does not carry | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
@@ -286,6 +287,34 @@ orchestrator:
 - collects per-process errors as structured warnings (invalid ELF,
   truncated `/proc` file, `object` parse failure…) without aborting
   the scan.
+
+### Go specifics
+
+Go does not follow the C calling convention, so the OpenSSL programs cannot
+read it. Three programs of its own do: the write and read entries take the
+connection, the buffer pointer and its length from the first three argument
+registers (RAX, RBX, RCX on amd64; X0, X1, X2 on arm64), and the read result is
+taken from the first result register.
+
+The read result is not taken through a uretprobe. A uretprobe swaps the return
+address on the stack, and Go moves a goroutine's stack whenever it grows, so the
+process would fault on its next return. The agent decodes `(*Conn).Read`
+instead and places a plain uprobe on each of its return instructions. Read
+calls in flight are keyed by process and goroutine, so two goroutines reading at
+once never mix up their buffers.
+
+Before anything is attached, each resolved function must open with the register
+ABI's stack-bound check, a read of the goroutine's stack guard off the g
+register. An offset that fails this, or a `Read` that does not decode cleanly,
+attaches nothing: a probe placed in the middle of an instruction would corrupt
+the process it is meant to observe.
+
+Two limits remain. A Go release older than 1.17 on amd64, or 1.18 on arm64,
+passes arguments on the stack and is reported without being probed. And a read
+buffer that lives on the goroutine's own stack can be moved if the stack grows
+during the call, in which case that one read is captured from the old address
+and the scan sees stale bytes. Buffers allocated by `bufio`, `io.ReadAll` and
+the HTTP stacks live on the heap and are not affected.
 
 ### Container-aware attach
 

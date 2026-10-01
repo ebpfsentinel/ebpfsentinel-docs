@@ -27,8 +27,9 @@ level, not in the `dlp` config block:
 The bundled Helm chart and `docker-compose.yml` set these for you. On bare metal
 (systemd) the agent already shares the host PID namespace, so `EBPFSENTINEL_HOST_PROC`
 keeps its `/proc` default and no mount is needed. Coverage is **dynamically-linked
-OpenSSL / BoringSSL only**; statically-linked TLS (Go, Rust, Java) is Enterprise
-scope. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
+OpenSSL / BoringSSL only**; Go, statically linked BoringSSL and GnuTLS are
+Enterprise scope, Java JSSE is detected there without being probed, and rustls
+and NSS are not covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
 for the `hostPID` trust trade-off.
 
 ## Reference
