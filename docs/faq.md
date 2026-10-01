@@ -56,7 +56,7 @@ The IDS itself only detects. Enable **IPS** (Intrusion Prevention) to automatica
 
 ### Can I customize DLP patterns?
 
-The OSS edition ships with 9 built-in patterns (PCI, PII, credentials) that are always loaded. Custom patterns require the Enterprise edition. See [DLP](features/dlp.md) for details.
+The OSS edition ships with 17 built-in patterns (payment cards, national identifiers from nine countries, credentials) that are always loaded, in alert mode. Custom patterns and block mode come with every paid tier from Professional upwards. See [DLP](features/dlp.md) for details.
 
 ### What threat intelligence feed formats are supported?
 

@@ -1,10 +1,10 @@
 # Data Loss Prevention (DLP)
 
-> **Edition: OSS (core) + Enterprise (advanced)** | **eBPF Program: uprobe-dlp**
+> **Edition: OSS (core) + Professional and above (advanced)** | **eBPF Program: uprobe-dlp**
 
 ## Overview
 
-DLP scans decrypted network traffic for sensitive data patterns - card numbers, US Social Security Numbers, email addresses, AWS keys, GitHub tokens, password assignments and Bearer tokens. The `uprobe-dlp` eBPF program attaches to SSL/TLS library functions to capture plaintext before encryption, forwarding it to the userspace DLP engine for pattern matching.
+DLP scans decrypted network traffic for sensitive data patterns - card numbers, national identifiers from nine countries, email addresses, AWS keys, GitHub tokens, password assignments and Bearer tokens. The `uprobe-dlp` eBPF program attaches to SSL/TLS library functions to capture plaintext before encryption, forwarding it to the userspace DLP engine for pattern matching.
 
 ## How It Works
 
@@ -49,11 +49,13 @@ All regex patterns (built-in and enterprise custom) are **pre-compiled at config
 - **200** maximum nesting depth
 - **4 KiB** maximum regex source length per pattern
 
-## OSS vs Enterprise
+## OSS vs paid tiers
 
-The DLP module is available in both editions, with the following differences:
+The DLP module is in the open source core. The advanced capabilities ride the
+`advanced-dlp` licence feature, which every paid tier carries from
+Professional upwards and which the enterprise binary enforces:
 
-| Capability | OSS | Enterprise |
+| Capability | OSS | Professional and above |
 |------------|:---:|:----------:|
 | Built-in patterns (PCI, PII, credentials) | Yes | Yes |
 | Custom regex patterns | No | Yes |
@@ -65,7 +67,7 @@ The DLP module is available in both editions, with the following differences:
 
 ### Built-in Patterns (OSS)
 
-The OSS edition ships with **9 built-in patterns** across 3 categories, covering the most common data loss scenarios:
+The OSS edition ships with **17 built-in patterns** across 3 categories, covering the most common data loss scenarios:
 
 | Category | Rule id | Matches |
 |----------|---------|---------|
@@ -73,11 +75,26 @@ The OSS edition ships with **9 built-in patterns** across 3 categories, covering
 | | `dlp-pci-mastercard` | Mastercard number, 16 digits starting with 51-55 |
 | | `dlp-pci-amex` | American Express number, 15 digits starting with 34 or 37 |
 | **PII** (Personal Info) | `dlp-pii-email` | Email address |
-| | `dlp-pii-ssn` | US Social Security Number, `XXX-XX-XXXX` |
+| | `dlp-pii-ssn` | US Social Security Number, `XXX-XX-XXXX`, unissued ranges (area 000, 666, 900-999, group 00, serial 0000) excluded |
+| | `dlp-pii-fr-nir` | French NIR (numéro de sécurité sociale), 15 characters, confirmed by its mod-97 key, Corsican `2A` / `2B` accepted |
+| | `dlp-pii-uk-nino` | UK National Insurance number, `AB 12 34 56 C`, unissued prefixes excluded |
+| | `dlp-pii-es-dni` | Spanish DNI or NIE, confirmed by its mod-23 check letter |
+| | `dlp-pii-it-cf` | Italian codice fiscale, confirmed by its check letter |
+| | `dlp-pii-be-nrn` | Belgian national register number, `YY.MM.DD-XXX.CC`, confirmed by its mod-97 key |
+| | `dlp-pii-ca-sin` | Canadian Social Insurance Number, `XXX XXX XXX`, confirmed by Luhn |
+| | `dlp-pii-br-cpf` | Brazilian CPF, `XXX.XXX.XXX-XX`, confirmed by its two check digits |
+| | `dlp-pii-in-aadhaar` | Indian Aadhaar number, `XXXX XXXX XXXX`, confirmed by Verhoeff |
 | **Credentials** | `dlp-cred-aws-key` | AWS access key id, `AKIA` followed by 16 characters |
 | | `dlp-cred-github-token` | GitHub personal access token, `ghp_` followed by 36 characters |
 | | `dlp-cred-password` | Password assignment: `password`, `passwd` or `pwd` followed by `:` or `=` and 8 or more non-space characters |
 | | `dlp-cred-bearer` | HTTP `Bearer` authentication token |
+
+A national identifier is reported only when the matched text passes its own
+numbering scheme: the regex finds the shape, then the check digit or the
+issuance rule decides. A nine-digit order number laid out like a SIN, or a
+fifteen-digit reference shaped like a NIR, is dropped unless its key is right.
+The confirmation sits in the domain and runs on both scanners, the open source
+regex engine and the Vectorscan engine of the paid tiers.
 
 There is no phone-number pattern and no JWT pattern. A JWT presented in an
 `Authorization` header is caught by `dlp-cred-bearer`, which matches the header
@@ -85,9 +102,9 @@ value rather than the token's own shape; a bare JWT in a body is not matched.
 
 These patterns are always loaded at startup and cannot be removed. They operate in **alert mode only**.
 
-### Enterprise Patterns
+### Advanced Patterns (Professional and above)
 
-With the `enterprise` feature, organizations can:
+With the `advanced-dlp` licence feature, organizations can:
 
 - Define **custom regex patterns** with arbitrary IDs
 - Use **block mode** to actively drop connections leaking sensitive data
@@ -153,7 +170,7 @@ dlp:
 
 Built-in patterns are loaded automatically and do not need to be listed in the configuration file. Any attempt to add custom patterns or set `mode: block` in OSS will be rejected at startup with a validation error.
 
-### Enterprise Configuration
+### Professional and above: configuration
 
 ```yaml
 dlp:

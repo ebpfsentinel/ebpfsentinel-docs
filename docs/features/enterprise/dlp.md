@@ -1,6 +1,6 @@
 # Enterprise DLP
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** (`advanced-dlp`), extended TLS library coverage **Enterprise and above**
 
 ## Overview
 
@@ -91,7 +91,7 @@ enterprise:
         mode: block  # per-pattern override
 ```
 
-OSS is limited to 9 built-in patterns (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`). Enterprise allows any pattern ID.
+OSS is limited to the 17 built-in patterns (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`). Professional and above allow any pattern ID.
 
 **Validation at config load:**
 - Custom pattern IDs validated for uniqueness against each other; a custom ID colliding with a built-in is refused at startup, when the custom list is merged into the built-ins
@@ -431,11 +431,11 @@ The active TLS probe endpoints documented under Admin API above sit on the same 
 
 ## Feature Gating
 
-Enterprise DLP requires a valid license with the `advanced-dlp` feature. Without a license:
+Advanced DLP requires a valid license with the `advanced-dlp` feature, which every paid tier carries from Professional upwards. Without a license:
 - Custom pattern IDs are rejected
 - Block mode is rejected
 - TLS deep inspection is disabled
-- Falls back to OSS DLP (9 built-in patterns, alert mode only)
+- Falls back to OSS DLP (17 built-in patterns, alert mode only)
 
 ## Build Requirements
 

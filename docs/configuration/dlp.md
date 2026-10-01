@@ -2,7 +2,7 @@
 
 The `dlp` section configures data loss prevention pattern scanning on decrypted SSL/TLS traffic.
 
-## OSS vs Enterprise
+## OSS vs paid tiers
 
 In **OSS** mode, built-in patterns are loaded automatically. A `patterns`
 entry whose `id` repeats a built-in re-tunes that pattern - a different
@@ -10,7 +10,7 @@ regex or severity, or `enabled: false` to switch it off - and the built-ins
 it does not name are kept as they are. Any other id, block mode, and
 per-pattern mode overrides are rejected at config validation time.
 
-In **Enterprise** mode, all fields are available including custom patterns and block mode.
+With a licence carrying `advanced-dlp`, which every paid tier has from **Professional** upwards, all fields are available including custom patterns and block mode.
 
 ## Cross-container coverage
 
@@ -37,14 +37,14 @@ for the `hostPID` trust trade-off.
 ```yaml
 dlp:
   enabled: true              # enable/disable the DLP module
-  mode: alert                # alert or block (enterprise only)
-  patterns:                  # custom patterns (enterprise only)
+  mode: alert                # alert or block (Professional and above)
+  patterns:                  # custom patterns (Professional and above)
     - id: "pattern-id"
       name: "Pattern Name"
       regex: "regex-pattern"
       severity: critical
       data_type: pci
-      mode: block            # per-pattern override (enterprise only)
+      mode: block            # per-pattern override (Professional and above)
       description: "Description"
       enabled: true
 ```
@@ -54,8 +54,8 @@ dlp:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable or disable the DLP module |
-| `mode` | `string` | `alert` | `alert` (detect only) or `block` (enterprise only) |
-| `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs enterprise |
+| `mode` | `string` | `alert` | `alert` (detect only) or `block` (Professional and above) |
+| `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs Professional or above |
 
 ### Pattern
 
@@ -66,13 +66,15 @@ dlp:
 | `regex` | `string` | Yes | - | Regex pattern (validated with ReDoS protection limits) |
 | `severity` | `string` | Yes | - | `low`, `medium`, `high`, or `critical` |
 | `data_type` | `string` | Yes | - | Category: `pci`, `pii`, `credentials`, or custom |
-| `mode` | `string` | No | inherits global | Per-pattern mode override (`alert` or `block`, enterprise only) |
+| `mode` | `string` | No | inherits global | Per-pattern mode override (`alert` or `block`, Professional and above) |
 | `description` | `string` | No | `""` | Human-readable description |
 | `enabled` | `bool` | No | `true` | Enable or disable this specific pattern |
 
 ## Built-in Patterns (OSS)
 
-The OSS edition ships with 9 built-in patterns that are always loaded:
+The OSS edition ships with 17 built-in patterns that are always loaded. A
+national identifier is reported only when its check digit or issuance rule
+confirms the match:
 
 | ID | Name | Category | Severity |
 |----|------|----------|----------|
@@ -81,6 +83,14 @@ The OSS edition ships with 9 built-in patterns that are always loaded:
 | `dlp-pci-amex` | American Express Number | PCI | Critical |
 | `dlp-pii-email` | Email Address | PII | Medium |
 | `dlp-pii-ssn` | US Social Security Number | PII | Critical |
+| `dlp-pii-fr-nir` | French Social Security Number (NIR) | PII | Critical |
+| `dlp-pii-uk-nino` | UK National Insurance Number | PII | Critical |
+| `dlp-pii-es-dni` | Spanish DNI / NIE | PII | Critical |
+| `dlp-pii-it-cf` | Italian Codice Fiscale | PII | Critical |
+| `dlp-pii-be-nrn` | Belgian National Register Number | PII | Critical |
+| `dlp-pii-ca-sin` | Canadian Social Insurance Number | PII | Critical |
+| `dlp-pii-br-cpf` | Brazilian CPF | PII | Critical |
+| `dlp-pii-in-aadhaar` | Indian Aadhaar Number | PII | Critical |
 | `dlp-cred-aws-key` | AWS Access Key | Credentials | Critical |
 | `dlp-cred-github-token` | GitHub Personal Access Token | Credentials | Critical |
 | `dlp-cred-password` | Generic Password | Credentials | High |
@@ -111,7 +121,7 @@ dlp:
       enabled: false             # too noisy on this host
 ```
 
-The other eight built-ins stay loaded exactly as they ship.
+The other sixteen built-ins stay loaded exactly as they ship.
 
 ### Disable DLP
 
@@ -120,7 +130,7 @@ dlp:
   enabled: false
 ```
 
-### Enterprise: PCI-DSS credit card detection with block mode
+### Professional and above: PCI-DSS credit card detection with block mode
 
 ```yaml
 dlp:
@@ -146,7 +156,7 @@ dlp:
       description: "American Express number"
 ```
 
-### Enterprise: Mixed mode with per-pattern override
+### Professional and above: Mixed mode with per-pattern override
 
 ```yaml
 dlp:
