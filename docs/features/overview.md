@@ -143,7 +143,7 @@ entered from the program that needs it, which is why they are counted apart:
 |---------|-------------|---------|
 | `xdp-firewall-reject` | `xdp-firewall` | Forges the TCP RST or ICMP unreachable a `reject` rule owes |
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
-| `xdp-vip-announcer` | `xdp-loadbalancer` | Emits the gratuitous ARP that claims a VIP |
+| `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
 `xdp-pass` is the sixteenth directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
