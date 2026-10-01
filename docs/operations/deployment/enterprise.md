@@ -4,7 +4,7 @@ The enterprise agent ships in the same **rootless split** posture as the OSS
 agent: a fully unprivileged agent (uid 65534, every capability dropped) paired
 with a privileged **enterprise-warden** broker. The warden is the OSS warden plus
 one addition - it serves the enterprise **proc-TLS scan** (extended-TLS discovery
-of Go / Java / static BoringSSL / kTLS / GnuTLS usage) over the same socket. A
+of the TLS libraries the OSS agent cannot reach) over the same socket. A
 single privileged daemon therefore backs the whole rootless enterprise agent.
 
 | Half | Runs as | Holds | Role |

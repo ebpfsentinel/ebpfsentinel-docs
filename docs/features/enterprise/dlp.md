@@ -197,18 +197,19 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> **Three of the five libraries are probed; two are discovery only.**
-> GnuTLS and statically linked BoringSSL are attached: their write and
-> read entry points take the same `(handle, buffer, length)` shape as
-> OpenSSL's, so the existing `uprobe-dlp` programs read them correctly at
-> the offsets the scan resolved. Go `crypto/tls` is attached through
-> programs of its own, which read Go's register ABI. Java JSSE and kernel
-> TLS are discovered, reported and left unattached, because each needs a
-> program the agent does not carry - see the per-library table below for
-> the reason in each case. Attaching there anyway would produce a probe
-> that fires and captures nothing, which reads as coverage.
+> **Six of the nine libraries are probed; three are discovery only.**
+> GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked BoringSSL are
+> attached: their write and read entry points take the same
+> `(handle, buffer, length)` shape as OpenSSL's, so the existing
+> `uprobe-dlp` programs read them correctly at the offsets the scan
+> resolved. Go `crypto/tls` is attached through programs of its own, which
+> read Go's register ABI. Java JSSE, NSS and kernel TLS are discovered,
+> reported and left unattached, because each needs a program the agent does
+> not carry - see the per-library table below for the reason in each case.
+> Attaching there anyway would produce a probe that fires and captures
+> nothing, which reads as coverage.
 >
-> For the two unattached libraries the agent publishes the attachment
+> For the three unattached libraries the agent publishes the attachment
 > plan, so an operator can see exactly which binaries and symbols would
 > be probed and verify the resolved offsets against the build they
 > belong to.
@@ -217,7 +218,7 @@ The OSS `uprobe-dlp` program hooks `SSL_write` / `SSL_read` in a mapped
 `libssl.so` or `libboringssl.so`, so it covers dynamically-linked OpenSSL and
 dynamically-linked BoringSSL. An application that manages TLS with no such
 shared object mapped - a static link, or a runtime with its own stack - is
-invisible to OSS DLP. Enterprise widens coverage to five more TLS
+invisible to OSS DLP. Enterprise widens coverage to eight more TLS
 implementations so decrypted plaintext can be scanned regardless of the TLS
 library the workload links against.
 
@@ -230,6 +231,10 @@ library the workload links against.
 | **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
 | **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | Discovery only - a kernel hook, not a uprobe; needs a kprobe program the agent does not carry | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
 | **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | **Attached** | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
+| **wolfSSL** | `libwolfssl.so*` found in `/proc/{pid}/maps` | `wolfSSL_write` / `wolfSSL_read` uprobes in the shared library | **Attached** | embedded and IoT workloads, appliance firmware, constrained gateways |
+| **mbedTLS** | `libmbedtls.so*` found in `/proc/{pid}/maps` | `mbedtls_ssl_write` / `mbedtls_ssl_read` uprobes in the shared library | **Attached** | IoT stacks, OpenVPN builds linked against mbedTLS, embedded Linux images |
+| **s2n-tls** | `libs2n.so*` found in `/proc/{pid}/maps` | `s2n_send` / `s2n_recv` uprobes in the shared library; the fourth argument, a blocked-status out-parameter, is never read | **Attached** | AWS SDK for C and C++, AWS-native services and sidecars |
+| **NSS** | `libssl3.so` found in `/proc/{pid}/maps` | `PR_Write` / `PR_Read` in `libnspr4.so` | Discovery only - NSPR layers those two calls over files and plaintext sockets as well as over TLS, so a probe there reports an ordinary file write as a TLS payload. Confirming the SSL layer on the descriptor means dereferencing `PRFileDesc->methods`, which needs a program of its own | Firefox, Thunderbird, older curl builds, RHEL tooling linked against NSS |
 
 An attached library is probed after the scan cycle that discovered it, not
 only at startup: a container that starts an hour in brings a library the
@@ -242,7 +247,8 @@ scan cycle re-attaches on the new generation.
 Distribution packages ship these libraries stripped, so the offsets come
 from whichever symbol table survives: the full table when one is present,
 the dynamic exports otherwise. A stock `libgnutls.so.30` is therefore
-probed as shipped, with no debug package required.
+probed as shipped, with no debug package required, and so is a stock
+`libwolfssl.so`, `libmbedtls.so` or `libs2n.so`.
 
 A build that exports neither name - a statically linked binary stripped of
 its symbol table, or one built with hidden visibility - resolves no
@@ -254,14 +260,18 @@ and left alone rather than probed at the start of the file.
 ```
                           TlsProbeManager
                                 │
-           ┌────────────────┬───┴────┬────────────────┬─────────────┐
-           │                │        │                │             │
-       GoProbes        JavaProbes  BoringSslStatic  KtlsProbes   GnuTlsProbes
-           │                │        │                │             │
-   ELF .gopclntab      path+maps  symtab scan    /proc/net/    maps+libgnutls
-   + .go.buildinfo     heuristic  (libssl-less)   tls_stat     symbol scan
-           │                │        │                │             │
-           └────────────────┴────────┴────────────────┴─────────────┘
+           ┌────────────────┬───┴────┬────────────────┬──────────────┐
+           │                │        │                │              │
+       GoProbes        JavaProbes  BoringSslStatic  KtlsProbes   SharedLibs
+           │                │        │                │              │
+   ELF .gopclntab      path+maps  symtab scan    /proc/net/    maps marker
+   + .go.buildinfo     heuristic  (libssl-less)   tls_stat    + symbol scan
+           │                │        │                │              │
+           │                │        │                │        GnuTLS, wolfSSL,
+           │                │        │                │        mbedTLS, s2n-tls,
+           │                │        │                │        NSS (one table)
+           │                │        │                │              │
+           └────────────────┴────────┴────────────────┴──────────────┘
                                 │
                   Vec<TlsProbePlan>  (library, binary, offsets, pids)
                                 │
@@ -277,9 +287,13 @@ bytes + `/proc/{pid}/maps` dump) plus the optional contents of
 `/proc/net/tls_stat` and returns a deduplicated `ScanResult`. The
 orchestrator:
 
-- runs every enabled library detector in priority order (Go → Java →
-  BoringSSL static → GnuTLS) - a binary is classified once and
-  subsequent detectors are skipped for that path;
+- resolves every mapped shared library first, one plan per object, so a
+  process contributes to each library it links rather than to one of them;
+- then runs the per-executable detectors in priority order (Go → Java →
+  BoringSSL static) - a binary is classified once and subsequent detectors
+  are skipped for that path. The flavour of the executable does not decide
+  whether its libraries are scanned: a JVM reaching NSS through JNI, or a
+  Go binary linked against GnuTLS, is reported as both;
 - aggregates pids per `(library, binary_path)` so probe attachment can
   run once per unique binary;
 - emits a kTLS plan whenever `/proc/net/tls_stat` reports active
@@ -346,6 +360,10 @@ enterprise:
       boringssl_static: { enabled: true }
       ktls:            { enabled: false }  # opt-in, requires kprobe + kernel ≥ 5.11
       gnutls:          { enabled: true }
+      wolfssl:         { enabled: true }
+      mbedtls:         { enabled: true }
+      s2n_tls:         { enabled: true }
+      nss:             { enabled: true }  # reported, never probed
 ```
 
 Each per-library block is a flag - set `enabled: false` to skip the

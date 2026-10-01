@@ -151,7 +151,7 @@ runtime that manages TLS internally is not intercepted - Go's `crypto/tls`,
 Java's JSSE, and a proxy like Envoy that links BoringSSL statically rather
 than mapping `libboringssl.so`.
 
-**Enterprise extends this coverage** via additional uprobe targets - Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), and GnuTLS - so applications that don't link OpenSSL are still seen. GnuTLS and statically linked BoringSSL are probed and their plaintext scanned; Go, Java JSSE and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
+**Enterprise extends this coverage** via additional uprobe targets - Go `crypto/tls`, Java JSSE, BoringSSL (statically linked), kTLS (kernel TLS), GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - so applications that don't link OpenSSL are still seen. Go `crypto/tls`, GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked BoringSSL are probed and their plaintext scanned; Java JSSE, NSS and kTLS are discovered and reported only. See [Enterprise DLP: Extended TLS Library Coverage](enterprise/dlp.md#extended-tls-library-coverage).
 
 **Across containers**, the agent finds each process's library through the
 host `/proc` mounted at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), and the warden

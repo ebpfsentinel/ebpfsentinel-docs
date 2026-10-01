@@ -148,10 +148,13 @@ Out of scope for OSS:
 - **Statically-linked TLS runtimes** - Go (`crypto/tls`), Rust (rustls), Java
   (JSSE), or proxies that link BoringSSL statically - export no `libssl` symbol
   to probe. Per-runtime symbol resolution is an **Enterprise** extension
-  covering Go, statically linked BoringSSL and GnuTLS; Java JSSE is detected
-  there without being probed, and rustls is not covered.
-- **NSS** (`libnss3`, Firefox, Thunderbird, some RHEL tooling) is not hooked
-  in any edition.
+  covering Go, statically linked BoringSSL, GnuTLS, wolfSSL, mbedTLS and
+  s2n-tls; Java JSSE is detected there without being probed, and rustls is not
+  covered.
+- **NSS** (`libssl3` over `libnspr4`, Firefox, Thunderbird, some RHEL tooling)
+  is not hooked in any edition. The Enterprise scan detects and reports it:
+  NSPR's `PR_Write` carries file and plaintext-socket writes as well as TLS, so
+  probing it would report an ordinary file write as a TLS payload.
 - **kTLS kernel-offloaded sockets** - plaintext lives kernel-side, a separate
   hook path. The Enterprise scan detects and reports them; it does not read
   them.
