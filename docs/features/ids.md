@@ -186,4 +186,4 @@ Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_p
 - `ebpfsentinel_alerts_dropped_total{reason}` - alerts suppressed before delivery, `reason="dedup"` inside the dedup window and `reason="throttle"` for the per-rule rate limit
 - `ebpfsentinel_ids_domain_matches_total{rule_id}` - matches driven by a domain pattern
 - `ebpfsentinel_packet_processing_duration_seconds{program="ids"}` - IDS event dispatch latency
-- `ebpfsentinel_packets_total{interface="IDS_METRICS", action}` - kernel-side counters (`matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`)
+- `ebpfsentinel_packets_total{interface="IDS_METRICS", action}` - kernel-side counters (`matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`, `ct_kill_confirmed`)

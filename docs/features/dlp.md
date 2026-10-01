@@ -150,14 +150,18 @@ Out of scope for OSS:
   to probe. Per-runtime symbol resolution is an **Enterprise** extension
   covering Go, statically linked BoringSSL, GnuTLS, wolfSSL, mbedTLS and
   s2n-tls; Java JSSE is detected there without being probed, and rustls is not
-  covered.
+  covered. A rustls or JSSE workload that puts its socket into kernel TLS is
+  read by the kernel-side hook below, whatever its library.
 - **NSS** (`libssl3` over `libnspr4`, Firefox, Thunderbird, some RHEL tooling)
   is not hooked in any edition. The Enterprise scan detects and reports it:
   NSPR's `PR_Write` carries file and plaintext-socket writes as well as TLS, so
   probing it would report an ordinary file write as a TLS payload.
-- **kTLS kernel-offloaded sockets** - plaintext lives kernel-side, a separate
-  hook path. The Enterprise scan detects and reports them; it does not read
-  them.
+- **kTLS sockets** - plaintext lives kernel-side, so there is no userspace
+  call to probe. Enterprise reads them through kprobes on the kernel's own
+  software send and receive path, which covers every process on the host at
+  once regardless of language. A socket whose crypto was offloaded to the
+  network card never enters that path: those are detected and reported, not
+  read.
 
 ## Configuration
 
@@ -277,4 +281,4 @@ Enterprise DLP capabilities are activated by the separate enterprise repository,
 - `ebpfsentinel_dlp_matches_total{rule_id}` - pattern matches, by pattern
 - `ebpfsentinel_dlp_scan_duration_seconds` - pattern matching latency
 - `ebpfsentinel_packet_processing_duration_seconds{program="dlp"}` - time spent dispatching one DLP event
-- `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`)
+- `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, plus `ktls_events`, `ktls_suppressed` and `ktls_unreadable` from the kernel TLS probes, which Enterprise attaches)

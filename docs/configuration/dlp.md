@@ -28,8 +28,9 @@ The bundled Helm chart and `docker-compose.yml` set these for you. On bare metal
 (systemd) the agent already shares the host PID namespace, so `EBPFSENTINEL_HOST_PROC`
 keeps its `/proc` default and no mount is needed. Coverage is **dynamically-linked
 OpenSSL / BoringSSL only**; Go, statically linked BoringSSL, GnuTLS, wolfSSL,
-mbedTLS and s2n-tls are Enterprise scope, Java JSSE and NSS are detected there
-without being probed, and rustls is not covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
+mbedTLS, s2n-tls and sockets that encrypt in the kernel are Enterprise scope,
+Java JSSE and NSS are detected there without being probed, and rustls is not
+covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
 for the `hostPID` trust trade-off.
 
 ## Reference

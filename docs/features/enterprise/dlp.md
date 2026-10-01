@@ -197,19 +197,21 @@ Dynamic per-SNI certificate generation:
 
 ## Extended TLS Library Coverage
 
-> **Six of the nine libraries are probed; three are discovery only.**
+> **Seven of the nine libraries are read; two are discovery only.**
 > GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked BoringSSL are
 > attached: their write and read entry points take the same
 > `(handle, buffer, length)` shape as OpenSSL's, so the existing
 > `uprobe-dlp` programs read them correctly at the offsets the scan
 > resolved. Go `crypto/tls` is attached through programs of its own, which
-> read Go's register ABI. Java JSSE, NSS and kernel TLS are discovered,
-> reported and left unattached, because each needs a program the agent does
-> not carry - see the per-library table below for the reason in each case.
-> Attaching there anyway would produce a probe that fires and captures
-> nothing, which reads as coverage.
+> read Go's register ABI. Kernel TLS is attached through programs of its
+> own as well, on the kernel's software send and receive functions rather
+> than on any image. Java JSSE and NSS are discovered, reported and left
+> unattached, because each needs a program the agent does not carry - see
+> the per-library table below for the reason in each case. Attaching there
+> anyway would produce a probe that fires and captures nothing, which reads
+> as coverage.
 >
-> For the three unattached libraries the agent publishes the attachment
+> For the two unattached libraries the agent publishes the attachment
 > plan, so an operator can see exactly which binaries and symbols would
 > be probed and verify the resolved offsets against the build they
 > belong to.
@@ -229,7 +231,7 @@ library the workload links against.
 | **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse; functions found in `.symtab`, or in `.gopclntab` for a stripped binary | Entry uprobes on `crypto/tls.(*Conn).Write` / `.Read`, plus one uprobe on every return instruction of `Read` | **Attached** on amd64 (Go 1.17+) and arm64 (Go 1.18+); older releases pass arguments on the stack and are discovery only | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
 | **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Discovery only - plaintext lives in a JVM heap object, not in a flat buffer the probe can copy | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
 | **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
-| **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on `tls_sw_sendmsg` / `tls_sw_recvmsg` | Discovery only - a kernel hook, not a uprobe; needs a kprobe program the agent does not carry | nginx + kTLS, HAProxy + kTLS, Linux 5.11+ workloads with kernel TLS offload |
+| **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on the kernel's own `tls_sw_sendmsg` / `tls_sw_recvmsg`, no image and no offset | **Attached** when the counters report an active software socket; hardware-offloaded sockets take a different path and stay unread | nginx and HAProxy built with kernel TLS, OpenSSL 3 with `Options KTLS` |
 | **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | **Attached** | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
 | **wolfSSL** | `libwolfssl.so*` found in `/proc/{pid}/maps` | `wolfSSL_write` / `wolfSSL_read` uprobes in the shared library | **Attached** | embedded and IoT workloads, appliance firmware, constrained gateways |
 | **mbedTLS** | `libmbedtls.so*` found in `/proc/{pid}/maps` | `mbedtls_ssl_write` / `mbedtls_ssl_read` uprobes in the shared library | **Attached** | IoT stacks, OpenVPN builds linked against mbedTLS, embedded Linux images |
@@ -330,6 +332,36 @@ during the call, in which case that one read is captured from the old address
 and the scan sees stale bytes. Buffers allocated by `bufio`, `io.ReadAll` and
 the HTTP stacks live on the heap and are not affected.
 
+### Kernel TLS specifics
+
+A kernel TLS socket encrypts inside the kernel, so by the time the data is on
+the wire there is no userspace call to probe and by the time it reaches the
+socket there is no library in the path. The probes go on the kernel's own
+software send and receive functions, `tls_sw_sendmsg` and `tls_sw_recvmsg`, and
+see plaintext for every process on the host at once, whatever language or
+library it was written against. There is no image, no symbol offset and no
+build id: the link names a kernel symbol and the kernel resolves it, which is
+why the published plan for this entry reports `null` where the others report a
+path.
+
+The buffer is reached through the `msghdr` the caller passed, which points into
+the caller's own memory, so the plaintext is copied with the same user-space
+read the uprobes use. Finding it means walking `msghdr` into its `iov_iter` and
+out to the first segment, and those member offsets differ between kernel
+releases. They are read out of the running kernel's own BTF at startup and
+pushed into the program through a map, so a kernel whose layout moved produces
+different offsets rather than a wrong read; a kernel that exposes no BTF leaves
+the offsets unset and the programs capture nothing rather than reading at a
+guess.
+
+Two things are deliberately not counted. A send that OpenSSL already handed to
+`SSL_write` is seen twice - once by the uprobe, once here - so the uprobe
+stamps the thread and the kernel probe skips a buffer it already captured,
+counted as `ktls_suppressed`. And a socket whose crypto was offloaded to the
+network card never enters the software path at all: those sockets show up in
+the `…Device` counters, are reported, and are not read. Reading them would mean
+probing a different point, before the hand-off to the card.
+
 ### Container-aware attach
 
 Extended TLS hooking is designed to be fully container-aware: the
@@ -358,7 +390,7 @@ enterprise:
       go_tls:          { enabled: true }
       java_jsse:       { enabled: true }
       boringssl_static: { enabled: true }
-      ktls:            { enabled: false }  # opt-in, requires kprobe + kernel ≥ 5.11
+      ktls:            { enabled: true }   # kprobes on the kernel's own software TLS path
       gnutls:          { enabled: true }
       wolfssl:         { enabled: true }
       mbedtls:         { enabled: true }
@@ -380,7 +412,7 @@ duration gauge. All metrics are registered under the
 |--------|------|--------|---------|
 | `ebpfsentinel_ent_tls_probes_binaries_discovered_total` | Counter | `library` | Binaries discovered by the extended TLS probe scanner, labelled by TLS library |
 | `ebpfsentinel_ent_tls_probes_attached_total` | Counter | `library` | Probes newly attached. Counted once per binary, not once per scan cycle, so a steady state stops incrementing |
-| `ebpfsentinel_ent_tls_probes_attach_failures_total` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` or `unsupported_hook` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
+| `ebpfsentinel_ent_tls_probes_attach_failures_total` | Counter | `library`, `reason` | Plans that produced no probe. `reason` is `unsupported_abi` for a discovery-only library, `offsets_unresolved` for a build that exports neither symbol, `attach_error` when the kernel or the warden refused, `non_utf8_path` for a binary path that is not valid UTF-8 |
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | - | Most recent `TlsProbeManager::scan` duration in seconds |
 | `ebpfsentinel_ent_tls_probes_scan_warnings_total` | Counter | `library` | Warnings collected during a scan (invalid ELF, proc parse, IO error, …) |
@@ -420,8 +452,10 @@ license feature, which Enterprise and above carry. Configuration is managed via 
   uprobes to other processes
 - `hostPID: true` (Kubernetes) / `--pid host` (Docker) when the agent
   must reach processes outside its own pod
-- Kernel 5.11+ for the kTLS kprobe path; older kernels silently skip
-  the kTLS hooks
+- Nothing extra for the kernel TLS probes: they attach by symbol name
+  through `kprobe_multi`, which the agent's own kernel floor already
+  carries, and a host whose `tls` module was never loaded exports neither
+  symbol and reports the attach as failed rather than as coverage
 
 Every hook feeds the same DLP alert/block/per-pattern engine - the
 extended TLS layer widens the visible surface without changing the
