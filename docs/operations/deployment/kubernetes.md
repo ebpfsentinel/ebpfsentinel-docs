@@ -105,7 +105,7 @@ Volumes:
 | debugfs | host `/sys/kernel/debug`, read-only | `/sys/kernel/debug` |
 | cgroup | host `/sys/fs/cgroup`, read-only | `/sys/fs/cgroup` |
 | host proc | host `/proc`, read-only | `/host/proc` (both containers) |
-| state | `emptyDir`; or host `daemonset.state.hostPath` (`DirectoryOrCreate`) when set | `/var/lib/ebpfsentinel` (agent) |
+| state | host `daemonset.state.hostPath`, by default `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` (`DirectoryOrCreate`); an `emptyDir` when `daemonset.state.ephemeral` is `true` | `/var/lib/ebpfsentinel` (agent, `state-dir`) |
 
 Set `daemonset.bpfToken.bpffsEmptyDir=true` on nested runtimes such as kind and
 minikube, whose node `/sys/fs/bpf` is read-only or absent. On a real node leave
@@ -170,7 +170,8 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | `daemonset.hostPID` | `true` | Host PID namespace, for node-wide TLS DLP |
 | `daemonset.bpfToken.bpffsPath` | `/sys/fs/bpf/ebpfsentinel` | Drives both `EBPFSENTINEL_BPFFS` and the agent's `bpf_token.bpffs_path`, so the two cannot drift |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | In-pod tmpfs bpffs, for kind and minikube |
-| `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty keeps it on an `emptyDir` |
+| `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
+| `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
 | `daemonset.warden.securityContext` | uid 0, the six capabilities above, Unconfined | Warden security context |
 | `daemonset.warden.resources` | 64Mi/50m requests, 256Mi/1 CPU limits | Warden resources |
 | `daemonset.securityContext` | uid/gid 65534, `drop: [ALL]`, Unconfined | Agent security context |
@@ -304,24 +305,22 @@ downloaded GeoIP databases and the anonymous telemetry installation identifier.
 The chart mounts the `state` volume there, and the agent creates `data/` and
 `captures/` itself when the volume starts empty.
 
-By default the volume is an `emptyDir`: it survives a container restart but not
-the pod being replaced, so a rollout starts from nothing and the agent draws a
-new telemetry installation identifier. Set `daemonset.state.hostPath` to keep
-the state on the node across rollouts:
-
-```bash
-helm upgrade ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
-  --reuse-values --set daemonset.state.hostPath=/var/lib/ebpfsentinel
-```
+By default the volume is a node directory,
+`/var/lib/ebpfsentinel/k8s/<namespace>/<release>`, so the stores and the
+installation identifier carry over a rollout and two releases on one node keep
+apart. `daemonset.state.hostPath` names another directory.
 
 The agent runs as uid 65534 and Kubernetes applies no `fsGroup` to a hostPath,
-so create the directory on each node with that owner before the pod starts;
-`DirectoryOrCreate` would otherwise create it owned by root and the agent could
-not write to it:
+which the kubelet creates owned by root. A `state-dir` init container runs the
+warden image once as root, with `CHOWN` and `FOWNER` and no other capability:
+`warden prepare-state` creates the directory, sets it to `0700` and hands it to
+uid and gid 65534 before the warden and the agent start. Nothing has to be
+prepared on the node.
 
-```bash
-install -d -o 65534 -g 65534 -m 0700 /var/lib/ebpfsentinel
-```
+`daemonset.state.ephemeral=true` puts the state on an `emptyDir` instead and
+drops the init container: it survives a container restart but not the pod
+being replaced, so a rollout starts from nothing and the agent draws a new
+telemetry installation identifier.
 
 ## Metrics
 

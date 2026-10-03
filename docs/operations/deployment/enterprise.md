@@ -199,15 +199,15 @@ Secret) or by referencing an existing one (`--set license.secretName=…` whose
 The agent keeps its state under `/var/lib/ebpfsentinel`: the redb stores
 under `data/`, captures, GeoIP databases, the portal enrolment under `portal/`,
 and the HA, federation and analytics stores. The chart mounts a `state` volume
-there, an `emptyDir` by default, which survives a container restart but not the
-pod being replaced; an agent reporting to the portal then joins again after
-every rollout. Set `daemonset.state.hostPath` to keep it on the node, after
-creating the directory owned by the agent's uid, since Kubernetes applies no
-`fsGroup` to a hostPath:
-
-```bash
-install -d -o 65534 -g 65534 -m 0700 /var/lib/ebpfsentinel
-```
+there, a node directory by default at
+`/var/lib/ebpfsentinel/k8s/<namespace>/<release>`, so an agent reporting to the
+portal keeps its enrolment across a rollout. Kubernetes applies no `fsGroup` to
+a hostPath, so a `state-dir` init container runs `enterprise-warden
+prepare-state` once as root, with `CHOWN` and `FOWNER` alone, to create the
+directory at `0700` and hand it to the agent's uid. `daemonset.state.ephemeral`
+puts it on an `emptyDir` instead, which survives a container restart but not
+the pod being replaced: the agent then joins the portal again after every
+rollout.
 
 Key values:
 
@@ -218,7 +218,8 @@ Key values:
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
 | `daemonset.hostPID` | `true` | Node-wide DLP visibility (set `false` to scope to the pod) |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
-| `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty keeps it on an `emptyDir` |
+| `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
+| `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
 | `portal.enabled` | `false` | Enrol with the vendor portal and report in |
 | `portal.baseUrl` | `""` | Where the portal answers (required when enabled) |
 | `portal.agentName` | `""` | Name each agent reports under; empty means the node's host name |

@@ -67,10 +67,10 @@ version moves the agent and the warden together. The DaemonSet rolls with
 with `helm rollback ebpfsentinel -n ebpfsentinel`. See
 [Kubernetes deployment](deployment/kubernetes.md).
 
-A rollout replaces every pod, so what the agent kept under
-`/var/lib/ebpfsentinel` survives only when `daemonset.state.hostPath` is set;
-on the default `emptyDir` the redb stores and captures start empty on the new
-pod.
+A rollout replaces every pod. What the agent kept under
+`/var/lib/ebpfsentinel` is on a node directory by default and carries over;
+with `daemonset.state.ephemeral=true` the redb stores and captures start empty
+on the new pod and the telemetry installation identifier is drawn again.
 
 The Enterprise chart is published beside it and upgrades the same way:
 
