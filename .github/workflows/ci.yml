@@ -120,7 +120,7 @@ jobs:
       # tree and needs no dependency, so it runs before the install rather than
       # after a build that would have passed anyway.
       - name: Check for typographic dashes
-        run: npm run check:no-em-dash
+        run: npm run check:no-typographic-dash
 
       - run: npm ci
 

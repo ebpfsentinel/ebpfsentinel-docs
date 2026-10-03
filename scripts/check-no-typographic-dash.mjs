@@ -39,9 +39,18 @@ const EXEMPT = new Map();
 // itself. An exemption would have worked and would have been the wrong shape,
 // since it would exempt the whole file rather than the two declarations that
 // have to name what they hunt.
+// All four dashes that are not the plain hyphen, not only the two a writer
+// thinks of. A word processor, a paste from a web page and a model each reach
+// for a different one, and a check that names two of them is a check the other
+// two walk past.
+//
+// Each is written as an escape rather than as the character, so this file is
+// never its own first failure.
 const DASHES = [
-  { char: '\u2014', name: 'em dash' },
+  { char: '\u2012', name: 'figure dash' },
   { char: '\u2013', name: 'en dash' },
+  { char: '\u2014', name: 'em dash' },
+  { char: '\u2015', name: 'horizontal bar' },
 ];
 
 // Reading as UTF-8 would turn an arbitrary byte run in an image into
@@ -52,12 +61,28 @@ const NEEDLES = DASHES.map((dash) => ({
   bytes: Buffer.from(dash.char, 'utf8'),
 }));
 
+// Byte formats a text rule cannot speak about. A PNG of a screenshot carries
+// these three bytes by chance several times over, and a check that reports
+// them prints a screenful of binary and teaches a reader to widen the
+// exemption list rather than to fix a dash.
+const BINARY = [
+  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svgz', '.pdf', '.woff', '.woff2',
+  '.ttf', '.otf', '.eot', '.mp4', '.webm', '.wav', '.mp3', '.zip', '.gz',
+  '.xz', '.tar', '.bin', '.onnx', '.mmdb',
+];
+
+const isBinary = (file) => {
+  const lower = file.toLowerCase();
+  return BINARY.some((extension) => lower.endsWith(extension));
+};
+
 const tracked = execFileSync('git', ['ls-files', '-z'], {
   cwd: repoRoot,
   encoding: 'utf8',
 })
   .split('\0')
-  .filter(Boolean);
+  .filter(Boolean)
+  .filter((file) => !isBinary(file));
 
 const offences = [];
 const exemptSeen = new Set();
@@ -105,7 +130,7 @@ if (offences.length > 0) {
   console.error('');
   console.error('Write a plain hyphen "-" instead. If the file is a copy of');
   console.error('something authored outside this tree, add it to EXEMPT in');
-  console.error('scripts/check-no-em-dash.mjs with the reason and where the');
+  console.error('scripts/check-no-typographic-dash.mjs with the reason and where the');
   console.error('real fix goes.');
   process.exit(1);
 }
@@ -123,4 +148,4 @@ const exemptions =
     ? 'no exemptions'
     : `${EXEMPT.size} exemption(s): ` +
       [...EXEMPT.keys()].map((file) => `${file} (${EXEMPT.get(file)})`).join('; ');
-console.log(`No em dash or en dash in ${tracked.length} tracked files, ${exemptions}`);
+console.log(`No typographic dash in ${tracked.length} tracked files, ${exemptions}`);
