@@ -6,13 +6,13 @@ eBPFsentinel ships 16 eBPF programs that run in the Linux kernel to inspect, fil
 
 Traditional network security agents operate entirely in userspace, copying every packet across the kernel/user boundary. eBPF programs execute *inside* the kernel, attached to strategic hook points, and can drop, redirect, or annotate packets with zero context-switch overhead.
 
-eBPFsentinel hooks into three kernel subsystems:
+eBPFsentinel hooks into three kernel subsystems, plus probes on userspace and kernel functions for TLS plaintext:
 
 | Subsystem | Hook Point | Programs |
 |-----------|-----------|----------|
 | [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | Driver receive path (before SKB allocation) | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`, and the tail-call targets `xdp-firewall-reject`, `xdp-ratelimit-syncookie`, `xdp-vip-announcer` |
 | [TC](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) | Traffic Control classifier (after SKB), attached through TCX | `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-qos` |
-| [Uprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | Userspace function entry (`SSL_write`/`SSL_read`) | `uprobe-dlp` |
+| [Uprobe / kprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | TLS library calls (`SSL_write`/`SSL_read`, Go `crypto/tls`) and the kernel TLS path (`tls_sw_sendmsg`/`tls_sw_recvmsg`) | `uprobe-dlp` |
 
 Measured on live traffic, the whole stack costs about 1 µs of kernel time per received packet: the XDP chain 630-712 ns, each TC program between 23 and 292 ns. See [Performance Tuning](../operations/performance-tuning.md) for the figures and how they were taken.
 
@@ -28,7 +28,7 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 | 6 | `tc-ids` | TC ingress (egress optional) | Intrusion detection | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) |
 | 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Bloom filter map, LRU hash map (IOC confirmation), VLAN and QinQ tag parsing |
 | 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP and TCP port 53, RingBuf emission |
-| 9 | `uprobe-dlp` | uprobe | SSL/TLS content inspection | Attaches to `SSL_write`/`SSL_read` |
+| 9 | `uprobe-dlp` | uprobe, kprobe | SSL/TLS content inspection | Uprobes on `SSL_write`/`SSL_read` and Go `crypto/tls`, kprobes on `tls_sw_sendmsg`/`tls_sw_recvmsg` through `kprobe_multi` |
 | 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, TCP flags, ECN, TOS, TCP timestamps, fragment drop, IPv4/IPv6) | [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/), [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
 | 11 | `xdp-loadbalancer` | XDP | L4 load balancing (TCP/UDP/TLS passthrough) | L2 direct server return or DNAT, DEVMAP redirect or `XDP_TX`, round-robin / IP hash / weighted / Maglev, health-aware backend selection |
 | 12 | `tc-qos` | TC egress, plus `tc_qos_ingress` on ingress | QoS / traffic shaping | Per-pipe token bucket with ECN CE marking, wildcard classifier ladder, loss emulation, delay through EDT timestamps (`fq` qdisc) |

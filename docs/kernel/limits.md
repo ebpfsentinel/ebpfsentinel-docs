@@ -227,9 +227,13 @@ The `tc_qos_ingress` program in the same object shares these maps.
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
 | Concurrent SSL reads tracked | 10,240 | `SSL_READ_ARGS` (LRU Hash, per task) |
+| Concurrent Go TLS reads tracked | 10,240 | `GO_READ_ARGS` (LRU Hash, per goroutine) |
+| Concurrent kernel TLS reads tracked | 10,240 | `KTLS_READ_ARGS` (LRU Hash, per task) |
+| Threads with a recent library TLS call | 10,240 | `DLP_UPROBE_ACTIVE` (LRU Hash, kernel TLS double-count suppression) |
+| Kernel TLS suppression window | 100 ms | `DLP_KTLS_SUPPRESS_WINDOW_NS` |
 | DLP excerpt size | 4,096 bytes | `DLP_MAX_EXCERPT` (compact: 256 bytes `DLP_SMALL_EXCERPT`) |
-| Hooked functions | 2 | `SSL_write`, `SSL_read` |
-| Supported libraries | 2 | OpenSSL, BoringSSL |
+| Hooked functions | 6 | `SSL_write`, `SSL_read`, Go `(*Conn).Write` and `(*Conn).Read`, `tls_sw_sendmsg`, `tls_sw_recvmsg` |
+| Supported libraries (OSS) | 2 | OpenSSL, BoringSSL; Enterprise adds Go, kernel TLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and static BoringSSL |
 | RingBuf size | 4 MB | `EVENTS` (two record sizes, 256 B and 4 KiB excerpt) |
 
 Larger RingBuf because DLP events carry L7 payload content. There is no 75% cut here: a record is lost only when the ring is full.

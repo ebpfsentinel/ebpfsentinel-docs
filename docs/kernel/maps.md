@@ -60,6 +60,9 @@ Hash table with built-in **LRU eviction**. Used for:
 - `NAT_HAIRPIN_CT`: hairpin NAT reverse mappings (see [Hairpin NAT Maps](#hairpin-nat-maps)).
 - `REJECT_RATELIMIT`: per-source throttle on forged TCP RST / ICMP unreachable replies.
 - `SSL_READ_ARGS` (10,240): `SSL_read` arguments saved by the uprobe for the uretprobe, so an entry left by a process killed mid-call is reclaimed rather than leaked.
+- `GO_READ_ARGS` (10,240): the Go `crypto/tls` read buffer saved at `(*Conn).Read` entry, keyed by `(tgid, goroutine)` rather than by thread.
+- `KTLS_READ_ARGS` (10,240): the destination buffer `tls_sw_recvmsg` was entered with, for the kretprobe. A map of its own because `SSL_read` reaches `tls_sw_recvmsg` inside its own frame on the same thread, so sharing `SSL_READ_ARGS` would overwrite the uprobe's saved arguments.
+- `DLP_UPROBE_ACTIVE` (10,240): per-thread time of the last C-library TLS call, which the kernel TLS probes read to skip plaintext a uprobe already captured.
 
 #### [`BPF_MAP_TYPE_LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/)
 
@@ -128,7 +131,7 @@ Per-CPU arrays also serve as scratch space too large for the 512-byte stack: `PK
 
 **Kernel:** 3.19+ | **Used by:** most programs
 
-Single-entry and indexed configuration: firewall rule arrays and counts, default policy, NAT rule arrays and counts, QoS pipes and queues, DDoS SYN / ICMP configuration, rate limit tiers, conntrack configuration and the feature gates.
+Single-entry and indexed configuration: firewall rule arrays and counts, default policy, NAT rule arrays and counts, QoS pipes and queues, DDoS SYN / ICMP configuration, rate limit tiers, conntrack configuration and the feature gates. uprobe-dlp keeps `KTLS_ITER_OFFSETS` here: the `msghdr` and `iov_iter` field offsets userspace resolves from the running kernel's BTF, without which the kernel TLS probes read nothing.
 
 The `SCRUB_CONFIG` Array stores a 14-byte `ScrubFlags` struct: `enabled`, `min_ttl`, `clear_df`, `random_ip_id`, `max_mss`, `min_hop_limit`, `scrub_tcp_flags`, `strip_ecn`, `normalize_tos`, `tos_value`, `strip_tcp_timestamps` and `drop_fragments`.
 

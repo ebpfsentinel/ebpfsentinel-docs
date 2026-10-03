@@ -63,7 +63,7 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/) | 4.6+ | tc-scrub | Checksum delta for the rewritten IP fields and TCP options |
 | [`bpf_get_current_pid_tgid`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_pid_tgid/) | 4.2+ | uprobe-dlp | Attribute a TLS write to its process |
 | [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read the plaintext buffer from the traced process |
-| [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | xdp-firewall, tc-conntrack | Read `nf_conn` fields at BTF-resolved offsets |
+| [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | xdp-firewall, tc-conntrack, uprobe-dlp | Read `nf_conn` fields and the kernel TLS message iterator at BTF-resolved offsets |
 | [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | tc-ids, tc-threatintel, tc-dns, tc-qos, uprobe-dlp | Container attribution for locally-originated events |
 | [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Container attribution on the egress hook |
 | [`bpf_fib_lookup`](https://docs.ebpf.io/linux/helper-function/bpf_fib_lookup/) | 4.18+ | xdp-firewall, xdp-loadbalancer | FIB routing enrichment, DNAT next hop |
@@ -128,6 +128,7 @@ No cgroup, RCU, iterator or cast kfunc is called: container attribution uses the
 | CO-RE / BTF | 5.8+ | Compile Once, Run Everywhere - portable eBPF binaries |
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
+| `kprobe_multi` link (`BPF_TRACE_KPROBE_MULTI`) | 5.18+ | Kernel TLS probes of `uprobe-dlp` on `tls_sw_sendmsg`/`tls_sw_recvmsg` |
 | BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
 | Netkit device + `BPF_NETKIT_PRIMARY` attach | 6.7+ | Native TC-program attach to netkit interfaces via `BPF_LINK_CREATE` (Cilium 1.16+ pod networking); standard interfaces fall back to TC clsact |
 

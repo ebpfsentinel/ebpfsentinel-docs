@@ -430,12 +430,18 @@ QoS pipes and classifiers carry a `group_mask` field for **interface group filte
 
 ### uprobe-dlp
 
-**Hook:** [uprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | **Path:** `crates/ebpf-programs/uprobe-dlp/`
+**Hook:** [uprobe and kprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | **Path:** `crates/ebpf-programs/uprobe-dlp/`
 
-Data Loss Prevention via SSL/TLS interception:
-- Attaches to `SSL_write` (entry) and to `SSL_read` (entry and return) in `libssl.so` and `libboringssl.so`; the `SSL_read` buffer pointer is kept in `SSL_READ_ARGS` (LRU, 10,240) between the two
+Data Loss Prevention via SSL/TLS interception. One object carries nine programs in three sets:
+
+- **C TLS libraries** (`ssl_write`, `ssl_read_entry`, `ssl_read_ret`): `SSL_write` (entry) and `SSL_read` (entry and return) in `libssl.so` and `libboringssl.so`; the `SSL_read` buffer pointer is kept in `SSL_READ_ARGS` (LRU, 10,240) between the two. The Enterprise extended scan reuses the same three programs on wolfSSL, mbedTLS, s2n-tls, GnuTLS and statically linked BoringSSL, whose write and read calls share the `(handle, buffer, length)` shape.
+- **Go `crypto/tls`** (`go_tls_write`, `go_tls_read_entry`, `go_tls_read_ret`): uprobes on `(*Conn).Write` and `(*Conn).Read` that read Go's register ABI rather than the C one, with one `go_tls_read_ret` probe on every return instruction of `Read`. The read context sits in `GO_READ_ARGS`, keyed by process and goroutine, because a goroutine blocked inside `Read` resumes on whichever thread the scheduler picks.
+- **Kernel TLS** (`ktls_sendmsg`, `ktls_recvmsg_entry`, `ktls_recvmsg_ret`): kprobes on the kernel's `tls_sw_sendmsg` and `tls_sw_recvmsg` through a `kprobe_multi` link, which cover every software kTLS socket on the host whatever its library. The message-iterator offsets come from the running kernel's BTF through `KTLS_ITER_OFFSETS`, and the read buffer waits in `KTLS_READ_ARGS` for the kretprobe. Hardware-offloaded sockets do not pass through `tls_sw_*` and stay unread.
+- The two C-library entry probes stamp `DLP_UPROBE_ACTIVE` per thread; a kernel probe firing within 100 ms of that stamp on the same thread stands down, so an OpenSSL build with kernel TLS enabled raises one event and not two.
 - Captures plaintext **before** encryption (write) and **after** decryption (read)
 - Tiered event emission via RingBuf (`EVENTS`, 4 MB): small payloads (≤256 B) → `DlpEventSmall`, large payloads → full `DlpEvent`
 - Userspace engine runs pattern matching (credit card, SSN, API keys, JWT, etc.)
+
+The OSS agent attaches the C-library set to OpenSSL and BoringSSL. The Go and kernel TLS sets, and the other libraries, are attached by the Enterprise extended TLS scan; see [Enterprise DLP](../features/enterprise/dlp.md).
 
 This is the only program that operates at the application layer - all others work at L3/L4.

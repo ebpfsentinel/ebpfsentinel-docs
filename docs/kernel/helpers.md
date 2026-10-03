@@ -81,8 +81,8 @@ eBPFsentinel calls 33 kernel helper functions across its 16 programs. This page 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
 | [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-threatintel, tc-qos | Stable per-connection identifier for flow correlation (TC context only) |
-| [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read user-space SSL buffer for DLP inspection |
-| [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | tc-conntrack, xdp-firewall | Read `nf_conn->status` at runtime BTF-resolved offsets |
+| [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read the user-space TLS plaintext buffer for DLP inspection |
+| [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | tc-conntrack, xdp-firewall, uprobe-dlp | Read `nf_conn->status`, and the kernel TLS message iterator, at runtime BTF-resolved offsets |
 | [`bpf_get_current_pid_tgid`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_pid_tgid/) | 4.2+ | uprobe-dlp | Process identification for DLP alerts |
 | [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns, tc-threatintel, tc-qos | Cgroup ID for container/pod correlation |
 | [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Cgroup ID of the socket behind an egress packet |

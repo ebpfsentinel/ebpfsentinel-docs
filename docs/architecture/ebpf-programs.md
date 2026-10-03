@@ -234,9 +234,12 @@ Packet normalization running after XDP processing:
 
 ## Uprobe DLP (uprobe-dlp)
 
-- Three probes: `SSL_write` (uprobe), `SSL_read` entry (uprobe, saves the buffer pointer) and `SSL_read` return (uretprobe, reads what was decrypted), on every OpenSSL or BoringSSL library a process maps
+- Nine programs in three sets of three (write, read entry, read return):
+  - C TLS libraries: `SSL_write` (uprobe), `SSL_read` entry (uprobe, saves the buffer pointer) and `SSL_read` return (uretprobe, reads what was decrypted), on every OpenSSL or BoringSSL library a process maps
+  - Go `crypto/tls`: uprobes on `(*Conn).Write` and `(*Conn).Read` reading Go's register ABI, with the read return probed on each return instruction
+  - Kernel TLS: kprobes on `tls_sw_sendmsg` and `tls_sw_recvmsg` (entry and return) through a `kprobe_multi` link, covering every software kTLS socket on the host; a kernel probe stands down when a C-library probe on the same thread already captured the bytes
 - Captures plaintext before encryption / after decryption, and the cgroup identifier of the calling task so an event is attributed to its container
-- Forwards to userspace DLP engine via RingBuf; a statically linked TLS stack has no `SSL_*` symbol to probe (Enterprise covers it with its extended TLS scan)
+- Forwards to userspace DLP engine via RingBuf. The OSS agent attaches the C-library set; the Go and kernel TLS sets, statically linked BoringSSL and the other C libraries are attached by the Enterprise extended TLS scan
 
 ## Kernel Requirements
 
