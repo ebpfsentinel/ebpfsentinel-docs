@@ -1,6 +1,8 @@
 # Kubernetes Operator
 
-> **Edition: Enterprise**
+> **Edition: Open source (AGPL-3.0)**, with fifteen enterprise kinds that need the
+> enterprise build and a licence. The agent resource and the twenty-one open source
+> policy kinds are reconciled without a licence.
 
 ## Overview
 

@@ -191,7 +191,8 @@ What matters is the running kernel, not the release: any distribution booting 6.
 | RHEL / Rocky 9.x | 5.14 | No - requires ELRepo `kernel-ml` 6.9+ |
 | Fedora 41+ | Current stable | Yes |
 | Arch Linux | Rolling | Yes |
-| Alpine | `linux-lts` 6.6 | Yes, with `linux-stable` |
+| Alpine 3.21+ | `linux-lts` 6.12 | Yes |
+| Alpine 3.20 and earlier | `linux-lts` 6.6 | No - use `linux-stable` |
 | NixOS | Default LTS | Yes, with `boot.kernelPackages = pkgs.linuxPackages_latest` |
 | Talos Linux 1.9+ | 6.12 | Yes |
 

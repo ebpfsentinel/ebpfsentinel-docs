@@ -51,17 +51,19 @@ shipped AppArmor profile is loaded. See the
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 13+ | Yes | Ships 6.12 kernel natively |
-| Debian 12 | No | Ships 6.1 - install mainline 6.9+ or upgrade to Debian 13 |
-| Ubuntu 24.04.2+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.11 |
-| Ubuntu 24.04 (GA) | No | Ships 6.8 - below floor, use HWE or 6.9 mainline |
+| Debian 13+ | Yes | Ships 6.12 |
+| Debian 12 | No | Ships 6.1 - use a backports kernel 6.9+ or upgrade to Debian 13 |
+| Ubuntu 24.04.2+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.11 or later |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 - move to the HWE kernel |
+| Ubuntu 22.04 | No | The HWE kernel stops at 6.8 |
 | RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
-| RHEL 9.x / Rocky 9.x | No | Requires ELRepo `kernel-ml` 6.9+ |
-| Alpine Edge | Yes | `linux-edge` tracks mainline 6.9+ |
-| Fedora 40+ | Yes | Fedora 41 ships 6.10, Fedora 42 ships 6.12 |
-| Arch Linux | Yes | Rolling, always 6.9+ |
-| NixOS 24.11+ | Yes | Ships 6.11 |
-| Talos Linux 1.8+ | Yes | Ships 6.9 |
+| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.9+ |
+| Alpine 3.21+ | Yes | `linux-lts` is 6.12 |
+| Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
+| Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
+| Arch Linux | Yes | Rolling |
+| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.9 |
+| Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
 
 **Architectures:** x86_64 (primary), aarch64/ARM64 (cross-tested)
 
@@ -73,7 +75,7 @@ Only needed if building from source. Pre-built binaries and Docker images don't 
 
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
-| Rust stable | 1.98+ | Userspace crates |
+| Rust stable | 1.99+ | Userspace crates |
 | Rust nightly | latest | eBPF kernel programs (`bpfel-unknown-none` target) |
 | `bpftool` | any | eBPF program inspection |
 | `iproute2` | any | Network interface management |
