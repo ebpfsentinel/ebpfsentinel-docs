@@ -36,7 +36,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Per-Protocol Security Policies](l7-per-protocol-policies.md) | Redis / MongoDB / Kafka / SQL / LDAP / SSH policy engines with dangerous-command blocking, namespace/ACL enforcement, weak-crypto rejection. HTTP admin API and L7 dispatcher wiring |
 | [L7 Alert Enrichment](l7-alert-enrichment.md) | `L7Enricher` mapping Vectorscan + policy signals to OWASP Top 10, MITRE ATT&CK (T1190/T1059/T1048/T1069/T1078/T1040/T1555) and PCI-DSS 6.5. SIEM export + compliance-report wiring |
 | [Dashboard UI](dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
-| [Kubernetes Operator](kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet; the operator and 21 of those kinds are open source, the other 15 are Enterprise |
+| [Kubernetes Operator](kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
 
 ## API Surface
 

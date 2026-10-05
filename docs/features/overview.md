@@ -107,7 +107,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Network Forensics](enterprise/network-forensics.md) | Ring buffer capture, event-triggered captures, flow timeline |
 | [Automated Response](enterprise/automated-response.md) | Policy engine, SOAR webhook, eBPF enforcement, audit trail |
 | [Dashboard UI](enterprise/dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
-| [Kubernetes Operator](enterprise/kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet; the operator and 21 of those kinds are open source, the other 15 are Enterprise |
+| [Kubernetes Operator](enterprise/kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
 
 ## Deployment Compatibility
 
