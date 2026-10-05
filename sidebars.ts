@@ -18,6 +18,17 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Tutorials',
+      link: {type: 'doc', id: 'tutorials/index'},
+      items: [
+        'tutorials/ddos',
+        'tutorials/dlp-over-tls',
+        'tutorials/shadow-ai',
+        'tutorials/gitops-rollout',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Customer Portal',
       items: [
         'portal/overview',
@@ -217,6 +228,10 @@ const sidebars: SidebarsConfig = {
         'compliance/hipaa',
         'compliance/gdpr',
         'compliance/soc2',
+        'compliance/nis2',
+        'compliance/dora',
+        'compliance/secnumcloud',
+        'compliance/hds',
       ],
     },
     {
