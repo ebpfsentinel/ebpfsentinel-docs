@@ -4,7 +4,7 @@
 
 ## Overview
 
-Automated compliance report generation for 8 regulatory frameworks including EU/French regulations. Reports map eBPFsentinel controls to framework requirements, collect evidence from the running system, and produce exportable documents with pass/fail/partial/not-applicable status per control. Enterprise infrastructure state (HA, multi-tenancy, federation, air-gap) and network segmentation validation are automatically evaluated and appended.
+Automated compliance report generation for 8 regulatory frameworks including EU/French regulations. Reports map eBPFsentinel controls to framework requirements, judge each control on what the running agent reports about itself at the moment the report is generated, and produce exportable documents with a pass/fail/partial/not-applicable/not-evaluated status per control. Nothing in a report is passed on the strength of a template: a control whose evidence the agent cannot read is reported as not evaluated, and counts against the score. Enterprise infrastructure state (HA, multi-tenancy, federation, air-gap) and network segmentation validation are automatically evaluated and appended.
 
 ## Supported Frameworks
 
@@ -14,10 +14,16 @@ Automated compliance report generation for 8 regulatory frameworks including EU/
 | **HIPAA** | 3 | 13 | Health Insurance Portability and Accountability Act Security Rule |
 | **GDPR Art 32** | 3 | 8 | General Data Protection Regulation Article 32 technical measures |
 | **SOC 2** | 4 | 12 | Service Organization Control 2 Trust Service Categories |
-| **NIS2** | 2 | 8 | EU Network and Information Security Directive 2 (Articles 21, 23) |
-| **DORA** | 3 | 7 | EU Digital Operational Resilience Act (Chapters II, III, IV) |
+| **NIS2** | 2 | 14 | EU Network and Information Security Directive 2 (Articles 21, 23) |
+| **DORA** | 3 | 12 | EU Digital Operational Resilience Act (Chapters II, III, IV) |
 | **SecNumCloud** | 5 | 12 | ANSSI cloud security qualification (Ch.8-14) |
 | **HDS** | 6 | 9 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
+
+Each framework has a page mapping its articles to what the agent reads:
+[PCI DSS](../../compliance/pci-dss.md), [HIPAA](../../compliance/hipaa.md),
+[GDPR](../../compliance/gdpr.md), [SOC 2](../../compliance/soc2.md),
+[NIS2](../../compliance/nis2.md), [DORA](../../compliance/dora.md),
+[SecNumCloud](../../compliance/secnumcloud.md) and [HDS](../../compliance/hds.md).
 
 Plus up to **5 enterprise infrastructure sections** (9 additional controls including segmentation) appended dynamically.
 
@@ -46,26 +52,30 @@ Each `ControlEvidence` contains:
 |-------|-------------|
 | `control_id` | Framework-specific ID (e.g., `"1.1"`, `"164.308(a)(1)"`, `"CC5.1"`) |
 | `control_name` | What the control requires |
-| `status` | `Pass`, `Fail`, `Partial`, or `NotApplicable` |
+| `status` | `Pass`, `Fail`, `Partial`, `NotApplicable` or `NotEvaluated` |
 | `evidence` | Supporting evidence items |
-| `recommendations` | Remediation guidance (for Partial/Fail controls) |
+| `recommendations` | Remediation guidance (for Partial, Fail and NotEvaluated controls) |
 
 ### Evidence Item
 
 | Field | Description |
 |-------|-------------|
-| `source` | Origin: `"audit_log"`, `"alert_history"`, `"metrics"`, `"config"` |
+| `source` | `"runtime"` for a fact read from the agent, `"scope"` for the part of the control the agent does not carry |
 | `description` | Human-readable summary |
 | `data` | Arbitrary JSON evidence payload |
 | `timestamp_ms` | Collection timestamp |
 
 ### Compliance Score
 
-Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
+Score formula: `(passed + partial * 0.5) / (total - not_applicable) * 100`
 
 - `Partial` controls count as 0.5 pass
 - `NotApplicable` controls are excluded from the denominator
+- `NotEvaluated` controls stay in the denominator: an agent that reads nothing scores 0, not 100
 - Returns 100.0 if all controls are `NotApplicable`
+
+The summary carries a `not_evaluated` count beside `passed`, `failed`, `partial` and
+`not_applicable`. A report written before that field existed reads it as zero.
 
 ## Framework Controls
 
@@ -104,20 +114,20 @@ Score formula: `(passed + partial × 0.5) / (total - not_applicable) × 100`
 | CC7 System Operations | 4 | Change detection, monitoring, event evaluation, incident response |
 | CC8 Change Management | 1 | Infrastructure/software changes |
 
-### NIS2 (2 sections, 8 controls)
+### NIS2 (2 sections, 14 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Article 21 - Risk Management Measures | 5 | Network monitoring, incident handling, cryptography, supply chain security, access control |
-| Article 23 - Incident Reporting | 3 | 24h early warning detection, 72h incident notification, final report generation |
+| Article 21(2) - Risk Management Measures | 10 | Points (a) to (j): risk analysis, incident handling, business continuity, supply chain, vulnerability handling, effectiveness assessment, cyber hygiene, cryptography, access control, MFA and secured communications |
+| Article 23(4) - Incident Reporting | 4 | 24h early warning, 72h incident notification, intermediate report, final report |
 
-### DORA (3 sections, 7 controls)
+### DORA (3 sections, 12 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
-| Chapter II - ICT Risk Management | 3 | Risk management tools, ICT systems, protection and prevention |
-| Chapter III - Incident Management | 3 | Detection capabilities, incident classification, incident reporting |
-| Chapter IV - Resilience Testing | 1 | Testing requirements, MITRE coverage validation |
+| Chapter II - ICT Risk Management | 7 | Art. 6 framework, Art. 7 systems and tools, Art. 8 identification, Art. 9 protection and prevention, Art. 10 detection, Art. 11 response and recovery, Art. 13 learning and evolving |
+| Chapter III - Incident Management | 3 | Art. 17 management process, Art. 18 classification, Art. 19 reporting of major incidents |
+| Chapter IV - Resilience Testing | 2 | Art. 24 general testing requirements, Art. 25 testing of ICT tools and systems |
 
 ### SecNumCloud (5 sections, 12 controls)
 
@@ -155,12 +165,46 @@ to read it from, which is a different statement from a section reporting zero.
 | Air-Gap Network Isolation | 1 (enforcement) | Air-gap status provided |
 | Network Segmentation Validation | 1 (zone topology compliance) | Segmentation policy configured |
 
-## Runtime Overrides
+## How a Control Is Judged
 
-The application layer applies runtime state to override template-based control statuses:
+Every framework control names the facts it rests on, and each fact is read from the running
+agent when the report is generated:
 
-- **HA override**: if no peers or eBPF inactive, downgrades Pass → Partial/Fail for HA-related controls
-- **RBAC override**: if RBAC disabled but tenants present, downgrades Pass → Fail for RBAC-related controls
+| Fact | Read from |
+|------|-----------|
+| Datapath | Whether this node drives the eBPF programs, or stands by for an HA leader that does |
+| Firewall rules, enforcing, default deny | The firewall service: enabled, rule count, block or alert mode, catch-all policy (a deny-all posture in force counts as default deny) |
+| IDS, IPS, DLP, threat intelligence | Each engine: enabled, rules, patterns or feeds loaded, block or alert mode |
+| L7, rate limiting, DDoS, zones | Each engine: enabled and rules, policies or zones loaded |
+| Audit trail and its retention | The audit service (enabled, backed by a persistent store) and `audit.retention_days` |
+| Alerting | `alerting.enabled` |
+| API authentication | The authentication stack the API listener was built with (JWT, OIDC, API keys) |
+| SIEM export | The SIEM connector, its exported events and its export errors |
+| RBAC | The roles defined in advanced RBAC |
+| TLS floor, post-quantum tracking | The TLS intelligence crypto policy (minimum version, blocked ciphers) and whether PQC tracking is on |
+| Anomaly detection, forensics | Whether the ML and forensics services run |
+| Automated response, incident webhook | The response policies and webhooks loaded |
+| High availability | HA peers and whether the datapath is active |
+| Report schedule | Whether compliance reports run on a schedule |
+
+Each fact is met, unmet or unread, and the control's status follows:
+
+| Facts | Status |
+|-------|--------|
+| All met | `Pass` |
+| All met, but part of the control is outside the agent | `Partial` |
+| Some met, some unmet | `Partial` |
+| None met, at least one unmet | `Fail` |
+| None unmet, at least one unread | `NotEvaluated` |
+| The control is outside the agent altogether | `NotApplicable` |
+
+A fact is unread when the service it comes from is not running in this agent: not licensed,
+switched off, or the datapath never came up. That is a different statement from a fact read and
+found wanting, which is why it ends in `NotEvaluated` rather than `Fail`, and why it is never a
+pass. Every control carries one `runtime` evidence item per fact, naming the fact, whether it was
+met, and what was observed. Where part of a control is the organisation's (a procedure, a
+notification to an authority, training), a `scope` evidence item says so and the control is
+capped at `Partial`, with a recommendation to evidence the rest outside the agent.
 
 ## Scheduling
 
@@ -211,9 +255,9 @@ PDF reports are generated using the [krilla](https://github.com/LaurenzV/krilla)
 page carries:
 
 - **Header** - `Compliance Report: {framework}`, the generation time in UTC and the compliance score
-- **Control counts** - total, pass, partial, fail and not-applicable on one line
+- **Control counts** - total, pass, partial, fail, not-applicable and not-evaluated on one line
 - **Section details** - per section, one line per control: the control id, a `[PASS]` / `[PART]` /
-  `[FAIL]` / `[N/A]` marker, the control name and how many evidence items back it. The evidence
+  `[FAIL]` / `[N/A]` / `[NOT EVAL]` marker, the control name and how many evidence items back it. The evidence
   payloads and the remediation guidance are in the JSON and text exports rather than in the PDF
 - **Font** - Liberation Sans, embedded in the binary and again in every document it writes. The
   published image is distroless and carries no font, so nothing is read from the host and no mount
