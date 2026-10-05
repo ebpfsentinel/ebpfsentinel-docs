@@ -9,16 +9,13 @@ reconciles one `EbpfSentinelAgent` resource and thirty-six policy resources into
 a running agent DaemonSet, so a cluster's whole security configuration is
 declarative and reviewable in the same place as the rest of its manifests.
 
-It ships as its own binary and image, built and signed by the same release
-pipeline as the agent:
-
-| Image | Reconciles |
-|-------|------------|
-| `ghcr.io/ebpfsentinel/ebpfsentinel-operator` | The agent and its 21 open source policy kinds |
-| `ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise` | The same, plus the 15 enterprise kinds |
-
-Both are tagged with the release version and cosign-signed, the same way the
-[agent images](../../operations/deployment/docker.md) are, and both need a
+It ships as its own binary and one image,
+`ghcr.io/ebpfsentinel/ebpfsentinel-operator`, built and signed by the same
+release pipeline as the agent. The image carries every kind, the agent's 21
+open source policy kinds and the 15 enterprise ones alike; the licence decides
+which of them are reconciled. It is tagged with the release version and
+cosign-signed, the same way the
+[agent images](../../operations/deployment/docker.md) are, and it needs a
 licence to start.
 
 ## Licence
@@ -72,10 +69,9 @@ rollout is the whole of how a policy lands.
 
 One example per kind ships with the operator repository under `config/samples`.
 
-The enterprise kinds are watched only when the chart is installed with
-`enterprise.enabled=true`, and each kind is additionally gated by the feature bit
-the licence carries, so a kind the licence does not admit is left unreconciled
-rather than half-applied. `EnterpriseSettings` is the one exception: it is where
+Each enterprise kind is watched only when the licence carries the feature it
+needs, so a kind the licence does not admit is left unreconciled rather than
+half-applied, and no chart value can turn one on. `EnterpriseSettings` is the one exception: it is where
 the licence is named, so it is reconciled without a feature check.
 
 ## Installing
@@ -96,16 +92,7 @@ Releases are listed on the
 [releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases).
 
 The chart configures the operator and nothing about an agent: every agent-side
-setting, open source and enterprise alike, is a custom resource. For the
-enterprise kinds, run the enterprise build of the operator and turn them on:
-
-```bash
-helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
-    --namespace ebpfsentinel --version <version> \
-    --set image.repository=ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise \
-    --set enterprise.enabled=true \
-    --set license.existingSecret=ebpfsentinel-license
-```
+setting, open source and enterprise alike, is a custom resource.
 
 ## Reporting to the vendor portal
 
