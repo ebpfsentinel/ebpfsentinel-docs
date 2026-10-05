@@ -213,7 +213,8 @@ target and its `agent.bpf_token.bpffs_path` config. The pod needs a writable
 See the [full Kubernetes guide](kubernetes.md) for the complete DaemonSet.
 
 ```bash
-helm install ebpfsentinel ebpfsentinel/ebpfsentinel \
+helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  --version <version> \
   --namespace ebpfsentinel --create-namespace \
   --set agent.interfaces='{eth0}'
 ```

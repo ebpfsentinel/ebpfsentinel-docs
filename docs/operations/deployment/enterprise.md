@@ -75,9 +75,11 @@ helper support was not verified.
 The release tarball carries everything `install.sh` reads: the agent,
 `enterprise-warden`, the `ebpfsentinel-license` CLI, the eBPF objects under
 `ebpf/`, the default config, both units, the AppArmor profile and the sysctl
-drop-in, plus the two licence signing public keys:
+drop-in, plus the two licence signing public keys. Each release on the
+[releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases) carries one per architecture, with its signature:
 
 ```bash
+curl -fsSLO https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v<release>/ebpfsentinel-enterprise-<version>-linux-<arch>.tar.gz
 tar xzf ebpfsentinel-enterprise-<version>-linux-<arch>.tar.gz
 cd ebpfsentinel-enterprise-<version>-linux-<arch>
 sudo ./install.sh
@@ -243,7 +245,8 @@ printf '%s' "$SECRET" | kubectl -n ebpfsentinel create secret generic ebpfsentin
   --from-file=join-secret=/dev/stdin
 unset SECRET
 
-helm upgrade ebpfsentinel-enterprise charts/ebpfsentinel-enterprise -n ebpfsentinel \
+helm upgrade ebpfsentinel-enterprise oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-enterprise -n ebpfsentinel \
+  --version <version> \
   --reuse-values \
   --set portal.enabled=true \
   --set portal.baseUrl=https://portal.ebpfsentinel.io \

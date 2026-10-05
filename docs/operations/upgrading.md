@@ -10,7 +10,8 @@ length is the time the new agent takes to start, not a fixed figure.
 ## Binary
 
 From a release tarball, `install.sh` replaces the binaries and the eBPF objects
-and leaves an existing `/etc/ebpfsentinel/config.yaml` untouched:
+and leaves an existing `/etc/ebpfsentinel/config.yaml` untouched. The new
+tarball comes from the [releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases):
 
 ```bash
 tar xzf ebpfsentinel-<version>-linux-<arch>.tar.gz

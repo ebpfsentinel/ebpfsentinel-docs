@@ -28,11 +28,30 @@ This produces:
 
 ## Install
 
-### From a release tarball
-
-The release tarball carries both binaries, the eBPF objects under `ebpf/`, the default config, both units, the AppArmor profile, the sysctl drop-in and `install.sh`:
+### In one command
 
 ```bash
+curl -sSL https://get.ebpfsentinel.io | sudo bash
+```
+
+That script installs nothing of its own. It looks the latest release up on [the releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases), downloads the tarball for the host's architecture and the release's `ebpfsentinel-SHA256SUMS`, checks that file's keyless signature when `cosign` is installed and the tarball against it in every case, then runs the `install.sh` shipped inside the tarball, described below. Read it before piping it into a root shell: `curl -sSL https://get.ebpfsentinel.io` prints it.
+
+| Variable | Effect |
+|----------|--------|
+| `EBPFSENTINEL_RELEASE=<release>` | Install that release instead of the latest one |
+| `EBPFSENTINEL_EDITION=enterprise` | Install the [enterprise build](enterprise.md) instead |
+| `EBPFSENTINEL_REQUIRE_SIGNATURE=1` | Refuse to install when `cosign` is absent, rather than checking the checksum alone |
+
+```bash
+curl -sSL https://get.ebpfsentinel.io | sudo EBPFSENTINEL_REQUIRE_SIGNATURE=1 bash
+```
+
+### From a release tarball
+
+The release tarball carries both binaries, the eBPF objects under `ebpf/`, the default config, both units, the AppArmor profile, the sysctl drop-in and `install.sh`. Each release on the [releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases) carries one per architecture, with its signature:
+
+```bash
+curl -fsSLO https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v<release>/ebpfsentinel-<version>-linux-<arch>.tar.gz
 tar xzf ebpfsentinel-<version>-linux-<arch>.tar.gz
 cd ebpfsentinel-<version>-linux-<arch>
 sudo ./install.sh

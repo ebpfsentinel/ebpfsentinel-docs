@@ -61,18 +61,25 @@ the licence is named, so it is reconciled without a feature check.
 
 ## Installing
 
-The chart lives in the operator repository and is installed from a checkout:
+The chart is published with every release, next to the agent's, and carries the
+release version:
 
 ```bash
-helm install ebpfsentinel-operator charts/ebpfsentinel-operator
+helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
+    --version <version>
 ```
+
+Releases are listed on the
+[releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases).
 
 The chart configures the operator and nothing about an agent: every agent-side
 setting, open source and enterprise alike, is a custom resource. For the
-enterprise kinds:
+enterprise kinds, run the enterprise build of the operator and turn them on:
 
 ```bash
-helm install ebpfsentinel-operator charts/ebpfsentinel-operator \
+helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
+    --version <version> \
+    --set image.repository=ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise \
     --set enterprise.enabled=true \
     --set enterprise.license.existingSecret=ebpfsentinel-license
 ```

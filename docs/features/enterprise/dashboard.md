@@ -14,6 +14,7 @@ configuration file and its own release:
 | `dashboard-server` | Axum service. OIDC login with PKCE, EdDSA JWT sessions on a rotating JWKS, an optional ClickHouse history store, and a YAML configuration hot-reloaded on change |
 | Web client | Angular single-page application, served as static assets by the same process, in English, French and German |
 | Image | `ghcr.io/ebpfsentinel/ebpfsentinel-dashboard`, multi-arch (`linux/amd64`, `linux/arm64`), tagged with the release version and cosign-signed |
+| Helm chart | `oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-dashboard`, published and signed with the image |
 
 It is stateless and multi-tenant: tenant scope is enforced on the server for
 every proxied call rather than in the browser, and agents whose licence does not
