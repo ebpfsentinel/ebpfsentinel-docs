@@ -12,13 +12,32 @@ declarative and reviewable in the same place as the rest of its manifests.
 It ships as its own binary and image, built and signed by the same release
 pipeline as the agent:
 
-| Edition | Image |
-|---------|-------|
-| Open source kinds only | `ghcr.io/ebpfsentinel/ebpfsentinel-operator` |
-| Open source plus the enterprise kinds | `ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise` |
+| Image | Reconciles |
+|-------|------------|
+| `ghcr.io/ebpfsentinel/ebpfsentinel-operator` | The agent and its 21 open source policy kinds |
+| `ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise` | The same, plus the 15 enterprise kinds |
 
 Both are tagged with the release version and cosign-signed, the same way the
-[agent images](../../operations/deployment/docker.md) are.
+[agent images](../../operations/deployment/docker.md) are, and both need a
+licence to start.
+
+## Licence
+
+The operator does not start without an Enterprise licence carrying the
+`kubernetes-operator` feature. It reads the licence from a Secret in its own
+namespace - `ebpfsentinel-license`, key `license`, unless the chart's
+`license.existingSecret` and `license.secretKey` name another - and verifies
+both signatures, Ed25519 and ML-DSA-65, against the issuer's keys built into
+the binary, exactly as the [enterprise agent](license.md) does.
+
+A missing Secret, a document that does not verify, an expired one or one that
+does not carry the feature all have the same outcome: the operator logs the
+reason and exits before any controller starts, the agent controller included,
+and Kubernetes restarts it until a licence that admits it is there. The Secret
+is read again every five minutes (`LICENSE_REFRESH_SECONDS`, thirty seconds at
+the least), so a licence that expires, is withdrawn or stops carrying the
+feature makes a running operator stand down the same way. Agents already
+deployed keep running; nothing reconciles them until the licence is back.
 
 ## How a policy reaches an agent
 
@@ -65,8 +84,12 @@ The chart is published with every release, next to the agent's, and carries the
 release version:
 
 ```bash
+kubectl create namespace ebpfsentinel
+kubectl -n ebpfsentinel create secret generic ebpfsentinel-license \
+    --from-file=license=license.key
 helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
-    --version <version>
+    --namespace ebpfsentinel --version <version> \
+    --set license.existingSecret=ebpfsentinel-license
 ```
 
 Releases are listed on the
@@ -78,10 +101,10 @@ enterprise kinds, run the enterprise build of the operator and turn them on:
 
 ```bash
 helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
-    --version <version> \
+    --namespace ebpfsentinel --version <version> \
     --set image.repository=ghcr.io/ebpfsentinel/ebpfsentinel-operator-enterprise \
     --set enterprise.enabled=true \
-    --set enterprise.license.existingSecret=ebpfsentinel-license
+    --set license.existingSecret=ebpfsentinel-license
 ```
 
 ## Reporting to the vendor portal
@@ -179,8 +202,9 @@ file somebody edits on a node.
 
 ## REST API
 
-The operator mounts no endpoint on the agent. There is no `kubernetes-operator`
-license feature and no route belongs to it: the operator is a separate binary
+The operator mounts no endpoint on the agent. The `kubernetes-operator` licence
+feature gates no agent route either, only the operator's own startup: the
+operator is a separate binary
 that drives agents through the endpoints listed in
 [Enterprise REST API](../../api-reference/rest-api-enterprise.md) and through
 the Kubernetes API, and it serves its own surface rather than adding to the

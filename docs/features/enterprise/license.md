@@ -55,6 +55,7 @@ activated for.
 | `tls-intelligence` | TLS threat intelligence & PQC compliance |
 | `network-forensics` | Ring buffer capture & flow timeline |
 | `automated-response` | Policy engine & SOAR webhook integration |
+| `kubernetes-operator` | The Kubernetes operator, which refuses to start without it |
 
 ## Keys bought from the portal
 
