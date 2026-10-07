@@ -69,9 +69,9 @@ sudo ./demo.sh agent alerts list --component dlp
 
 <!-- rec dlp 4 -->
 ```text
-ID                COMPONENT     SEVERITY  RULE ID     ACTION  SRC IP              DST IP              SPORT  DPORT  FP   SRC DOMAIN            DST DOMAIN            MESSAGE
-1791209436154566418-dlp-pci-visa-1  dlp           critical  dlp-pci-visa  alert   -                   -                       0      0  no   -                     -                     DLP pattern Visa Card Numbe...
-1791209436154563834-dlp-pci-visa-0  dlp           critical  dlp-pci-visa  alert   -                   -                       0      0  no   -                     -                     DLP pattern Visa Card Numbe...
+ID                                  COMPONENT  SEVERITY  RULE ID       ACTION  SRC IP  DST IP  SPORT  DPORT  FP  SRC DOMAIN  DST DOMAIN  MESSAGE
+1791388205961623718-dlp-pci-visa-1  dlp        critical  dlp-pci-visa  alert   -       -           0      0  no  -           -           DLP pattern Visa Card Number (pci) matched on...
+1791388205961619945-dlp-pci-visa-0  dlp        critical  dlp-pci-visa  alert   -       -           0      0  no  -           -           DLP pattern Visa Card Number (pci) matched on...
 
 Showing 2/2 alert(s) (offset=0).
 ```
@@ -91,9 +91,9 @@ sudo ./demo.sh agent audit logs --component dlp
 
 <!-- rec dlp 5 -->
 ```text
-COMPONENT     ACTION          SRC IP              DST IP              SPORT  DPORT  RULE ID     DETAIL
-dlp           policy_violation  -                   -                       0      0  dlp-pci-visa  DLP Visa Card Number (pci) ...
-dlp           policy_violation  -                   -                       0      0  dlp-pci-visa  DLP Visa Card Number (pci) ...
+COMPONENT  ACTION            SRC IP  DST IP  SPORT  DPORT  RULE ID       DETAIL
+dlp        policy_violation  -       -           0      0  dlp-pci-visa  DLP Visa Card Number (pci) pid=11868
+dlp        policy_violation  -       -           0      0  dlp-pci-visa  DLP Visa Card Number (pci) pid=11868
 
 Showing 2/2 entry(ies) (offset=0).
 ```

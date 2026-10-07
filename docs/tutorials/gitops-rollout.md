@@ -100,8 +100,8 @@ git -C estate commit -qam "Cut off workloads calling an AI provider" && git -C e
 
 <!-- rec gitops 4 -->
 ```text
-a8c6f18 Cut off workloads calling an AI provider
-7b828b6 Agent on every node, SYN flood mitigation on
+f6b3e53 Cut off workloads calling an AI provider
+b625704 Agent on every node, SYN flood mitigation on
 ```
 
 ## 3. Watch it reach the node
@@ -118,14 +118,15 @@ kubectl -n ebpfsentinel exec ds/ebpfsentinel -c agent -- ebpfsentinel-agent l7 l
 
 <!-- rec gitops 5 -->
 ```text
+Waiting for daemon set "ebpfsentinel" rollout to finish: 0 of 1 updated pods are available...
 daemon set "ebpfsentinel" successfully rolled out
 ```
 
 <!-- rec gitops 6 -->
 ```text
-ID                PRI  ACTION  SRC IP              DST IP              DST PORT  ENABLED
-shadow-ai-openai   10  deny    -                   -                          -  yes
-shadow-ai-anthropic   11  deny    -                   -                          -  yes
+ID                   PRI  ACTION  SRC IP  DST IP  DST PORT  ENABLED
+shadow-ai-openai      10  deny    -       -              -  yes
+shadow-ai-anthropic   11  deny    -       -              -  yes
 
 2 rule(s) total.
 ```
@@ -138,9 +139,9 @@ git -C estate revert --no-edit HEAD >/dev/null && git -C estate push -q && git -
 
 <!-- rec gitops 7 -->
 ```text
-cffe568 Revert "Cut off workloads calling an AI provider"
-a8c6f18 Cut off workloads calling an AI provider
-7b828b6 Agent on every node, SYN flood mitigation on
+1f25355 Revert "Cut off workloads calling an AI provider"
+f6b3e53 Cut off workloads calling an AI provider
+b625704 Agent on every node, SYN flood mitigation on
 ```
 
 The revert is a commit like any other, so the history keeps the rule, who

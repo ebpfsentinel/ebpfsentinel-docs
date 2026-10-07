@@ -57,9 +57,9 @@ sudo ./demo.sh agent status
 ```text
 eBPFsentinel v0.0.0-dev -- up 6s -- 6 rules loaded
 
-  Programs  5/13 loaded    xdp-ratelimit ✓ tc-ids ✓ xdp-firewall ✓ tc-conntrack ✓ uprobe-dlp ✓
+  Programs  5/13 loaded    tc-conntrack ✓ uprobe-dlp ✓ xdp-firewall ✓ tc-ids ✓ xdp-ratelimit ✓
 
-  Conntrack  64 active connections
+  Conntrack  121 active connections
   DDoS       no active attacks (0 mitigated total)
 
   Recent Alerts (0 total)
@@ -89,7 +89,7 @@ HPING 172.30.66.1 (eth0 172.30.66.1): S set, 40 headers + 0 data bytes
 hping in flood mode, no replies will be shown
 
 --- 172.30.66.1 hping statistic ---
-2017237 packets transmitted, 0 packets received, 100% packet loss
+2518715 packets transmitted, 0 packets received, 100% packet loss
 round-trip min/avg/max = 0.0/0.0/0.0 ms
 ```
 
@@ -104,8 +104,8 @@ sudo ./demo.sh agent ddos attacks
 
 <!-- rec ddos 5 -->
 ```text
-ID                ATTACK TYPE         STATUS      COUNTRY    PEAK PPS     CUR PPS    TOTAL PKTS   SOURCES
-ddos-1            syn_flood           detecting   -              3496          31          4021         1
+ID      ATTACK TYPE  STATUS     COUNTRY  PEAK PPS  CUR PPS  TOTAL PKTS  SOURCES
+ddos-1  syn_flood    detecting  -            2586       31        3806        1
 
 1 active attack(s).
 ```
@@ -121,8 +121,8 @@ sudo ./demo.sh agent alerts list --component ddos --limit 1
 
 <!-- rec ddos 6 -->
 ```text
-ID                COMPONENT     SEVERITY  RULE ID     ACTION  SRC IP              DST IP              SPORT  DPORT  FP   SRC DOMAIN            DST DOMAIN            MESSAGE
-1791209384279543016-ddos-1-0  ddos          critical  ddos-1      block   172.30.66.66        172.30.66.1          4013     80  no   -                     -                     DDoS SynFlood attack ddos-1...
+ID                            COMPONENT  SEVERITY  RULE ID  ACTION  SRC IP        DST IP       SPORT  DPORT  FP  SRC DOMAIN  DST DOMAIN  MESSAGE
+1791388150487611862-ddos-1-0  ddos       critical  ddos-1   block   172.30.66.66  172.30.66.1   3824     80  no  -           -           DDoS SynFlood attack ddos-1 - status: Detecti...
 
 Showing 1/1 alert(s) (offset=0).
 ```
@@ -135,8 +135,8 @@ sudo ./demo.sh agent ips blacklist
 
 <!-- rec ddos 7 -->
 ```text
-IP                  REASON                          AUTO     TTL (s)
-172.30.66.66        auto-response:contain-ddos alert=1791209384279543016-ddos-1-0  no           287
+IP            REASON                                                         AUTO  TTL (s)
+172.30.66.66  auto-response:contain-ddos alert=1791388150487611862-ddos-1-0  no        287
 
 1 entry(ies) total.
 ```
@@ -171,8 +171,8 @@ sudo ./demo.sh agent audit logs --component responses
 
 <!-- rec ddos 10 -->
 ```text
-COMPONENT     ACTION          SRC IP              DST IP              SPORT  DPORT  RULE ID     DETAIL
-responses     rule_added      172.30.66.66        -                       0      0  contain-ddos  auto-response block_ip on 1...
+COMPONENT  ACTION      SRC IP        DST IP  SPORT  DPORT  RULE ID       DETAIL
+responses  rule_added  172.30.66.66  -           0      0  contain-ddos  auto-response block_ip on 172.30.66.66 for al...
 
 Showing 1/1 entry(ies) (offset=0).
 ```

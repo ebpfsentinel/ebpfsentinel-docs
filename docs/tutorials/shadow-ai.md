@@ -55,9 +55,9 @@ sudo ./demo.sh agent l7 list
 
 <!-- rec shadow-ai 2 -->
 ```text
-ID                PRI  ACTION  SRC IP              DST IP              DST PORT  ENABLED
-shadow-ai-openai   10  deny    -                   -                          -  yes
-shadow-ai-anthropic   11  deny    -                   -                          -  yes
+ID                   PRI  ACTION  SRC IP  DST IP  DST PORT  ENABLED
+shadow-ai-openai      10  deny    -       -              -  yes
+shadow-ai-anthropic   11  deny    -       -              -  yes
 
 2 rule(s) total.
 ```
@@ -97,8 +97,8 @@ sudo ./demo.sh agent alerts list --component l7
 
 <!-- rec shadow-ai 5 -->
 ```text
-ID                COMPONENT     SEVERITY  RULE ID     ACTION  SRC IP              DST IP              SPORT  DPORT  FP   SRC DOMAIN            DST DOMAIN            MESSAGE
-1791209467707943025-shadow-ai-openai-0  l7            medium    shadow-ai-openai  block   172.30.66.20        172.30.66.1         41292    443  no   -                     -                     L7 tls deny rule=shadow-ai-...
+ID                                      COMPONENT  SEVERITY  RULE ID           ACTION  SRC IP        DST IP       SPORT  DPORT  FP  SRC DOMAIN  DST DOMAIN  MESSAGE
+1791388237473397976-shadow-ai-openai-0  l7         medium    shadow-ai-openai  block   172.30.66.20  172.30.66.1  57166    443  no  -           -           L7 tls deny rule=shadow-ai-openai
 
 Showing 1/1 alert(s) (offset=0).
 ```
@@ -111,8 +111,8 @@ sudo ./demo.sh agent ips blacklist
 
 <!-- rec shadow-ai 6 -->
 ```text
-IP                  REASON                          AUTO     TTL (s)
-172.30.66.20        auto-response:contain-shadow-ai alert=1791209467707943025-shadow-ai-openai-0  no           117
+IP            REASON                                                                        AUTO  TTL (s)
+172.30.66.20  auto-response:contain-shadow-ai alert=1791388237473397976-shadow-ai-openai-0  no        117
 
 1 entry(ies) total.
 ```
@@ -140,8 +140,8 @@ sudo ./demo.sh agent audit logs --component responses
 
 <!-- rec shadow-ai 8 -->
 ```text
-COMPONENT     ACTION          SRC IP              DST IP              SPORT  DPORT  RULE ID     DETAIL
-responses     rule_added      172.30.66.20        -                       0      0  contain-shadow-ai  auto-response block_ip on 1...
+COMPONENT  ACTION      SRC IP        DST IP  SPORT  DPORT  RULE ID            DETAIL
+responses  rule_added  172.30.66.20  -           0      0  contain-shadow-ai  auto-response block_ip on 172.30.66.20 for al...
 
 Showing 1/1 entry(ies) (offset=0).
 ```
