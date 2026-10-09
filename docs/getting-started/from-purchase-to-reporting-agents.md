@@ -206,8 +206,9 @@ enterprise:
     join_secret_file: /etc/ebpfsentinel/portal-join-secret
 ```
 
-Restart the agent after installing a key: which enterprise features run is
-decided when the agent starts. Each agent joins under its host name unless
+Restart the agent after installing its first key: which enterprise features
+are mounted is decided when the agent starts. A renewed key installed later over
+the same file is picked up within a minute without a restart. Each agent joins under its host name unless
 `agent_name` says otherwise, and joining again under the same name is the same
 agent rather than a new one, so a node that loses its state is not counted
 twice.

@@ -27,7 +27,8 @@ Two kinds of key exist, and they differ in one field:
   "issued_at": "2026-03-14T00:00:00Z",
   "expires_at": "2027-01-01T23:59:59Z",
   "max_agents": 50,
-  "max_cores_per_agent": 32
+  "max_cores_per_agent": 32,
+  "key_id": "afc51a12b85c000f"
 }
 ```
 
@@ -35,6 +36,21 @@ Two kinds of key exist, and they differ in one field:
 unlimited. `machine_fingerprint` is optional too: a fleet key carries none, and
 a machine-bound key carries the SHA-256 fingerprint of the one machine it was
 activated for.
+
+`key_id` names the signing pair, as the first sixteen hex characters of
+SHA-256 over its two public halves. An agent carries every pair still in use,
+each under its id, so a key signed by a newer pair than the agent knows is
+refused with that id named (upgrade the agent), and a rotation never forces a
+fleet rebuild: the old pair stays built in beside the new one until the last
+key it signed has expired. A key issued before keys carried an id has no
+`key_id` and is checked against every built-in pair.
+
+The dashboard and the Kubernetes operator verify keys the same way, each with
+its own built-in set of pairs, so a key signed under a pair newer than either
+of them is refused there with the same message until that component is
+upgraded. The operator reads its key once at startup, so a replaced key takes
+effect when the operator is restarted, and it has no grace window: it refuses
+an expired key from its expiry date.
 
 ## Available Features
 
@@ -67,10 +83,15 @@ and a node that is rebuilt, replaced or rescheduled onto another machine keeps
 working with it. Replacing a node is not a licensing event.
 
 The fleet size is carried by `max_agents` rather than by one key per machine.
-The agent reports it at `GET /api/v1/license`, and the portal's **Entitlement**
+It is a term of the subscription and not a lock: an agent verifies its key
+offline and cannot see the other agents carrying the same file, so **no agent
+refuses to start because the fleet grew past the count**. The licence agreement
+gives 30 days to add the nodes in the portal once the fleet has grown. The agent
+reports the count at `GET /api/v1/license`, and the portal's **Entitlement**
 page counts the machines actually reporting against it and against the contract,
 so an estate that has outgrown what it bought is visible there rather than on a
-node that refused to start.
+node that refused to start. The node size is different, see
+[Host Size Band](#host-size-band): that ceiling is enforced on each host.
 
 To get one:
 
@@ -92,10 +113,12 @@ path from purchase to machines reporting is walked in
 [From purchase to reporting agents](../../getting-started/from-purchase-to-reporting-agents.md).
 
 Replacing a key (**Replace this key**) signs a new one and stands the old one down
-in the portal in the same step. Nothing reaches an agent from there: an agent
-keeps the key it loaded until the new file is installed and the agent restarted. An estate with no
+in the portal in the same step. Nothing reaches an agent from there: the new file
+has to be installed over the old one, and the agent picks it up within a minute
+without a restart (see [Renewal and reload](#renewal-and-reload)). An estate with no
 route to the portal takes the **Offline bundle** from the same page instead, and
-checks it with [`ebpfsentinel-license bundle`](#check-an-offline-bundle).
+checks it with [`ebpfsentinel-license bundle`](#check-an-offline-bundle). The same
+bundle is what an agent reads its [revocations](#revocation) from.
 
 ## Host Size Band
 
@@ -160,12 +183,17 @@ ebpfsentinel-license inspect license.key \
   --pq-public-key license-signing-pq.pub
 ```
 
-Output includes both signature verification results:
+Output includes the pair that signed the key and both signature verification
+results:
 
 ```
+  Signing key:  afc51a12b85c000f
   Ed25519 sig:  VALID
   ML-DSA-65 sig: VALID
 ```
+
+A key issued before keys carried an id reads `Signing key:  not named (issued
+before keys carried an id)`.
 
 Each key flag is optional on its own, and a signature with no key given is reported as `not verified` rather than checked. Pass both - a check that names only the classical key accepts a file carrying one valid signature and one forged, which is the case the second algorithm exists for.
 
@@ -219,7 +247,7 @@ ebpfsentinel-license keygen \
   --pq-public-key license-signing-pq.pub
 ```
 
-This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are required: licenses are post-quantum dual-signed and verified against both public keys.
+This generates both an Ed25519 keypair and an ML-DSA-65 keypair. Both are required: licenses are post-quantum dual-signed and verified against both public keys. The command also prints the pair's key id (`Key id:`), which `generate` stamps into every key it signs and which names the directory the public halves are built in under.
 
 ### Generate License
 
@@ -295,11 +323,20 @@ Release builds verify their own `.text` section hash against a signed manifest a
 # Generate integrity manifest during CI build
 ebpfsentinel-license integrity-hash \
   --binary target/release/ebpfsentinel-enterprise-agent \
-  --signing-key license-signing.key \
+  --signing-key release-signing.key \
   --output integrity.manifest
 ```
 
 Integrity failure exits with code 2 (no fallback to OSS mode).
+
+The manifest is signed with the **release** pair, never the licence pair: a
+licence says what a customer bought, a manifest says what a binary is, and a
+key that could sign one must not be able to vouch for the other. The release
+public keys are compiled into the agent by the release pipeline, together with
+any superseded pair still needed to read older manifests. A build carrying no
+release key (a local `cargo build`) skips the integrity manifest with a warning
+and refuses enterprise features whenever a signed measurements manifest is
+present, because it has nothing to check either against.
 
 ### Distributed License Checks
 
@@ -310,9 +347,10 @@ License validation occurs at three independent points per feature:
    router that was never registered, which is why an unlicensed path answers
    `404` rather than `403`.
 2. **Every request** - the API asks the license again before running a handler
-   on a route that a feature gates. Validity is computed from `expires_at` at
-   the moment it is asked, so an expiry closes those routes on the day it
-   happens rather than at the next restart.
+   on a route that a feature gates. Validity is computed from `expires_at` and
+   the [grace window](#expiry-and-grace) at the moment it is asked, so the end
+   of the grace window closes those routes on the day it happens rather than at
+   the next restart.
 3. **Periodic** - a background task wakes every fifteen minutes and writes an
    ERROR line when the key has run out, so an expiry is visible in the log
    before anyone calls the API. On the same tick it asks each active feature to
@@ -320,12 +358,11 @@ License validation occurs at three independent points per feature:
    hour, so its effective interval is one hour and the fifteen-minute tick is
    what carries the expiry line.
 
-   That periodic check is an expiry and feature check and nothing more: **no
-   signature is re-verified and the key file is not read again**. Both
-   signatures are checked once, when the key is loaded at startup, and the
-   licence is held in memory for the life of the process. A key file replaced
-   on disk therefore takes effect at the next restart, which is also when the
-   set of mounted routers is decided.
+   That periodic check is an expiry and feature check and nothing more: no
+   signature is re-verified on that tick. Reading the key file again is a
+   separate task, described in [Renewal and reload](#renewal-and-reload), and a
+   replacement goes through the full verification, both signatures included,
+   before it takes the place of the key in memory.
 
 ### License-as-Computation-Parameter
 
@@ -351,7 +388,17 @@ files on disk, gated by whether their feature's router was mounted at all.
 ```yaml
 enterprise:
   license_path: /etc/ebpfsentinel/license.key
+  # Optional: an offline bundle whose revocations the agent honours.
+  revocations_path: /etc/ebpfsentinel/offline-bundle.json
+  # Where the agent records the latest time it has seen (default shown).
+  license_clock_path: /var/lib/ebpfsentinel/license-clock
 ```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `license_path` | none | The key file. Re-read every minute, see [Renewal and reload](#renewal-and-reload) |
+| `revocations_path` | none | An offline bundle (`ebpfsentinel.offline-bundle/1`) whose `revocations` list the agent checks the key against. See [Revocation](#revocation) |
+| `license_clock_path` | `/var/lib/ebpfsentinel/license-clock` | The high-water clock file. See [Expiry and grace](#expiry-and-grace) |
 
 Or via CLI flag:
 
@@ -365,17 +412,75 @@ Or via environment variable:
 export EBPFSENTINEL_LICENSE=/path/to/license.key
 ```
 
+## Expiry and grace
+
+A key does not stop on its expiry date. For **14 days** after `expires_at` the
+agent keeps every feature the key carries and says so: `GET /api/v1/license`
+answers `in_grace: true` with the last day in `grace_until`, and the periodic
+check logs the expiry. Once `grace_until` has passed the key is out of force
+and the agent behaves as described under [Graceful Degradation](#graceful-degradation).
+
+Expiry is judged against the latest time the agent has observed, not against
+the wall clock alone. The agent writes that instant to `license_clock_path`
+every minute and reads it back at startup, so setting a machine's clock back
+does not extend a key, across restarts included. This is a ratchet rather than
+a proof: a machine whose clock was set back before the agent ever ran, with no
+clock file, starts from that clock. A clock file that cannot be written is
+logged once and retried; it never stops the agent.
+
+## Renewal and reload
+
+The agent reads `license_path` (and `revocations_path`, when set) again every
+minute. When either file has changed:
+
+- **A valid replacement takes over in place.** The new key is verified in
+  full, both signatures, the key id, the size band and the fingerprint
+  included, and replaces the one in memory. Renewing is installing the new file
+  over the old one; no restart is needed for the features that were already
+  mounted.
+- **A feature the old key did not carry is mounted at the next restart.**
+  Which routers exist is decided at startup, so the agent logs which features
+  are newly licensed and waits for a restart to serve them.
+- **A replacement that is not in force is ignored.** A file holding an expired
+  or refused key leaves the key already loaded in place, with a warning.
+- **A file caught half written is retried** on the next tick rather than read
+  as a refusal.
+
+## Revocation
+
+A key can be revoked before its expiry: issued in error, leaked, or belonging
+to a subscription that ended early. The agent learns it from an offline bundle
+named by `revocations_path`, the same file the portal's **Offline bundle**
+offers and [`ebpfsentinel-license bundle`](#check-an-offline-bundle) checks.
+A key is revoked when the SHA-256 of its file appears in the bundle's
+`revocations` list.
+
+- **No `revocations_path`, or a path with no file yet**: nothing is revoked.
+  A list that has not been delivered is not a revocation.
+- **A file that is there and cannot be read as a bundle**: the key is refused.
+  A list somebody tried to deliver and that does not parse could be the one
+  naming this key.
+- **A revoked key at startup** is refused and the agent runs in OSS mode. **A
+  revocation delivered while running** closes the enterprise API within a
+  minute, exactly as an expiry does. The datapath keeps running either way.
+
+The bundle itself is not signed and does not need to be: a revocation can only
+take features away, so a forged list can deny a feature and never grant one.
+
 ## Graceful Degradation
 
 What happens at startup, when the agent decides what to run:
 
 - Missing license: runs in OSS mode, every enterprise feature disabled
 - Invalid signature: rejects the license and runs in OSS mode
-- Expired license: rejects the license and runs in OSS mode
+- Signed by a pair this build does not carry: rejects the license, naming the key id, and runs in OSS mode
+- Expired past its grace window: rejects the license and runs in OSS mode
+- Revoked: rejects the license and runs in OSS mode
 - Fingerprint mismatch, on a machine-bound key only: rejects the license with a clear error. A fleet key carries no fingerprint and is never refused for it
 - Host larger than the licensed size band: rejects the license and runs in OSS mode
 
-What happens when a license expires while the agent is running:
+What happens when a license's grace window ends, or a revocation arrives, while
+the agent is running:
 
 - **The datapath keeps running.** The eBPF programs stay loaded and traffic is
   inspected and enforced exactly as before. An expiry is a commercial event, not
@@ -386,9 +491,10 @@ What happens when a license expires while the agent is running:
 - **`GET /api/v1/license` keeps answering**, along with `/metrics`, the kernel
   feature probe and the open source alert route, so an operator can read why the
   rest stopped.
-- **Renewing takes effect on restart.** Losing a feature is enforced live;
-  regaining one is not, because which routers are mounted is decided at startup.
-  Install the new key and restart the agent.
+- **Renewing takes effect within a minute.** Install the new key over the old
+  one: it is read on the next reload tick and the routes that were mounted at
+  startup open again. A feature the agent did not mount at startup needs a
+  restart, see [Renewal and reload](#renewal-and-reload).
 
 ## REST API
 
@@ -405,6 +511,9 @@ Returns license status (200 OK or 402 Payment Required):
   "features": ["advanced-dlp", "ml-detection"],
   "issued_at": "2026-03-14T00:00:00Z",
   "expires_at": "2027-01-01T23:59:59Z",
+  "grace_until": "2027-01-15T23:59:59Z",
+  "in_grace": false,
+  "key_id": "afc51a12b85c000f",
   "max_agents": 50,
   "max_cores_per_agent": 32,
   "host_cores": 30,
@@ -416,6 +525,11 @@ Returns license status (200 OK or 402 Payment Required):
   "measurement": "9f2c4d7e1b08a3560c9d4e8f2a17b3c5..."
 }
 ```
+
+`grace_until` is `expires_at` plus the 14-day grace window, and `in_grace` is
+`true` between the two: every feature is still served, and a monitor should
+alert on it. `key_id` names the signing pair, and is left out for a key issued
+before keys carried an id.
 
 `machine_fingerprint` is the fingerprint a machine-bound key was activated for,
 and `*` for a fleet key, which is bound to no machine. `host_cores` is what this machine measured, reported next to the ceiling so a

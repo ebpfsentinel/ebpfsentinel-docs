@@ -75,7 +75,9 @@ helper support was not verified.
 The release tarball carries everything `install.sh` reads: the agent,
 `enterprise-warden`, the `ebpfsentinel-license` CLI, the eBPF objects under
 `ebpf/`, the default config, both units, the AppArmor profile and the sysctl
-drop-in, plus the two licence signing public keys. Each release on the
+drop-in, plus the two licence signing public keys and `EULA.md`, the end user
+licence agreement the software is used under. The container image carries the
+same agreement at `/usr/share/doc/ebpfsentinel-enterprise/EULA.md`. Each release on the
 [releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases) carries one per architecture, with its signature:
 
 ```bash

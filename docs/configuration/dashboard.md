@@ -287,6 +287,27 @@ Outcomes per probe:
 | Connection error (DNS / TCP / TLS) | exclude from pool | `connect_error` |
 | TLS pin mismatch | exclude + bump dedicated counter | `tls_pin_mismatch` |
 
+### Licence and measurement verification
+
+The dashboard does not take an agent's word for its licence. It verifies
+the `signed_payload` and both signatures from `GET /api/v1/license`
+against the licence public keys it was built with, each pair held under
+its key id: a licence naming a key id this build does not carry is
+refused with that id, which means the dashboard is older than the key
+and needs upgrading, and a licence issued before keys carried an id is
+tried against every built-in pair.
+
+Setting `EBPFSENTINEL_MEASUREMENTS` to the path of a signed measurements
+manifest adds a second gate: an agent enters the pool only when the
+`measurement` it reports is listed in that manifest. The manifest is
+signed with the **release** keys, never the licence keys, and those are
+compiled in by the release build. A dashboard built without them (a
+local `cargo build`) refuses to start when `EBPFSENTINEL_MEASUREMENTS`
+is set, rather than gating the pool on a manifest it cannot check. A
+manifest that is configured and unreadable or badly signed is fatal for
+the same reason. With the variable unset the gate is off and the licence
+verification alone admits an agent.
+
 ### TLS pinning
 
 Each `static_agents[].tls_pin_sha256` is the hex-encoded SHA-256 of

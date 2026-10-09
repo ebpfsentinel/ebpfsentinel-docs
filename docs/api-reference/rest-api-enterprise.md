@@ -31,11 +31,14 @@ answers `404 Not Found` rather than `403 Forbidden`: an unlicensed feature
 is indistinguishable from a path that does not exist. `none` means the
 route is mounted whatever the license says.
 
-A license that expires while the agent is running is the one case where a
-mounted route refuses instead: it answers `403 Forbidden` with the code
+A license that runs out while the agent is running, at the end of its
+14-day grace window, or that is revoked, is the one case where a mounted
+route refuses instead: it answers `403 Forbidden` with the code
 `LICENSE_FEATURE_UNAVAILABLE`, naming the feature. The route was mounted,
 so it exists; the license has since stopped covering it. The datapath is
-unaffected, and the routes listed with `none` keep answering.
+unaffected, and the routes listed with `none` keep answering. A renewed
+key installed over the old one reopens those routes within a minute,
+without a restart.
 
 **Role.** The least-privileged built-in role whose grants satisfy the
 route. `viewer` reads, `operator` reads and writes, `admin` does both and

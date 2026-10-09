@@ -28,7 +28,7 @@ Two states are **not** errors, because neither of them asks for anything:
 - The configuration file does not exist. The agent runs with no enterprise feature configured.
 - The file exists and has no `enterprise:` key, or the key is present with nothing under it. Same outcome.
 
-The agent reads this section exactly once, at startup, before it loads the licence or touches the kernel. Changing the file underneath a running agent changes nothing until it is restarted; there is no reload signal.
+The agent reads this section exactly once, at startup, before it loads the licence or touches the kernel. Changing the file underneath a running agent changes nothing until it is restarted; there is no reload signal. The files the section points at are another matter: the licence key and the revocation list are read again every minute, see [Renewal and reload](../features/enterprise/license.md#renewal-and-reload).
 
 ## Full Reference
 
@@ -36,6 +36,8 @@ The agent reads this section exactly once, at startup, before it loads the licen
 enterprise:
   # ── License ─────────────────────────────────────────────────────
   license_path: /etc/ebpfsentinel/license.key
+  revocations_path: /etc/ebpfsentinel/offline-bundle.json
+  license_clock_path: /var/lib/ebpfsentinel/license-clock
 
   # ── Advanced DLP (Vectorscan) ───────────────────────────────────
   advanced_dlp:
@@ -383,7 +385,9 @@ enterprise:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `license_path` | string | none | Path to the license key file |
+| `license_path` | string | none | Path to the license key file, re-read every minute |
+| `revocations_path` | string | none | Offline bundle whose `revocations` list the key is checked against, re-read every minute. A path with no file yet revokes nothing; a file that does not parse refuses the key. See [Revocation](../features/enterprise/license.md#revocation) |
+| `license_clock_path` | string | `/var/lib/ebpfsentinel/license-clock` | Where the agent records the latest time it has seen, so a clock set back does not extend a key. See [Expiry and grace](../features/enterprise/license.md#expiry-and-grace) |
 
 ### Advanced DLP
 
@@ -507,6 +511,8 @@ machine, only how full it is.
 ### Validation Rules
 
 - `license_path` cannot be empty if set
+- `revocations_path` cannot be empty if set
+- `license_clock_path` cannot be empty if set
 - Custom pattern IDs must be unique (no collision with built-in `dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`)
 - Custom pattern regex validated via Vectorscan `expression_info` at config load
 - `l7_advanced.deep_inspect_rule_ids` entries cannot be empty or repeat
