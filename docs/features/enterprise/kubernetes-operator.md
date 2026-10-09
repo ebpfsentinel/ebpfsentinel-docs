@@ -94,6 +94,35 @@ Releases are listed on the
 The chart configures the operator and nothing about an agent: every agent-side
 setting, open source and enterprise alike, is a custom resource.
 
+### Reconciling some namespaces only
+
+By default the operator reconciles across the cluster under a ClusterRole,
+which lets it read every Secret in the cluster. `watchNamespaces` narrows it:
+
+```bash
+helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
+    --namespace ebpfsentinel --version <version> \
+    --set license.existingSecret=ebpfsentinel-license \
+    --set 'watchNamespaces={ebpfsentinel,edge}'
+```
+
+The operator then watches those namespaces and no other, and the chart grants
+it a Role in each instead of the ClusterRole, plus one Role in its own
+namespace that reads the licence Secret and the agent token Secret by name and
+nothing beside them. A resource in any other namespace is left alone. Each
+namespace listed must exist before the chart is installed.
+
+### Uninstalling
+
+`helm uninstall` removes the operator and leaves the custom resource
+definitions in place, so every resource written against them survives: each
+definition carries `helm.sh/resource-policy: keep`. Deleting a definition
+deletes every resource of its kind, which is why it is a step of its own:
+
+```bash
+kubectl get crd -o name | grep ebpfsentinel.io | xargs kubectl delete
+```
+
 ## Reporting to the vendor portal
 
 An enterprise estate reports itself to the customer portal through
