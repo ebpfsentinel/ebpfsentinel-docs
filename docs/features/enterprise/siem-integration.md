@@ -16,7 +16,7 @@ Native connectors for 10 enterprise SIEM and data lake platforms with durable bu
 | **Wazuh** | REST API | ECS + agent_name | JWT auth (auto-refresh on 401), agent-based integration |
 | **Microsoft Sentinel** | CEF over Syslog | CEF | RFC 5424 syslog, TLS/TCP transport, 6 custom extension fields |
 | **IBM QRadar** | LEEF over Syslog | LEEF 2.0 | Tab-delimited fields, TLS/TCP transport |
-| **Generic Syslog** | JSON over Syslog | JSON + RFC 5424 | TLS or TCP transport, all optional fields |
+| **Generic Syslog** | JSON or OCSF over Syslog | JSON or OCSF Detection Finding + RFC 5424 | TLS or TCP transport, all optional fields, `format: ocsf` for OCSF collectors |
 | **OTLP** | HTTP JSON | OTLP Logs | At-least-once delivery, retry with exponential backoff |
 | **S3** | HTTP PUT | NDJSON (gzip) | Date-partitioned keys, S3/MinIO/R2 compatible, optional gzip compression |
 | **ClickHouse** | HTTP POST | JSONEachRow | Retry with exponential backoff, basic auth, configurable database/table |
@@ -181,10 +181,20 @@ Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the c
 - **Escaping**: tabs replaced with spaces (tab is field delimiter)
 - **Wrapped in RFC 5424 syslog**
 
-### Generic Syslog (JSON)
+### Generic Syslog (JSON or OCSF)
 
-- **Format**: Full JSON payload over RFC 5424 syslog
-- **Fields**: All core + optional fields (threat_type, confidence, attack_type, matched_domain, data_type)
+- **Format**: chosen by `format`, `json` by default
+  - `json`: the agent's own flat JSON document; the syslog message id is the rule id
+  - `ocsf`: one OCSF 1.3.0 Detection Finding (class `2004`, category `2`) per alert; the syslog message id is `OCSF`
+- **Fields** (`json`): All core + optional fields (threat_type, confidence, attack_type, matched_domain, data_type)
+- **Fields** (`ocsf`):
+  - `severity_id` 2 to 5 for low to critical
+  - `action_id` / `disposition_id`: `Allowed` / `Detected` for an alert-mode rule, `Denied` / `Blocked` for a block-mode rule
+  - `finding_info.analytic.uid` is the rule id, `finding_info.attacks` the MITRE ATT&CK technique when the alert carries one
+  - `src_endpoint`, `dst_endpoint` and `connection_info` carry the flow
+  - `metadata.tenant_uid` is the tenant in multi-tenant mode
+  - `confidence_score` is the threat-intelligence confidence
+  - Anything OCSF has no attribute for (threat type, DDoS attack type, DLP data type, JA4, ML engine and score) sits under `unmapped`
 
 ### Shared Syslog Transport
 
@@ -443,6 +453,7 @@ enterprise:
       ca_cert: /etc/ebpfsentinel/ca.pem
       verify_tls: true
       hostname: ebpfsentinel
+      format: json                       # json or ocsf
 
     otlp:
       endpoint: http://otel-collector:4318
