@@ -71,7 +71,7 @@ ddos:
 | `amplification_protection` | `AmplificationProtection` | - | UDP amplification kernel-side protection |
 | `connection_tracking` | `ConnectionTracking` | - | TCP connection tracking |
 | `policies` | `[DdosPolicy]` | `[]` | Userspace detection policies, evaluated on the events the guards raise |
-| `max_tracked_sources` | `integer` | `16384` | Capacity of each per-source kernel table the guards keep (SYN rate, ICMP rate, amplification rate, half-open counts, RST/FIN/ACK flood counters), in sources tracked at once, 1,024 to 1,048,576. Each table is per CPU, so it costs this many slots on every online CPU and evicts the least recently seen source when full. Applies at the next agent start |
+| `max_tracked_sources` | `integer` | `16384` | Capacity of each per-source kernel table the guards keep (SYN rate, ICMP rate, amplification rate, half-open counts, RST/FIN/ACK flood counters), in sources tracked at once, 1,024 to 1,048,576. Each table is per CPU, so it costs this many slots on every possible CPU (`/sys/devices/system/cpu/possible`, which counts CPUs a hypervisor reserves for hotplug) and evicts the least recently seen source when full. Applies at the next agent start |
 
 ### SynProtection
 

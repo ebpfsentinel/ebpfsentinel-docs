@@ -18,6 +18,8 @@ agent:
 
 Check your driver: `ethtool -i eth0 | grep driver`. A requested mode the interface refuses does not stop the agent: the attach falls back to `auto` and logs `XDP kfunc attach failed with requested mode, falling back to auto`. Read the mode the kernel actually granted from the attach log or from the `ebpfsentinel_xdp_attach_mode` gauge rather than from the configuration.
 
+**On `virtio_net`, native XDP turns off the guest receive offloads.** Without a program attached the host hands the guest TCP already coalesced (`rx-gro-hw: on`), so 1 Gbps of TCP arrives as about 5,000 packets a second; with one attached the driver takes the offloads away, because an XDP program has to see one frame at a time, and the same 1 Gbps arrives as about 93,000 MTU-sized frames. Measured on a 4-vCPU KubeVirt guest on Kube-OVN, that is about 0.15 of a core more at 1 Gbps and about 0.4 at 2.5 Gbps than the same guest with no agent, and TCP retransmissions where there were none. Most of that is the kernel stack handling eighteen times as many packets rather than the eBPF programs themselves, and it is the price of native XDP on that driver: generic mode keeps the offloads but runs every program after the `sk_buff` is built.
+
 > **Note**: `xdp_mode` is read at program attachment time. Changing it requires a restart or a hot-reload that re-attaches XDP programs (e.g. toggling the firewall off and on).
 
 ## IDS Sampling
@@ -97,7 +99,7 @@ sudo bpftool map show -j | python3 -c 'import json,sys; m=json.load(sys.stdin); 
 Map memory has two parts:
 
 - **A fixed part** that does not depend on the machine: rule arrays, the conntrack source counters, the DNS and IDS pattern tables, the ring buffers. About 56 MB with every feature on.
-- **A per-CPU part** that is paid once per online CPU: the tables the kernel fills on its own are per-CPU LRU hashes, so a table of 65,536 slots costs 65,536 slots on every CPU. A configuration that fits a 4-vCPU test VM is sixteen times larger on a 64-core node.
+- **A per-CPU part** that is paid once per possible CPU: the tables the kernel fills on its own are per-CPU LRU hashes, so a table of 65,536 slots costs 65,536 slots on every CPU the kernel could ever bring online, which is `/sys/devices/system/cpu/possible` rather than the CPUs running now. A configuration that fits a 4-vCPU test VM is sixteen times larger on a 64-core node, and a VM whose hypervisor reserves CPUs for hotplug pays for those too: a 4-vCPU KubeVirt guest declares 16 possible CPUs and locks four times what the same guest would without hotplug.
 
 The per-CPU tables take their capacity from the configuration at agent start, at 40 to 90 bytes a slot per CPU depending on the table:
 

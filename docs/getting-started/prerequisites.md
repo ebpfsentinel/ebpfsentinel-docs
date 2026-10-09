@@ -26,6 +26,16 @@ mount | grep bpf
 
 BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmlinux` does not exist, your kernel was built without `CONFIG_DEBUG_INFO_BTF=y` - you'll need to install a BTF-enabled kernel or rebuild.
 
+### Kernel Modules
+
+Four programs call kfuncs that a kernel module registers rather than the kernel itself: the firewall and conntrack programs need `nf_conntrack`, the IDS program needs `fou` and `fou6`, the NAT programs need `xfrm_interface`. A module's kfuncs exist only while it is loaded, and a minimal host loads none of these on its own: a stock Ubuntu 26.04 cloud image with no firewall rules has none of them, so the four programs fail with `kfunc ... not found in vmlinux or any loaded module BTF` and the agent never reports ready. Load them now and at every boot:
+
+```bash
+printf 'nf_conntrack\nfou\nfou6\nxfrm_interface\n' | sudo tee /etc/modules-load.d/ebpfsentinel.conf
+for m in nf_conntrack fou fou6 xfrm_interface; do sudo modprobe "$m"; done
+ls /sys/kernel/btf | grep -E 'nf_conntrack|fou|xfrm_interface'
+```
+
 ### Capabilities
 
 eBPF loads **exclusively** through a BPF token - there is no `CAP_BPF`/`setcap`
