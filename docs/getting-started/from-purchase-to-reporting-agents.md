@@ -71,6 +71,9 @@ price published on the website. Prices exclude VAT. The purchase type changes
 the terms, never the price: a business can give a VAT number, and an individual
 has a fourteen-day withdrawal right, see
 [Business or individual](../portal/billing-and-licence-keys.md#business-or-individual).
+**Country** starts on the one your browser names, or on the one of the language
+you chose in the portal when the browser names only a language spoken in many
+countries, such as English; with neither, it asks you to choose one.
 
 The term decides how the figure is written: per month on a monthly term, per
 year on an annual one, never a mix of the two. Beside it, the price of one agent
@@ -79,6 +82,9 @@ published price struck through when a discount applies. Priced on an annual
 term, the quote also says how much paying yearly saves against twelve monthly
 payments. While a changed field is being priced the screen says so and the
 checkout waits, so it never opens on a price for a different number of agents.
+The figure sits above **Go to the checkout**, so the price is read before the
+button that pays it, and a partner discount says on its own line that it is
+granted to the organisation paying, agreed with us in writing.
 
 If your account has no two-step verification yet, the screen says so before you pay:
 issuing the key afterwards asks for one (step 2), so arming it now means the key
