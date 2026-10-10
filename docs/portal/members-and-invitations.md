@@ -36,8 +36,12 @@ a key.
 - **Remove a member**: **Remove**, then **Remove for good**. They lose access at
   once; their account itself is untouched.
 
+**Leave this organisation**, on your own row, then **Leave for good**, takes you
+out of it whatever your role. You lose access at once, and only somebody who
+manages the organisation can bring you back.
+
 **The last owner stays an owner.** The organisation's only owner cannot be
-removed and their role cannot be changed, because an organisation nobody can
+removed, cannot leave and their role cannot be changed, because an organisation nobody can
 administer is one whose subscription nobody can end. Make somebody else an owner
 first.
 
