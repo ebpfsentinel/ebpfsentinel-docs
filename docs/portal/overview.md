@@ -52,7 +52,7 @@ administrator, billing and member; a member reads and changes nothing:
 | **Billing** | The subscription, the licence key's date, our reseller's documents, changing the plan or the card, ending the subscription. See [Billing and Licence Keys](billing-and-licence-keys.md). | Owners and billing members |
 | **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
 | **Deployments** | Deployments, their join secrets, their agents and their telemetry switch. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
-| **Usage** | What you bought, what the key admits and what is running. | Everybody |
+| **Usage** | What you bought, what the key admits and what is running. An order waiting for payment is named with the agents on it and counts toward nothing until it is paid. | Everybody |
 | **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. See [Analytics](analytics.md). | Everybody reads it; owners and administrators erase readings |
 | **Audit log** | Everything done to the organisation. See [Audit Log and Activity](audit-log.md). | Owners and administrators |
 | **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |

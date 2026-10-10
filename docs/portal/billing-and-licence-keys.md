@@ -138,6 +138,11 @@ payment. **Continue to the checkout**, on **Billing** or on the subscribe screen
 takes you back to the same checkout rather than starting a second order. An order
 raised on an invoice has no checkout to go back to: it is paid by bank transfer.
 
+Until the payment lands, **Usage**, **Analytics**, **Licence keys** and the
+licence panel on **Billing** all say the order is waiting for payment, with the
+agents on it. It entitles you to nothing yet, and no key exists: one is issued
+from **Licence keys** once the payment lands.
+
 ### Documents
 
 **Documents** lists what our reseller issued, one per payment, each opening our

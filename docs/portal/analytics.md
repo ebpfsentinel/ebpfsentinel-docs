@@ -28,6 +28,8 @@ keeps sending.
 
 A plan agreed in writing publishes no pooled volume, and the screen says so. An
 organisation that has not bought anything yet still has what arrives counted.
+An order still waiting for its payment includes no volume either, and the screen
+says the order is waiting rather than that nothing was bought.
 
 ## Reported
 
