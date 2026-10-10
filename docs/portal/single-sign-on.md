@@ -4,12 +4,12 @@
 
 Your colleagues can sign in to the customer portal through your own identity
 provider, and your directory can add and remove them. The portal speaks
-**OpenID Connect** for sign-in and **SCIM 2.0** for provisioning; SAML is not
-offered. Everything below is on **Single sign-on**, which owners and
-administrators open inside the organisation, as five numbered steps taken in
-order; the steps that need a saved provider are drawn from the first visit and
-open once it is saved, and nothing changes for anybody before the fourth. An
-administrator can prepare every step, but only an owner can take the fourth.
+**OpenID Connect** for sign-in and **SCIM 2.0** for provisioning. Everything
+below is on **Single sign-on**, which owners and administrators open inside the
+organisation, as five numbered steps taken in order; the steps that need a
+saved provider are drawn from the first visit and open once it is saved, and
+nothing changes for anybody before the fourth. An administrator can prepare
+every step, but only an owner can take the fourth.
 
 ## 1. The provider
 
