@@ -56,10 +56,10 @@ signed in with the address it was sent to. Somebody without an account signs up
 from the link: that sign-up creates no organisation of its own, and once the
 address is confirmed they land in the one that invited them.
 
-An invitation lapses on its own seven days after it was sent; the list shows the
-day it **lapses on**. Until then:
+An invitation expires on its own seven days after it was sent; the list shows the
+day it **expires on**, and **Expired** once it has. Until then:
 
-- **Send again** mails a fresh link and lapses the previous one, which is what
+- **Send again** mails a fresh link and expires the previous one, which is what
   to do when the first mail went astray or ran out.
 - **Revoke** withdraws it, and the link stops working.
 

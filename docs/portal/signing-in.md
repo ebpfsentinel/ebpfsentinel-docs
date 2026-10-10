@@ -78,7 +78,7 @@ Arming it shows your **Recovery codes** once. Each works once, in place of a
 code from the app. Keep them with **Copy the codes** or **Download as a text
 file**, then press **I have kept them**: there is no way to read them back and
 nobody at our end can send them to you. The screen shows how many are left and
-warns when you are running low; **Print new recovery codes** replaces the whole
+warns when you are running low; **Generate new recovery codes** replaces the whole
 list, and every code on the old one stops working at once.
 
 **Remove the authenticator** asks for your password again and voids the

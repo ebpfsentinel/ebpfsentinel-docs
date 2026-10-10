@@ -10,7 +10,7 @@ Reading either records nothing: nobody is told that you looked.
 
 **Audit log**, inside the organisation, is everything that happened to it. Owners
 and administrators open it, because it names colleagues. Each line names the
-person, the moment, whether it **Went through** or was **Refused**, and, where
+person, the moment, whether it **Succeeded** or was **Refused**, and, where
 one was recorded, the address the request came from. An act on a deployment
 names the deployment it was done in. A line whose author has since left the
 organisation names no author.
@@ -53,7 +53,7 @@ change your password and set up two-step verification, see
 Both logs take the same filters:
 
 - **What happened**: one of the groups above, or **Everything**.
-- **Result**: **Went through**, **Refused**, or **Either**.
+- **Result**: **Succeeded**, **Refused**, or **Either**.
 - **From** and **To (included)**: a window of days. The second day is included
   in full.
 

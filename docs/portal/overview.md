@@ -17,7 +17,7 @@ you belong to is one row carrying:
 - **Agents**: the agents reporting against the agents enrolled, and how many
   deployments there are. An agent still reporting into a retired deployment is
   counted and named.
-- **Licence key**: **Not issued**, **Active**, **Running out** or **Expired**,
+- **Licence key**: **Not issued**, **Active**, **Expiring soon** or **Expired**,
   with the days left.
 - **Analytics this month**: the share of the pooled allowance the month has spent,
   or **Not metered** where the tier publishes no allowance.
@@ -26,10 +26,10 @@ Under the name, an organisation that signs in through its own identity provider
 shows **Your people sign in at** and the address to give them; any other shows
 the address it is reached at once signed in. A provider's own organisation
 carries **Holds N accounts**, which opens the panel where it opens accounts for
-its customers, and an account a provider holds carries **Held by** and the
-provider's name, or **Held by another organisation** where you are not in it.
+its customers, and an account a provider holds carries **Billed to** and the
+provider's name, or **Billed to another organisation** where you are not in it.
 
-The rows needing something done come first, with the alphabet as the tie-break,
+The rows needing attention come first, with the alphabet as the tie-break,
 and a sentence above the list says how many they are and why (no agent is
 reporting, some agents stopped reporting, the key has expired, the key runs
 out soon, the month is past its allowance). If those

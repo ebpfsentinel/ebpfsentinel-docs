@@ -106,7 +106,7 @@ The step **Directory provisioning (SCIM 2.0)** is on the screen before a
 provider exists and says what it does; its link opens once the provider is
 saved, and a SCIM token can be issued once it is on. That page issues the token your directory writes people into
 the organisation with. Press **Issue a SCIM token**, copy it now (it is shown once;
-only a digest is kept), and give your directory the **Base address for your
+only a fingerprint is kept), and give your directory the **Base address for your
 directory**, which ends in `/scim/v2`, with the token as its bearer token.
 
 Users and Groups are supported, with filters, paging and `PATCH`. A user your

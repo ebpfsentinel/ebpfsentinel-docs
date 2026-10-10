@@ -39,8 +39,8 @@ navigation beside it. What every screen holds, and which roles open it, is in
   you confirm your address, the confirmation mail brings you back to the
   invitation and you land inside the organisation that invited you. If you
   already have an account, sign in from the same screen instead.
-- An invitation lapses on its own. **Members** lists the ones nobody has taken
-  up yet with who sent each one and the day it lapses, and **Send again** mails
+- An invitation expires on its own. **Members** lists the ones nobody has taken
+  up yet with who sent each one and the day it expires, and **Send again** mails
   it once more to the same address. The invitation screen names the sender and
   that date too, so somebody who waited too long knows whom to ask.
 - Your own name and address are changed from your account, under **Details**.
@@ -195,7 +195,7 @@ within the organisation.
 Open the deployment and, under **Join secrets**, choose **Create a join secret**.
 Past the fifteen minutes, the portal asks for your password again first. It
 shows the secret **once**: only a
-digest of it is kept, so copy it before choosing **I have copied it**.
+fingerprint of it is kept, so copy it before choosing **I have copied it**.
 
 The installation steps for your deployment shape are printed beside it, with
 the portal's address filled in. The secret itself is left out of them on

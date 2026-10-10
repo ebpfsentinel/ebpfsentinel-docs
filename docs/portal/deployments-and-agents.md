@@ -29,7 +29,7 @@ An agent presents a join secret once and receives a credential of its own in
 exchange. Under **Join secrets** on the deployment:
 
 - **Create a join secret** asks for your password again and shows the secret
-  once: copy it, then **I have copied it**. Only a digest of it is kept.
+  once: copy it, then **I have copied it**. Only a fingerprint of it is kept.
 - Several secrets can be live at a time, so a rotation costs no downtime:
   create the new one, roll it out, then revoke the old one.
 - **Revoke** stops a secret admitting anything new. Agents that already joined

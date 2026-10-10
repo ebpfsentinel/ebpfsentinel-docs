@@ -62,7 +62,7 @@ invoice.
 Until the transfer arrives the subscription reads **Awaiting payment**, no
 licence key can be issued from it, and **Choose a plan** asks you to pay that
 invoice or cancel the order before choosing another plan. Once our reseller
-reports the transfer, the subscription reads **Running** and the key can be
+reports the transfer, the subscription reads **Active** and the key can be
 issued. The invoice is issued and the transfer collected by our reseller; we
 never handle the money.
 
@@ -92,10 +92,10 @@ at its price until that subscription is changed.
 
 ## Billing
 
-**Your subscription** shows the plan, whether it is **Running**, **Awaiting
+**Your subscription** shows the plan, whether it is **Active**, **Awaiting
 payment** or **Ended**, who is buying, and the **Dates**: when it started, when it
 renews, and whether an end was requested. **Licence key** beside it shows the
-date the key on your agents stops being accepted.
+date the key on your agents is **Valid until**.
 
 **Earlier subscriptions**, below, lists every subscription the organisation
 held before the current one, with its plan, the day it was opened, what it
@@ -110,8 +110,8 @@ of one agent a month on what you would pay. **Move to this plan** applies it at 
 charges or credits the difference for the rest of the current period straight
 away.
 
-The key your agents hold still carries the old plan. Replace it from
-**Licence keys** afterwards so it admits the new one.
+The key your agents hold still carries the old plan. Replace it under
+**Licence keys** afterwards so your agents pick up the new plan.
 
 Our reseller cannot always move a subscription between monthly and annual billing. The
 screen says so; to change the term, end the subscription and subscribe again.
@@ -176,7 +176,7 @@ everything the provider holds. The customer's own people run the organisation
 but cannot open its subscription.
 
 The customer's **Billing** reads the arrangement from whichever side you sit
-on. The customer's own people see **Somebody else holds this account**, naming
+on. The customer's own people see **Billed through a provider**, naming
 the provider where they can see it. Somebody in the provider's organisation sees
 **Your organisation holds this account** instead: that every subscription taken
 there is billed to the provider, what the customer reads on that screen, and
@@ -213,7 +213,7 @@ period.
   old one down. Machines running on the old file keep running on it until its own
   date, but it is no longer the key your subscription stands behind: install the new
   file on every machine.
-- **Stop trusting this key**, then **Revoke it**, with a reason. It cannot be
+- **Revoke this key**, then **Revoke it**, with a reason. It cannot be
   undone, and nothing reaches machines already running on the file: they keep
   running on it until you replace it or it expires. The offline bundle lists it
   as revoked, so agents checking the bundle can refuse it.
