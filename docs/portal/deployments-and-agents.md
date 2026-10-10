@@ -69,6 +69,9 @@ The deployment page carries a checklist, to go through in this order:
 **Telemetry for this deployment** opens the deployment's telemetry switch. It is
 off until somebody turns it on, one deployment at a time, and the screen lists
 everything a deployment sends while it is on and everything it never sends.
+The same list, **What telemetry sends**, is public at
+`https://portal.ebpfsentinel.io/telemetry/collected-fields` with its notice
+version, so it can be read before anybody has an account.
 
 - **Turn telemetry on** agrees to that list as it stands that day. If the list
   changes later, nothing new is sent until somebody turns telemetry off and on

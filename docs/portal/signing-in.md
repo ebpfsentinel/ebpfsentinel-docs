@@ -22,6 +22,21 @@ If your organisation signs in through its own identity provider, you use the
 sign-in address the people who run it sent you instead, see
 [Single Sign-On and Provisioning](single-sign-on.md).
 
+### Repeated failures
+
+Four wrong passwords in a row on one account cost nothing. From the fifth, the
+portal holds the next attempt back: two seconds, then twice as long after each
+further failure, up to fifteen minutes. The screen says **Too many attempts.
+Wait a minute before trying again.** The account is never locked, and the right
+password after the wait resets the count. Each held-back attempt is recorded in
+the account's activity as **Sign-in held back after repeated attempts**.
+
+### How long a session lasts
+
+A session ends after sixty minutes in which the browser did nothing, and after
+twelve hours whatever it did. Either way the next screen asks you to sign in
+again; nothing you saved is lost.
+
 ## Forgotten password
 
 **I have forgotten my password** opens **Reset your password**. Type your
@@ -35,6 +50,16 @@ local password, apart from the owner who turned the provider on and anybody who
 also belongs to another organisation. The same form mails that person the
 address they sign in at instead of a link, which is also how a lost sign-in
 address is found again.
+
+## Changing your password
+
+Under **Password** on **Your account**, type your **Current password** and the
+new one, then press **Change password**. The new one needs at least twelve
+characters, and one known to have leaked in a public breach is refused.
+Changing it ends every other session on the account, keeps the one you are
+using, and voids any reset link mailed earlier. An account that signs in
+through its organisation's own identity provider has no password here and
+changes it where the provider keeps it.
 
 ## Two-step verification and passkeys
 
@@ -101,7 +126,7 @@ Some acts are only done by somebody who proved who they are in the last
   and the trial key;
 - changing the card, on **Billing**;
 - creating a join secret or issuing an ingest token, and erasing telemetry readings;
-- on **Single sign-on**: saving the provider, checking a domain, adding a rule,
+- on **Single sign-on**: saving the provider, checking a domain, **Save mapping**,
   turning the provider on, replacing the sign-in
   address and issuing a SCIM token;
 - closing an organisation, from **Settings**;

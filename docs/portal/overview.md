@@ -22,9 +22,17 @@ you belong to is one row carrying:
 - **Analytics this month**: the share of the pooled allowance the month has spent,
   or **Not metered** where the tier publishes no allowance.
 
+Under the name, an organisation that signs in through its own identity provider
+shows **Your people sign in at** and the address to give them; any other shows
+the address it is reached at once signed in. A provider's own organisation
+carries **Holds N accounts**, which opens the panel where it opens accounts for
+its customers, and an account a provider holds carries **Held by** and the
+provider's name, or **Held by another organisation** where you are not in it.
+
 The rows needing something done come first, with the alphabet as the tie-break,
 and a sentence above the list says how many they are and why (no agent is
-reporting, the key runs out soon, the month is past its allowance). If those
+reporting, some agents stopped reporting, the key has expired, the key runs
+out soon, the month is past its allowance). If those
 figures cannot be read, every organisation is still listed and opens as usual.
 
 From any screen, **Ctrl K** (or **Cmd K** on a Mac) opens the organisation
@@ -41,22 +49,26 @@ customers opens an organisation per customer from the same page, see
 ## Inside an organisation
 
 Every organisation screen sits under `/o/<your-organisation>/`, and the
-organisation's own address opens its **Overview**. The navigation beside it only
-lists the sections your role opens. The four roles are owner,
+organisation's own address opens its **Overview**. The bar above it has six
+entries, and only lists what your role opens: **Overview**, **Billing**,
+**Licence keys**, **Deployments**, which holds **Deployments** and **Usage**,
+**Analytics**, and **Organisation**, which holds **Members**, **Single
+sign-on**, **Audit log** and **Settings**. An entry holding more than one screen
+shows them in a second row once it is open. The four roles are owner,
 administrator, billing and member; a member reads and changes nothing:
 
-| Section | What it holds | Who opens it |
-|---|---|---|
-| **Overview** | Where the subscription, the key and the agents stand today; each panel opens the screen it summarises. While anything is left between paying and a first agent reporting, a line above the panels says how many of the five steps are left, and **Finish setting up** opens the list **From payment to a first agent reporting**. | Everybody |
-| **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. See [Members and Invitations](members-and-invitations.md). | Everybody reads it; owners and administrators change it |
-| **Billing** | The subscription, the licence key's date, our reseller's documents, changing the plan or the card, ending the subscription. See [Billing and Licence Keys](billing-and-licence-keys.md). | Owners and billing members |
-| **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
-| **Deployments** | Deployments, their join secrets, their agents and their telemetry switch. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
-| **Usage** | What you bought, what the key admits and what is running. An order waiting for payment is named with the agents on it and counts toward nothing until it is paid. | Everybody |
-| **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. See [Analytics](analytics.md). | Everybody reads it; owners and administrators erase readings |
-| **Audit log** | Everything done to the organisation. See [Audit Log and Activity](audit-log.md). | Owners and administrators |
-| **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |
-| **Settings** | The organisation's name, where the billing details live, and closing the organisation. | Owners and administrators |
+| Entry | Section | What it holds | Who opens it |
+|---|---|---|---|
+| Overview | **Overview** | Where the subscription, the key and the agents stand today; each panel opens the screen it summarises. While anything is left between paying and a first agent reporting, a line above the panels says how many of the five steps are left, and **Finish setting up** opens the list **From payment to a first agent reporting**. | Everybody |
+| Billing | **Billing** | The subscription, the licence key's date, our reseller's documents, changing the plan or the card, ending the subscription. See [Billing and Licence Keys](billing-and-licence-keys.md). | Owners and billing members |
+| Licence keys | **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
+| Deployments | **Deployments** | Deployments, their join secrets, their agents and their telemetry switch. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
+| Deployments | **Usage** | What you bought, what the key admits and what is running. **What your licence key admits** sets the key's ceiling beside the subscription's, because a plan change replaces nothing: when the key admits fewer agents than the subscription pays for, the screen says your own agents will refuse ones already paid for, with **Replace the key** for owners and administrators. An order waiting for payment is named with the agents on it and counts toward nothing until it is paid. | Everybody |
+| Analytics | **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. See [Analytics](analytics.md). | Everybody reads it; owners and administrators erase readings |
+| Organisation | **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. See [Members and Invitations](members-and-invitations.md). | Everybody reads it; owners and administrators change it |
+| Organisation | **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |
+| Organisation | **Audit log** | Everything done to the organisation. See [Audit Log and Activity](audit-log.md). | Owners and administrators |
+| Organisation | **Settings** | The organisation's name, where the billing details live, and closing the organisation. | Owners and administrators |
 
 An address you were sent for a section your role does not open says which roles
 hold it and names the people in the organisation who can do it for you.

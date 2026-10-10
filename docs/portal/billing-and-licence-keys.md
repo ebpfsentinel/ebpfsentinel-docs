@@ -97,6 +97,10 @@ payment** or **Ended**, who is buying, and the **Dates**: when it started, when 
 renews, and whether an end was requested. **Licence key** beside it shows the
 date the key on your agents stops being accepted.
 
+**Earlier subscriptions**, below, lists every subscription the organisation
+held before the current one, with its plan, the day it was opened, what it
+cost and whether it is **Ended** or still **Awaiting payment**.
+
 ### Move to another plan
 
 Choose a **Plan**, the **Agents** and the **Machine size**. As soon as the form
@@ -146,7 +150,9 @@ from **Licence keys** once the payment lands.
 ### Documents
 
 **Documents** lists what our reseller issued, one per payment, each opening our
-reseller's own copy in a new tab. A document appears a few minutes after our
+reseller's own copy in a new tab. Each one reads **Paid**, **Due** while it is
+issued and not yet settled, or **Void** once it was cancelled and nothing is
+owed on it. A document appears a few minutes after our
 reseller reports the payment it covers, so a payment made moments ago may not be
 listed yet.
 

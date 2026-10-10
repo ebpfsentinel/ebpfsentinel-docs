@@ -47,7 +47,7 @@ organisation only. **Remove** gives a claim up.
 Have your provider put the person's groups in a claim of the ID token and type
 that claim's name under **Groups claim**; leave it empty if your provider sends
 no groups. Then under **Groups and roles** press **Add a rule** to say what a
-group grants here, and **Save mapping**.
+group grants here, and **Save mapping**, which asks for your password again.
 
 The first rule that matches wins, in the order you wrote them, so put the rule
 for the most privileged group first. Somebody whose groups match no rule

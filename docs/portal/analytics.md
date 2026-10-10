@@ -61,6 +61,15 @@ deployments**:
 
 The only machine name the portal holds is the one each agent joined under.
 
+### How long readings are kept
+
+Each reading is kept for the retention of the plan the organisation held when
+it arrived: ninety days on Enterprise, thirty days on every other plan and
+without a subscription. Changing plan does not shorten or lengthen what was
+already sent, because the retention travels with each reading. A window longer
+than the retention shows what is still kept, so the 92-day window on a
+thirty-day retention shows the last thirty days.
+
 ## Erase what was sent
 
 **Erase what was sent** removes the readings your agents sent, and is offered

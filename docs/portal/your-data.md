@@ -27,10 +27,12 @@ every browser, and any organisation you are the last member of closes with you.
 
 It is refused while:
 
-- you are the last owner of an organisation that has other members: make
+- you are the only owner of an organisation that has other members: make
   somebody else an owner, or remove the other members, from **Members**;
-- a subscription is still open in one of your organisations: end it first, from
-  **Billing**, see [Billing and Licence Keys](billing-and-licence-keys.md).
+- you are the last member of an organisation whose subscription is still open:
+  end it first, from **Billing**, see
+  [Billing and Licence Keys](billing-and-licence-keys.md). An organisation
+  others are still in carries on without you, subscription included.
 
 The screen names the organisation and links to the screen that clears the
 obstacle.
