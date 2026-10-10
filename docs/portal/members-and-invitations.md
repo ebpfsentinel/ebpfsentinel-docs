@@ -29,7 +29,9 @@ Whoever creates an organisation is its first owner.
 Each member is one row with their role and either **Two-step verification on**
 or **Password only - they cannot issue a licence key until they set up two-step
 verification**, so you can see who would be refused before asking them to issue
-a key.
+a key. On your own row, a password-only mark carries **Set up two-step
+verification**, which opens your account security and offers the way back here
+once it is on.
 
 - **Change a role**: pick the new role in the row, then **Change the role** to
   confirm, or **Keep it as it is**. Making somebody an owner says that they then
