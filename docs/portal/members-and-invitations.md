@@ -18,8 +18,9 @@ Every member holds one of four roles:
 | **Member** | Reads the organisation, its members and the figures of its agents. Changes nothing. |
 
 Only an owner makes an owner, whether by changing a role or through an
-invitation. An administrator cannot promote anybody, themselves included, to
-owner, and cannot change an owner's role.
+invitation, and only an owner unmakes one. An administrator cannot promote
+anybody, themselves included, to owner, and cannot change an owner's role or
+remove an owner: an owner's row carries no control for them.
 
 Whoever creates an organisation is its first owner.
 
