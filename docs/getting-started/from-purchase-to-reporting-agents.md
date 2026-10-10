@@ -26,7 +26,9 @@ navigation beside it. What every screen holds, and which roles open it, is in
   open; an address you were sent for one it cannot names the roles that hold it
   and the people in your organisation who can do it for you. The billing role
   also sees when the key runs out, on **Billing**, since renewing it is theirs.
-- Signing up sends a confirmation mail. If it has not arrived, **Send the link
+- Signing up sends a confirmation mail, and the screen that says so names the
+  address it went to; **Use another address** goes back to the form with what
+  you typed. If it has not arrived, **Send the link
   again** on the screen that says it is on its way asks for another one, and so
   does the screen a dead link lands on. Every mail the portal sends you is
   written in the language the screen was in when you signed up; choosing
@@ -88,7 +90,9 @@ to finish that order at the seller's checkout or withdraw it first.
 card is taken and the tax added; we never see the card. You come straight back
 to a list headed **From payment to a first agent reporting**: the five steps on
 this page that are left, each ticked from what the portal already holds and
-each with a link to the screen where it is done. The payment reads as waiting
+each with a link to the screen where it is done; once a deployment is
+registered, the step for a first agent reporting opens that deployment and its
+checklist. The payment reads as waiting
 until the seller has reported it, usually within a minute; **Check again**
 reads everything once more. The list is also reachable from your organisation's
 **Overview** while anything on it is left, and goes away once the last step

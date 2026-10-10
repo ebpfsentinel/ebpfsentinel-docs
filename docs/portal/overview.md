@@ -79,9 +79,9 @@ under **Signed in**. Three links lead further:
 - **Take a copy of your data, or delete your account**: see
   [Your Data](your-data.md).
 
-Every one of those screens carries **Back to your account**, and the account
-itself carries **Back to your organisation**, which returns to the organisation
-you came from.
+One line above every account screen leads back: **Back to your organisation**
+returns to the organisation you came from, and on the three screens below the
+account **Your account** beside it returns to `/account`.
 
 ## System status
 
