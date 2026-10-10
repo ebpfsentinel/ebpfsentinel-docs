@@ -6,11 +6,14 @@ Your colleagues can sign in to the customer portal through your own identity
 provider, and your directory can add and remove them. The portal speaks
 **OpenID Connect** for sign-in and **SCIM 2.0** for provisioning; SAML is not
 offered. Everything below is on **Single sign-on**, which owners and
-administrators open inside the organisation.
+administrators open inside the organisation, as five numbered steps taken in
+order; the steps that need a saved provider are drawn from the first visit and
+open once it is saved, and nothing changes for anybody before the fourth.
 
 ## 1. The provider
 
-Register the portal as a client in your identity provider. On **Provider**:
+Register the portal as a client in your identity provider. On **Identity
+provider (OpenID Connect)**:
 
 - **Issuer**: the address the discovery document sits under, for example
   `https://login.example.com`. It is read when you save, and the
@@ -65,7 +68,7 @@ their local password, so no way in survives their provider revoking them.
 **Stand down** takes the provider out of force and does not ask for your
 password.
 
-## 5. The sign-in address
+## The sign-in address
 
 Once the provider is in force, your colleagues sign in at the **Sign-in
 address** shown on the screen, `https://portal.ebpfsentinel.io/s/<handle>`. The
@@ -77,9 +80,11 @@ immediately; everybody then needs the new one. Somebody who lost it gets it back
 through **I have forgotten my password** on the sign-in screen, which mails it
 to them.
 
-## 6. Directory provisioning
+## 5. Directory provisioning
 
-**Directory provisioning** issues the secret your directory writes people into
+The step **Directory provisioning (SCIM 2.0)** is on the screen before a
+provider exists and says what it does; its link opens once the provider is
+saved, and a secret can be issued once it is in force. That page issues the secret your directory writes people into
 the organisation with. Press **Issue a secret**, copy it now (it is shown once;
 only a digest is kept), and give your directory the **Base address for your
 directory**, which ends in `/scim/v2`, with the secret as a bearer token.
