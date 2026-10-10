@@ -386,7 +386,7 @@ enterprise:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `license_path` | string | none | Path to the license key file, re-read every minute |
-| `revocations_path` | string | none | Offline bundle whose `revocations` list the key is checked against, re-read every minute. A path with no file yet revokes nothing; a file that does not parse refuses the key. See [Revocation](../features/enterprise/license.md#revocation) |
+| `revocations_path` | string | none, or `revocations.json` beside `portal.state_path` when the portal is enabled | Offline bundle whose `revocations` list the key is checked against, re-read every minute. The portal's heartbeat adds the organisation's revocations to it and never removes one. A path with no file yet revokes nothing; a file that does not parse refuses the key. See [Revocation](../features/enterprise/license.md#revocation) |
 | `license_clock_path` | string | `/var/lib/ebpfsentinel/license-clock` | Where the agent records the latest time it has seen, so a clock set back does not extend a key. See [Expiry and grace](../features/enterprise/license.md#expiry-and-grace) |
 
 ### Advanced DLP

@@ -135,6 +135,15 @@ replaces the fourteen days with the year, once: install the new file in place of
 the old one. Either way the key is listed as **Enterprise design partner key**
 and runs 365 days from the moment it is generated.
 
+### Revocations reach connected agents on their own
+
+An agent enrolled with the portal receives your organisation's revocation list
+in the answer to every heartbeat and adds it to its local revocation file, which
+it reads again every minute. A key you revoke here stops being honoured across
+that fleet one heartbeat and one minute later, with nothing to copy (see
+[Revocation](../features/enterprise/license.md#revocation)). The list only ever grows on the agent: leaving the portal
+never hands a revoked key back.
+
 ### Offline bundle
 
 An estate with no route back to the portal uses **Offline bundle**: **Download

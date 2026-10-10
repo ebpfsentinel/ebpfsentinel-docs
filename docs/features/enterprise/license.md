@@ -48,9 +48,12 @@ key it signed has expired. A key issued before keys carried an id has no
 The dashboard and the Kubernetes operator verify keys the same way, each with
 its own built-in set of pairs, so a key signed under a pair newer than either
 of them is refused there with the same message until that component is
-upgraded. The operator reads its key once at startup, so a replaced key takes
-effect when the operator is restarted, and it has no grace window: it refuses
-an expired key from its expiry date.
+upgraded. The operator reads its key from its Secret again every five minutes
+(`LICENSE_REFRESH_SECONDS`, thirty seconds at the least): a replaced, removed or
+narrowed key makes it stand down and come back against the key that is there
+now, so a renewal needs no manual restart. It grants the same fourteen-day
+[grace window](#expiry-and-grace) as the agent, logging a warning that names the end of the window each
+time it reads the key, and stands down when the window closes.
 
 ## Available Features
 
@@ -406,7 +409,7 @@ enterprise:
 | Key | Default | Meaning |
 |---|---|---|
 | `license_path` | none | The key file. Re-read every minute, see [Renewal and reload](#renewal-and-reload) |
-| `revocations_path` | none | An offline bundle (`ebpfsentinel.offline-bundle/1`) whose `revocations` list the agent checks the key against. See [Revocation](#revocation) |
+| `revocations_path` | none, or `revocations.json` beside the enrolment when the portal is enabled | An offline bundle (`ebpfsentinel.offline-bundle/1`) whose `revocations` list the agent checks the key against, and where the portal's heartbeat keeps the list. See [Revocation](#revocation) |
 | `license_clock_path` | `/var/lib/ebpfsentinel/license-clock` | The high-water clock file. See [Expiry and grace](#expiry-and-grace) |
 
 Or via CLI flag:
@@ -439,7 +442,7 @@ logged once and retried; it never stops the agent.
 
 ## Renewal and reload
 
-The agent reads `license_path` (and `revocations_path`, when set) again every
+The agent reads `license_path` (and the revocation list, when there is one) again every
 minute. When either file has changed:
 
 - **A valid replacement takes over in place.** The new key is verified in
@@ -459,12 +462,30 @@ minute. When either file has changed:
 
 A key can be revoked before its expiry: issued in error, leaked, or belonging
 to a subscription that ended early. The agent learns it from an offline bundle
-named by `revocations_path`, the same file the portal's **Offline bundle**
+at `revocations_path`, the same file the portal's **Offline bundle**
 offers and [`ebpfsentinel-license bundle`](#check-an-offline-bundle) checks.
 A key is revoked when the SHA-256 of its file appears in the bundle's
 `revocations` list.
 
-- **No `revocations_path`, or a path with no file yet**: nothing is revoked.
+The list reaches the file by one of two roads:
+
+- **An agent reporting to the portal** (`enterprise.portal.enabled: true`) is
+  handed its organisation's revocation list in the answer to every heartbeat
+  and writes it to `revocations_path`, or, when that is not set, to
+  `revocations.json` beside the enrolment
+  (`/var/lib/ebpfsentinel/portal/revocations.json` by default). A key revoked
+  in the portal stops being honoured within one heartbeat and one reload, with
+  nothing to copy. The agent only ever **adds** to the file: a revocation
+  already there stays, whoever put it there, so an answer that left one off -
+  an old backup of the portal, or anything able to answer in its place - can
+  never hand a revoked key back. A file that is there and cannot be read is
+  left alone rather than overwritten.
+- **An air-gapped estate** copies the portal's **Offline bundle** to
+  `revocations_path` by hand, and replaces it when a new one is exported. Both
+  roads can share one file: the portal's list is added to a bundle carried
+  across, and the bundle's keys are kept.
+
+- **No list configured and no portal, or a path with no file yet**: nothing is revoked.
   A list that has not been delivered is not a revocation.
 - **A file that is there and cannot be read as a bundle**: the key is refused.
   A list somebody tried to deliver and that does not parse could be the one
