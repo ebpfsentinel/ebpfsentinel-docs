@@ -63,15 +63,17 @@ navigation beside it. What every screen holds, and which roles open it, is in
 
 Open **Billing** and choose **Choose a plan**. Pick the tier, the number of
 agents (one per machine you protect), the machine size band and the term, and
-declare whether this is a business or a consumer purchase. **Price this** shows
-the figure, which is the price published on the website. Prices exclude VAT.
+declare whether this is a business or a consumer purchase. The figure follows
+the form as you fill it in, and it is the price published on the website.
+Prices exclude VAT.
 
 The term decides how the figure is written: per month on a monthly term, per
-year on an annual one, never a mix of the two. Priced on an annual term, the
-quote also says how much paying yearly saves against twelve monthly payments.
-Changing any field after pricing marks the figure as no longer current and asks
-you to price it again, so the checkout never opens on a price for a different
-estate.
+year on an annual one, never a mix of the two. Beside it, the price of one agent
+a month is what you actually pay once every discount is taken, with the
+published price struck through when a discount applies. Priced on an annual
+term, the quote also says how much paying yearly saves against twelve monthly
+payments. While a changed field is being priced the screen says so and the
+checkout waits, so it never opens on a price for a different estate.
 
 If your account holds no second factor yet, the screen says so before you pay:
 issuing the key afterwards asks for one (step 2), so arming it now means the key

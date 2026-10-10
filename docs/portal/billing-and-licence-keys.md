@@ -31,9 +31,10 @@ date the key in your estate stops being accepted.
 
 ### Move to another plan
 
-Choose a **Plan**, the **Agents** and the **Machine size**, then **Price this**.
-The screen says how much more or less that costs against your current plan, per
-month or per year. **Move to this plan** applies it at once, and the seller
+Choose a **Plan**, the **Agents** and the **Machine size**. As soon as the form
+differs from your current plan, the screen prices it and says how much more or
+less that costs against your current plan, per month or per year, with the price
+of one agent a month on what you would pay. **Move to this plan** applies it at once, and the seller
 charges or credits the difference for the rest of the current period straight
 away.
 
