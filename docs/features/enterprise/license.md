@@ -10,7 +10,7 @@ Two kinds of key exist, and they differ in one field:
 
 | Key | Where it comes from | `machine_fingerprint` | Installed on |
 |---|---|---|---|
-| Fleet key | The **Licence keys** page of the customer portal | absent | every node, the same file |
+| Fleet key | **Licences** in the customer portal, the screen headed **Licence keys** | absent | every node, the same file |
 | Machine-bound key | The [air-gap activation workflow](#air-gap-activation-workflow) | the fingerprint of one machine | that machine only |
 
 ## License Key Format
@@ -98,8 +98,10 @@ To get one:
 1. Hold a paid subscription. Keys are issued from a contract, never before it.
 2. Arm a second factor on your account, an authenticator or a sign-in device.
    The portal refuses to issue a key to an account held by a password alone.
-3. As an owner or an administrator of the organisation, open **Licence keys**,
-   choose **Issue a key** and re-type your password.
+3. As an owner or an administrator of the organisation, open **Licences** and
+   choose **Issue a key**. If you have not signed in or confirmed your password
+   in the last fifteen minutes, the portal asks for it again first, see
+   [When the portal asks for your password again](../../portal/signing-in.md#when-the-portal-asks-for-your-password-again).
 4. Choose **Download the key**. The file is named after the organisation, for
    example `ebpfsentinel-acme.lic`.
 5. Verify it before installing it, with the two commands the page prints under
@@ -119,6 +121,13 @@ without a restart (see [Renewal and reload](#renewal-and-reload)). An estate wit
 route to the portal takes the **Offline bundle** from the same page instead, and
 checks it with [`ebpfsentinel-license bundle`](#check-an-offline-bundle). The same
 bundle is what an agent reads its [revocations](#revocation) from.
+
+The same screen offers each organisation one **14-day Enterprise trial key**,
+generated with no contract and no card, and a design partner a key running a
+year instead. Both are fleet keys carrying every Enterprise feature with no
+`max_agents` and no `max_cores_per_agent` ceiling, and the agent treats them
+like any other key, the [expiry window](#expiry-and-grace) included. See
+[Enterprise trial](../../portal/billing-and-licence-keys.md#enterprise-trial).
 
 ## Host Size Band
 

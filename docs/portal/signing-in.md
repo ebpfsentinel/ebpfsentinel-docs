@@ -36,9 +36,10 @@ instead of a link, which is also how a lost sign-in address is found again.
 
 ## Second factors and passkeys
 
-**Your account** links to **Second factors and passkeys**. A licence key is only
-issued to an account holding an authenticator or a passkey, so arm one before
-you need a key.
+**Your account** links to **Second factors and passkeys**, which opens the screen
+titled **Second factor** at `/account/security`. A licence key is only issued to
+an account holding an authenticator or a passkey, so arm one before you need a
+key.
 
 ### Authenticator
 
@@ -60,7 +61,8 @@ recovery codes with it.
 
 A passkey is a security key, or a laptop or phone that holds one. Give it a
 name you will recognise under **Name for this device**, press **Register a
-passkey** and confirm your password; the browser then asks the device. Each
+passkey**, confirm your password if the portal asks for it again (see below),
+and the browser then asks the device. Each
 passkey is listed with its name, and can be removed.
 
 A passkey does not turn on the second factor for password sign-ins: nothing
@@ -76,8 +78,9 @@ knows before asking somebody to issue a key.
 
 ## Everything signed in as you
 
-**Your account** lists under **Signed in** every browser currently signed in as
-you: the device it runs on, when it signed in and, where one was recorded, the
+Sessions are on **Your account** itself, at `/account`, not on **Second
+factor**. **Your account** lists under **Signed in** every browser currently
+signed in as you: the device it runs on, when it signed in and, where one was recorded, the
 address it came from. The portal records the address the network edge in front
 of it reports; a session opened without one keeps none, and the screen says so
 under the list rather than printing a blank.
@@ -86,6 +89,38 @@ under the list rather than printing a blank.
 but the one you are using and changes nothing else: your password, your keys and
 your deployments stay as they are. Anything you cannot account for should be
 ended, and your password changed afterwards.
+
+## When the portal asks for your password again
+
+Some acts are only done by somebody who proved who they are in the last
+**fifteen minutes**:
+
+- on **Licences**: issuing, replacing or downloading a key, the offline bundle
+  and the trial key;
+- changing the card, on **Billing**;
+- minting a join secret or an ingest secret, and erasing telemetry readings;
+- on **Single sign-on**: saving the provider, checking a domain, adding a rule,
+  putting the provider in force, replacing the sign-in
+  address and issuing a directory secret;
+- closing an organisation, from **Settings**;
+- on your own account: changing your address, removing the authenticator,
+  printing new recovery codes, adding or removing a passkey, and deleting the
+  account.
+
+Signing in counts as that proof. Within fifteen minutes of signing in, or of
+the last time you confirmed, these acts go straight through and nothing is
+asked. Past that, the screen opens **Confirm it is you** where you are, with a
+line saying which act it is for: re-type your password and, if your account
+holds an authenticator, a code from it or a recovery code. **Confirm** then
+carries out the act you asked for; **Not now** leaves everything as it was.
+Every page in this section that says an act "asks for your password again" or
+sits "behind your password" means this prompt, and it only appears once the
+fifteen minutes have run out.
+
+An account that signs in through its organisation's own identity provider has
+no password to re-type here. Do those acts within fifteen minutes of signing
+in; past that, sign out and sign in again at your organisation's sign-in
+address.
 
 ## See also
 

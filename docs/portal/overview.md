@@ -35,16 +35,17 @@ one.
 
 ## Inside an organisation
 
-Every organisation screen sits under `/o/<your-organisation>/`. The navigation
-beside it only lists the sections your role opens. The four roles are owner,
+Every organisation screen sits under `/o/<your-organisation>/`, and the
+organisation's own address opens its **Overview**. The navigation beside it only
+lists the sections your role opens. The four roles are owner,
 administrator, billing and member; a member reads and changes nothing:
 
 | Section | What it holds | Who opens it |
 |---|---|---|
-| **Overview** | Where the contract, the key and the fleet stand today; each panel opens the screen it summarises. While anything is left between paying and a first agent reporting, the five-step list **From payment to a first agent reporting** sits here too. | Everybody |
+| **Overview** | Where the contract, the key and the fleet stand today; each panel opens the screen it summarises. While anything is left between paying and a first agent reporting, a line above the panels says how many of the five steps are left, and **Finish setting up** opens the list **From payment to a first agent reporting**. | Everybody |
 | **People** | Members, their roles, whether each one holds a second factor, and the invitations nobody has taken up yet. | Everybody reads it; owners and administrators change it |
 | **Billing** | The subscription, the licence key's date, the seller's documents, changing the plan or the card, ending the contract. See [Billing and Licence Keys](billing-and-licence-keys.md). | Owners and billing members |
-| **Licences** | Issuing, downloading, replacing and revoking the key, and the offline bundle. | Owners and administrators |
+| **Licences** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
 | **Deployments** | Deployments, their join secrets, their machines and their telemetry switch. | Everybody reads it; owners and administrators change it |
 | **Entitlement** | What you bought, what the key admits and what is running. | Everybody |
 | **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. | Everybody reads it; owners and administrators erase readings |
@@ -71,7 +72,8 @@ The menu in the header opens **Your account** at `/account`: your name and
 address under **Details**, your password, and every browser signed in as you
 under **Signed in**. Three links lead further:
 
-- **Second factors and passkeys**: see [Signing In](signing-in.md).
+- **Second factors and passkeys**, which opens the screen headed **Second
+  factor** at `/account/security`: see [Signing In](signing-in.md).
 - **Everything done with your account**: your own activity, see
   [Audit Log and Activity](audit-log.md).
 - **Take a copy of your data, or delete your account**: see

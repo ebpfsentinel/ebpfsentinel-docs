@@ -18,7 +18,10 @@ colleague's activity belongs to the organisation rather than to you.
 
 ## Delete your account
 
-**Delete this account**, then **Delete it**. It cannot be undone: your name,
+**Delete this account**, then **Delete it**. Past fifteen minutes since you
+signed in or last confirmed, it asks for your password again first, see
+[When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
+It cannot be undone: your name,
 your address and everything that identifies you are taken, you are signed out of
 every browser, and any organisation you are the last member of closes with you.
 
@@ -45,7 +48,8 @@ sent**:
 
 1. Press **Erase readings** and choose under **What to erase** the whole estate
    or one deployment, including one already stood down.
-2. Press **Erase them** and confirm your password.
+2. Press **Erase them**. Past fifteen minutes since you signed in or last
+   confirmed, it asks for your password again first.
 
 The answer arrives once the readings are actually gone. What each period counted
 against your allowance is kept: it carries no name, and it is our own record of

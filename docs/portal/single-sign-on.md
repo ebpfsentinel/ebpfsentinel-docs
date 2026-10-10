@@ -60,7 +60,10 @@ passwords that will be removed**, the **Sessions that will end**, and the
 **Passwords kept for other organisations**, with the version of the
 consequences notice you are agreeing to. People covered by the provider lose
 their local password, so no way in survives their provider revoking them.
-**Stand down** takes the provider out of force. Both ask for your password.
+**Put in force** asks for your password again, see
+[When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
+**Stand down** takes the provider out of force and does not ask for your
+password.
 
 ## 5. The sign-in address
 

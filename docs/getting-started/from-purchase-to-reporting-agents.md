@@ -143,8 +143,11 @@ a key or a link that signs you in.
 
 ## 3. Issue and verify the licence key
 
-Open **Licences** and choose **Issue a key**. The portal asks for your password
-again, then signs a key from your contract. If your account holds no second factor
+Open **Licences**, the screen headed **Licence keys**, and choose **Issue a
+key**. If you have not signed in or confirmed your password in the last fifteen
+minutes, the portal asks for it again first, see
+[When the portal asks for your password again](../portal/signing-in.md#when-the-portal-asks-for-your-password-again);
+it then signs a key from your contract. If your account holds no second factor
 yet, the key is refused and the refusal links straight to the screen where you
 arm one. Choose **Download the key**; the file
 is named after your organisation, for example `ebpfsentinel-acme.lic`.
@@ -170,7 +173,8 @@ within the organisation.
 ## 5. Mint a join secret
 
 Open the deployment and, under **Join secrets**, choose **Mint a join secret**.
-The portal asks for your password again and shows the secret **once**: only a
+Past the fifteen minutes, the portal asks for your password again first. It
+shows the secret **once**: only a
 digest of it is kept, so copy it before choosing **I have copied it**.
 
 The installation steps for your deployment shape are printed beside it, with

@@ -45,8 +45,11 @@ screen says so; to change the term, end the contract and subscribe again.
 
 ### Change the card
 
-**Change the card** asks for your password, then opens the seller's own card
-page. The card never passes through the portal.
+**Change the card** opens the seller's own card page. If you have not signed in
+or confirmed your password in the last fifteen minutes, it asks for your
+password first, see
+[When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
+The card never passes through the portal.
 
 ### End the subscription
 
@@ -68,9 +71,12 @@ listed yet.
 
 ## Licences
 
-**Licence keys** lists the key in force with the date it was issued, what it
-admits, its fingerprint and the days left. Every act on this screen asks for
-your password again, except revoking.
+**Licences** in the navigation opens the screen headed **Licence keys**. It
+lists the key in force with the date it was issued, what it admits, its
+fingerprint and the days left. Every act on this screen but revoking needs you
+to have signed in or confirmed your password in the last fifteen minutes; past
+that, it asks for your password again before going through, see
+[When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
 
 A key runs to the end of the period the seller last reported paid, plus seven
 days of grace so a late payment never stops your estate on the day. The date
@@ -92,6 +98,42 @@ period.
 
 Owners and administrators are mailed when a key is issued or replaced, and
 thirty, fourteen and three days before it runs out.
+
+### Enterprise trial
+
+An organisation with no key in force is offered **Try Enterprise for 14 days**
+on **Licences**, with no contract and no card. **Generate the trial key** signs
+one Enterprise key carrying every Enterprise feature, with no agent ceiling and
+no per-node size ceiling. It asks what a paid key asks: a second factor on your
+account and a password confirmed in the last fifteen minutes. **Download the
+trial key** saves the file, and it is installed like any other key.
+
+There is one trial per organisation. Asking again hands back the same key,
+including once it has expired, so it never becomes fourteen days at a time. The
+trial button on the website leads to the portal's `/trial` address: signed in,
+it opens **Licences** in your default organisation; without an account, it
+opens the sign-up form first.
+
+The trial key runs fourteen days from the moment it is generated. The portal
+adds none of the seven days of grace a paid key carries, because there is no
+payment to wait for. On the machines, the agent applies its fourteen-day grace
+window after expiry to every key, the trial included, see
+[Expiry and grace](../features/enterprise/license.md#expiry-and-grace): every
+Enterprise feature keeps working and the licence status says it is in grace, so
+the trial gives four weeks of Enterprise in all. Once the grace has passed, the agent runs on the open source feature set and keeps protecting
+traffic. Buying a contract and issuing a key from it is what carries the estate
+on.
+
+### Design partner key
+
+An organisation we have agreed to take on as a design partner is owed a year
+rather than fourteen days, on the same terms as the trial key otherwise. If the
+organisation has not taken its trial yet, **Generate the trial key** signs the
+year directly. If it already holds the fourteen-day key, **Licences** shows **Your
+design partner key is waiting**, and **Generate the design partner key**
+replaces the fourteen days with the year, once: install the new file in place of
+the old one. Either way the key is listed as **Enterprise design partner key**
+and runs 365 days from the moment it is generated.
 
 ### Offline bundle
 
