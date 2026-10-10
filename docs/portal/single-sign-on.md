@@ -8,7 +8,8 @@ provider, and your directory can add and remove them. The portal speaks
 offered. Everything below is on **Single sign-on**, which owners and
 administrators open inside the organisation, as five numbered steps taken in
 order; the steps that need a saved provider are drawn from the first visit and
-open once it is saved, and nothing changes for anybody before the fourth.
+open once it is saved, and nothing changes for anybody before the fourth. An
+administrator can prepare every step, but only an owner can take the fourth.
 
 ## 1. The provider
 
@@ -43,10 +44,16 @@ organisation only. **Remove** gives a claim up.
 
 ## 3. Groups and roles
 
-Have your provider put the person's groups in a claim of the ID token, then under
-**Groups and roles** press **Add a rule** to say what a group grants here. The
-rules are read at every sign-in, so somebody removed from a group loses the role
-the next time they sign in rather than at the next configuration change.
+Have your provider put the person's groups in a claim of the ID token and type
+that claim's name under **Groups claim**; leave it empty if your provider sends
+no groups. Then under **Groups and roles** press **Add a rule** to say what a
+group grants here, and **Save mapping**.
+
+The first rule that matches wins, in the order you wrote them, so put the rule
+for the most privileged group first. Somebody whose groups match no rule
+arrives on the **Default role** chosen with the provider. The rules are read at
+every sign-in, so somebody removed from a group loses the role the next time
+they sign in rather than at the next configuration change.
 
 **Try it** asks what a set of groups would be granted without changing anything:
 type the groups separated by commas and press **Preview**; the answer names the
@@ -57,16 +64,29 @@ from **Members**.
 
 ## 4. Turning it on
 
-Until **Turn the provider on** is done, nobody signs in through it. The
-panel shows what it will cost before you press **Turn on**: the local
-passwords to remove, the sessions to end and the passwords kept for other
-organisations, with the version of the
-consequences notice you are agreeing to. People covered by the provider lose
-their local password, so no way in survives their provider revoking them.
-**Turn on** asks for your password again, see
+Until **Turn the provider on** is done, nobody signs in through it. Only an
+owner can do it, and only an owner who still holds a password here: that owner
+keeps it, so somebody can still get in when the provider is unreachable, and it
+is deliberately the person who decided to depend on the provider. The panel
+says what is still missing (a saved provider, a verified domain, an owner, a
+password) and **Turn on** stays closed until nothing is.
+
+The panel also shows what turning it on will do before you press **Turn on**:
+the local passwords to remove, the sessions to end and the passwords kept for
+other organisations, with the version of the consequences notice you are
+agreeing to. Everybody else in the organisation loses their local password and
+is signed out of every device, so no way in survives their provider revoking
+them. Somebody who also belongs to another organisation keeps their password,
+because removing it would lock them out of somewhere this decision does not
+reach. **Turn on** asks for your password again, see
 [When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
-**Turn off** turns the provider off and does not ask for your
-password.
+
+**Turn off**, open to owners and administrators, turns the provider off and
+does not ask for your password. It is meant for an outage and gives nobody a
+password back: while the provider is off, only people who still hold a password
+here can sign in, the owner who turned it on among them, and everybody else
+signs in again once it is turned back on. The sign-in address and the domains
+are kept for that moment.
 
 ## The sign-in address
 

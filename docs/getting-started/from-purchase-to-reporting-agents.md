@@ -65,9 +65,12 @@ navigation beside it. What every screen holds, and which roles open it, is in
 
 Open **Billing** and choose **Choose a plan**. Pick the tier, the number of
 agents (one per machine you protect), the machine size band and the term, and
-declare whether this is a business or a consumer purchase. The figure follows
-the form as you fill it in, and it is the price published on the website.
-Prices exclude VAT.
+under **Purchase type** whether you buy as a **Business** or as an
+**Individual**. The figure follows the form as you fill it in, and it is the
+price published on the website. Prices exclude VAT. The purchase type changes
+the terms, never the price: a business can give a VAT number, and an individual
+has a fourteen-day withdrawal right, see
+[Business or individual](../portal/billing-and-licence-keys.md#business-or-individual).
 
 The term decides how the figure is written: per month on a monthly term, per
 year on an annual one, never a mix of the two. Beside it, the price of one agent
@@ -85,6 +88,11 @@ An organisation holds one subscription at a time. Reached with one already runni
 the screen offers no form and sends you back to **Billing**, where **Move to
 another plan** changes it; with an order still waiting for payment, it asks you
 to finish that order at our reseller's checkout or cancel it first.
+
+Under **How to pay**, a card is always offered. A business buying a year at a
+time can also pay **By bank transfer, against an invoice** once the year is
+large enough, see
+[Paying by bank transfer](../portal/billing-and-licence-keys.md#paying-by-bank-transfer).
 
 **Go to the checkout** takes you to our reseller's own page, where the
 card is taken and the tax added; we never see the card. You come straight back
@@ -251,7 +259,7 @@ nothing else, and each of the busiest agents carries its deployment in
 brackets, so two nodes with the same name are two rows you can tell apart. The
 only machine name the portal holds is the one each agent joined under.
 
-## 8. Check the Entitlement screen
+## 8. Check the Usage screen
 
 Open **Usage**: what you bought, what your key admits, and what is
 actually running. It is the proof the steps above worked.
@@ -260,7 +268,7 @@ actually running. It is the proof the steps above worked.
   Every node you installed should be there within one heartbeat.
 - **Within your subscription** means the agents reporting fit what you bought.
   **Over your subscription** means they do not; buy more agents under **Billing**.
-- Machines that joined and have not reported lately are listed as **not reporting**
+- Agents that joined and have not reported lately are listed as **not reporting**
   beside the count, not in it, so a rolling upgrade does not read as a breach.
 - **What your licence key admits** is kept apart from the subscription. If the key
   admits fewer agents than you now pay for, replace it from **Licence keys** and
@@ -268,7 +276,9 @@ actually running. It is the proof the steps above worked.
 - **Where they are** lists the agents per deployment. Open a deployment to see
   each agent under **Agents**, with its version and when it last reported.
 
-If a node is missing, the agent says why in its own log: a refused join secret
+If a node is missing, work through the checklist on the deployment, see
+[When nothing reports](../portal/deployments-and-agents.md#when-nothing-reports).
+The agent says why in its own log: a refused join secret
 is an HTTP 401, a portal it cannot reach is retried with a backoff that grows to
 fifteen minutes, and `GET /api/v1/license` on the agent shows whether the key
 was accepted.
@@ -279,5 +289,8 @@ was accepted.
 - [Signing In](../portal/signing-in.md)
 - [Billing and Licence Keys](../portal/billing-and-licence-keys.md)
 - [Single Sign-On and Provisioning](../portal/single-sign-on.md)
+- [Members and Invitations](../portal/members-and-invitations.md)
+- [Deployments and Agents](../portal/deployments-and-agents.md)
+- [Analytics](../portal/analytics.md)
 - [Audit Log and Activity](../portal/audit-log.md)
 - [Your Data](../portal/your-data.md)

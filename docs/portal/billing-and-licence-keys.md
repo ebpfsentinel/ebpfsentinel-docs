@@ -22,6 +22,74 @@ on an invoice are entered at our reseller's checkout rather than in the portal.
 **Settings** has a **Billing details** panel saying so, with a link to our
 reseller's documents.
 
+## Business or individual
+
+**Purchase type** on **Choose a plan** asks whether you buy as a **Business** or
+as an **Individual**. It changes the terms of the sale, never the price.
+
+- A **Business** can give a **VAT number**. It is checked against the EU
+  registry when you buy, and what the registry answered that day is kept with
+  the subscription. Declaring a business without a number, or with one the
+  registry rejects, changes nothing about the tax: VAT is added at the checkout
+  as it would be for anybody else.
+- An **Individual** has a fourteen-day right to withdraw from the purchase.
+  A licence key cannot be taken back once it is issued, so the key comes after
+  those fourteen days have run. To start straight away, tick **Start straight
+  away and give up the fourteen-day withdrawal right** before paying: the key
+  can then be issued as soon as the payment is reported. Only an individual
+  purchase carries that box.
+
+Prices exclude VAT in both cases. It is added at our reseller's checkout at the
+rate of your country.
+
+## Paying by bank transfer
+
+Under **How to pay**, **By card, at our reseller's checkout** is always offered.
+**By bank transfer, against an invoice** is offered as well when all three hold:
+
+- the purchase is a **Business** one;
+- the subscription is billed a year at a time;
+- the year comes to 10,000 EUR or more before tax, or a written agreement on
+  this organisation admits it.
+
+Choosing it asks for the **Company named on the invoice**, where to **Send the
+invoice to** (usually your accounts payable mailbox), the billing address, and
+optionally a **Purchase order number** printed on the invoice so your accounts
+team can match it. **Issue the invoice** has our reseller send it straight
+away, payable by bank transfer within thirty days; the bank details are on the
+invoice.
+
+Until the transfer arrives the subscription reads **Awaiting payment**, no
+licence key can be issued from it, and **Choose a plan** asks you to pay that
+invoice or cancel the order before choosing another plan. Once our reseller
+reports the transfer, the subscription reads **Running** and the key can be
+issued. The invoice is issued and the transfer collected by our reseller; we
+never handle the money.
+
+## How the price is counted
+
+The price is the one published on the website, worked out the same way at every
+fleet size. Beside the figure, the screen names every discount it took:
+
+- **Volume discount**: the larger the number of agents, the lower the band and
+  the price of each one. The band is taken on the agents being bought, or, when
+  a provider holds the account (see below), on every agent held by the
+  organisation paying for it, and the screen says so: **The volume band was
+  taken across N agents, which is everything held by the organisation paying
+  for this one.** A fleet is never banded below its own size.
+- **Partner discount**: the published partner discount, taken after the volume
+  band, for an organisation we have agreed to treat as a partner. It is granted
+  by us after an exchange in writing, never by the product itself, and holding
+  several organisations does not earn it.
+- **Annual discount**: paying a year at a time takes the published annual
+  discount off twelve monthly payments, and the quote says how much that saves.
+
+**Published price before discounts** shows what one agent costs before any of
+them. The discounts in force when a subscription is opened are kept with it: a
+provider taking on another customer does not reprice the subscriptions it
+already holds, and a partner standing withdrawn later leaves each subscription
+at its price until that subscription is changed.
+
 ## Billing
 
 **Your subscription** shows the plan, whether it is **Running**, **Awaiting
@@ -70,6 +138,29 @@ reseller's own copy in a new tab. A document appears a few minutes after our
 reseller reports the payment it covers, so a payment made moments ago may not be
 listed yet.
 
+## Accounts held by a provider
+
+A provider that runs agents for its customers can open one organisation per
+customer and pay for it. On **Your organisations**, **For providers: open an
+account for a customer whose agents you run** asks for the **Customer's name**
+and **Open the account** creates the organisation, with you as its first owner
+and your organisation as the one holding it. Opening one is open to the owners
+and administrators of the provider's organisation.
+
+The organisation stays the customer's: their name, their licence key, their
+agents and their monthly allowance, and they sign in at an address of their
+own. The only thing the provider holds is the bill: the subscription is opened
+from the provider's side, by somebody who manages billing in the provider's own
+organisation, it is charged to the provider, and its volume band is taken across
+everything the provider holds. The customer's own people run the organisation
+but cannot open its subscription.
+
+On the customer's **Billing**, **Somebody else holds this account** names the
+provider. An owner on either side, the provider's or the customer's own, ends
+the arrangement there with **End the arrangement**, then **Yes, end it**: the licence stays valid, the agents stay enrolled and the
+month already metered is untouched. What changes is who the next subscription
+is billed to.
+
 ## Licences
 
 **Licence keys** in the navigation opens the screen headed **Licence keys**. It
@@ -86,7 +177,10 @@ key keeps the same date, and a key asked for after a renewal carries the new
 period.
 
 - **Issue a key** signs a key from the paid subscription. It is refused to an account
-  without two-step verification, see [Signing In](signing-in.md).
+  without two-step verification, an authenticator or a passkey, see
+  [Signing In](signing-in.md), and, on an individual purchase, until the
+  withdrawal period has run unless it was given up, see
+  [Business or individual](#business-or-individual).
 - **Download the key** saves the file, named after your organisation.
 - **Replace this key**, then **Replace it**, signs a replacement and stands the
   old one down. Machines running on the old file keep running on it until its own

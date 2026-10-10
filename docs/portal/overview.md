@@ -33,6 +33,11 @@ matches what you type with or without accents, and opens the chosen
 organisation on its **Overview**, because your role there may be a different
 one.
 
+One row is marked **Default**: the organisation a plain sign-in opens on.
+**Make default** on another row moves it. A provider running agents for its
+customers opens an organisation per customer from the same page, see
+[Accounts held by a provider](billing-and-licence-keys.md#accounts-held-by-a-provider).
+
 ## Inside an organisation
 
 Every organisation screen sits under `/o/<your-organisation>/`, and the
@@ -43,12 +48,12 @@ administrator, billing and member; a member reads and changes nothing:
 | Section | What it holds | Who opens it |
 |---|---|---|
 | **Overview** | Where the subscription, the key and the agents stand today; each panel opens the screen it summarises. While anything is left between paying and a first agent reporting, a line above the panels says how many of the five steps are left, and **Finish setting up** opens the list **From payment to a first agent reporting**. | Everybody |
-| **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. | Everybody reads it; owners and administrators change it |
+| **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. See [Members and Invitations](members-and-invitations.md). | Everybody reads it; owners and administrators change it |
 | **Billing** | The subscription, the licence key's date, our reseller's documents, changing the plan or the card, ending the subscription. See [Billing and Licence Keys](billing-and-licence-keys.md). | Owners and billing members |
 | **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
-| **Deployments** | Deployments, their join secrets, their agents and their telemetry switch. | Everybody reads it; owners and administrators change it |
+| **Deployments** | Deployments, their join secrets, their agents and their telemetry switch. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
 | **Usage** | What you bought, what the key admits and what is running. | Everybody |
-| **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. | Everybody reads it; owners and administrators erase readings |
+| **Analytics** | The counters your agents send once telemetry is on, and the month against the allowance. See [Analytics](analytics.md). | Everybody reads it; owners and administrators erase readings |
 | **Audit log** | Everything done to the organisation. See [Audit Log and Activity](audit-log.md). | Owners and administrators |
 | **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |
 | **Settings** | The organisation's name, where the billing details live, and closing the organisation. | Owners and administrators |
@@ -96,4 +101,7 @@ infrastructure is published outside the portal.
 ## See also
 
 - [From Purchase to Reporting Agents](../getting-started/from-purchase-to-reporting-agents.md)
+- [Members and Invitations](members-and-invitations.md)
+- [Deployments and Agents](deployments-and-agents.md)
+- [Analytics](analytics.md)
 - [License](../features/enterprise/license.md)

@@ -10,7 +10,7 @@ Two kinds of key exist, and they differ in one field:
 
 | Key | Where it comes from | `machine_fingerprint` | Installed on |
 |---|---|---|---|
-| Fleet key | **Licences** in the customer portal, the screen headed **Licence keys** | absent | every node, the same file |
+| Fleet key | **Licence keys** in the customer portal | absent | every node, the same file |
 | Machine-bound key | The [air-gap activation workflow](#air-gap-activation-workflow) | the fingerprint of one machine | that machine only |
 
 ## License Key Format
@@ -89,20 +89,26 @@ The fleet size is carried by `max_agents` rather than by one key per machine.
 It is a term of the subscription and not a lock: an agent verifies its key
 offline and cannot see the other agents carrying the same file, so **no agent
 refuses to start because the fleet grew past the count**. The licence agreement
-gives 30 days to add the nodes in the portal once the fleet has grown. The agent
-reports the count at `GET /api/v1/license`, and the portal's **Entitlement**
-page counts the machines actually reporting against it and against the contract,
+gives 30 days to add the agents in the portal once the fleet has grown. The agent
+reports the count at `GET /api/v1/license`, and the portal's **Usage** page
+counts the agents actually reporting against it and against the subscription,
 so an estate that has outgrown what it bought is visible there rather than on a
 node that refused to start. The node size is different, see
 [Host Size Band](#host-size-band): that ceiling is enforced on each host.
 
 To get one:
 
-1. Hold a paid subscription. Keys are issued from a contract, never before it.
-2. Arm a second factor on your account, an authenticator or a sign-in device.
-   The portal refuses to issue a key to an account held by a password alone.
-3. As an owner or an administrator of the organisation, open **Licences** and
-   choose **Issue a key**. If you have not signed in or confirmed your password
+1. Hold a paid subscription. A key with a subscription's terms is issued once
+   our reseller reports the payment, so a subscription awaiting payment against
+   an invoice has none yet. A purchase made as an individual gets its key once
+   the fourteen-day withdrawal period has run, or at once if the waiver was
+   ticked at checkout. The trial and the design partner key below are the two
+   keys issued without a subscription.
+2. Turn on two-step verification on your account, with an authenticator or a
+   passkey. The portal refuses to issue a key to an account held by a password
+   alone.
+3. As an owner or an administrator of the organisation, open **Licence keys**
+   and choose **Issue a key**. If you have not signed in or confirmed your password
    in the last fifteen minutes, the portal asks for it again first, see
    [When the portal asks for your password again](../../portal/signing-in.md#when-the-portal-asks-for-your-password-again).
 4. Choose **Download the key**. The file is named after the organisation, for
@@ -126,8 +132,8 @@ checks it with [`ebpfsentinel-license bundle`](#check-an-offline-bundle). The sa
 bundle is what an agent reads its [revocations](#revocation) from.
 
 The same screen offers each organisation one **14-day Enterprise trial key**,
-generated with no contract and no card, and a design partner a key running a
-year instead. Both are fleet keys carrying every Enterprise feature with no
+generated with no subscription and no card, and a design partner a key running
+a year instead. Both are fleet keys carrying every Enterprise feature with no
 `max_agents` and no `max_cores_per_agent` ceiling, and the agent treats them
 like any other key, the [expiry window](#expiry-and-grace) included. See
 [Enterprise trial](../../portal/billing-and-licence-keys.md#enterprise-trial).

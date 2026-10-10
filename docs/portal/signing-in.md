@@ -19,7 +19,7 @@ asked for afterwards. If the device refuses, the screen says so and the password
 path is still there.
 
 If your organisation signs in through its own identity provider, you use the
-sign-in address your administrators sent you instead, see
+sign-in address the people who run it sent you instead, see
 [Single Sign-On and Provisioning](single-sign-on.md).
 
 ## Forgotten password
@@ -31,8 +31,10 @@ customer. The link leads to **Choose a new password**; setting it ends every
 session on the account, including any you did not open.
 
 An account whose organisation signs in through its own identity provider has no
-local password. The same form mails that person the address they sign in at
-instead of a link, which is also how a lost sign-in address is found again.
+local password, apart from the owner who turned the provider on and anybody who
+also belongs to another organisation. The same form mails that person the
+address they sign in at instead of a link, which is also how a lost sign-in
+address is found again.
 
 ## Two-step verification and passkeys
 
@@ -117,8 +119,8 @@ Every page in this section that says an act "asks for your password again" or
 sits "behind your password" means this prompt, and it only appears once the
 fifteen minutes have run out.
 
-An account that signs in through its organisation's own identity provider has
-no password to re-type here. Do those acts within fifteen minutes of signing
+An account that signs in through its organisation's own identity provider and
+holds no password has none to re-type here. Do those acts within fifteen minutes of signing
 in; past that, sign out and sign in again at your organisation's sign-in
 address.
 

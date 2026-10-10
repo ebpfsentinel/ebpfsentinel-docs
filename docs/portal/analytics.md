@@ -1,0 +1,63 @@
+# Analytics
+
+> **Edition: Enterprise**
+
+What your agents reported, what this month comes to against the volume your plan
+includes, and how to erase what was sent. Everything here is on **Analytics**.
+Everybody reads it; owners and administrators erase readings.
+
+Analytics shows totals only. Your agents send counters, and packets, payloads,
+addresses, process names and file paths stay on the machine that saw them.
+Nothing arrives until telemetry is turned on for a deployment and its agents
+hold an ingest token, see
+[Deployments and Agents](deployments-and-agents.md#telemetry).
+
+## This month
+
+**This month** sets what your agents **Sent** since the start of the month
+against what your plan **Included**, pooled across the organisation: the number
+of agents times the volume each one brings. It reads **Within the allowance**,
+**Past the allowance** or **Not metered**.
+
+**Projected** extrapolates the month from its pace so far, and says when it is
+too early in the month to project anything. Past the included volume, the screen
+estimates what the excess would cost. These are estimates from an incomplete
+month, not an invoice: what a period costs is settled at its close, on our
+reseller's own document. Nothing is ever refused: an estate past its allowance
+keeps sending.
+
+A plan agreed in writing publishes no pooled volume, and the screen says so. An
+organisation that has not bought anything yet still has what arrives counted.
+
+## Reported
+
+Choose a **Window** (the last 7, 30 or 92 days) and a **Deployment**, or **All
+deployments**:
+
+- **Reported**: agents seen, traffic, packets and alerts raised over the window.
+- **Agent health**: whether your agents kept up and whether their programs are
+  loaded. It reads **Healthy**, **Losing events**, **Programs missing**,
+  **Agents not reporting** while an enrolled agent in a live deployment has
+  stopped reporting, with a link to the ones not reporting, or **No agent
+  reporting** until one has sent a reading. Below it are the events handled and
+  lost, the actions taken, and the agents short of a program.
+- **Over the window**: traffic and alerts as a chart, with the busiest point.
+- **Deployments**: each deployment with its telemetry **Turned on**, **Turned
+  off**, **Not reporting** when it collects and has sent nothing, or
+  **Retired**, and its last reading.
+- **What was raised** and **Busiest agents**, the ten that sent the most
+  traffic, each with its deployment in brackets.
+
+The only machine name the portal holds is the one each agent joined under.
+
+## Erase what was sent
+
+**Erase what was sent** removes the readings your agents sent. It cannot be
+undone; the steps are in
+[Your Data](your-data.md#erase-what-your-agents-sent). Erasing does not turn
+telemetry off: a deployment that is collecting keeps collecting.
+
+## See also
+
+- [Deployments and Agents](deployments-and-agents.md)
+- [Your Data](your-data.md)
