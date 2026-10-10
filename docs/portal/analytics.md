@@ -30,8 +30,8 @@ month, not an invoice: what a period costs is settled at its close, on our
 reseller's own document. Nothing is ever refused: an estate past its allowance
 keeps sending.
 
-A plan agreed in writing publishes no pooled volume, and the screen says so. An
-organisation that has not bought anything yet still has what arrives counted.
+Every paid plan publishes its pooled volume. An organisation that has not
+bought anything yet still has what arrives counted.
 An order still waiting for its payment includes no volume either, and the screen
 says the order is waiting rather than that nothing was bought.
 
@@ -64,8 +64,8 @@ The only machine name the portal holds is the one each agent joined under.
 ### How long readings are kept
 
 Each reading is kept for the retention of the plan the organisation held when
-it arrived: ninety days on Enterprise, thirty days on every other plan and
-without a subscription. Changing plan does not shorten or lengthen what was
+it arrived: ninety-two days on Critical, ninety days on Enterprise, thirty days
+on Professional and without a subscription. Changing plan does not shorten or lengthen what was
 already sent, because the retention travels with each reading. A window longer
 than the retention shows what is still kept, so the 92-day window on a
 thirty-day retention shows the last thirty days.
