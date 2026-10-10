@@ -12,6 +12,10 @@ Nothing arrives until telemetry is turned on for a deployment and its agents
 hold an ingest token, see
 [Deployments and Agents](deployments-and-agents.md#telemetry).
 
+While no deployment has telemetry switched on, the screen says so first, above
+the month, with **Turn it on for a deployment**, and the panels that would
+only show zeros are folded under **Show the empty panels**.
+
 ## This month
 
 **This month** sets what your agents **Sent** since the start of the month
@@ -42,7 +46,12 @@ deployments**:
   **Agents not reporting** while an enrolled agent in a live deployment has
   stopped reporting, with a link to the ones not reporting, or **No agent
   reporting** until one has sent a reading. Below it are the events handled and
-  lost, the actions taken, and the agents short of a program.
+  lost, the actions taken, and the agents short of a program. Each kernel term
+  carries one line saying what it is: the ring buffer is the queue the kernel
+  hands events to the agent through, and a full one loses the next events; a
+  tear-down is the kernel closing a connection the agent decided to cut; the
+  verifier is the kernel's check on every program before it runs, and a
+  rejected program inspects nothing.
 - **Over the window**: traffic and alerts as a chart, with the busiest point.
 - **Deployments**: each deployment with its telemetry **Turned on**, **Turned
   off**, **Not reporting** when it collects and has sent nothing, or
@@ -54,7 +63,8 @@ The only machine name the portal holds is the one each agent joined under.
 
 ## Erase what was sent
 
-**Erase what was sent** removes the readings your agents sent. It cannot be
+**Erase what was sent** removes the readings your agents sent, and is offered
+only while some are held, at any age the retention keeps. It cannot be
 undone; the steps are in
 [Your Data](your-data.md#erase-what-your-agents-sent). Erasing does not turn
 telemetry off: a deployment that is collecting keeps collecting.
