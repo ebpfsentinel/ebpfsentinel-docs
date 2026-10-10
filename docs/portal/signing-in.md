@@ -2,7 +2,7 @@
 
 > **Edition: Enterprise**
 
-How you get into the customer portal, the second factors that protect the way
+How you get into the customer portal, the two-step verification and passkeys that protect the way
 in, and how to see and end everything signed in as you. Screens are named the
 way the portal names them; where they sit is described in
 [Finding Your Way Around the Portal](overview.md).
@@ -34,10 +34,10 @@ An account whose organisation signs in through its own identity provider has no
 local password. The same form mails that person the address they sign in at
 instead of a link, which is also how a lost sign-in address is found again.
 
-## Second factors and passkeys
+## Two-step verification and passkeys
 
-**Your account** links to **Second factors and passkeys**, which opens the screen
-titled **Second factor** at `/account/security`. A licence key is only issued to
+**Your account** links to **Two-step verification and passkeys**, which opens the screen
+titled **Two-step verification** at `/account/security`. A licence key is only issued to
 an account holding an authenticator or a passkey, so arm one before you need a
 key.
 
@@ -60,26 +60,26 @@ recovery codes with it.
 ### Passkeys
 
 A passkey is a security key, or a laptop or phone that holds one. Give it a
-name you will recognise under **Name for this device**, press **Register a
+name you will recognise under **Name for this passkey**, press **Register a
 passkey**, confirm your password if the portal asks for it again (see below),
 and the browser then asks the device. Each
 passkey is listed with its name, and can be removed.
 
-A passkey does not turn on the second factor for password sign-ins: nothing
+A passkey does not turn on two-step verification for password sign-ins: nothing
 prints recovery codes for a passkey, and one lost device would otherwise lock
 you out.
 
 ### Your colleagues
 
-**People**, inside an organisation, shows beside each member either **Second
-factor on** or **Password only - they cannot issue a licence key until
-they add a second factor**, so an owner
+**Members**, inside an organisation, shows beside each member either **Two-step
+verification on** or **Password only - they cannot issue a licence key until
+they set up two-step verification**, so an owner
 knows before asking somebody to issue a key.
 
 ## Everything signed in as you
 
-Sessions are on **Your account** itself, at `/account`, not on **Second
-factor**. **Your account** lists under **Signed in** every browser currently
+Sessions are on **Your account** itself, at `/account`, not on **Two-step
+verification**. **Your account** lists under **Signed in** every browser currently
 signed in as you: the device it runs on, when it signed in and, where one was recorded, the
 address it came from. The portal records the address the network edge in front
 of it reports; a session opened without one keeps none, and the screen says so
@@ -95,13 +95,13 @@ ended, and your password changed afterwards.
 Some acts are only done by somebody who proved who they are in the last
 **fifteen minutes**:
 
-- on **Licences**: issuing, replacing or downloading a key, the offline bundle
+- on **Licence keys**: issuing, replacing or downloading a key, the offline bundle
   and the trial key;
 - changing the card, on **Billing**;
-- minting a join secret or an ingest secret, and erasing telemetry readings;
+- creating a join secret or issuing an ingest token, and erasing telemetry readings;
 - on **Single sign-on**: saving the provider, checking a domain, adding a rule,
-  putting the provider in force, replacing the sign-in
-  address and issuing a directory secret;
+  turning the provider on, replacing the sign-in
+  address and issuing a SCIM token;
 - closing an organisation, from **Settings**;
 - on your own account: changing your address, removing the authenticator,
   printing new recovery codes, adding or removing a passkey, and deleting the

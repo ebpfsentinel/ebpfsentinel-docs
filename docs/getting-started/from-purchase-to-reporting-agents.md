@@ -3,8 +3,8 @@
 > **Edition: Enterprise**
 
 This page walks the whole path once, in the order the customer portal asks for
-it: choose a tier, arm a second factor, issue the licence key, register a
-deployment, mint its join secret, install the agents, and read the screen that
+it: choose a tier, set up two-step verification, issue the licence key, register a
+deployment, create its join secret, install the agents, and read the screen that
 proves they are running. Every step is done alone, in the portal at
 `https://portal.ebpfsentinel.io` and on your own machines; none of it waits on
 anybody at our end.
@@ -20,7 +20,7 @@ navigation beside it. What every screen holds, and which roles open it, is in
   its **owner**, which is the role that can do every step below.
 - Somebody else can do parts of it. An **administrator** can issue keys and run
   deployments but not buy; a **billing** member can buy and nothing else. Roles
-  are set under **People**, where picking a role changes nothing until you
+  are set under **Members**, where picking a role changes nothing until you
   confirm it under the sentence saying what that role may do, and only an owner
   is offered the owner role. The portal only lists the sections your role can
   open; an address you were sent for one it cannot names the roles that hold it
@@ -39,7 +39,7 @@ navigation beside it. What every screen holds, and which roles open it, is in
   you confirm your address, the confirmation mail brings you back to the
   invitation and you land inside the organisation that invited you. If you
   already have an account, sign in from the same screen instead.
-- An invitation lapses on its own. **People** lists the ones nobody has taken
+- An invitation lapses on its own. **Members** lists the ones nobody has taken
   up yet with who sent each one and the day it lapses, and **Send again** mails
   it once more to the same address. The invitation screen names the sender and
   that date too, so somebody who waited too long knows whom to ask.
@@ -52,10 +52,10 @@ navigation beside it. What every screen holds, and which roles open it, is in
 - The organisation's name can be changed under **Settings** by an owner or an
   administrator. The address `/o/<your-organisation>/` stays as it was, because
   it is the one your colleagues already hold.
-- An owner can close an organisation that never held a contract and never
+- An owner can close an organisation that never held a subscription and never
   registered a deployment, also under **Settings**: type its name back, re-type
   your password when asked, and it is gone for every member. A deployment that
-  was stood down still counts, because its history is what the estate was
+  was retired still counts, because its history is what your agents were
   measured against. This is how an organisation created by mistake, for
   instance by signing up before accepting an invitation, is removed.
 - The enterprise [prerequisites](prerequisites.md): a kernel of 6.9 or later with
@@ -75,57 +75,57 @@ a month is what you actually pay once every discount is taken, with the
 published price struck through when a discount applies. Priced on an annual
 term, the quote also says how much paying yearly saves against twelve monthly
 payments. While a changed field is being priced the screen says so and the
-checkout waits, so it never opens on a price for a different estate.
+checkout waits, so it never opens on a price for a different number of agents.
 
-If your account holds no second factor yet, the screen says so before you pay:
+If your account has no two-step verification yet, the screen says so before you pay:
 issuing the key afterwards asks for one (step 2), so arming it now means the key
 is not held up once the payment lands. It does not stop you buying.
 
-An organisation holds one contract at a time. Reached with one already running,
+An organisation holds one subscription at a time. Reached with one already running,
 the screen offers no form and sends you back to **Billing**, where **Move to
 another plan** changes it; with an order still waiting for payment, it asks you
-to finish that order at the seller's checkout or withdraw it first.
+to finish that order at our reseller's checkout or cancel it first.
 
-**Go to the checkout** takes you to the seller of record's own page, where the
+**Go to the checkout** takes you to our reseller's own page, where the
 card is taken and the tax added; we never see the card. You come straight back
 to a list headed **From payment to a first agent reporting**: the five steps on
 this page that are left, each ticked from what the portal already holds and
 each with a link to the screen where it is done; once a deployment is
 registered, the step for a first agent reporting opens that deployment and its
 checklist. The payment reads as waiting
-until the seller has reported it, usually within a minute; **Check again**
+until our reseller has reported it, usually within a minute; **Check again**
 reads everything once more. The list is also reachable from your organisation's
 **Overview** while anything on it is left, and goes away once the last step
-is done. Once the seller has reported the payment, the owners, administrators
-and billing members of the organisation also receive a mail saying the contract
-is in force and what is left to do, so nobody has to sit on the screen waiting
+is done. Once our reseller has reported the payment, the owners, administrators
+and billing members of the organisation also receive a mail saying the subscription
+is active and what is left to do, so nobody has to sit on the screen waiting
 for it.
 
-Once the contract is running, **Billing** shows the day it renews. **Move to
+Once the subscription is running, **Billing** shows the day it renews. **Move to
 another plan** reprices it from the same table, and moves it between monthly
-and annual billing where the seller of the contract allows that; where it does
-not, the screen says so, and changing the term means stopping the contract and
-subscribing again on the other one. The seller's documents are listed on the
+and annual billing where our reseller allows that; where it does
+not, the screen says so, and changing the term means stopping the subscription and
+subscribing again on the other one. Our reseller's documents are listed on the
 same page by date, and each one opens in a new tab.
 
 Every paid tier can be bought here. Above a tier's self-serve fleet size the
 same tier at the same price is agreed in writing instead, and the screen says
-which side of that line your estate is on. Past the line it also says how to
+which side of that line your number of agents is on. Past the line it also says how to
 ask:
 
 - Write to the address shown on the screen. **Write the request** opens a
   message already carrying the organisation, the tier, the number of agents,
-  the machine size, the term and, once you have priced exactly that estate, the
+  the machine size, the term and, once you have priced exactly that number of agents, the
   price quoted.
 - The agreement comes back by email within one business day.
 - Once it is signed it is recorded against your organisation, and pricing the
-  same estate here again opens the checkout to it. The buying itself stays with
+  same number of agents here again opens the checkout to it. The buying itself stays with
   you.
 
-## 2. Arm a second factor
+## 2. Set up two-step verification
 
 A licence key is not issued to an account held by a password alone. Open your
-account, then **Second factors and passkeys**, and arm one of:
+account, then **Two-step verification and passkeys**, and arm one of:
 
 - **Authenticator**: an app on a device you hold. Add it by scanning the QR
   code with the app, or by typing the secret written out beside it, then type
@@ -137,7 +137,7 @@ account, then **Second factors and passkeys**, and arm one of:
 
 Either one is enough.
 
-Arming or removing a second factor, using a recovery code and adding or
+Setting up or removing two-step verification, using a recovery code and adding or
 removing a device each send a mail to the account it happened to. Issuing or
 replacing a key mails every owner and administrator of the organisation, a
 change of role mails the member whose role moved, an accepted invitation mails
@@ -149,11 +149,11 @@ a key or a link that signs you in.
 
 ## 3. Issue and verify the licence key
 
-Open **Licences**, the screen headed **Licence keys**, and choose **Issue a
+Open **Licence keys**, the screen headed **Licence keys**, and choose **Issue a
 key**. If you have not signed in or confirmed your password in the last fifteen
 minutes, the portal asks for it again first, see
 [When the portal asks for your password again](../portal/signing-in.md#when-the-portal-asks-for-your-password-again);
-it then signs a key from your contract. If your account holds no second factor
+it then signs a key from your subscription. If your account has no two-step verification
 yet, the key is refused and the refusal links straight to the screen where you
 arm one. Choose **Download the key**; the file
 is named after your organisation, for example `ebpfsentinel-acme.lic`.
@@ -172,13 +172,13 @@ measurements release or from the enterprise release tarball, as described in
 ## 4. Register a deployment
 
 Open **Deployments** and use **Register a deployment**. A deployment is the unit
-your estate is counted in: one per cluster, site or environment you want to see
+your agents are counted in: one per cluster, site or environment you want to see
 separately, for example `production` and `staging`. The name is yours and unique
 within the organisation.
 
-## 5. Mint a join secret
+## 5. Create a join secret
 
-Open the deployment and, under **Join secrets**, choose **Mint a join secret**.
+Open the deployment and, under **Join secrets**, choose **Create a join secret**.
 Past the fifteen minutes, the portal asks for your password again first. It
 shows the secret **once**: only a
 digest of it is kept, so copy it before choosing **I have copied it**.
@@ -189,7 +189,7 @@ purpose: every command reads it from a prompt that does not echo, so it ends up
 in neither your shell history nor the process list.
 
 A join secret only lets a machine join. Each agent that joins receives a
-credential of its own, so withdrawing a join secret later stops new machines and
+credential of its own, so revoking a join secret later stops new agents and
 silences none of the ones already reporting. Several can be live at once, which
 is how a rotation costs no downtime, and none of them expires.
 
@@ -231,7 +231,7 @@ traffic, losses and whether the programs are loaded as graphs in the portal:
 
 1. On the deployment, open **Telemetry for this deployment**, read what is sent
    and what never is, and choose **Turn telemetry on**.
-2. Under **Ingest secrets**, choose **Mint an ingest secret** and copy it. It is
+2. Under **Ingest tokens**, choose **Issue an ingest token** and copy it. It is
    a third credential, neither the key nor the join secret.
 3. Give it to the agents beside the join secret: `portal.telemetry.enabled` and
    `portal.ingestSecret.secretName` with Helm, `telemetryEnabled` and
@@ -239,34 +239,34 @@ traffic, losses and whether the programs are loaded as graphs in the portal:
    `ingest_secret_file` on a host. See
    [Optional analytics](../configuration/enterprise.md#optional-analytics).
 
-Turning telemetry off withdraws the ingest secrets and leaves the estate counted.
+Turning telemetry off revokes the ingest tokens and leaves the agents counted.
 
-On **Analytics**, the estate reads **No agent reporting** rather than a health
+On **Analytics**, health reads **No agent reporting** rather than a health
 word until at least one agent has sent a reading, and while every deployment
-collecting has gone quiet. While any enrolled machine in a live deployment has
-stopped reporting, it reads **Machines not reporting** rather than a health
-word, with a link to the ones that went quiet. Each deployment says whether its
-telemetry is **Turned on** or **Turned off**. A stood-down deployment reads **Stood down** and
-nothing else, and each of the busiest machines carries its deployment in
+collecting has stopped reporting. While any enrolled agent in a live deployment has
+stopped reporting, it reads **Agents not reporting** rather than a health
+word, with a link to the ones not reporting. Each deployment says whether its
+telemetry is **Turned on** or **Turned off**. A retired deployment reads **Retired** and
+nothing else, and each of the busiest agents carries its deployment in
 brackets, so two nodes with the same name are two rows you can tell apart. The
 only machine name the portal holds is the one each agent joined under.
 
 ## 8. Check the Entitlement screen
 
-Open **Entitlement**: what you bought, what your key admits, and what is
+Open **Usage**: what you bought, what your key admits, and what is
 actually running. It is the proof the steps above worked.
 
-- **Your estate** counts the machines that reported in the last five minutes.
+- **Your agents** counts the agents that reported in the last five minutes.
   Every node you installed should be there within one heartbeat.
-- **Within your contract** means the machines reporting fit what you bought.
-  **Over your contract** means they do not; buy more agents under **Billing**.
-- Machines that joined and have not reported lately are listed as **gone quiet**
+- **Within your subscription** means the agents reporting fit what you bought.
+  **Over your subscription** means they do not; buy more agents under **Billing**.
+- Machines that joined and have not reported lately are listed as **not reporting**
   beside the count, not in it, so a rolling upgrade does not read as a breach.
-- **What your licence key admits** is kept apart from the contract. If the key
-  admits fewer machines than you now pay for, replace it from **Licences** and
+- **What your licence key admits** is kept apart from the subscription. If the key
+  admits fewer agents than you now pay for, replace it from **Licence keys** and
   install the new file.
-- **Where they are** lists the machines per deployment. Open a deployment to see
-  each machine under **Machines**, with its version and when it last reported.
+- **Where they are** lists the agents per deployment. Open a deployment to see
+  each agent under **Agents**, with its version and when it last reported.
 
 If a node is missing, the agent says why in its own log: a refused join secret
 is an HTTP 401, a portal it cannot reach is retried with a backoff that grows to

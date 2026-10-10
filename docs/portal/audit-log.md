@@ -36,7 +36,7 @@ a password recovery or an invitation sent again. Those lines are written by the
 portal, not by a person at our end.
 
 What belongs to one person rather than to the organisation - a password changed,
-a second factor enrolled, a session ended, a refused sign-in - is never written
+two-step verification set up, a session ended, a refused sign-in - is never written
 here, so the organisation's filter does not offer it. Each person reads those in
 their own activity, below.
 
@@ -45,7 +45,7 @@ their own activity, below.
 **Your account** links to **Everything done with your account**: every sign-in,
 including refused ones, and everything you did, across every organisation you
 belong to. It needs nothing beyond being signed in. If a line was not you,
-change your password and register a second factor, see
+change your password and set up two-step verification, see
 [Signing In](signing-in.md).
 
 ## Filtering

@@ -34,12 +34,12 @@ refuses an issuer that resolves to a private, loopback or link-local address.
 
 ## 2. Domains
 
-A provider only signs in people whose address is on a domain you have proved is
+A provider only signs in people whose address is on a domain you have verified is
 yours. Type it under **Domain** and press **Claim domain**; the screen shows the
 record to **Publish this TXT record**, with **Copy the name** and **Copy the
 value**. Once it is published, **Check now** (behind your password) looks it up.
-Publishing can take a while to spread. A proved domain belongs to one
-organisation only. **Withdraw** removes a claim.
+Publishing can take a while to spread. A verified domain belongs to one
+organisation only. **Remove** gives a claim up.
 
 ## 3. Groups and roles
 
@@ -50,27 +50,27 @@ the next time they sign in rather than at the next configuration change.
 
 **Try it** asks what a set of groups would be granted without changing anything:
 type the groups separated by commas and press **Preview**; the answer names the
-role **Granted** and the **Matched rule**, or says the default role applies.
+role granted and the rule that matched, or says the default role applies.
 
 A directory never makes or unmakes an owner. An owner is made by another owner,
-from **People**.
+from **Members**.
 
-## 4. Putting it in force
+## 4. Turning it on
 
-Until **Put the provider in force** is done, nobody signs in through it. The
-panel shows what it will cost before you press **Put in force**: the **Local
-passwords that will be removed**, the **Sessions that will end**, and the
-**Passwords kept for other organisations**, with the version of the
+Until **Turn the provider on** is done, nobody signs in through it. The
+panel shows what it will cost before you press **Turn on**: the local
+passwords to remove, the sessions to end and the passwords kept for other
+organisations, with the version of the
 consequences notice you are agreeing to. People covered by the provider lose
 their local password, so no way in survives their provider revoking them.
-**Put in force** asks for your password again, see
+**Turn on** asks for your password again, see
 [When the portal asks for your password again](signing-in.md#when-the-portal-asks-for-your-password-again).
-**Stand down** takes the provider out of force and does not ask for your
+**Turn off** turns the provider off and does not ask for your
 password.
 
 ## The sign-in address
 
-Once the provider is in force, your colleagues sign in at the **Sign-in
+Once the provider is on, your colleagues sign in at the **Sign-in
 address** shown on the screen, `https://portal.ebpfsentinel.io/s/<handle>`. The
 handle is random and names your organisation nowhere, so nobody finds it by
 guessing. Send it to your colleagues.
@@ -84,15 +84,15 @@ to them.
 
 The step **Directory provisioning (SCIM 2.0)** is on the screen before a
 provider exists and says what it does; its link opens once the provider is
-saved, and a secret can be issued once it is in force. That page issues the secret your directory writes people into
-the organisation with. Press **Issue a secret**, copy it now (it is shown once;
+saved, and a SCIM token can be issued once it is on. That page issues the token your directory writes people into
+the organisation with. Press **Issue a SCIM token**, copy it now (it is shown once;
 only a digest is kept), and give your directory the **Base address for your
-directory**, which ends in `/scim/v2`, with the secret as a bearer token.
+directory**, which ends in `/scim/v2`, with the token as its bearer token.
 
 Users and Groups are supported, with filters, paging and `PATCH`. A user your
 directory marks inactive loses every session rather than being deleted.
-**Withdraw** stops provisioning with that secret without touching sign-in.
-Several secrets can be live at once, so a rotation costs no downtime.
+**Revoke** stops provisioning with that token without touching sign-in.
+Several tokens can be live at once, so a rotation costs no downtime.
 
 ## On your own account
 

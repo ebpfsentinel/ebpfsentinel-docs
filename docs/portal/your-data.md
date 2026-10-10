@@ -28,7 +28,7 @@ every browser, and any organisation you are the last member of closes with you.
 It is refused while:
 
 - you are the last owner of an organisation that has other members: make
-  somebody else an owner, or remove the other members, from **People**;
+  somebody else an owner, or remove the other members, from **Members**;
 - a subscription is still open in one of your organisations: end it first, from
   **Billing**, see [Billing and Licence Keys](billing-and-licence-keys.md).
 
@@ -36,7 +36,7 @@ The screen names the organisation and links to the screen that clears the
 obstacle.
 
 Two clocks apply after a deletion. The technical and audit trace is kept thirty
-days. Anything that is an accounting record, such as what a contract was paid,
+days. Anything that is an accounting record, such as what a subscription was paid,
 is kept ten years, because commercial law requires it.
 
 ## Erase what your agents sent
@@ -46,8 +46,8 @@ Telemetry is off until somebody turns it on for a deployment, see
 To remove what was already sent, open **Analytics**, then **Erase what was
 sent**:
 
-1. Press **Erase readings** and choose under **What to erase** the whole estate
-   or one deployment, including one already stood down.
+1. Press **Erase readings** and choose under **What to erase** every deployment
+   or one deployment, including one already retired.
 2. Press **Erase them**. Past fifteen minutes since you signed in or last
    confirmed, it asks for your password again first.
 
@@ -57,7 +57,7 @@ what was metered.
 
 Erasing does not turn telemetry off: a deployment that is sending keeps sending.
 Turning it off is done on the deployment's **Telemetry** screen with **Turn
-telemetry off**, which also withdraws every ingest secret of that deployment and
+telemetry off**, which also revokes every ingest token of that deployment and
 leaves what was already sent in place until you erase it.
 
 ## See also
