@@ -131,6 +131,13 @@ after it.
 An order that was never paid is not a subscription yet: **Cancel this order**,
 then **Cancel it**. Nothing was charged.
 
+### An order left unpaid
+
+If you left our reseller's checkout before paying, the order waits for its
+payment. **Continue to the checkout**, on **Billing** or on the subscribe screen,
+takes you back to the same checkout rather than starting a second order. An order
+raised on an invoice has no checkout to go back to: it is paid by bank transfer.
+
 ### Documents
 
 **Documents** lists what our reseller issued, one per payment, each opening our
