@@ -102,8 +102,12 @@ thirty, fourteen and three days before it runs out.
 
 ### Enterprise trial
 
-An organisation with no key in force is offered **Try Enterprise for 14 days**
-on **Licences**, with no contract and no card. **Generate the trial key** signs
+An organisation with no contract and no key in force is offered **Try
+Enterprise for 14 days** on **Licences**, with no card. The organisation's
+overview and the plan choice under **Billing** offer it too, with **Start the
+trial** leading to **Licences**. Once a contract exists, paid or still waiting
+for its payment, the trial is no longer offered: the contract's own key is the
+next step. **Generate the trial key** signs
 one Enterprise key carrying every Enterprise feature, with no agent ceiling and
 no per-node size ceiling. It asks what a paid key asks: a second factor on your
 account and a password confirmed in the last fifteen minutes. **Download the
