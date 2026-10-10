@@ -157,7 +157,9 @@ customer and pay for it. On **Your organisations**, **For providers: open an
 account for a customer whose agents you run** asks for the **Customer's name**
 and **Open the account** creates the organisation, with you as its first owner
 and your organisation as the one holding it. Opening one is open to the owners
-and administrators of the provider's organisation.
+and administrators of the provider's organisation. Once your organisation holds
+an account, it is listed first and that panel stays open above the list, and
+the **Holds 1 account** badge on its line takes you back to the panel.
 
 The organisation stays the customer's: their name, their licence key, their
 agents and their monthly allowance, and they sign in at an address of their
