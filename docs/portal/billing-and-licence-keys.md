@@ -167,11 +167,18 @@ organisation, it is charged to the provider, and its volume band is taken across
 everything the provider holds. The customer's own people run the organisation
 but cannot open its subscription.
 
-On the customer's **Billing**, **Somebody else holds this account** names the
-provider. An owner on either side, the provider's or the customer's own, ends
-the arrangement there with **End the arrangement**, then **Yes, end it**: the licence stays valid, the agents stay enrolled and the
-month already metered is untouched. What changes is who the next subscription
-is billed to.
+The customer's **Billing** reads the arrangement from whichever side you sit
+on. The customer's own people see **Somebody else holds this account**, naming
+the provider where they can see it. Somebody in the provider's organisation sees
+**Your organisation holds this account** instead: that every subscription taken
+there is billed to the provider, what the customer reads on that screen, and
+that either side can end the arrangement. Wherever an account is held, the
+button that buys or changes the plan names who it is billed to.
+
+An owner on either side, the provider's or the customer's own, ends the
+arrangement there with **End the arrangement**, then **Yes, end it**: the
+licence stays valid, the agents stay enrolled and the month already metered is
+untouched. What changes is who the next subscription is billed to.
 
 ## Licences
 
