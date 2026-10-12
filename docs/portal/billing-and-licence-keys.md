@@ -159,9 +159,10 @@ listed yet.
 ## Accounts held by a provider
 
 A provider that runs agents for its customers can open one organisation per
-customer and pay for it. On **Your organisations**, **For providers: open an
-account for a customer whose agents you run** asks for the **Customer's name**
-and **Open the account** creates the organisation, with you as its first owner
+customer and pay for it. On **Your organisations**, **Running eBPFsentinel for
+your own customers? Open an account for each of them here.** asks which of your
+organisations it is **Paid by** and **Your customer's name**, and **Open the
+account** creates the organisation, with you as its first owner
 and your organisation as the one holding it. Opening one is open to the owners
 and administrators of the provider's organisation. Once your organisation holds
 an account, it is listed first and that panel stays open above the list, and
