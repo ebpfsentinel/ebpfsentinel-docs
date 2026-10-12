@@ -229,6 +229,8 @@ Everything else about conntrack is a slot under `interface="CT_METRICS"`.
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_threatintel_matches_total` | Counter | `feed` | IOC matches resolved against a threat-intelligence feed, by feed |
+| `ebpfsentinel_threatintel_feed_indicators` | Gauge | `feed` | Indicators the feed yielded at its last successful refresh: addresses, domains and URLs together. A failed refresh leaves the value from the last one that worked |
+| `ebpfsentinel_threatintel_feed_last_refresh_timestamp_seconds` | Gauge | `feed` | When the feed last refreshed successfully, in seconds since the epoch. `time() - ebpfsentinel_threatintel_feed_last_refresh_timestamp_seconds` is how stale the feed is; a failed refresh does not move it |
 | `ebpfsentinel_ids_domain_matches_total` | Counter | `rule_id` | IDS rule matches driven by a domain pattern |
 
 ### DLP
