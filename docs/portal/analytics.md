@@ -59,7 +59,9 @@ What runs where, as the machines last reported it.
 ### Deployments
 
 Each deployment with its telemetry **Turned on**, **Turned off**, **Not
-reporting** when it collects and has sent nothing, or **Retired**, and its last
+reporting** when it collects and has sent nothing, **Programs missing** in red
+when one of its machines refused a program or is short of one, **Retired**, or
+**Retired, still reporting** when machines stood down still send, and its last
 reading.
 
 ### Which defences run where
