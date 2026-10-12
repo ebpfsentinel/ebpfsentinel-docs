@@ -180,13 +180,10 @@ says the order is waiting rather than that nothing was bought. If the readings
 cannot be reached for a moment, the meter says so and the subscription above it
 is still shown.
 
-### Erase what was sent
-
-Below the meter, an owner sees **Erase what was sent**, which removes the
-readings your agents sent us. A billing member sees the meter and never the
-erasure, because removing readings is a decision about the fleet rather than
-about the bill. The steps are in
-[Your Data](your-data.md#erase-what-your-agents-sent).
+Erasing the readings themselves is a decision about the fleet rather than about
+the bill, so it is not on **Billing**: it is on each deployment's telemetry
+screen, see
+[Deployments and Agents](deployments-and-agents.md#erase-what-a-deployment-sent).
 
 ## Accounts held by a provider
 

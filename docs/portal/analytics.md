@@ -4,9 +4,10 @@
 
 What your agents reported, read over a window you choose. Everything here is on
 **Analytics**, and everybody in the organisation reads it. What this month
-comes to against the volume your plan includes, and the way to erase what was
-sent, are on **Billing**, see
-[Billing and Licence Keys](billing-and-licence-keys.md#analytics-sent-this-month).
+comes to against the volume your plan includes is on **Billing**, see
+[Billing and Licence Keys](billing-and-licence-keys.md#analytics-sent-this-month);
+erasing what a deployment sent is on its telemetry screen, see
+[Deployments and Agents](deployments-and-agents.md#erase-what-a-deployment-sent).
 
 Analytics shows totals only. Your agents send counters, and packets, payloads,
 addresses, process names and file paths stay on the machine that saw them. The

@@ -83,7 +83,15 @@ version, so it can be read before anybody has an account.
 - **Revoke** beside an ingest token stops it writing.
 - **Turn telemetry off** stops the sending and revokes every ingest token of
   the deployment in the same moment. What was already sent stays until you
-  erase it from [Billing](billing-and-licence-keys.md#erase-what-was-sent).
+  erase it, below.
+
+### Erase what a deployment sent
+
+Under the ingest tokens, owners and administrators see **Erase what was sent**
+while anything the deployment sent is still held, on a deployment in service or
+retired. Erasing does not turn telemetry off: a deployment still collecting
+sends again. The steps are in
+[Your Data](your-data.md#erase-what-your-agents-sent).
 
 Where each token goes in the agent's configuration is in
 [Optionally, send counters](../getting-started/from-purchase-to-reporting-agents.md#7-optionally-send-counters).

@@ -5,7 +5,8 @@
 What the portal holds about you is yours to take away and yours to have deleted,
 and what your agents sent is yours to erase. None of it needs anybody at our
 end. The first two are on **Your account**, under **Take a copy of your data, or
-delete your account**; the third is on **Billing** inside the organisation.
+delete your account**; the third is on each deployment's telemetry screen
+inside the organisation.
 
 ## Take a copy
 
@@ -45,13 +46,14 @@ is kept ten years, because commercial law requires it.
 
 Telemetry is off until somebody turns it on for a deployment, see
 [Optionally, send counters](../getting-started/from-purchase-to-reporting-agents.md#7-optionally-send-counters).
-To remove what was already sent, open **Billing**, then **Erase what was
-sent** under the month's meter. Only an owner sees it: a billing member sees the
-meter beside it and not the erasure, and an administrator does not open
-**Billing** at all.
+To remove what was already sent, open **Deployments**, the deployment, then
+**Telemetry for this deployment**, and **Erase what was sent** under the ingest
+tokens. Owners and administrators see it; members and billing members do not.
+A retired deployment keeps the screen, so what it sent can still be erased.
 
-1. Press **Erase readings** and choose under **What to erase** every deployment
-   or one deployment, including one already retired.
+1. Press **Erase readings**. The confirmation names the deployment whose
+   readings are about to go; erasing the whole estate is one deployment at a
+   time.
 2. Press **Erase them**. Past fifteen minutes since you signed in or last
    confirmed, it asks for your password again first.
 
