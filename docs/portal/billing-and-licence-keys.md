@@ -3,7 +3,8 @@
 > **Edition: Enterprise**
 
 Everything about the subscription after it is bought: changing it, paying for it,
-ending it, our reseller's documents, and the licence key that comes from it. Buying
+ending it, our reseller's documents, what the analytics your agents sent come to
+this month, and the licence key that comes from it. Buying
 the first subscription and issuing the first key are walked in
 [From Purchase to Reporting Agents](../getting-started/from-purchase-to-reporting-agents.md).
 **Billing** is opened by owners and billing members; **Licence keys** by owners and
@@ -155,6 +156,37 @@ issued and not yet settled, or **Void** once it was cancelled and nothing is
 owed on it. A document appears a few minutes after our
 reseller reports the payment it covers, so a payment made moments ago may not be
 listed yet.
+
+### Analytics sent this month
+
+Under the subscription, **Analytics sent this month** sets what your agents sent
+since the start of the month against what your plan includes, pooled across the
+organisation: the number of agents times the volume each one brings. It reads
+**Within the allowance**, **Past the allowance** or **Not metered**. It is the
+only thing in the product that is metered: the agent subscription itself is
+never counted in volume.
+
+The projection extrapolates the month from its pace so far, and says when it is
+too early in the month to project anything. Past the included volume, the screen
+estimates what the excess would cost. These are estimates from an incomplete
+month, not an invoice: what a period costs is settled at its close, on our
+reseller's own document. Nothing is ever refused: an estate past its allowance
+keeps sending.
+
+Every paid plan publishes its pooled volume. An organisation that has not
+bought anything yet still has what arrives counted.
+An order still waiting for its payment includes no volume either, and the screen
+says the order is waiting rather than that nothing was bought. If the readings
+cannot be reached for a moment, the meter says so and the subscription above it
+is still shown.
+
+### Erase what was sent
+
+Below the meter, an owner sees **Erase what was sent**, which removes the
+readings your agents sent us. A billing member sees the meter and never the
+erasure, because removing readings is a decision about the fleet rather than
+about the bill. The steps are in
+[Your Data](your-data.md#erase-what-your-agents-sent).
 
 ## Accounts held by a provider
 
