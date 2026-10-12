@@ -9,8 +9,9 @@ on the wire, and tells you how to switch it off.
 
 Three things, and there is no fourth:
 
-- a random installation identifier, drawn from `/dev/urandom` on first boot and
-  kept in one file;
+- an installation identifier: a keyed one-way hash of the machine's own
+  `/etc/machine-id`, or sixteen random bytes on a machine that has none, kept
+  in one file;
 - the agent version;
 - the name and load state of each eBPF program.
 
@@ -119,6 +120,7 @@ The environment wins over the file. Nothing else can turn it back on.
 telemetry:
   enabled: true
   state_path: "/var/lib/ebpfsentinel/telemetry/installation"
+  machine_id_path: "/etc/machine-id"
 ```
 
 ## Fields
@@ -127,6 +129,7 @@ telemetry:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Send the heartbeat |
 | `state_path` | `string` | `/var/lib/ebpfsentinel/telemetry/installation` | Where the installation identifier is kept. Must be absolute |
+| `machine_id_path` | `string` | `/etc/machine-id` | The machine identifier the installation identifier is derived from. Must be absolute; empty reads none and keeps a random identifier |
 
 There is no `endpoint` key, and adding one is refused at boot along with any
 other key this table does not name. Where the heartbeat goes is fixed at build
@@ -143,9 +146,35 @@ The path must be absolute. A relative one would follow the working directory,
 so a service restarted from elsewhere would mint a second identifier and be
 counted twice.
 
-Delete the file and the agent draws a new identifier on its next start, which
-is what to do before cloning a machine into an image: an identifier baked into
-a golden image reports a thousand machines as one installation.
+## One machine, one identifier
+
+The identifier is derived from the machine rather than drawn at random, so the
+same machine is counted once: a reinstall, a deleted state directory, a fresh
+container volume or a second release of the chart on the same node all report
+under the name it already had.
+
+It is an HMAC-SHA256 keyed with the content of `machine_id_path` over a fixed
+label, cut to 128 bits. The hash runs one way, so the identifier cannot be
+turned back into the machine identifier, and the label is ours, so the value
+matches no hash another program derives from the same file. The machine
+identifier itself never leaves the host.
+
+Only a real machine identifier is used: thirty-two lowercase hex characters,
+not all zeros. An empty file, `uninitialized` and anything else a half-built
+image carries are refused, and the agent falls back to sixteen random bytes
+from `/dev/urandom`, kept in `state_path` exactly as before. The same fallback
+applies when the file cannot be read, which is the case in a container that
+was not given the host's `/etc/machine-id`; the Helm chart and the compose
+file mount it read-only for that reason.
+
+A stable identifier has two consequences worth knowing. Switching the
+heartbeat off and on again reports under the same name. And a machine cloned
+from an image that carried its `/etc/machine-id` reports as one installation
+with its siblings, which is also true of every other tool reading that file:
+`systemd-machine-id-setup` on first boot is the fix, and nothing here needs
+changing. To take a machine out of the derivation entirely, set
+`machine_id_path: ""`; it then keeps a random identifier in `state_path`, and
+deleting that file draws a new one.
 
 ## Building from source
 
@@ -181,7 +210,7 @@ two are different reports with different audiences:
 
 | | This heartbeat | Portal enrolment and reporting |
 |---|---|---|
-| Who it names | nobody - a random identifier | your organisation and your deployment |
+| Who it names | nobody - an opaque identifier per machine | your organisation and your deployment |
 | What it carries | version, program names and states | version, and counters if you enable them |
 | When it runs | on by default | only where you configured `enterprise.portal` |
 | How to stop it | `telemetry.enabled: false` or the environment variable | remove the portal block |

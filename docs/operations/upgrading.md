@@ -71,7 +71,8 @@ with `helm rollback ebpfsentinel -n ebpfsentinel`. See
 A rollout replaces every pod. What the agent kept under
 `/var/lib/ebpfsentinel` is on a node directory by default and carries over;
 with `daemonset.state.ephemeral=true` the redb stores and captures start empty
-on the new pod and the telemetry installation identifier is drawn again.
+on the new pod. The telemetry installation identifier is unaffected, being
+derived from the node's `/etc/machine-id`.
 
 The Enterprise chart is published beside it and upgrades the same way:
 

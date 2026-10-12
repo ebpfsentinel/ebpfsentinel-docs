@@ -131,8 +131,11 @@ The agent image's working directory is `/var/lib/ebpfsentinel`, owned by uid
 rule change history) land in `/var/lib/ebpfsentinel/data/`, beside the GeoIP
 databases and the telemetry installation identifier. A named volume there keeps
 all of it across a container recreate: without it the stores live in the
-container's writable layer and the telemetry identifier is minted again on
-every new container.
+container's writable layer. The telemetry identifier survives either way: the
+compose file also mounts the host's `/etc/machine-id` read-only and the
+identifier is derived from it, so the host keeps one name. On a host without
+that file, drop the mount, and the identifier is random and lives in the
+volume.
 
 Two of those lines are easy to get wrong:
 

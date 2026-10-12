@@ -319,8 +319,14 @@ prepared on the node.
 
 `daemonset.state.ephemeral=true` puts the state on an `emptyDir` instead and
 drops the init container: it survives a container restart but not the pod
-being replaced, so a rollout starts from nothing and the agent draws a new
-telemetry installation identifier.
+being replaced, so a rollout starts from nothing.
+
+The telemetry installation identifier does not depend on any of that: the chart
+mounts the node's `/etc/machine-id` read-only and the identifier is derived from
+it, so a node keeps one name across rollouts, an ephemeral state and a second
+release. On a node without that file the mount would keep the pod from
+starting; set `daemonset.state.machineId=false` there and the identifier is
+random and lives with the state.
 
 ## Metrics
 
