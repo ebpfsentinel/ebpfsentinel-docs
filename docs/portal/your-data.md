@@ -68,7 +68,9 @@ as totals; how many rules each component has loaded, as a number; and how many
 alerts came from each country. The country is the two-letter code your agent
 resolved the source address to, on your machine, and it is the only thing
 derived from an address that ever leaves it: never the address, never beside
-one.
+one. A deployment that agreed to an earlier version keeps sending its counters,
+and the portal drops these four lines from what it sends until somebody turns
+telemetry off and on again to agree to the new list.
 
 Erasing does not turn telemetry off: a deployment that is sending keeps sending.
 Turning it off is done on the deployment's **Telemetry** screen with **Turn

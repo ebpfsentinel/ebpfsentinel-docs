@@ -534,7 +534,8 @@ alerts came from each country, as the two-letter code of
 checked against a closed list on the agent and again by the portal, which
 refuses the whole reading if one is off it. A figure the agent did not measure,
 such as the size of a feed that never refreshed, is left out rather than sent as
-zero.
+zero. The portal drops this part for a deployment whose accepted list of
+collected fields predates it, as it does the inventory, and keeps the counters.
 
 ### Validation Rules
 
