@@ -509,7 +509,7 @@ instead of printing a clean result. Which map is fullest never leaves the
 machine, only how full it is.
 
 Each reading also carries the agent's inventory: the name of every eBPF program
-the build carries with whether it is loaded, and the name of every module of the
+the configuration asks for with whether it loaded, and the name of every module of the
 configuration (`firewall`, `ids`, `dlp`, an enterprise section, and so on) with
 whether it is turned on. A name and a yes or no, and nothing behind it: never a
 rule, a threshold, a list or an address a module was given. Sections that carry
@@ -519,7 +519,22 @@ The portal keeps at most 64 names of each kind per reading, cuts a name at 64
 characters, and drops the inventory altogether for a deployment whose accepted
 list of collected fields predates it; the counters themselves still arrive. Our
 staff read it per customer, as how many reporting machines carry each name and
-on how many it is loaded or on, and never beside the anonymous heartbeat.
+on how many it is loaded or on, and never beside the anonymous heartbeat. A
+program the configuration does not ask for is not named, which is how the portal
+tells a program switched off from one the kernel refused.
+
+The reading also carries what the defences did over the window: for each
+threat feed, the matches, the indicators it holds and how long ago it was last
+refreshed, under the name of the public list its address matched or `custom`
+for every other one, so a feed named after a company or a host never leaves;
+attacks detected by kind, addresses blocked, automated responses and domains
+blocked on reputation; how many rules each component has loaded; and how many
+alerts came from each country, as the two-letter code of
+`ebpfsentinel_alerts_by_source_country_total` or `unknown`. Every label is
+checked against a closed list on the agent and again by the portal, which
+refuses the whole reading if one is off it. A figure the agent did not measure,
+such as the size of a feed that never refreshed, is left out rather than sent as
+zero.
 
 ### Validation Rules
 

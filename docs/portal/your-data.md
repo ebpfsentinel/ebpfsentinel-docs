@@ -57,6 +57,19 @@ The answer arrives once the readings are actually gone. What each period counted
 against your allowance is kept: it carries no name, and it is our own record of
 what was metered.
 
+What a deployment sends while telemetry is on is the public list **What
+telemetry sends**, at
+`https://portal.ebpfsentinel.io/telemetry/collected-fields`, with the version of
+the notice it belongs to. Version 6 added four lines: what each threat feed
+holds, when it was last fetched and what it matched (any list you added yourself
+counted together as `custom`, never under its own name); attacks detected by
+kind, addresses blocked, automated responses and domains blocked on reputation,
+as totals; how many rules each component has loaded, as a number; and how many
+alerts came from each country. The country is the two-letter code your agent
+resolved the source address to, on your machine, and it is the only thing
+derived from an address that ever leaves it: never the address, never beside
+one.
+
 Erasing does not turn telemetry off: a deployment that is sending keeps sending.
 Turning it off is done on the deployment's **Telemetry** screen with **Turn
 telemetry off**, which also revokes every ingest token of that deployment and
