@@ -508,6 +508,19 @@ nothing for it rather than a zero, so the portal can say a figure is unmeasured
 instead of printing a clean result. Which map is fullest never leaves the
 machine, only how full it is.
 
+Each reading also carries the agent's inventory: the name of every eBPF program
+the build carries with whether it is loaded, and the name of every module of the
+configuration (`firewall`, `ids`, `dlp`, an enterprise section, and so on) with
+whether it is turned on. A name and a yes or no, and nothing behind it: never a
+rule, a threshold, a list or an address a module was given. Sections that carry
+no switch of their own are left out, and so is the anonymous heartbeat's own
+switch, so whether an estate turned the heartbeat off is never reported here.
+The portal keeps at most 64 names of each kind per reading, cuts a name at 64
+characters, and drops the inventory altogether for a deployment whose accepted
+list of collected fields predates it; the counters themselves still arrive. Our
+staff read it per customer, as how many reporting machines carry each name and
+on how many it is loaded or on, and never beside the anonymous heartbeat.
+
 ### Validation Rules
 
 - `license_path` cannot be empty if set
