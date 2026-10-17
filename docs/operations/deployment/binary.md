@@ -105,6 +105,38 @@ What the shipped units do:
 
 Do not add `NoNewPrivileges=` to the agent unit: it blocks the user-namespace setup.
 
+### Restart, watchdog and stop budget
+
+`Restart=on-failure` covers an agent that exits. It does nothing for one that is
+still running and no longer working: a ring-buffer reader wedged in a record
+handler leaves the process alive, the API answering and no packet being
+inspected. So the agent reports its own liveness to systemd, and the unit
+carries four numbers that work together:
+
+| Directive | Value | What it bounds |
+|-----------|-------|----------------|
+| `WatchdogSec` | `90s` | How long systemd waits for a keep-alive before killing the agent. The agent pings every 45s, half the interval, so one late ping is never fatal |
+| `TimeoutStopSec` | `20s` | How long a stop may take before `SIGKILL`. Covers the 5s server drain, the 2s capture close inside it and a brokered warden call holding for up to 10s |
+| `StartLimitBurst` / `StartLimitIntervalSec` | `5` / `300` | Five starts inside five minutes. Past that the unit stays failed instead of re-entering the eBPF loader every `RestartSec=5s` forever |
+
+The keep-alive is sent only while a reader is still passing over its ring
+buffers, which it does every 10 ms whether or not traffic arrived. Sixty
+seconds without a pass is treated as a stall: the agent stops pinging, systemd
+kills and restarts it within the remaining window, and the same reading answers
+`503` on `/readyz` with a `datapath_stalled_secs` field, so a systemd host and a
+Kubernetes node notice the same fault. A datapath that never started - no token,
+every program refused - is not a stall and is never restarted for one; it is
+reported through `ebpf_loaded` and `attach_blocked` instead.
+
+`NotifyAccess=main` is what lets the ping through. Without it systemd sets no
+`NOTIFY_SOCKET`, the agent finds no watchdog to feed and starts none, and
+`WatchdogSec` would kill a healthy agent every 90s. The unit stays
+`Type=simple`: the agent does not send `READY=1`.
+
+A stall is a bug, so the restart is not the end of it. The journal carries
+`withholding the watchdog ping` with the idle time at the point the agent gave
+up, which is the line to attach to a report.
+
 Running the agent by hand needs the warden running first:
 
 ```bash

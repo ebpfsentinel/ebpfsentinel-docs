@@ -149,6 +149,22 @@ The enterprise agent builds its datapath once at boot: it has no config file
 watcher, no SIGHUP handling and no reload route, so the unit carries no
 `ExecReload` and a config edit takes `systemctl restart ebpfsentinel-enterprise`.
 
+### Restart, watchdog and stop budget
+
+Both units carry the same four numbers as the community ones, for the same
+reasons, which the
+[binary deployment guide](binary.md#restart-watchdog-and-stop-budget) states in
+full: `WatchdogSec=90s` fed by a ping every 45s, `TimeoutStopSec=20s`,
+`StartLimitBurst=5` over `StartLimitIntervalSec=300`, and `NotifyAccess=main`
+without which systemd would refuse the ping and kill a healthy agent every 90s.
+
+One difference belongs to this edition. The ping is withheld when the datapath
+has gone 60s without a ring-buffer pass, and an HA standby drains nothing by
+design: it has never passed, which is read as having nothing to stall rather
+than as a stall, so a follower is never restarted for being a follower. The
+same holds on `/readyz`, where `datapath_stalled_secs` is reported on an active
+node and left out on a standby.
+
 ## Docker Compose
 
 `docker-compose.yml` defines the two services sharing a socket volume:
@@ -227,6 +243,8 @@ Key values:
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
+| `daemonset.preStopSleepSeconds` | `5` | Seconds the agent is held before `SIGTERM`, so the endpoint leaves every node's rules first; `0` removes the hook |
+| `daemonset.terminationGracePeriodSeconds` | `30` | Covers that hook and the agent's 20s stop budget together |
 | `portal.enabled` | `false` | Enrol with the vendor portal and report in |
 | `portal.baseUrl` | `""` | Where the portal answers (required when enabled) |
 | `portal.agentName` | `""` | Name each agent reports under; empty means the node's host name |
@@ -274,6 +292,12 @@ terminates no TLS of its own, so put a proxy in front of it if it leaves the
 node. The HA port carries no authentication and no TLS either, so it must reach
 the HA peers and nothing else - see
 the [gRPC API reference](../../api-reference/grpc-api.md).
+
+Stopping a pod works as it does in the community chart:
+`daemonset.preStopSleepSeconds` (5 by default) holds the agent before the signal
+so every node drops this endpoint first, the agent's own stop budget is 20s, and
+`daemonset.terminationGracePeriodSeconds` (30) has to cover both. The sleep
+action needs Kubernetes 1.30, which is the chart's floor.
 
 > On Ubuntu 24.04+ nodes, set `kernel.apparmor_restrict_unprivileged_userns=0`
 > per node (a privileged init DaemonSet, a node-bootstrap MachineConfig, or

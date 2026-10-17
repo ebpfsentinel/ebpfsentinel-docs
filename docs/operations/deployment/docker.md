@@ -288,4 +288,21 @@ healthcheck:
 
 A container reporting healthy has answered on its API, which is not the same as
 having attached: check `ebpfsentinel_bpf_token_used` as well if the agent came
-up before the warden.
+up before the warden. It is also not the same as having a working datapath: a
+wedged ring-buffer reader leaves the API answering, and what reports that is
+`datapath_stalled_secs` on `/readyz`.
+
+## Stopping a container
+
+Both services carry `stop_grace_period: 30s`, over Compose's 10s default,
+because the agent's own stop can take up to 20s: the servers drain in 5s, a
+running capture closes its file inside that, and a stop waiting on the warden
+can hold a brokered call for 10s. At the default, docker would `SIGKILL` a stop
+that was proceeding correctly, which is how a capture file ends up truncated and
+a redb store ends up needing recovery on the next start. The warden carries the
+same number because the agent is stopped first and can be mid-call there.
+
+Unlike the systemd units, there is no watchdog here: docker restarts a container
+that exits, and nothing asks a running one whether it is still working. On
+Docker the stall shows up on `/readyz` only, so point whatever watches the
+deployment at that rather than at the process being up.

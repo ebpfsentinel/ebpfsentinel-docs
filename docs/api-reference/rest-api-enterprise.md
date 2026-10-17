@@ -215,7 +215,11 @@ ready would pull its peer gRPC out of the service its peers find it through.
 An `absent` datapath is a fault and answers `503`. On an active node, a refused
 attach or a missing kernel helper also answers `503` and repeats the list in
 `attach_blocked` and `kernel_helpers_missing`; both fields are left out when
-empty.
+empty. So does a stalled datapath, reported as `datapath_stalled_secs`: the
+programs are loaded and the task draining their ring buffers has stopped
+passing over them, which it otherwise does every 10 ms whether or not traffic
+arrived. A standby is never judged on that reading - it drains nothing by
+design, so the field is left out there whatever the process last recorded.
 
 ## Advanced RBAC
 

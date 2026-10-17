@@ -89,6 +89,12 @@ and each one is a different problem:
 - `kernel_helpers_missing` - the kernel does not offer something a program
   needs, so the agent refused to load it. See
   `/api/v1/ebpf/kernel-features`.
+- `datapath_stalled_secs` - the programs are loaded and attached, and the task
+  that drains their ring buffers has stopped: this many seconds since its last
+  pass, where a pass happens every 10 ms whether or not traffic arrived. It is a
+  wedged agent rather than a quiet network, so a restart is the fix, and on a
+  systemd host the same reading withholds the watchdog keep-alive and the
+  restart happens by itself.
 
 Neither list present, and `ebpf_loaded: false`, means the agent simply has not
 finished loading yet.

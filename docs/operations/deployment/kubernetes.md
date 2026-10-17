@@ -112,6 +112,32 @@ minikube, whose node `/sys/fs/bpf` is read-only or absent. On a real node leave
 it `false`.
 
 Probes: liveness on `/healthz`, readiness on `/readyz`, both on the `http` port.
+`/readyz` fails while the eBPF programs are not loaded, while a kernel helper
+one of them needs is missing, while an attach is blocked by a program already on
+the interface, and while the datapath has gone 60s without a ring-buffer pass -
+a wedged reader task, reported as `datapath_stalled_secs`. A reader passes every
+10 ms whether or not traffic arrived, so that field is a stuck agent rather than
+a quiet network, and the same reading is what withholds the systemd watchdog's
+keep-alive on a binary install.
+
+### Stopping a pod
+
+Kubernetes sends `SIGTERM` and removes the endpoint at the same moment, so
+without a hook the agent would drain while kube-proxy still routes to it. Three
+numbers cover the stop:
+
+| Number | Default | What it bounds |
+|--------|---------|----------------|
+| `daemonset.preStopSleepSeconds` | `5` | How long the container is held before it is signalled, so every node has dropped this endpoint first. `0` removes the hook |
+| the agent's own stop budget | `20s` | The 5s server drain, the 2s capture close inside it, and a brokered warden call holding for up to 10s. Not a value: it is the same budget as `TimeoutStopSec` in the systemd unit |
+| `daemonset.terminationGracePeriodSeconds` | `30` | The whole of it. The hook and the stop are counted against this one number, so it has to exceed their sum (5 + 20) or a correct stop ends in `SIGKILL` |
+
+Raising `preStopSleepSeconds` without raising the grace period is what turns an
+ordered stop into a killed one. The warden sidecar is a native sidecar, so
+Kubernetes stops it after the agent and a brokered call in flight is not cut
+from underneath.
+
+The preStop sleep action needs Kubernetes 1.30, which is the chart's floor.
 
 ### Node prerequisite on Ubuntu 24.04 and later
 
@@ -181,7 +207,8 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | `daemonset.nodeSelector`, `affinity`, `priorityClassName` | empty | Scheduling |
 | `daemonset.podLabels`, `podAnnotations` | `{}` | |
 | `daemonset.extraEnv`, `extraVolumes`, `extraVolumeMounts`, `extraContainers`, `initContainers` | `[]` | Extension points |
-| `daemonset.minReadySeconds`, `revisionHistoryLimit`, `terminationGracePeriodSeconds` | `0`, `10`, `30` | |
+| `daemonset.minReadySeconds`, `revisionHistoryLimit`, `terminationGracePeriodSeconds` | `0`, `10`, `30` | The grace period covers the preStop hook and the agent's 20s stop budget together |
+| `daemonset.preStopSleepSeconds` | `5` | Seconds the agent is held before `SIGTERM`, so the endpoint is out of every node's rules first; `0` removes the hook |
 
 ### Domains
 
