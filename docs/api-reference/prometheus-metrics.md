@@ -89,7 +89,7 @@ visible.
 | `IDS_METRICS` | `tc-ids` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed` |
 | `THREATINTEL_METRICS` | `tc-threatintel` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen` |
 | `DNS_METRICS` | `tc-dns` | `inspected`, `emitted`, `errors`, `events_dropped`, `total_seen` |
-| `DLP_METRICS` | `uprobe-dlp` | `write_events`, `read_events`, `errors`, `events_dropped`, `total_seen` |
+| `DLP_METRICS` | `uprobe-dlp` | `write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, `out_of_scope`, `ktls_events`, `ktls_suppressed`, `ktls_unreadable` |
 | `CT_METRICS` | `tc-conntrack` | `new`, `established`, `closed`, `invalid`, `evicted`, `errors`, `lookups`, `hits`, `total_seen`, `kfunc_lookups`, `kfunc_hits`, `kfunc_misses`, `kfunc_state_new`, `kfunc_state_established`, `kfunc_state_related`, `kfunc_state_invalid`, `kfunc_marked`, `kfunc_read_errors` |
 | `NAT_METRICS` | `tc-nat-ingress`, `tc-nat-egress` | `snat_applied`, `dnat_applied`, `masq_applied`, `port_alloc_fail`, `errors`, `total_seen`, `nptv6_translated`, `hairpin_applied`, `reverse_applied`, `reverse_untracked`, `xfrm_steered`, `fou_encap` |
 | `SCRUB_METRICS` | `tc-scrub` | `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped` |
@@ -324,7 +324,7 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_open_fds` | Gauge | - | Open file descriptors held by the process |
 | `ebpfsentinel_thread_count` | Gauge | - | Threads in the process |
 | `ebpfsentinel_pcap_sockets_in_use` | Gauge | - | Packet-capture sockets borrowed from the pre-opened pool. Exported only where a pool exists: a deployment that opens its own capture socket has no series |
-| `ebpfsentinel_pcap_sockets_total` | Gauge | - | Sockets the pre-opened pool holds. A capture refused while this equals the gauge above is a full pool rather than a broken agent |
+| `ebpfsentinel_pcap_sockets_pooled` | Gauge | - | Sockets the pre-opened pool holds. A capture refused while this equals the gauge above is a full pool rather than a broken agent |
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=the load was refused). Only the programs this configuration asks for have a series: a feature turned off publishes none rather than a zero, so the gauge is alertable without knowing the configuration that produced it, and a feature turned off by a reload loses its series rather than freezing at its last value. `/api/v1/ebpf/status` is the other half of the answer and does list a disabled program as `false`. `program` is the artefact name, `xdp-firewall` and not `xdp_firewall`, the same word that endpoint and the fleet API use |
 | `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
 | `ebpfsentinel_ebpf_verifier_rejections` | Gauge | - | Program loads the kernel verifier refused. Exports nothing until something has been loaded, so an absent series is a datapath that never tried rather than one the verifier accepted |

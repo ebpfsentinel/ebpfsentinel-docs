@@ -296,13 +296,45 @@ orchestrator:
   are skipped for that path. The flavour of the executable does not decide
   whether its libraries are scanned: a JVM reaching NSS through JNI, or a
   Go binary linked against GnuTLS, is reported as both;
-- aggregates pids per `(library, binary_path)` so probe attachment can
-  run once per unique binary;
+- aggregates pids per `(library, device, inode, binary_path)` so probe
+  attachment runs once per unique image, and two containers running
+  different images under one path - `/usr/bin/envoy` in both - are two
+  plans rather than one plan listed twice;
 - emits a kTLS plan whenever `/proc/net/tls_stat` reports active
   software counters and the `ktls` flag is on;
 - collects per-process errors as structured warnings (invalid ELF,
   truncated `/proc` file, `object` parse failure…) without aborting
   the scan.
+
+### Reading an image a container owns
+
+A uprobe is a `(file inode, file offset)` pair, so a path on its own does not
+identify a file: `/usr/bin/envoy` means a different file in each container that
+carries one, and the node agent lives in none of them. Every read is therefore
+taken through the process that owns the path:
+
+| What is read | Where it is read from |
+|---|---|
+| The executable | `/proc/{pid}/exe`, the magic link, never the path it points at |
+| A mapped shared library | `/proc/{pid}/root/{path}`, the process's own mount namespace |
+| A library whose file was replaced or unlinked | `/proc/{pid}/map_files/{range}`, which still opens the mapped inode |
+
+Under the brokered posture the warden spells the same paths from its own
+`/proc`, so the two acquisition paths see the same bytes. Each plan carries the
+`(device, inode)` the read resolved, and the attach step resolves the plan's
+path back through one of the pids that mapped it and refuses the attach if the
+inode it opens is not the inode the offsets were measured against. An image
+deleted after the scan, or replaced between scan and attach, fails the attach
+rather than arming a probe at an offset that now means something else.
+
+An image is read once per inode per scan cycle, not once per process, which is
+what pays for the size limit: an image is read up to **512 MiB**, enough for
+envoy, istio-proxy, cilium-agent, kubelet and k3s, which the earlier 64 MiB
+limit dropped. A skip is never silent. A process whose image the cycle already
+read joins the plan that read it; past the limit or unreadable, the scan emits a
+warning counted under `binary_too_large` or `binary_unreadable` on
+`ebpfsentinel_ent_tls_probes_scan_warnings_total`, and
+`/api/v1/enterprise/tls-probes/warnings` names the path and the size.
 
 ### Go specifics
 
@@ -429,7 +461,7 @@ within one interval rather than at the next agent restart.
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
-| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
@@ -439,8 +471,10 @@ with the build id is simply a different binary at the same path. A stripped
 binary reports `null` rather than failing the plan, and the kTLS entry reports
 `null` because a kernel hook has no image of its own. The identity is stamped
 once, from the first process seen mapping that path; a later process at the same
-path adds its pid but never restamps, because it may be running a replacement
-file whose offsets were never measured.
+path adds its pid but never restamps - it is the same inode, since a
+replacement file is a plan of its own. `binary_dev` and `binary_ino` are that
+inode as the scanned process's own namespace resolves it, and are `null` only
+when the scan could not stat the file.
 
 All three endpoints are read-only and gated behind the `tls-intelligence`
 license feature, which Enterprise and above carry. Configuration is managed via the enterprise YAML

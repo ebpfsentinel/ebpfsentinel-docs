@@ -281,7 +281,7 @@ Enterprise DLP capabilities are activated by the separate enterprise repository,
 - `ebpfsentinel_dlp_matches_total{rule_id}` - pattern matches, by pattern
 - `ebpfsentinel_dlp_scan_duration_seconds` - pattern matching latency
 - `ebpfsentinel_packet_processing_duration_seconds{program="dlp"}` - time spent dispatching one DLP event
-- `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, plus `ktls_events`, `ktls_suppressed` and `ktls_unreadable` from the kernel TLS probes, which Enterprise attaches)
+- `ebpfsentinel_packets_total{interface="DLP_METRICS", action}` - kernel-side counters (`write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, `out_of_scope` for events `dlp.scope` discarded, plus `ktls_events`, `ktls_suppressed` and `ktls_unreadable` from the kernel TLS probes, which Enterprise attaches)
 
 The kernel-side counters belong to the open-source registry, which the
 enterprise binary serves on its own single listener (`8444`) beside the

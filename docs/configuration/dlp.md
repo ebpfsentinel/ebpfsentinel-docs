@@ -33,6 +33,9 @@ Java JSSE and NSS are detected there without being probed, and rustls is not
 covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
 for the `hostPID` trust trade-off.
 
+Coverage that wide is a choice: on a shared node, set [`dlp.scope`](#scope) to
+`workloads` and name the cgroups whose plaintext this agent may read.
+
 ## Reference
 
 ```yaml
@@ -48,6 +51,9 @@ dlp:
       mode: block            # per-pattern override (Professional and above)
       description: "Description"
       enabled: true
+  scope:
+    mode: all                # all or workloads
+    cgroups: []              # cgroup v2 paths, required by `workloads`
 ```
 
 ## Fields
@@ -57,6 +63,31 @@ dlp:
 | `enabled` | `bool` | `true` | Enable or disable the DLP module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (Professional and above) |
 | `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs Professional or above |
+| `scope` | `Scope` | `mode: all` | Which cgroups the probes may read plaintext from, enforced in the kernel |
+
+### Scope
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `mode` | `string` | No | `all` | `all` reads every task on the node; `workloads` reads only the tasks under `cgroups` |
+| `cgroups` | `[string]` | With `workloads` | `[]` | cgroup v2 paths, relative to `container.resolver.cgroup_root`. A path covers everything below it |
+
+A uprobe belongs to a file, not to a container, so one `libssl` layer shared by
+every container on the node arms one probe that fires for all of them. On a
+single-tenant host that is the point. On a shared node it means the agent reads
+a neighbour's plaintext, so `workloads` names the cgroups whose tasks are in
+scope and the probe discards every event from anything else, before the
+plaintext is copied out of the kernel. Naming a pod slice covers the containers
+under it, up to eight levels of ancestry, so container ids that change on
+restart never appear in the configuration.
+
+The agent refuses to start on `mode: workloads` with an empty `cgroups` list -
+that pair would arm the probes and drop every event, which reads on a dashboard
+as DLP being on while nothing is inspected - and equally on `mode: all` with
+cgroups listed, which would silently ignore them. Events the scope discards are
+counted as `out_of_scope` on the `DLP_METRICS` counter, so a scope that is too
+narrow is visible rather than quiet. At most 4096 cgroups may be named on one
+node.
 
 ### Pattern
 
