@@ -84,6 +84,37 @@ A per-rule `mode` decides what the match escalates to: a rule in `alert` mode ra
 
 Country subnet blocks expire on the same duration.
 
+### What survives a restart
+
+A blacklisted address is written down when it is blocked, in
+`mitigations.redb` beside the audit store (the directory is the one
+`audit.storage_path` names), and read back when the agent starts. A block comes
+back **for what is left of it**, not for a fresh `max_blacklist_duration_secs`:
+the record carries the wall-clock time the block was taken, so the time the
+agent was down counts against the duration. A block whose duration elapsed
+while the agent was down is dropped on the way in and never reaches the kernel,
+and a restart loop can therefore not turn a two-hour block into a permanent
+one.
+
+Each restored block is written to the audit log with the actor `restore`, so a
+reader can tell a block put back at startup from one taken now.
+
+What does not come back:
+
+- **Detection counts.** A restored address starts its counter over, so it needs
+  `auto_blacklist_threshold` detections again before the duration is extended.
+- **Country subnet blocks.** Only host blocks (/32 and /128) are written down. A
+  country threshold that had fired re-fires on the next detection from that
+  country.
+- **Rate-limit token buckets.** See
+  [What survives a restart](response.md#what-survives-a-restart) in the
+  response section: a throttle's rate is reinstalled, the credit a source had
+  already spent against its bucket is not.
+
+If the store cannot be opened or written, the agent logs it once and keeps
+going with an in-memory blacklist: losing the store costs the agent its memory
+of a block, never the block itself.
+
 ### Whitelist aliases
 
 `whitelist_aliases` names top-level `aliases` entries. An alias value of /32 (or /128) matches that address alone, exactly like a literal `whitelist` entry written without a prefix. An alias that cannot be resolved is logged and skipped rather than failing the startup, so check the logs after renaming an alias.
