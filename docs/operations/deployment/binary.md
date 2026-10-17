@@ -156,6 +156,8 @@ eBPF loads only through a BPF token; there is no capability-based loading path. 
 3. the warden sets the `delegate_*` mount options and hands it back;
 4. the agent mounts it, re-executes itself inside the namespace and creates the token.
 
+The agent keeps one connection to the warden per thing it brokers and reuses it for the life of the process; the warden answers each connection on a thread of its own. A connection that says nothing for ten minutes is closed by the warden and the agent reconnects on its next call, which costs a handshake and nothing else - except for the connection the capture sockets were served over, which is kept however long it idles, because the warden holds those sockets against it and freeing them while the agent still reads from them would hand the same socket to the next caller. A peer that connects and does not introduce itself within ten seconds is dropped.
+
 The unit runs the agent as root only so that user-namespace root maps to real root and the bpffs mountpoint can be created under `/sys/fs/bpf`. Once in its namespace the agent holds no capability over the host: no `CAP_BPF`, no `CAP_SYS_ADMIN`, no `CAP_NET_ADMIN`. The operations that need init-namespace capabilities (conntrack entry deletion, Multi-WAN route changes, gratuitous ARP, opening `AF_PACKET` capture sockets) are brokered by the warden rather than lost. See the [BPF token guide](bpf-token.md) for the full sequence and its troubleshooting.
 
 ## Directories
@@ -165,6 +167,7 @@ The unit runs the agent as root only so that user-namespace root maps to real ro
 | `/etc/ebpfsentinel/config.yaml` | Configuration (mode `0640`) |
 | `/usr/local/lib/ebpfsentinel/` | eBPF object files |
 | `/var/lib/ebpfsentinel/data/` | redb stores under the default config: `audit.redb`, `alerts.redb`, `rule_changes.redb` (`audit.storage_path` is relative and resolves against the unit's working directory) |
+| `/var/lib/ebpfsentinel/data/agent.lock` | The exclusive lock one agent per node holds, beside the stores it protects; released by the kernel when the process ends |
 | `/var/lib/ebpfsentinel/captures/` | Packet capture files (`{id}.pcap`) |
 | `/var/lib/ebpfsentinel/geoip/` | GeoIP databases (default `geoip.db_dir`) |
 | `/var/lib/ebpfsentinel/telemetry/installation` | Anonymous telemetry installation identifier |

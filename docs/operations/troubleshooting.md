@@ -80,6 +80,18 @@ separate cause.
 An empty `attach_blocked` with `"ebpf_loaded": false` is a different problem -
 the agent has not finished loading, or loading failed outright. Check the log.
 
+### "another agent already holds /var/lib/ebpfsentinel/data/agent.lock"
+
+```
+refusing to start: another agent already holds /var/lib/ebpfsentinel/data/agent.lock (pid 2184); stop the running agent or point this one at its own state directory
+```
+
+One node runs one agent. Startup wipes the pinned maps it finds, because the kernel offers no way to ask whether a pin is still in use, and opens the redb stores for writing: a second process would unpin the maps the first one is still serving from, and neither would report anything wrong. So the agent takes an exclusive lock on a file beside its stores and refuses to start if it is held.
+
+The pid in the message is the holder as it recorded itself. Check it, then either stop that agent (`systemctl stop ebpfsentinel`) or, if you meant to run two agents on one host, give the second one its own `audit.storage_path` - and note that the two will still collide over `/sys/fs/bpf/ebpfsentinel`, which is not something the lock can see.
+
+The lock is held by the open file, not by its contents, so the kernel releases it when the process ends however it ends. A crashed agent leaves nothing to clean up and the lock file is never deleted by hand.
+
 ### BPF filesystem not mounted
 
 ```

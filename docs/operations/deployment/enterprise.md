@@ -59,6 +59,15 @@ The unverified case is the normal one on a rootless deployment: the probe issues
 real `BPF_PROG_LOAD` calls, which need `CAP_BPF`, and the BPF-token path
 deliberately holds no capabilities. It means "not measured", never "missing".
 
+It also refuses to be the second agent on the node. It builds the same datapath
+the community agent does, through the same loader, so it wipes the same pinned
+maps and opens the same stores: it takes the exclusive lock beside those stores
+and exits naming the holder's pid if it is already held. The community agent
+takes the same lock in the same place, so running both on one host is refused
+too, which is the point - they would be wiping each other's pins. The
+[troubleshooting entry](../troubleshooting.md) covers the message and what to do
+with it.
+
 The detail is served on the enterprise API, reading the cached result without
 issuing further kernel calls:
 
