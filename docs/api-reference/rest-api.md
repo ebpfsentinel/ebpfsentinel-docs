@@ -1490,6 +1490,10 @@ List all packet capture sessions.
 curl http://localhost:8080/api/v1/captures
 ```
 
+Sessions this process started, plus the capture files an earlier run left in
+`/var/lib/ebpfsentinel/captures/`, which are listed as `interrupted` with the
+size of their file and an empty filter.
+
 #### POST /api/v1/captures/manual
 
 Start a time-bounded packet capture. Requires `admin` role.
@@ -1521,6 +1525,13 @@ Stop a running capture. Requires `admin` role.
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/captures/cap-001
 ```
+
+The session answers `stopped` at once, and the reader observes the stop within
+50 milliseconds: the capture file is closed, the packet count and file size are
+recorded against the session, and the capture slot is free for the next start
+rather than held until `duration_secs` would have elapsed. A stop also arrives
+when the agent itself is asked to stop, and a session ended that way reads
+`interrupted` instead of `stopped`.
 
 ### TLS
 

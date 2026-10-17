@@ -7,6 +7,37 @@ upgrade detaches the programs when the old agent exits and attaches them again
 when the new one has started. For that window the node is not filtered, and its
 length is the time the new agent takes to start, not a fixed figure.
 
+## What a stop does
+
+`systemctl stop`, `docker stop` and a pod deletion all send SIGTERM, and both
+agents treat it as a stop rather than as a kill: the HTTP listener stops
+accepting and lets the requests in flight finish, the background loops are told
+to stop and write out what they are still holding, and the eBPF programs are
+then detached. On the Enterprise agent what gets written at that moment is the
+SIEM batch that has not left yet and the current analytics window; on both, the
+audit and alert stores are written as they go and owe nothing to a stop.
+
+On the community agent a packet capture in progress is ended first, before the
+programs are detached, so a capture never records a window the datapath was no
+longer watching: the session is marked `interrupted`, the file is closed and
+what it holds is a short capture rather than a half-written one. That wait is
+two seconds, and a capture is not a reason to hold a stop open longer than
+that.
+
+Both halves are bounded, five seconds each, so a stop takes at most ten seconds
+and does not grow with the number of features a licence carries. The unit file
+allows twenty (`TimeoutStopSec`) and the chart thirty
+(`terminationGracePeriodSeconds`), both above that bound on purpose: a stop that
+runs past the shorter of the two is finished with SIGKILL, and what the loops
+had not written by then is lost. Lower either value below ten seconds and that
+is what you are choosing.
+
+A kill loses that work and nothing else. The eBPF programs are attached through
+links the process owns, so the kernel detaches them when the process goes, and
+the pin directory is rewritten at the next start: an agent killed with SIGKILL
+leaves no attachment and no stale pin behind, which is why a crash recovers by
+restarting and needs no cleanup step.
+
 ## Binary
 
 From a release tarball, `install.sh` replaces the binaries and the eBPF objects

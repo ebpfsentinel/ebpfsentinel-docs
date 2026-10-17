@@ -17,9 +17,11 @@ stateDiagram-v2
     [*] --> Running : Start capture
     Running --> Stopped : Operator stops early
     Running --> Completed : Duration elapsed
+    Running --> Interrupted : Agent asked to stop
     Running --> Failed : libpcap error
     Stopped --> [*]
     Completed --> [*]
+    Interrupted --> [*]
     Failed --> [*]
 ```
 
@@ -28,7 +30,17 @@ stateDiagram-v2
 | **Running** | Capture is actively recording packets via libpcap |
 | **Completed** | Duration elapsed normally; final packet count and file size recorded |
 | **Stopped** | Operator stopped the capture early via API or CLI |
+| **Interrupted** | The agent was asked to stop while the capture was running |
 | **Failed** | libpcap error (device not found, BPF compilation failure, etc.) |
+
+A stop is observed by the reader within 50 milliseconds, whichever side asked
+for it: the file is closed, the packet count and file size are written against
+the session, and the capture slot is free again. That is why a capture started
+with a 300 second duration and stopped after two seconds costs nothing for the
+remaining 298, and why a `systemctl stop` during a capture does not wait the
+duration out. A capture ended by an agent stop is a short capture rather than a
+broken file, and it reads `interrupted` so that it is not mistaken for one an
+operator ended on purpose or for one that reached its own duration.
 
 Only one session can be in the `Running` state at any time. Starting a second capture while one is active returns HTTP 409 Conflict.
 
@@ -62,6 +74,23 @@ Capture files are written to `/var/lib/ebpfsentinel/captures/` as standard PCAP 
 The file name is the session identifier, which is what the API returns and
 what `DELETE /api/v1/captures/{id}` takes.
 
+### Retention
+
+Capture files are swept at startup and after every capture: what is past
+`capture.retention_days` goes, and if the directory still holds more than
+`capture.max_total_size_mb` the oldest files go until it fits. The file of a
+capture that is still writing is never deleted. The defaults keep seven days
+and one gigabyte, and both can be set to `0` to keep everything, which is what
+the agent did before the sweep existed. See
+[Capture configuration](../configuration/capture.md) for what that costs at the
+maximum duration.
+
+A restart finds the files of the run before it, since session state is in
+memory and the files are on disk. Each one is listed as an `interrupted`
+session carrying the size of its file, so a short capture in the directory has
+a status rather than no record at all; the filter and duration went with the
+process and read as empty and `0`.
+
 ### Session Fields
 
 Both `POST /api/v1/captures/manual` and `GET /api/v1/captures` answer with the
@@ -76,7 +105,7 @@ same record. Note that the duration is `duration_seconds` on the way in and
 | `snap_length` | `integer` | Max bytes per packet |
 | `output_path` | `string` | Absolute path of the PCAP file |
 | `interface` | `string` | Interface captured on, or `any` |
-| `status` | `string` | `running`, `completed`, `stopped` or `failed` |
+| `status` | `string` | `running`, `completed`, `stopped`, `interrupted` or `failed` |
 | `file_size_bytes` | `integer` | `0` until the session ends |
 | `packets_captured` | `integer` | `0` until the session ends |
 

@@ -323,6 +323,8 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_cpu_usage_percent` | Gauge | - | Process CPU usage |
 | `ebpfsentinel_open_fds` | Gauge | - | Open file descriptors held by the process |
 | `ebpfsentinel_thread_count` | Gauge | - | Threads in the process |
+| `ebpfsentinel_pcap_sockets_in_use` | Gauge | - | Packet-capture sockets borrowed from the pre-opened pool. Exported only where a pool exists: a deployment that opens its own capture socket has no series |
+| `ebpfsentinel_pcap_sockets_total` | Gauge | - | Sockets the pre-opened pool holds. A capture refused while this equals the gauge above is a full pool rather than a broken agent |
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=the load was refused). Only the programs this configuration asks for have a series: a feature turned off publishes none rather than a zero, so the gauge is alertable without knowing the configuration that produced it, and a feature turned off by a reload loses its series rather than freezing at its last value. `/api/v1/ebpf/status` is the other half of the answer and does list a disabled program as `false`. `program` is the artefact name, `xdp-firewall` and not `xdp_firewall`, the same word that endpoint and the fleet API use |
 | `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
 | `ebpfsentinel_ebpf_verifier_rejections` | Gauge | - | Program loads the kernel verifier refused. Exports nothing until something has been loaded, so an absent series is a datapath that never tried rather than one the verifier accepted |

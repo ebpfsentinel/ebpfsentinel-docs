@@ -686,6 +686,10 @@ ebpfsentinel-agent capture start --filter "tcp port 80" --duration 5m --snap-len
 ebpfsentinel-agent capture stop cap-001
 ```
 
+A stop ends the capture inside 50 milliseconds rather than at the duration it
+was started with, closes the file and frees the single capture slot, so the
+next capture can start straight away.
+
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--filter <EXPR>` | BPF filter expression | Required |
