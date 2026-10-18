@@ -208,6 +208,7 @@ const sidebars: SidebarsConfig = {
         'operations/performance-tuning',
         'operations/upgrading',
         'operations/compatibility',
+        'operations/policy-replay',
         'operations/dashboard-accessibility',
       ],
     },

@@ -86,7 +86,7 @@ Three routes, all available now:
    too.
 3. **STIX** - the threat intelligence feed ingests STIX 2.1 indicator objects,
    including JA4 patterns. See
-   [Threat Intelligence](../threat-intelligence.md).
+   [Threat Intelligence](../threatintel.md).
 
 A signed content channel that ships curated fingerprints on our schedule does
 not exist today. When it does, it will be announced as a capability rather
