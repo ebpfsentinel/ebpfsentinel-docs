@@ -23,7 +23,7 @@ competent authority and testing programme belong to the entity.
 | Art. 9 | Protection and prevention | Datapath loaded, firewall in block mode, IPS in block mode, rate limiting, L7 rules | - |
 | Art. 10 | Detection | Datapath loaded, IDS signatures, ML anomaly detection, alert pipeline | - |
 | Art. 11 | Response and recovery | Automated response policies, HA peers | Business continuity policy and its testing |
-| Art. 13 | Learning and evolving | Forensic capture, scheduled compliance reports | Post-incident reviews |
+| Art. 13 | Learning and evolving | Flow context freezing, scheduled compliance reports | Post-incident reviews |
 
 ### Chapter III - ICT-Related Incident Management
 

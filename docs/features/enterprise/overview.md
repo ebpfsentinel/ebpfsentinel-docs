@@ -29,7 +29,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy |
 <!-- feature-count: ja4-builtin-threats -->
 | [TLS Intelligence](tls-intelligence.md) | JA4+ matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity |
-| [Network Forensics](network-forensics.md) | Ring buffer capture engine, event-triggered captures, flow timeline reconstruction |
+| [Network Forensics](network-forensics.md) | Event ring buffer, event-triggered context freezes, flow timeline reconstruction |
 | [Automated Response](automated-response.md) | Policy engine, SOAR webhook integration, cooldown tracking, audit trail |
 | [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically-linked BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS; `/proc` scanner, background scan loop, 6 Prometheus metrics, and `/api/v1/enterprise/tls-probes/*` admin API. Go `crypto/tls`, GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked BoringSSL are probed at the resolved offsets, kTLS through kprobes on the kernel's own software send and receive path; Java JSSE and NSS are discovery only |
 | [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols---enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection and field extraction via the `L7ExtendedParser` port |

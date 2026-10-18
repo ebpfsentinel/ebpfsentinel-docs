@@ -480,7 +480,7 @@ The migration creates four tables (prefixed with `table_prefix`):
 
 - `_meta` - migration version bookkeeping (ReplacingMergeTree)
 - `alerts` - per-event alert records partitioned by `(tenant_id, toYYYYMM(occurred_at))`
-- `forensic_events` - raw forensic captures, same partitioning
+- `forensic_events` - raw forensic events, same partitioning
 - `flow_aggregates_1h` - hourly flow buckets partitioned by `(tenant_id, toYYYYMM(bucket_start))`
 
 DDL source files live in `crates/dashboard-server/migrations/`.

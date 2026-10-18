@@ -255,15 +255,23 @@ auto_capture:
 | `snap_length` | `integer` | No | `1500` | Max bytes per packet |
 | `interface` | `string` | No | First agent interface | Network interface |
 
-### Limits (OSS vs Enterprise)
+### Limits, and what Enterprise does and does not add
 
-| | OSS | Enterprise |
+Packet capture is an OSS feature and stays one. The enterprise layer adds no
+second capture engine: what it adds is an event ring buffer, automatic
+context freezes over a flow and flow timeline reconstruction, none of which
+writes a packet.
+
+| | OSS auto-capture | Enterprise forensics |
 |---|---|---|
-| Concurrent captures | 1 | Multiple + ring buffer |
-| Max duration | 60s | Unlimited |
-| BPF filter | Auto-generated from alert | Customizable per policy |
-| Trigger | Severity + components | + MITRE tactic, custom conditions |
-| Output | `.pcap` file | + flow timeline, forensics API |
+| Concurrent sessions | 1 | Not a capture surface |
+| Max duration | 60s | Not a capture surface |
+| BPF filter | Auto-generated from alert | Not a capture surface |
+| Trigger | Severity + components | Severity + components, policy-driven |
+| Output | `.pcap` file | Frozen events and a flow timeline, no file |
+
+The two run side by side on the same agent: the OSS capture writes the
+packets, the enterprise freeze keeps the alert context around them.
 
 See [Enterprise Network Forensics](enterprise/network-forensics.md) for the full forensics engine.
 

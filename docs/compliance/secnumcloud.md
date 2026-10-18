@@ -27,7 +27,7 @@ claim the qualification.
 | Ch.12.1 | TLS | TLS floor at TLS 1.2 or above | Yes: the agent watches TLS on the wire and does not terminate it |
 | Ch.12.2 | Post-quantum readiness tracking | PQC tracking enabled | No |
 | Ch.14.1 | Incident detection | Alert pipeline, automated response policies | No |
-| Ch.14.2 | Forensics | Forensic capture running | No |
+| Ch.14.2 | Forensics | Flow context freezing running | No |
 
 ## Configuration
 

@@ -562,13 +562,13 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/forensics/captures` | viewer | `config:read` | network-forensics | List all forensic captures. |
-| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | viewer | `config:read` | network-forensics | Get single capture metadata. |
-| `DELETE` | `/api/v1/enterprise/forensics/captures/{id}` | operator | `config:write` | network-forensics | Delete a capture. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes` | viewer | `config:read` | network-forensics | List all context freezes. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | viewer | `config:read` | network-forensics | Get a single context freeze: the events it froze, the window it covers and its outcome. |
+| `DELETE` | `/api/v1/enterprise/forensics/context-freezes/{id}` | operator | `config:write` | network-forensics | Delete a context freeze. |
 | `GET` | `/api/v1/enterprise/forensics/mirror` | viewer | `config:read` | network-forensics | Return the current packet mirror configuration. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/start` | operator | `config:write` | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | `config:write` | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
-| `GET` | `/api/v1/enterprise/forensics/status` | viewer | `config:read` | network-forensics | Ring buffer status, capture count, trigger policy. |
+| `GET` | `/api/v1/enterprise/forensics/status` | viewer | `config:read` | network-forensics | Ring buffer status, context freeze count, trigger policy. |
 | `GET` | `/api/v1/enterprise/forensics/timeline/flow` | viewer | `config:read` | network-forensics | Timeline for a specific flow tuple. |
 | `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | `config:read` | network-forensics | Flow timeline around an alert. |
 | `GET` | `/api/v1/forensics/events/stream` | viewer | `config:read` | network-forensics | Server-Sent Events live forensic event feed. |

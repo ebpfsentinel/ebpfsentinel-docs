@@ -72,7 +72,7 @@ time it reads the key, and stands down when the window closes.
 | `fleet-management` | Fleet agent management |
 | `ai-llm-security` | AI/LLM traffic security |
 | `tls-intelligence` | TLS threat intelligence & PQC compliance |
-| `network-forensics` | Ring buffer capture & flow timeline |
+| `network-forensics` | Event ring buffer, context freezes & flow timeline |
 | `automated-response` | Policy engine & SOAR webhook integration |
 | `kubernetes-operator` | The Kubernetes operator, which refuses to start without it |
 

@@ -35,7 +35,7 @@ the entity evidences elsewhere.
 | 23(4)(a) | Early warning within 24 hours | Alert pipeline, incident webhook registered | Sending the warning to the CSIRT |
 | 23(4)(b) | Incident notification within 72 hours | SIEM export, persistent audit trail | The notification |
 | 23(4)(c) | Intermediate report on request | SIEM export | Status updates to the CSIRT |
-| 23(4)(d) | Final report within one month | Persistent audit trail, forensic capture | Assembling the report |
+| 23(4)(d) | Final report within one month | Persistent audit trail, frozen flow context | Assembling the report |
 
 ## Configuration
 

@@ -48,6 +48,21 @@ This is a breaking change for any dashboard panel, alert rule or recording
 rule naming the old series: the query returns no data rather than an error, so
 update the query rather than waiting for something to fail.
 
+Four more changed name because the word they carried was wrong. The feature
+they count never wrote a packet capture: it freezes the forensic events a
+flow produced inside the ring buffer and counts them, so a series named
+`captures` promised a file that no deployment has ever been able to fetch.
+The four land in the first tagged release, which is also the first release in
+which any of these series is published, so an estate running a tagged build
+has only ever seen the new names.
+
+| Old series | New series | Why |
+|--------|------|--------|
+| `ebpfsentinel_ent_forensics_captures_triggered_total` | `ebpfsentinel_ent_forensics_context_freezes_triggered_total` | A trigger starts a context freeze, not a capture |
+| `ebpfsentinel_ent_forensics_captures_completed_total` | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | A freeze either records events or fails; there is no separate completion step to count |
+| `ebpfsentinel_ent_forensics_captures_failed_total` | `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Same subject, named for what it freezes |
+| `ebpfsentinel_ent_forensics_captures_expired_total` | `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Retention sweeps frozen context, and no file is deleted with it |
+
 ## Removed series
 
 Five metrics were registered and never written, so they exported nothing: a
@@ -498,7 +513,9 @@ Policy evaluation, response actions, SOAR webhooks and the cooldowns holding the
 
 ### Forensics
 
-Forensic event ingest, the ring buffer holding it and the captures triggered off it.
+Forensic event ingest, the ring buffer holding it and the context freezes
+triggered off it. A freeze copies the events a flow produced inside the buffer
+window; it writes no file, so nothing here counts bytes or captures.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
@@ -506,10 +523,10 @@ Forensic event ingest, the ring buffer holding it and the captures triggered off
 | `ebpfsentinel_ent_forensics_events_ingested_total` | Counter | - | Forensic events ingested into the ring buffer |
 | `ebpfsentinel_ent_forensics_ring_buffer_depth` | Gauge | - | Forensic events currently held in the ring buffer |
 | `ebpfsentinel_ent_forensics_ingestion_seconds_total` | Counter | - | Time spent ingesting forensic events |
-| `ebpfsentinel_ent_forensics_captures_triggered_total` | Counter | `component` | Forensic captures triggered by the alert component that fired them |
-| `ebpfsentinel_ent_forensics_captures_completed_total` | Counter | - | Forensic captures that completed |
-| `ebpfsentinel_ent_forensics_captures_failed_total` | Counter | - | Forensic captures that failed |
-| `ebpfsentinel_ent_forensics_captures_expired_total` | Counter | - | Forensic captures removed by the retention sweep |
+| `ebpfsentinel_ent_forensics_context_freezes_triggered_total` | Counter | `component` | Context freezes triggered by the alert component that fired them |
+| `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | Counter | - | Context freezes that kept at least one event |
+| `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Counter | - | Context freezes that kept nothing, with the reason on the freeze itself |
+| `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Counter | - | Context freezes removed by the retention sweep |
 
 ### Compliance reporting
 

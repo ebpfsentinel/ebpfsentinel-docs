@@ -7,6 +7,10 @@
   "ebpfsentinel_ent_siem_connectors_total": "Retired: quoted only in the renamed-series table",
   "ebpfsentinel_ent_airgap_bundles_total": "Retired: quoted only in the renamed-series table",
   "ebpfsentinel_ent_ml_rcf_anomalies_total_total": "Retired: quoted only in the renamed-series table",
+  "ebpfsentinel_ent_forensics_captures_triggered_total": "Retired: quoted only in the renamed-series table",
+  "ebpfsentinel_ent_forensics_captures_completed_total": "Retired: quoted only in the renamed-series table",
+  "ebpfsentinel_ent_forensics_captures_failed_total": "Retired: quoted only in the renamed-series table",
+  "ebpfsentinel_ent_forensics_captures_expired_total": "Retired: quoted only in the renamed-series table",
   "ebpfsentinel_ent_tenant_quota_exceeded": "Enterprise registry: the counter family, named without the suffix the encoder appends",
 
   "ebpfsentinel_dashboard_agents_total": "Dashboard registry: dashboard-server",
