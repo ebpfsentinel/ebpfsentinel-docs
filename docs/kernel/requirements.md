@@ -170,6 +170,29 @@ Up to 4096 services, each with up to 256 backends.
 
 Connection tracking uses kernel netfilter directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs (kernel 5.18+). No BPF-side shadow tables - kernel manages all CT state. `nf_conn` field offsets are resolved at startup from vmlinux BTF and pushed to the `CT_NF_CONN_OFFSETS` Array map. The `INTERFACE_GROUPS` map (6 programs) is pinned to `/sys/fs/bpf/`.
 
+### Attribution: Four Hooks Off the Datapath
+
+**Programs:** `cgroup-attribution`, `tracepoint-process`
+
+Naming the process behind a flow is done by four program types that sit outside the packet path. None of them enforces: every one returns the allow verdict and writes a single record, so a kernel refusing the attach costs a name and never a packet.
+
+| Program type | Hooks | Min Kernel | What its absence costs |
+|---|---|---|---|
+| `cgroup_sock_addr` | `connect4`, `connect6`, `sendmsg4`, `sendmsg6` | 4.17+ (`sendmsg*` 4.18+) | No socket is recorded as a task opens or sends on it, so an outbound flow carries no workload at all |
+| `cgroup_sock` | `post_bind4`, `post_bind6` | 4.17+ | A listening socket is unnamed, so an inbound flow reaching it carries no workload |
+| `sock_ops` | `BPF_CGROUP_SOCK_OPS` | 4.13+ | The socket cookie is never joined to the established connection, so conntrack entries and tc alerts fall back to a five-tuple correlation and the workload is reported as `flow` rather than `socket` |
+| `raw_tracepoint` | `sched_process_exec`, `sched_process_exit` | 4.17+ | No process table is kept, so a pid resolves to no executable, container, image or unit and the block carries the pid alone |
+
+Every hook is well under the agent's 6.9 floor, so a refusal is a host decision rather than a kernel version: a cgroup v1 hierarchy, a container with no access to the host's cgroup root, a locked-down `bpf()` or a tracepoint the kernel was built without. The attach is all-or-nothing per object - a partial set of socket hooks is reported as not attached, because half the hooks would make an absent workload mean two different things.
+
+What the host actually did is answered per node rather than inferred from this table:
+
+```bash
+ebpfsentinel-agent ebpf kernel-features
+```
+
+The `Socket attribution` and `Process tracing` sections of that output name the hooks that took, the cgroup they sit on, and the reason where nothing attached. The configuration for both, and the counters they export, are in [attribution](../configuration/attribution.md) and [the process table](../configuration/process-table.md).
+
 ### Tiered Ring Buffer Records
 
 **Programs:** `tc-ids`, `tc-dns`, `uprobe-dlp`
