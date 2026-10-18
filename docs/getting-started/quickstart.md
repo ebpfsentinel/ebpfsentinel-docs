@@ -64,7 +64,27 @@ You should see:
 {"timestamp":"...","level":"INFO","message":"eBPF programs loaded","programs":["xdp-firewall","xdp-ratelimit","tc-ids","tc-conntrack"]}
 ```
 
-## 3. Verify
+## 3. Take the API key
+
+The control API authenticates by default. The configuration above names no
+method, so the agent drew one for itself at first start and printed it once:
+
+```text
+{"level":"INFO","path":"/var/lib/ebpfsentinel/auth/api-key","api_key":"sk-...","message":"no authentication method was configured, so an API key was generated: send it as 'Authorization: Bearer <key>'. It is shown this once and kept at the path above"}
+```
+
+Keep it where the CLI and `curl` will find it:
+
+```bash
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+```
+
+`ebpfsentinel-agent` reads `EBPFSENTINEL_TOKEN` (or takes `--token`) and sends
+it on every call. `/healthz` and `/readyz` answer without it. Configuring
+`api_keys`, `jwt` or `oidc` under `auth:` replaces the generated key; see
+[Authentication](../configuration/auth.md).
+
+## 4. Verify
 
 ```bash
 # Agent dashboard - programs loaded, conntrack, DDoS, recent alerts
@@ -86,7 +106,7 @@ ebpfsentinel-agent firewall list
 curl http://localhost:8080/healthz
 ```
 
-## 4. Add Rules at Runtime
+## 5. Add Rules at Runtime
 
 No restart needed - use the REST API or CLI:
 
@@ -113,7 +133,7 @@ ebpfsentinel-agent ratelimit add --json '{
 ebpfsentinel-agent alerts list --severity high --limit 10
 ```
 
-## 5. Enable More Features
+## 6. Enable More Features
 
 Add sections to your config file and reload:
 
@@ -124,7 +144,7 @@ vim config/ebpfsentinel.yaml
 # Reload without restart
 kill -HUP $(pidof ebpfsentinel-agent)
 # Or via API:
-curl -X POST http://localhost:8080/api/v1/config/reload
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/config/reload
 ```
 
 ### Add Threat Intelligence

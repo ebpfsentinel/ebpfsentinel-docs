@@ -24,6 +24,22 @@ agent:
 | `allow_tls12` | `bool` | `false` | Allow TLS 1.2 connections. When `false` (default), only TLS 1.3 is accepted |
 | `pq_mode` | `string` | `prefer` | Post-quantum key exchange mode: `prefer`, `require`, or `disable` (see below) |
 
+## Plaintext on a reachable address is refused
+
+A credential travels on every call the API answers, so the agent refuses to
+start when `agent.bind_address` is non-loopback and `tls.enabled` is `false`:
+
+```text
+refusing to serve the control API in the clear on non-loopback address '0.0.0.0': set agent.tls.enabled=true with a certificate and key to fix it, or agent.allow_plaintext_api=true to accept that credentials and configuration cross the network readable by anything on the path
+```
+
+Loopback keeps the privilege because the packet never leaves the host. The two
+ways out are the ones the message names: a certificate and a key, or
+`agent.allow_plaintext_api: true` where TLS is terminated in front of the agent
+or the hop is already a tunnel. That switch is separate from
+[`agent.allow_unauthenticated_api`](auth.md#the-api-is-shut-by-default): one
+says nobody is identified, the other says nothing is encrypted.
+
 ## Implementation
 
 TLS is provided by **rustls** with the **aws-lc** cryptographic backend. By default, only TLS 1.3 is accepted -- older protocol versions are rejected. Set `allow_tls12: true` to permit TLS 1.2 connections for legacy clients.

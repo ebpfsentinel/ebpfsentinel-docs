@@ -114,7 +114,7 @@ The agent watches the config file for changes and applies them without restart -
 kill -HUP $(pidof ebpfsentinel-agent)
 
 # Or via REST API
-curl -X POST http://localhost:8080/api/v1/config/reload
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/config/reload
 
 # Or let the file watcher detect changes automatically (500ms debounce)
 ```

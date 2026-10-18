@@ -204,7 +204,7 @@ imported while nothing was ever enforced on.
 ### API Import
 
 ```bash
-curl -X POST http://127.0.0.1:8444/api/v1/airgap/import \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://127.0.0.1:8444/api/v1/airgap/import \
   -H 'Content-Type: application/json' \
   -d '{"bundle_dir": "/path/to/bundle"}'
 ```

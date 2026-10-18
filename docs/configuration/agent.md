@@ -10,6 +10,7 @@ agent:
   xdp_mode: auto                        # XDP attachment mode: auto, native, generic, offloaded. Default: auto
   bind_address: "127.0.0.1"             # REST API listen address. Default: 127.0.0.1
   allow_unauthenticated_api: false      # Safety override for non-loopback bind with auth disabled. Default: false
+  allow_plaintext_api: false            # Safety override for non-loopback bind without TLS. Default: false
   http_port: 8080                       # REST API port. Default: 8080
   grpc_port: 50051                      # gRPC port. Default: 50051
   grpc_reflection: false                # gRPC reflection. Default: false (disabled for security)
@@ -33,6 +34,7 @@ agent:
 | `xdp_mode` | `string` | No | `auto` | XDP attachment mode (see below) |
 | `bind_address` | `string` | No | `127.0.0.1` | REST API listen address |
 | `allow_unauthenticated_api` | `bool` | No | `false` | Safety override. With `auth.enabled: false` the agent **refuses to start** when `bind_address` is non-loopback, because that would expose the control plane (firewall, IPS, NAT, config reload) to anyone who can reach the port. Set `true` only when the API is fenced off by other means (network policy, mTLS-terminating proxy). Leaving auth enabled, or binding to `127.0.0.1`/`::1`, is the safe default. |
+| `allow_plaintext_api` | `bool` | No | `false` | Safety override. With `agent.tls.enabled: false` the agent **refuses to start** when `bind_address` is non-loopback, because the API key and every configuration call then cross the network readable by anything on the path. Set `true` only where TLS is terminated in front of the agent or the hop is already a tunnel. The two overrides are separate on purpose: one says nobody is identified, the other says nothing is encrypted, and accepting one is not accepting the other. |
 | `http_port` | `integer` | No | `8080` | REST API port |
 | `grpc_port` | `integer` | No | `50051` | gRPC streaming port |
 | `grpc_reflection` | `bool` | No | `false` | Enable gRPC server reflection. Disabled by default for security - exposes service definitions |

@@ -48,8 +48,22 @@ docker exec ebpfsentinel ebpfsentinel-agent metrics | grep bpf_token_used
 ```
 
 The agent image is distroless and carries no shell and no `curl`, so the check
-goes through the agent's own CLI. With host networking a `curl -s
-localhost:9090/metrics` from the host reaches the same endpoint.
+goes through the agent's own CLI. Run inside the container it needs no
+credential: it reads the key the agent drew for itself out of
+`/var/lib/ebpfsentinel/auth/api-key`. With host networking a `curl -s
+localhost:9090/metrics` from the host reaches the same endpoint, and the
+counters are not authenticated unless `auth.metrics_auth_required` says so.
+
+From the host, anything under `/api/v1` carries the key:
+
+```bash
+export EBPFSENTINEL_TOKEN=$(docker exec ebpfsentinel cat /var/lib/ebpfsentinel/auth/api-key)
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" localhost:8080/api/v1/ebpf/status
+```
+
+The state volume is what keeps that key across a `docker compose up`
+again; a container started without it draws a new one. Naming your own under
+`auth.api_keys` in the config file replaces it.
 
 ## Docker Compose
 

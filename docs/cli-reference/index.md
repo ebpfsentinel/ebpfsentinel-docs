@@ -11,7 +11,7 @@ ebpfsentinel-agent [OPTIONS] [COMMAND]
 | `-c, --config <PATH>` | Config file path | `/etc/ebpfsentinel/config.yaml` |
 | `-l, --log-level <LEVEL>` | Override log level: error, warn, info, debug, trace | From config |
 | `--log-format <FORMAT>` | Log format: json or text | From config |
-| `--token <TOKEN>` | Bearer token for authenticated endpoints | `$EBPFSENTINEL_TOKEN` |
+| `--token <TOKEN>` | Credential for the authenticated endpoints, which is all of `/api/v1` | `$EBPFSENTINEL_TOKEN`, then the key at `auth.bootstrap_key_path` |
 | `-o, --output <FORMAT>` | Output format: table or json (global) | `table` |
 
 ### Connection Options
@@ -943,16 +943,31 @@ ebpfsentinel-agent --output json firewall list | jq '.[] | .id'
 
 ## Authentication
 
-Pass a token for authenticated endpoints:
+The control API authenticates by default, so every command but `version`
+carries a credential. Run beside the agent, the CLI finds one by itself: with
+no `--token` and no `EBPFSENTINEL_TOKEN`, it reads the key the agent drew for
+itself from `auth.bootstrap_key_path` in the configuration file it was pointed
+at (`/var/lib/ebpfsentinel/auth/api-key` by default). That file is `0600`, so
+this works for the user the agent runs as, usually root:
+
+```bash
+sudo ebpfsentinel-agent firewall list
+```
+
+Reaching a different host, or using a key of your own, means naming it:
 
 ```bash
 # Via flag
 ebpfsentinel-agent --token sk-my-api-key firewall list
 
 # Via environment variable
-export EBPFSENTINEL_TOKEN=sk-my-api-key
-ebpfsentinel-agent firewall list
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+ebpfsentinel-agent --host 10.0.0.4 firewall list
 ```
+
+The credential travels as `Authorization: Bearer`, and the agent accepts an
+API key, a JWT or an OIDC token in that header. See
+[Authentication](../configuration/auth.md).
 ## Enterprise Agent Commands
 
 > **Edition: Enterprise**

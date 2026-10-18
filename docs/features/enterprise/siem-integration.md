@@ -342,7 +342,7 @@ Each `RetroIocAlert` contains:
 ### Example Request
 
 ```bash
-curl -X POST http://agent:8444/api/v1/siem/retro-ioc-scan \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://agent:8444/api/v1/siem/retro-ioc-scan \
   -H 'Content-Type: application/json' \
   -d '{
     "iocs": [

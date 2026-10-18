@@ -85,12 +85,22 @@ sudo ./warden serve /run/ebpfsentinel/warden.sock --uid 0 &
 sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
   ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
 
-# Check health (in another terminal)
+# Check health (in another terminal) - the probes need no credential
 curl http://localhost:8080/healthz
 # {"status":"ok"}
 
+# Everything under /api/v1 does. With no auth method configured the agent drew
+# a key for itself at first start, printed it once and kept it here:
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+
 # Check eBPF programs loaded
-curl http://localhost:8080/api/v1/ebpf/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/status
 ```
+
+The agent binds to `127.0.0.1` out of the box. Moving it to an address other
+hosts can reach takes a certificate and key under `agent.tls`, or the explicit
+`agent.allow_plaintext_api: true`; the agent refuses to start in the clear on a
+reachable address. See [TLS](../configuration/tls.md) and
+[Authentication](../configuration/auth.md).
 
 Next: [Quickstart](quickstart.md) - configure your first security rules.

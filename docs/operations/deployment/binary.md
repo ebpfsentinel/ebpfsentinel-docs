@@ -62,7 +62,7 @@ sudo ./install.sh
 - installs `ebpfsentinel-agent` and `warden` into `/usr/local/bin/`;
 - copies the eBPF objects into `/usr/local/lib/ebpfsentinel/`;
 - installs the default config to `/etc/ebpfsentinel/config.yaml` with mode `0640`, and leaves an existing one untouched;
-- creates `/var/lib/ebpfsentinel/`, `/var/lib/ebpfsentinel/captures/` and `/var/lib/ebpfsentinel/data/`;
+- creates `/var/lib/ebpfsentinel/`, `/var/lib/ebpfsentinel/captures/`, `/var/lib/ebpfsentinel/data/` and `/var/lib/ebpfsentinel/auth/` (mode `0700`, where the agent writes the key it draws for itself);
 - installs both systemd units and runs `systemctl daemon-reload`;
 - on hosts where `kernel.apparmor_restrict_unprivileged_userns=1` (Ubuntu 24.04 and later), loads the per-binary AppArmor profile, or installs the sysctl drop-in when `apparmor_parser` is absent.
 
@@ -79,6 +79,7 @@ sudo mkdir -p /usr/local/lib/ebpfsentinel
 sudo cp target/bpfel-unknown-none/release/* /usr/local/lib/ebpfsentinel/
 sudo install -Dm640 config/ebpfsentinel.yaml /etc/ebpfsentinel/config.yaml
 sudo mkdir -p /var/lib/ebpfsentinel/captures /var/lib/ebpfsentinel/data
+sudo install -d -m 700 /var/lib/ebpfsentinel/auth
 sudo install -Dm644 dist/ebpfsentinel-warden.service /etc/systemd/system/ebpfsentinel-warden.service
 sudo install -Dm644 dist/ebpfsentinel.service /etc/systemd/system/ebpfsentinel.service
 sudo systemctl daemon-reload
@@ -104,6 +105,31 @@ What the shipped units do:
 - **`ebpfsentinel.service`** sets `EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock`, waits up to ten seconds for that socket to appear, then runs `ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml` from `WorkingDirectory=/var/lib/ebpfsentinel`. It carries `LimitMEMLOCK=infinity` for eBPF map allocation and `ExecReload` for `systemctl reload`. It `Wants` the warden rather than `Requires` it, so a warden restart does not stop the agent.
 
 Do not add `NoNewPrivileges=` to the agent unit: it blocks the user-namespace setup.
+
+### The API key
+
+The control API authenticates. With no method named in the configuration, the
+agent writes a key into `/var/lib/ebpfsentinel/auth/api-key` at first start,
+`0600` in a `0700` directory, and prints it once:
+
+```bash
+sudo journalctl -u ebpfsentinel | grep "API key"
+sudo cat /var/lib/ebpfsentinel/auth/api-key
+```
+
+A command run on the same host finds that file by itself, so `sudo
+ebpfsentinel-agent status` works with nothing else supplied. Elsewhere, and
+for `curl`, name it:
+
+```bash
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" localhost:8080/api/v1/ebpf/status
+```
+
+Deleting the file draws a new key at the next start. Configuring
+`auth.api_keys`, a JWT secret or OIDC replaces it, and the agent then writes
+none. The agent binds `127.0.0.1` by default; binding anywhere else without
+TLS is refused, see [TLS](../../configuration/tls.md).
 
 ### Restart, watchdog and stop budget
 

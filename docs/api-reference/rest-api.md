@@ -101,7 +101,22 @@ finished loading yet.
 
 ## Protected Endpoints
 
-Require authentication when `auth.enabled: true`. Use `Authorization: Bearer <token>` or `X-API-Key: <key>` headers.
+Authentication is on unless the configuration turns it off, so these routes
+answer `401` without a credential. Present it as `Authorization: Bearer <key>`
+or `X-API-Key: <key>`; either header takes an API key, a JWT or an OIDC token,
+since the value is handed to whichever providers are configured rather than
+sorted by its shape.
+
+With no method named under `auth:`, the key is the one the agent drew for
+itself at first start and kept at `auth.bootstrap_key_path`, `0600` inside a
+`0700` directory. The examples below read it from the environment:
+
+```bash
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+```
+
+`ebpfsentinel-agent` reads the same variable, and takes `--token` instead. See
+[Authentication](../configuration/auth.md).
 
 ### Agent
 
@@ -110,7 +125,7 @@ Require authentication when `auth.enabled: true`. Use `Authorization: Bearer <to
 Agent status including version, uptime, and loaded features.
 
 ```bash
-curl http://localhost:8080/api/v1/agent/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/agent/status
 ```
 
 #### GET /api/v1/agent/identity
@@ -121,7 +136,7 @@ optional operator UI deep-link URL configured under the top-level
 field is reflected on the next call without restart.
 
 ```bash
-curl http://localhost:8080/api/v1/agent/identity
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/agent/identity
 ```
 
 ```json
@@ -142,7 +157,7 @@ curl http://localhost:8080/api/v1/agent/identity
 Current configuration (secrets sanitized).
 
 ```bash
-curl http://localhost:8080/api/v1/config
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/config
 ```
 
 #### POST /api/v1/config/reload
@@ -150,7 +165,7 @@ curl http://localhost:8080/api/v1/config
 Trigger configuration reload. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/config/reload
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/config/reload
 ```
 
 #### PUT /api/v1/config/{section}
@@ -163,7 +178,7 @@ is how the dashboard's configuration screens render a section, so a section
 read, edited and sent back needs no reshaping:
 
 ```bash
-curl -X PUT http://localhost:8080/api/v1/config/ids \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080/api/v1/config/ids \
   -H 'Content-Type: application/json' \
   -d '{"yaml": "ids:\n  enabled: true\n"}'
 ```
@@ -185,7 +200,7 @@ change a secret is to write it out.
 Per-program eBPF load status, plus any attach the kernel refused.
 
 ```bash
-curl http://localhost:8080/api/v1/ebpf/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/status
 ```
 
 ```json
@@ -214,7 +229,7 @@ cached. `missing_required` is the actionable field: any entry there names an
 object the agent refuses to load, and it also holds `/readyz` at `not_ready`.
 
 ```bash
-curl http://localhost:8080/api/v1/ebpf/kernel-features
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/kernel-features
 ```
 
 ```json
@@ -238,7 +253,7 @@ the documented kernel floor.
 The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.
 
 ```bash
-curl http://localhost:8080/api/v1/ebpf/uprobes
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/uprobes
 ```
 
 Response:
@@ -270,7 +285,7 @@ Each entry of `probes`:
 List all firewall rules.
 
 ```bash
-curl http://localhost:8080/api/v1/firewall/rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/rules
 ```
 
 #### POST /api/v1/firewall/rules
@@ -278,7 +293,7 @@ curl http://localhost:8080/api/v1/firewall/rules
 Create a firewall rule.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/firewall/rules \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/firewall/rules \
   -H "Content-Type: application/json" \
   -d '{"id":"block-telnet","priority":5,"action":"deny","protocol":"tcp","dst_port":23}'
 ```
@@ -288,7 +303,7 @@ curl -X POST http://localhost:8080/api/v1/firewall/rules \
 Delete a firewall rule by ID. Returns 403 for system rules (e.g., anti-lockout rules).
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
 ```
 
 ### Connection Tracking
@@ -298,7 +313,7 @@ curl -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
 Conntrack status: enabled flag, active connection count.
 
 ```bash
-curl http://localhost:8080/api/v1/conntrack/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/conntrack/status
 ```
 
 ```json
@@ -310,7 +325,7 @@ curl http://localhost:8080/api/v1/conntrack/status
 Server-Sent Events stream of conntrack lifecycle events (new/update/destroy). Diffs `/proc/net/nf_conntrack` snapshots.
 
 ```bash
-curl -N http://localhost:8080/api/v1/conntrack/events
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -N http://localhost:8080/api/v1/conntrack/events
 ```
 
 ```
@@ -324,7 +339,7 @@ data: {"event_type":"destroy","protocol":"tcp","src":"10.0.0.1:54321","dst":"10.
 List active connections in the conntrack table.
 
 ```bash
-curl http://localhost:8080/api/v1/conntrack/connections
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/conntrack/connections
 ```
 
 #### POST /api/v1/conntrack/flush
@@ -332,7 +347,7 @@ curl http://localhost:8080/api/v1/conntrack/connections
 Flush the connection tracking table. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/conntrack/flush
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/conntrack/flush
 ```
 
 ### L7 Firewall
@@ -342,7 +357,7 @@ curl -X POST http://localhost:8080/api/v1/conntrack/flush
 List all L7 firewall rules.
 
 ```bash
-curl http://localhost:8080/api/v1/firewall/l7-rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/l7-rules
 ```
 
 #### POST /api/v1/firewall/l7-rules
@@ -350,7 +365,7 @@ curl http://localhost:8080/api/v1/firewall/l7-rules
 Create an L7 rule.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/firewall/l7-rules \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/firewall/l7-rules \
   -H "Content-Type: application/json" \
   -d '{"id":"block-admin","priority":10,"action":"deny","protocol":"http","path":"/admin"}'
 ```
@@ -360,7 +375,7 @@ curl -X POST http://localhost:8080/api/v1/firewall/l7-rules \
 Delete an L7 rule.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
 ```
 
 ### IDS
@@ -370,7 +385,7 @@ curl -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
 IDS status: enabled flag, mode, and rule count.
 
 ```bash
-curl http://localhost:8080/api/v1/ids/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ids/status
 ```
 
 #### GET /api/v1/ids/rules
@@ -378,7 +393,7 @@ curl http://localhost:8080/api/v1/ids/status
 List all IDS detection rules.
 
 ```bash
-curl http://localhost:8080/api/v1/ids/rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ids/rules
 ```
 
 ### IPS
@@ -388,7 +403,7 @@ curl http://localhost:8080/api/v1/ids/rules
 List IDS/IPS rules.
 
 ```bash
-curl http://localhost:8080/api/v1/ips/rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ips/rules
 ```
 
 #### PATCH /api/v1/ips/rules/{id}
@@ -396,7 +411,7 @@ curl http://localhost:8080/api/v1/ips/rules
 Update IPS rule mode.
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/ips/rules/detect-sqli \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PATCH http://localhost:8080/api/v1/ips/rules/detect-sqli \
   -H "Content-Type: application/json" \
   -d '{"mode":"block"}'
 ```
@@ -406,7 +421,7 @@ curl -X PATCH http://localhost:8080/api/v1/ips/rules/detect-sqli \
 List blacklisted IPs.
 
 ```bash
-curl http://localhost:8080/api/v1/ips/blacklist
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ips/blacklist
 ```
 
 #### POST /api/v1/ips/blacklist
@@ -414,7 +429,7 @@ curl http://localhost:8080/api/v1/ips/blacklist
 Manually add an IP to the IPS blacklist. Drives the same path the DNS-blocklist and reputation auto-block features already use, so the entry is visible through `GET /api/v1/ips/blacklist` and is subject to the policy's TTL cap and expiry sweeper. Returns `201` on success and `400` for an unparseable address or a full blacklist.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/ips/blacklist \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ips/blacklist \
   -H "Content-Type: application/json" \
   -d '{"ip":"198.51.100.7","reason":"manual-soc","ttl_secs":3600}'
 ```
@@ -440,7 +455,7 @@ Response:
 Remove an IP from the IPS blacklist. Returns `204` on success, `400` for an unparseable address and `404` when the address is not blacklisted.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/ips/blacklist/198.51.100.7
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ips/blacklist/198.51.100.7
 ```
 
 #### GET /api/v1/ips/domain-blocks
@@ -448,7 +463,7 @@ curl -X DELETE http://localhost:8080/api/v1/ips/blacklist/198.51.100.7
 List domain-based IP blocks (IPs blocked due to DNS-driven IPS).
 
 ```bash
-curl http://localhost:8080/api/v1/ips/domain-blocks
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ips/domain-blocks
 ```
 
 ### Rate Limiting
@@ -458,7 +473,7 @@ curl http://localhost:8080/api/v1/ips/domain-blocks
 List rate limit rules.
 
 ```bash
-curl http://localhost:8080/api/v1/ratelimit/rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ratelimit/rules
 ```
 
 #### POST /api/v1/ratelimit/rules
@@ -466,7 +481,7 @@ curl http://localhost:8080/api/v1/ratelimit/rules
 Create a rate limit rule.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/ratelimit/rules \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ratelimit/rules \
   -H "Content-Type: application/json" \
   -d '{"id":"rl-global","rate":1000,"burst":2000,"algorithm":"token_bucket","scope":"per_ip"}'
 ```
@@ -476,7 +491,7 @@ curl -X POST http://localhost:8080/api/v1/ratelimit/rules \
 Delete a rate limit rule.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-global
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-global
 ```
 
 ### Threat Intelligence
@@ -486,7 +501,7 @@ curl -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-global
 Feed status (last refresh, IOC count).
 
 ```bash
-curl http://localhost:8080/api/v1/threatintel/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/threatintel/status
 ```
 
 #### GET /api/v1/threatintel/iocs
@@ -494,7 +509,7 @@ curl http://localhost:8080/api/v1/threatintel/status
 List loaded IOCs.
 
 ```bash
-curl http://localhost:8080/api/v1/threatintel/iocs
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/threatintel/iocs
 ```
 
 #### GET /api/v1/threatintel/feeds
@@ -502,7 +517,7 @@ curl http://localhost:8080/api/v1/threatintel/iocs
 List configured feeds.
 
 ```bash
-curl http://localhost:8080/api/v1/threatintel/feeds
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/threatintel/feeds
 ```
 
 #### GET /api/v1/threatintel/urls
@@ -510,7 +525,7 @@ curl http://localhost:8080/api/v1/threatintel/feeds
 List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot rather than from a kernel map.
 
 ```bash
-curl http://localhost:8080/api/v1/threatintel/urls
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/threatintel/urls
 ```
 
 Response: an array of
@@ -527,7 +542,7 @@ Response: an array of
 Trigger an immediate re-fetch of every enabled threat-intel feed. Returns `409` when a refresh is already running and `503` when feeds are not enabled in the agent configuration.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/threatintel/feeds/refresh \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/threatintel/feeds/refresh \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
@@ -552,7 +567,7 @@ Response:
 GeoIP enrichment status.
 
 ```bash
-curl http://localhost:8080/api/v1/geoip/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/geoip/status
 ```
 
 Response:
@@ -567,7 +582,7 @@ Response:
 Resolve one IP address to its GeoIP record. Returns `400` for an unparseable address and `404` when GeoIP is not available.
 
 ```bash
-curl "http://localhost:8080/api/v1/geoip/lookup?ip=203.0.113.9"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/geoip/lookup?ip=203.0.113.9"
 ```
 
 **Query parameters:**
@@ -600,7 +615,7 @@ List alerts. Supports query parameters:
 | `limit` | integer | Maximum results to return |
 
 ```bash
-curl "http://localhost:8080/api/v1/alerts?component=ids&severity=high&limit=50"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/alerts?component=ids&severity=high&limit=50"
 ```
 
 #### GET /api/v1/alerts/{id}
@@ -610,7 +625,7 @@ identifier and `503` when no alert store is configured. The body is the same
 alert shape `GET /api/v1/alerts` returns for a row.
 
 ```bash
-curl http://localhost:8080/api/v1/alerts/alert-001
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/alerts/alert-001
 ```
 
 #### PATCH /api/v1/alerts/{id}/triage
@@ -627,7 +642,7 @@ held it, so the two are different requests rather than one.
 | `author` | string | Who is writing, when a console writes on a person's behalf. Defaults to the authenticated identity |
 
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/alerts/alert-001/triage \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PATCH http://localhost:8080/api/v1/alerts/alert-001/triage \
   -H "Content-Type: application/json" \
   -d '{"status":"investigating","assignee":"soc-l2","note":"matches last week's scan"}'
 ```
@@ -645,7 +660,7 @@ Apply one change to many alerts. The body is the same as above plus `ids`, at
 most 1000 of them.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/alerts/triage \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/alerts/triage \
   -H "Content-Type: application/json" \
   -d '{"ids":["alert-001","alert-002"],"status":"resolved"}'
 ```
@@ -660,7 +675,7 @@ rest of the work done.
 Mark an alert as false positive.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/alerts/alert-001/false-positive
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/alerts/alert-001/false-positive
 ```
 
 #### GET /api/v1/alerts/stream
@@ -690,7 +705,7 @@ Response headers:
 - `Connection: keep-alive`
 
 ```bash
-curl -N -H 'Accept: text/event-stream' \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -N -H 'Accept: text/event-stream' \
     "http://localhost:8080/api/v1/alerts/stream?severity_min=high&component=ids"
 ```
 
@@ -705,7 +720,7 @@ data: {"id":"1700000000000-ids-001","component":"ids","severity":"high",...}
 Reconnect with the last id seen by the client:
 
 ```bash
-curl -N -H 'Accept: text/event-stream' \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -N -H 'Accept: text/event-stream' \
     -H 'Last-Event-ID: 1700000000000-ids-001' \
     "http://localhost:8080/api/v1/alerts/stream"
 ```
@@ -726,7 +741,7 @@ List audit log entries. Supports query parameters:
 | `limit` | integer | Maximum results |
 
 ```bash
-curl "http://localhost:8080/api/v1/audit/logs?component=firewall&limit=20"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/audit/logs?component=firewall&limit=20"
 ```
 
 #### GET /api/v1/audit/rules/{id}/history
@@ -734,7 +749,7 @@ curl "http://localhost:8080/api/v1/audit/logs?component=firewall&limit=20"
 Rule change history for a specific rule.
 
 ```bash
-curl http://localhost:8080/api/v1/audit/rules/fw-001/history
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/audit/rules/fw-001/history
 ```
 
 ### DDoS Protection
@@ -744,7 +759,7 @@ curl http://localhost:8080/api/v1/audit/rules/fw-001/history
 DDoS protection status: enabled flag, active attack count, total mitigated, policy count.
 
 ```bash
-curl http://localhost:8080/api/v1/ddos/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ddos/status
 ```
 
 ```json
@@ -756,7 +771,7 @@ curl http://localhost:8080/api/v1/ddos/status
 List active DDoS attacks currently being tracked.
 
 ```bash
-curl http://localhost:8080/api/v1/ddos/attacks
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ddos/attacks
 ```
 
 #### GET /api/v1/ddos/attacks/history
@@ -764,7 +779,7 @@ curl http://localhost:8080/api/v1/ddos/attacks
 List historical (mitigated/expired) DDoS attacks. Supports `?limit=` query parameter.
 
 ```bash
-curl "http://localhost:8080/api/v1/ddos/attacks/history?limit=50"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/ddos/attacks/history?limit=50"
 ```
 
 #### GET /api/v1/ddos/policies
@@ -772,7 +787,7 @@ curl "http://localhost:8080/api/v1/ddos/attacks/history?limit=50"
 List all DDoS detection/mitigation policies.
 
 ```bash
-curl http://localhost:8080/api/v1/ddos/policies
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ddos/policies
 ```
 
 #### POST /api/v1/ddos/policies
@@ -780,7 +795,7 @@ curl http://localhost:8080/api/v1/ddos/policies
 Create a DDoS policy. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/ddos/policies \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ddos/policies \
   -H "Content-Type: application/json" \
   -d '{
     "id": "syn-flood-block",
@@ -808,7 +823,7 @@ curl -X POST http://localhost:8080/api/v1/ddos/policies \
 Delete a DDoS policy by ID. Requires `admin` role.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/ddos/policies/syn-flood-block
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ddos/policies/syn-flood-block
 ```
 
 ### Load Balancer
@@ -818,7 +833,7 @@ curl -X DELETE http://localhost:8080/api/v1/ddos/policies/syn-flood-block
 Load balancer status: enabled flag, service count.
 
 ```bash
-curl http://localhost:8080/api/v1/lb/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/lb/status
 ```
 
 ```json
@@ -830,7 +845,7 @@ curl http://localhost:8080/api/v1/lb/status
 List all load balancer services.
 
 ```bash
-curl http://localhost:8080/api/v1/lb/services
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/lb/services
 ```
 
 #### GET /api/v1/lb/services/{id}
@@ -838,7 +853,7 @@ curl http://localhost:8080/api/v1/lb/services
 Get service detail including backends, health status, and active connections.
 
 ```bash
-curl http://localhost:8080/api/v1/lb/services/lb-https
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/lb/services/lb-https
 ```
 
 #### POST /api/v1/lb/services
@@ -846,7 +861,7 @@ curl http://localhost:8080/api/v1/lb/services/lb-https
 Create a load balancer service. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/lb/services \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/lb/services \
   -H "Content-Type: application/json" \
   -d '{
     "id": "lb-api",
@@ -877,7 +892,7 @@ curl -X POST http://localhost:8080/api/v1/lb/services \
 Delete a load balancer service by ID. Requires `admin` role.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/lb/services/lb-api
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/lb/services/lb-api
 ```
 
 #### GET /api/v1/lb/vips
@@ -885,7 +900,7 @@ curl -X DELETE http://localhost:8080/api/v1/lb/services/lb-api
 Return the L2 VIP announcer status (active role, bound interface, configured VIPs, and per-VIP gratuitous-ARP / ARP-reply counters). Returns `404` when the announcer is not enabled in the agent configuration.
 
 ```bash
-curl http://localhost:8080/api/v1/lb/vips
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/lb/vips
 ```
 
 Response shape:
@@ -907,7 +922,7 @@ Response shape:
 Apply a VIP announce configuration (role, interface, VIP list). Requires `admin` role. The agent validates the config (interface MTU, VIP uniqueness, role compatibility with `l2dsr` same-segment backends) and reconciles kernel maps + gratuitous ARP under the announcer reload lock.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/lb/vips \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/lb/vips \
   -H 'Content-Type: application/json' \
   -d '{
     "role": "primary",
@@ -929,7 +944,7 @@ curl -X POST http://localhost:8080/api/v1/lb/vips \
 DNS intelligence subsystem status: whether the cache and blocklist are enabled, and what the blocklist has done since start.
 
 ```bash
-curl http://localhost:8080/api/v1/dns/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dns/status
 ```
 
 Response:
@@ -946,8 +961,8 @@ Response:
 List DNS cache entries. Supports `?domain=example.com` filter.
 
 ```bash
-curl http://localhost:8080/api/v1/dns/cache
-curl "http://localhost:8080/api/v1/dns/cache?domain=example.com"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dns/cache
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/dns/cache?domain=example.com"
 ```
 
 #### DELETE /api/v1/dns/cache
@@ -955,7 +970,7 @@ curl "http://localhost:8080/api/v1/dns/cache?domain=example.com"
 Flush DNS cache.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/dns/cache
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/dns/cache
 ```
 
 #### GET /api/v1/dns/stats
@@ -963,7 +978,7 @@ curl -X DELETE http://localhost:8080/api/v1/dns/cache
 DNS cache and blocklist statistics.
 
 ```bash
-curl http://localhost:8080/api/v1/dns/stats
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dns/stats
 ```
 
 #### GET /api/v1/dns/blocklist
@@ -971,7 +986,7 @@ curl http://localhost:8080/api/v1/dns/stats
 List loaded blocklist rules.
 
 ```bash
-curl http://localhost:8080/api/v1/dns/blocklist
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dns/blocklist
 ```
 
 ### Domain Reputation
@@ -981,8 +996,8 @@ curl http://localhost:8080/api/v1/dns/blocklist
 Query domain reputations. Supports `?domain=` and `?min_score=` filters.
 
 ```bash
-curl http://localhost:8080/api/v1/domains/reputation
-curl "http://localhost:8080/api/v1/domains/reputation?domain=suspicious.com&min_score=0.5"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/domains/reputation
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/domains/reputation?domain=suspicious.com&min_score=0.5"
 ```
 
 #### POST /api/v1/domains/blocklist
@@ -990,7 +1005,7 @@ curl "http://localhost:8080/api/v1/domains/reputation?domain=suspicious.com&min_
 Add domain to runtime blocklist.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/domains/blocklist \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/domains/blocklist \
   -H "Content-Type: application/json" \
   -d '{"domain":"malware.example.com"}'
 ```
@@ -1000,7 +1015,7 @@ curl -X POST http://localhost:8080/api/v1/domains/blocklist \
 Remove domain from blocklist.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/domains/blocklist/malware.example.com
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/domains/blocklist/malware.example.com
 ```
 
 ### NAT
@@ -1010,7 +1025,7 @@ curl -X DELETE http://localhost:8080/api/v1/domains/blocklist/malware.example.co
 NAT status: enabled flag and rule count.
 
 ```bash
-curl http://localhost:8080/api/v1/nat/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/nat/status
 ```
 
 ```json
@@ -1022,7 +1037,7 @@ curl http://localhost:8080/api/v1/nat/status
 List all NAT rules (SNAT and DNAT combined, with direction field).
 
 ```bash
-curl http://localhost:8080/api/v1/nat/rules
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/nat/rules
 ```
 
 ### Policy Routing
@@ -1032,7 +1047,7 @@ curl http://localhost:8080/api/v1/nat/rules
 Routing status: enabled flag and gateway count.
 
 ```bash
-curl http://localhost:8080/api/v1/routing/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/routing/status
 ```
 
 ```json
@@ -1044,7 +1059,7 @@ curl http://localhost:8080/api/v1/routing/status
 List gateways with current health status.
 
 ```bash
-curl http://localhost:8080/api/v1/routing/gateways
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/routing/gateways
 ```
 
 ```json
@@ -1059,7 +1074,7 @@ curl http://localhost:8080/api/v1/routing/gateways
 Add a routing gateway. Requires a write role: admin or operator. Viewers are refused. The agent assigns the identifier itself, taking the lowest free one, so the body carries none and two gateways may share a name or a next hop. Returns `201` on success and `409` only when all 256 identifiers are in use.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/routing/gateways \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/routing/gateways \
   -H "Content-Type: application/json" \
   -d '{"name":"wan3","ip":"192.0.2.1","interface":"eth2","weight":30,"enabled":true,"health_check_interval_secs":10}'
 ```
@@ -1096,7 +1111,7 @@ Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` 
 Remove a routing gateway. Requires a write role: admin or operator. Viewers are refused. Returns `204` on success, `400` when the identifier is not a number in 0-255, and `404` when no gateway carries it.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/routing/gateways/1
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/routing/gateways/1
 ```
 
 #### GET /api/v1/routing/routes
@@ -1104,7 +1119,7 @@ curl -X DELETE http://localhost:8080/api/v1/routing/gateways/1
 The default route currently in effect. Returns an empty list when no gateway is usable.
 
 ```bash
-curl http://localhost:8080/api/v1/routing/routes
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/routing/routes
 ```
 
 ```json
@@ -1118,7 +1133,7 @@ curl http://localhost:8080/api/v1/routing/routes
 Zone status: enabled flag, zone count, and policy count.
 
 ```bash
-curl http://localhost:8080/api/v1/zones/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/zones/status
 ```
 
 ```json
@@ -1130,7 +1145,7 @@ curl http://localhost:8080/api/v1/zones/status
 List all zones with their interfaces and default policies.
 
 ```bash
-curl http://localhost:8080/api/v1/zones
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/zones
 ```
 
 #### GET /api/v1/zones/policies
@@ -1138,7 +1153,7 @@ curl http://localhost:8080/api/v1/zones
 List all inter-zone traffic policies.
 
 ```bash
-curl http://localhost:8080/api/v1/zones/policies
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/zones/policies
 ```
 
 #### POST /api/v1/zones
@@ -1147,7 +1162,7 @@ Create a zone. `interfaces` and `default_policy` are optional; a zone with no
 interface carries no traffic, and an absent `default_policy` denies.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/zones \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/zones \
   -H 'Content-Type: application/json' \
   -d '{"name": "dmz", "interfaces": ["eth3"], "default_policy": "deny"}'
 ```
@@ -1157,7 +1172,7 @@ curl -X POST http://localhost:8080/api/v1/zones \
 Remove a zone by name. Interfaces of the removed zone become unzoned.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/zones/dmz
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/zones/dmz
 ```
 
 #### POST /api/v1/zones/policies
@@ -1165,7 +1180,7 @@ curl -X DELETE http://localhost:8080/api/v1/zones/dmz
 Create an inter-zone policy. Policies are directional.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/zones/policies \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/zones/policies \
   -H 'Content-Type: application/json' \
   -d '{"source_zone": "lan", "dest_zone": "dmz", "action": "allow"}'
 ```
@@ -1179,7 +1194,7 @@ curl -X POST http://localhost:8080/api/v1/zones/policies \
 Remove an inter-zone policy. The id is `{from}__{to}`.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/zones/policies/lan__dmz
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/zones/policies/lan__dmz
 ```
 
 ### Aliases
@@ -1189,7 +1204,7 @@ curl -X DELETE http://localhost:8080/api/v1/zones/policies/lan__dmz
 Alias count.
 
 ```bash
-curl http://localhost:8080/api/v1/aliases/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/aliases/status
 ```
 
 ```json
@@ -1201,7 +1216,7 @@ curl http://localhost:8080/api/v1/aliases/status
 Set content for an external alias. Only works for aliases with `type: external`. The addresses are loaded into the kernel IPv4 IP set the referencing firewall rules match against; members that are not IPv4 host addresses are reported in the agent log and stay out of the set.
 
 ```bash
-curl -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
   -H "Content-Type: application/json" \
   -d '{"ips": ["192.168.0.0/16", "10.0.0.0/8"]}'
 ```
@@ -1213,7 +1228,7 @@ curl -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
 DLP status: enabled flag and pattern count.
 
 ```bash
-curl http://localhost:8080/api/v1/dlp/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dlp/status
 ```
 
 #### GET /api/v1/dlp/patterns
@@ -1221,7 +1236,7 @@ curl http://localhost:8080/api/v1/dlp/status
 List loaded DLP detection patterns.
 
 ```bash
-curl http://localhost:8080/api/v1/dlp/patterns
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dlp/patterns
 ```
 
 ### QoS / Traffic Shaping
@@ -1231,7 +1246,7 @@ curl http://localhost:8080/api/v1/dlp/patterns
 QoS status: enabled flag, pipe/queue/classifier counts.
 
 ```bash
-curl http://localhost:8080/api/v1/qos/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/status
 ```
 
 #### GET /api/v1/qos/pipes
@@ -1239,7 +1254,7 @@ curl http://localhost:8080/api/v1/qos/status
 List all QoS pipes.
 
 ```bash
-curl http://localhost:8080/api/v1/qos/pipes
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/pipes
 ```
 
 #### POST /api/v1/qos/pipes
@@ -1247,7 +1262,7 @@ curl http://localhost:8080/api/v1/qos/pipes
 Create a QoS pipe. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/qos/pipes \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/qos/pipes \
   -H "Content-Type: application/json" \
   -d '{"id":"pipe-1","rate_bps":10000000,"burst_bytes":65536}'
 ```
@@ -1268,7 +1283,7 @@ curl -X POST http://localhost:8080/api/v1/qos/pipes \
 Delete a QoS pipe. Requires `admin` role.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/qos/pipes/pipe-1
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/qos/pipes/pipe-1
 ```
 
 #### GET /api/v1/qos/queues
@@ -1276,7 +1291,7 @@ curl -X DELETE http://localhost:8080/api/v1/qos/pipes/pipe-1
 List all QoS queues.
 
 ```bash
-curl http://localhost:8080/api/v1/qos/queues
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/queues
 ```
 
 #### POST /api/v1/qos/queues
@@ -1284,7 +1299,7 @@ curl http://localhost:8080/api/v1/qos/queues
 Create a QoS queue. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/qos/queues \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/qos/queues \
   -H "Content-Type: application/json" \
   -d '{"id":"q-web","pipe_id":"p-wan"}'
 ```
@@ -1305,7 +1320,7 @@ Delete a QoS queue. Requires `admin` role.
 List all QoS classifiers.
 
 ```bash
-curl http://localhost:8080/api/v1/qos/classifiers
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/classifiers
 ```
 
 #### POST /api/v1/qos/classifiers
@@ -1313,7 +1328,7 @@ curl http://localhost:8080/api/v1/qos/classifiers
 Create a QoS classifier. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/qos/classifiers \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/qos/classifiers \
   -H "Content-Type: application/json" \
   -d '{
     "id": "cls-https",
@@ -1358,7 +1373,7 @@ Delete a QoS classifier. Requires `admin` role.
 List all NPTv6 prefix translation rules.
 
 ```bash
-curl http://localhost:8080/api/v1/nat/nptv6
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/nat/nptv6
 ```
 
 #### POST /api/v1/nat/nptv6
@@ -1366,7 +1381,7 @@ curl http://localhost:8080/api/v1/nat/nptv6
 Create an NPTv6 rule.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/nat/nptv6 \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/nat/nptv6 \
   -H "Content-Type: application/json" \
   -d '{"id":"site-a","internal_prefix":"fd00:1::","external_prefix":"2001:db8:1::","prefix_len":48}'
 ```
@@ -1376,7 +1391,7 @@ curl -X POST http://localhost:8080/api/v1/nat/nptv6 \
 Delete an NPTv6 rule.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
 ```
 
 ### MITRE ATT&CK
@@ -1386,7 +1401,7 @@ curl -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
 MITRE ATT&CK technique coverage map based on active features.
 
 ```bash
-curl http://localhost:8080/api/v1/mitre/coverage
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/mitre/coverage
 ```
 
 ### JA4+ Fingerprints
@@ -1396,7 +1411,7 @@ curl http://localhost:8080/api/v1/mitre/coverage
 JA4 client TLS fingerprint cache summary. Returns the current cached entry count, maximum size, TTL, and whether the cache is backed by a persistent store (see [L7 configuration](../configuration/l7.md#fingerprint-persistence)).
 
 ```bash
-curl http://localhost:8080/api/v1/fingerprints/summary
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/fingerprints/summary
 ```
 
 Response:
@@ -1413,7 +1428,7 @@ Response:
 JA4S server TLS fingerprint cache summary. Populated as the agent observes `ServerHello` bytes on monitored interfaces and computes a per-flow JA4S hash.
 
 ```bash
-curl http://localhost:8080/api/v1/fingerprints/ja4s
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/fingerprints/ja4s
 ```
 
 Response:
@@ -1432,7 +1447,7 @@ Response:
 List active response actions (blocks and throttles).
 
 ```bash
-curl http://localhost:8080/api/v1/responses
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/responses
 ```
 
 **Response:**
@@ -1454,7 +1469,7 @@ Create a time-bounded response action. Requires a write role: admin or
 operator, since a containment is not namespaced. Viewers are refused.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/responses/manual \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/responses/manual \
   -H "Content-Type: application/json" \
   -d '{"action":"block_ip","target":"203.0.113.42","ttl":"1h"}'
 ```
@@ -1479,7 +1494,7 @@ bucket immediately instead of waiting for the TTL. Requires a write role:
 admin or operator. Viewers are refused.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/responses/resp-001
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/responses/resp-001
 ```
 
 Answers `200` with the action as it stood when it was lifted, `revoked` set,
@@ -1493,7 +1508,7 @@ rather than an empty body. An identifier the agent does not hold answers
 List all packet capture sessions.
 
 ```bash
-curl http://localhost:8080/api/v1/captures
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/captures
 ```
 
 Sessions this process started, plus the capture files an earlier run left in
@@ -1505,7 +1520,7 @@ size of their file and an empty filter.
 Start a time-bounded packet capture. Requires `admin` role.
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/captures/manual \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/captures/manual \
   -H "Content-Type: application/json" \
   -d '{
     "filter": "host 1.2.3.4 and port 443",
@@ -1529,7 +1544,7 @@ curl -X POST http://localhost:8080/api/v1/captures/manual \
 Stop a running capture. Requires `admin` role.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/captures/cap-001
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/captures/cap-001
 ```
 
 The session answers `stopped` at once, and the reader observes the stop within
@@ -1546,7 +1561,7 @@ when the agent itself is asked to stop, and a session ended that way reads
 Report the negotiated TLS key-exchange group for the connection carrying this request, so an operator can confirm a post-quantum hybrid handshake against a live connection rather than against the configuration.
 
 ```bash
-curl https://localhost:8443/api/v1/tls/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" https://localhost:8443/api/v1/tls/status
 ```
 
 Response:
@@ -1564,8 +1579,13 @@ Response:
 Prometheus metrics endpoint. See [Prometheus Metrics](prometheus-metrics.md) for the full catalog.
 
 ```bash
-curl http://localhost:8080/metrics
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/metrics
 ```
+
+`/metrics` follows `auth.metrics_auth_required`, which is `true` by default:
+with authentication on, a scraper needs a credential. Set it to `false` to
+leave the counters open, which is what the Helm chart does so a ServiceMonitor
+keeps working without holding the agent's key.
 
 ## Endpoint Summary
 

@@ -25,10 +25,24 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
     scrape_interval: 15s
-    # With auth enabled and metrics_auth_required left on:
-    # authorization:
-    #   credentials_file: /etc/prometheus/ebpfsentinel.token
+    # Authentication is on by default and `auth.metrics_auth_required` is
+    # `true`, so a scrape carries the key unless that is turned off:
+    authorization:
+      credentials_file: /etc/prometheus/ebpfsentinel.token
 ```
+
+Write that file from the key the agent kept:
+
+```bash
+sudo install -m 0600 -o prometheus -g prometheus \
+  /var/lib/ebpfsentinel/auth/api-key /etc/prometheus/ebpfsentinel.token
+```
+
+A key the agent drew for itself is one no scraper outside the host can read,
+which is why the Helm chart ships `metrics.authRequired: false` and leaves the
+counters open on the metrics port while the control plane stays shut. Setting
+`metrics.authRequired: true` there requires `auth.existingSecret`, and the
+ServiceMonitor then presents that Secret.
 
 ### Key Alerts
 
@@ -164,7 +178,7 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/readyz
 
 # Full status
-curl http://localhost:8080/api/v1/agent/status
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/agent/status
 ```
 
 ## Grafana Dashboard

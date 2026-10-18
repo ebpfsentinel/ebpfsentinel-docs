@@ -515,7 +515,7 @@ lexicographically greater than that value from the in-memory rolling buffer
 | `component` | string | Component to receive (case-insensitive exact match). |
 
 ```bash
-curl -N -H 'Accept: text/event-stream' \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -N -H 'Accept: text/event-stream' \
     -H 'Last-Event-ID: 01934567-89ab-7def-0123-456789abcdef' \
     "http://localhost:8444/api/v1/federation/alerts/stream?cluster_id=01234567-89ab-cdef-0123-456789abcdef"
 ```
@@ -601,7 +601,7 @@ Response headers:
 - `Connection: keep-alive`
 
 ```bash
-curl -N -H 'Accept: text/event-stream' \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -N -H 'Accept: text/event-stream' \
     "http://localhost:8444/api/v1/forensics/events/stream?severity_min=high&component=ids"
 ```
 

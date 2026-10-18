@@ -50,7 +50,7 @@ the way:
 
 ```bash
 curl -s http://localhost:8080/readyz | jq .attach_blocked
-curl -s http://localhost:8080/api/v1/ebpf/status | jq .attach_blocked
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -s http://localhost:8080/api/v1/ebpf/status | jq .attach_blocked
 ```
 
 ```json
@@ -104,6 +104,53 @@ The agent mounts its delegated bpffs at `/sys/fs/bpf/ebpfsentinel`, which needs 
 sudo mount -t bpf bpf /sys/fs/bpf
 ```
 
+## The API Answers 401
+
+```
+{"error":"unauthorized","message":"missing or invalid credentials"}
+```
+
+The control API authenticates by default. Every route under `/api/v1` wants a
+credential; `/healthz` and `/readyz` never do, and `/metrics` only when
+`auth.metrics_auth_required` is on.
+
+With no authentication method configured, the agent drew a key for itself at
+first start and logged it once:
+
+```bash
+sudo journalctl -u ebpfsentinel | grep "API key"
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" localhost:8080/api/v1/ebpf/status
+```
+
+The CLI needs nothing when it runs beside the agent as a user who can read that
+file, usually root: `sudo ebpfsentinel-agent status`. A 401 from the CLI on the
+same host means the file is unreadable, the configuration points
+`auth.bootstrap_key_path` elsewhere, or the agent is authenticating against
+configured keys, a JWT secret or OIDC instead, in which case present one of
+those. A key rotated by deleting the file takes effect at the next restart.
+
+On Kubernetes, a pod draws its own key unless `auth.existingSecret` names one,
+so the key differs per pod until a Secret is named. A Prometheus scrape
+answering 401 means `metrics.authRequired` is on; the ServiceMonitor then
+presents the Secret, and the chart refuses to render if none is named.
+
+See [Authentication](../configuration/auth.md).
+
+## The Agent Refuses To Start On A Non-Loopback Bind
+
+The message names the address, the switch and the fix. Two separate refusals,
+for two separate risks:
+
+- an API that would answer anyone who can reach it, lifted only by
+  `agent.allow_unauthenticated_api: true` and only meaningful with
+  `auth.enabled: false`;
+- an API that would carry its credentials in the clear, lifted by configuring
+  TLS under `agent.tls`, or accepted as it is with
+  `agent.allow_plaintext_api: true`.
+
+Loopback triggers neither. See [TLS](../configuration/tls.md).
+
 ## No Traffic Captured
 
 1. Verify the interface is correct and has traffic:
@@ -114,7 +161,7 @@ sudo mount -t bpf bpf /sys/fs/bpf
 2. Check eBPF programs are loaded:
    ```bash
    sudo bpftool prog list
-   curl http://localhost:8080/api/v1/ebpf/status
+   curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/status
    ```
 
 3. Check eBPF maps have data:

@@ -180,7 +180,11 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 |-----|---------|-------------|
 | `agent.interfaces` | `[eth0]` | Node interfaces to attach to |
 | `agent.bindAddress` | `0.0.0.0` | Listen address for HTTP, gRPC and metrics |
-| `agent.allowUnauthenticatedApi` | `true` | Lets the agent boot on a non-loopback bind with auth off. Turn `auth.enabled` on for production, or restrict access with a NetworkPolicy |
+| `agent.allowUnauthenticatedApi` | `false` | Lets the agent boot on a non-loopback bind with `auth.enabled: false`. Off, because authentication is on by default; turning it on leaves the firewall, IPS and config-reload routes open to anything that can reach the pod |
+| `agent.allowPlaintextApi` | `true` | Lets the agent serve a non-loopback bind without TLS. On, because the pod binds `0.0.0.0` and the chart ships no certificate, so the key and the configuration cross the cluster network in the clear. Mount a certificate under `agent.tls` and set this `false`, or carry mTLS in a service mesh |
+| `auth.enabled` | `true` | Establish a principal before the control API answers. `/healthz` and `/readyz` stay public whatever it says |
+| `auth.existingSecret` / `auth.secretKey` | `""` / `api-key` | A Secret holding the API key. When empty, the agent draws one at first start under the state volume and prints it once in the pod log |
+| `metrics.authRequired` | `false` | Require the key on `/metrics` too. Needs `auth.existingSecret`, since Prometheus cannot read a key the agent drew for itself |
 | `agent.httpPort` / `grpcPort` / `metricsPort` | `8080` / `50051` / `9090` | Ports |
 | `agent.logLevel` / `logFormat` | `info` / `json` | Logging |
 | `agent.swaggerUi` | `false` | Swagger UI at `/swagger-ui` |
@@ -267,7 +271,7 @@ configOverride: |
   agent:
     interfaces: [eth0]
     bind_address: 0.0.0.0
-    allow_unauthenticated_api: true
+    allow_plaintext_api: true
     http_port: 8080
     grpc_port: 50051
     metrics_port: 9090
@@ -374,12 +378,36 @@ Add the label your Prometheus Operator selects on with
 `metrics.serviceMonitor.labels` and `metrics.prometheusRule.labels`, for example
 `release: kube-prometheus-stack`.
 
+## The API key in a cluster
+
+The control API authenticates by default, so something has to hold the key.
+Two ways, and they differ in who can read it:
+
+```bash
+# 1. Let the agent draw one. It is printed once per pod, kept under the state
+#    volume, and a pod replaced with `daemonset.state.ephemeral=true` draws a
+#    new one.
+kubectl -n ebpfsentinel logs -l app.kubernetes.io/name=ebpfsentinel -c agent | grep "API key"
+
+# 2. Name a Secret, which is what a dashboard, an operator or a scraper needs,
+#    because every pod then answers to the same key.
+kubectl -n ebpfsentinel create secret generic ebpfsentinel-auth \
+  --from-literal=api-key="sk-$(openssl rand -hex 32)"
+helm upgrade --install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
+  -n ebpfsentinel --set auth.existingSecret=ebpfsentinel-auth
+```
+
+The Secret is mounted read-only and its path becomes `auth.bootstrap_key_path`;
+no key is ever written into the ConfigMap. `metrics.authRequired` is `false`
+out of the box so a ServiceMonitor scrapes the counters without the key; set it
+`true` with a Secret named and the ServiceMonitor presents that Secret.
+
 ## NetworkPolicy
 
 `networkPolicy.enabled` admits ingress on the HTTP, gRPC and metrics ports and
 leaves egress open. The pod runs on the host network, and many CNIs do not
 enforce NetworkPolicy on host-network pods, so check your CNI before relying on
-it to protect an API left unauthenticated.
+it to protect an API that `agent.allowUnauthenticatedApi` left open.
 
 ## Upgrade, rollback, uninstall
 

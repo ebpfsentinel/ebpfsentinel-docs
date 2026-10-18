@@ -6,6 +6,34 @@
 
 eBPFsentinel supports three authentication methods for API and CLI access: static API keys, JWT (RS256 or EdDSA, from a PEM file or a JWKS endpoint), and OIDC (JWKS discovery). Methods can be combined - API keys work alongside JWT or OIDC via a composite authentication provider. Role-based access control (RBAC) governs what each authenticated identity can do.
 
+Authentication is on unless the configuration turns it off, and a file that
+names none of the three methods still authenticates: the agent draws a key for
+itself at first start.
+
+### The key the agent draws for itself
+
+With `auth.enabled` left at its default and no method configured, the agent
+generates a key at first start, writes it to `auth.bootstrap_key_path`
+(`/var/lib/ebpfsentinel/auth/api-key`) as `0600` inside a `0700` directory, and
+prints it once:
+
+```text
+{"level":"INFO","path":"/var/lib/ebpfsentinel/auth/api-key","api_key":"sk-...","message":"no authentication method was configured, so an API key was generated: send it as 'Authorization: Bearer <key>'. It is shown this once and kept at the path above"}
+```
+
+The key is `sk-` followed by 64 hexadecimal characters. Later starts read the
+file back rather than drawing another, so a script written against the first
+start keeps working. Deleting the file and restarting draws a new one; setting
+`bootstrap_key_path: ""` refuses the generated key, and a method then has to be
+configured or the agent refuses to start. Naming `api_keys`, `jwt` or `oidc`
+also replaces it: the generated key is read only when nothing else is there.
+
+```bash
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/rules
+ebpfsentinel-agent firewall list
+```
+
 ## Authentication Methods
 
 ### API Keys
@@ -44,10 +72,12 @@ ebpfsentinel-agent --token sk-change-me-admin-key firewall list
 ### JWT
 
 Service-to-service authentication against a public key the agent holds. The
-agent validates tokens against the configured issuer, audience and key. Bearer
-tokens are pre-validated for correct JWT structure (three dot-separated Base64
-parts) before cryptographic verification, rejecting malformed inputs early. RSA
-2048-bit minimum key size is enforced at key load and on rotation.
+agent validates tokens against the configured issuer, audience and key. A
+bearer value is handed to the configured providers whatever its shape - the
+generated key travels in the same header and is not a JWT - so a malformed
+token is refused by verification rather than by a shape test, and an empty one
+is refused before that. RSA 2048-bit minimum key size is enforced at key load
+and on rotation.
 
 Two algorithms are accepted. `RS256` is the default and verifies with an
 RSA-2048+ public key. `EdDSA` verifies with an Ed25519 key, which is what the
@@ -131,9 +161,11 @@ A token carrying no `role` claim is treated as `viewer`.
 | `/healthz` | Liveness probe |
 | `/readyz` | Readiness probe |
 
-All `/api/v1/*` endpoints require authentication when `auth.enabled: true`.
+All `/api/v1/*` endpoints require authentication, which is on by default.
 `/metrics` does too, unless `auth.metrics_auth_required: false` is set - the
-default is `true`, so a Prometheus scraper needs a viewer key.
+default is `true`, so a Prometheus scraper needs a viewer key. The Helm chart
+turns it off (`metrics.authRequired: false`) so a ServiceMonitor scrapes
+without holding the agent's key, and the control plane stays shut either way.
 
 ### Rate Limiting
 

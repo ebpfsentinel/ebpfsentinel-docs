@@ -72,7 +72,7 @@ The detail is served on the enterprise API, reading the cached result without
 issuing further kernel calls:
 
 ```bash
-curl -s http://127.0.0.1:8444/api/v1/ebpf/kernel-features
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -s http://127.0.0.1:8444/api/v1/ebpf/kernel-features
 ```
 
 Three signals a log aggregator can key on distinguish an unverified boot: the
@@ -153,6 +153,25 @@ What the units do:
 On bare metal the two share the host PID namespace, so the warden reads `/proc`
 directly and no `/host/proc` mount is needed. The enterprise API listens on
 `127.0.0.1:8444` unless `--bind-address` says otherwise.
+
+### The API key
+
+This binary authenticates on the same terms as the community one. With no
+method named in the configuration it draws a key at first start, writes it to
+`auth.bootstrap_key_path` (`/var/lib/ebpfsentinel/auth/api-key`, `0600` in a
+`0700` directory) and prints it once:
+
+```bash
+export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api/v1/license/status
+```
+
+A `--bind-address` off loopback refuses to start twice over: once because the
+API would answer unauthenticated requests, which `agent.allow_unauthenticated_api`
+is the only way past, and once because it would serve plaintext, which
+`agent.allow_plaintext_api` is the only way past. The two are separate
+decisions, and the message names the address, the switch and the fix. See
+[TLS](../../configuration/tls.md).
 
 The enterprise agent builds its datapath once at boot: it has no config file
 watcher, no SIGHUP handling and no reload route, so the unit carries no
@@ -298,7 +317,9 @@ nothing else: this binary opens one HTTP listener, so the REST surface,
 `/metrics` and the `/healthz` and `/readyz` probes are all served on 8444 and
 the OSS agent's own 8080, 50051 and 9090 are never started. The enterprise API
 terminates no TLS of its own, so put a proxy in front of it if it leaves the
-node. The HA port carries no authentication and no TLS either, so it must reach
+node, which is also why the chart's values accept plaintext on the pod's
+non-loopback bind. It still authenticates: name an existing Secret so every
+pod answers to one key, or read the key a pod drew for itself out of its log. The HA port carries no authentication and no TLS either, so it must reach
 the HA peers and nothing else - see
 the [gRPC API reference](../../api-reference/grpc-api.md).
 

@@ -129,3 +129,37 @@ audit settings and `agent.interfaces` are read at startup only. See
 
 The Enterprise agent has no reload at all: an edit to its config takes a restart.
 See [Enterprise deployment](deployment/enterprise.md).
+
+## Upgrading onto a shut API
+
+Before this release an agent with no authentication configured answered
+anything that could reach it, and `auth.enabled` defaulted to `false`. It now
+defaults to `true`, and an upgrade changes the behaviour of a deployment whose
+configuration says nothing about authentication. Four things to expect:
+
+1. **A key appears.** With no `auth.api_keys`, no JWT secret and no OIDC
+   issuer, the agent writes one to `auth.bootstrap_key_path`
+   (`/var/lib/ebpfsentinel/auth/api-key`, `0600` in a `0700` directory) at
+   first start and logs it once. On Kubernetes it is per pod until
+   `auth.existingSecret` names one. `bootstrap_key_path: ""` refuses the key
+   outright, and the agent then refuses to serve an unauthenticated API off
+   loopback.
+2. **Scripts need a credential.** Anything calling `/api/v1` adds
+   `-H "Authorization: Bearer $EBPFSENTINEL_TOKEN"` or `-H "X-API-Key: ..."`.
+   The CLI run on the agent's own host reads the generated key by itself, so
+   `sudo ebpfsentinel-agent status` keeps working unchanged.
+3. **`/metrics` follows the control plane.** It is gated whenever
+   authentication is on, unless `auth.metrics_auth_required: false` says
+   otherwise. The chart ships `metrics.authRequired: false` so an existing
+   ServiceMonitor keeps scraping; a Prometheus outside the chart either gets
+   the same setting or a `credentials_file`, see [Monitoring](monitoring.md).
+4. **A non-loopback bind is now two decisions.** An API reachable off
+   loopback refuses to start without authentication unless
+   `agent.allow_unauthenticated_api: true`, and refuses to serve plaintext
+   unless TLS is configured or `agent.allow_plaintext_api: true`. The
+   Kubernetes chart sets the plaintext one, because the pod binds `0.0.0.0`
+   and the chart terminates no TLS.
+
+Keeping the previous behaviour exactly is `auth.enabled: false` plus
+`agent.allow_unauthenticated_api: true`, which is a deliberate sentence to
+write in a file rather than a default anybody inherits.

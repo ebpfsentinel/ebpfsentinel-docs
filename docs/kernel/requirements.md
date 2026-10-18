@@ -22,7 +22,7 @@ ls /sys/kernel/btf/vmlinux     # Must exist
 A version number is a proxy for capability, not capability itself: vendors backport helpers into older trees and distributions compile features out. At startup the agent therefore asks the kernel directly, per program type, about every helper its programs call, logs a one-line summary, and serves the detail:
 
 ```bash
-curl -s http://127.0.0.1:8080/api/v1/ebpf/kernel-features
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -s http://127.0.0.1:8080/api/v1/ebpf/kernel-features
 ```
 
 ```json

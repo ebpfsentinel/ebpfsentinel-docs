@@ -136,7 +136,7 @@ INFO XDP chain topology changed, tail-calls rewired
 Query the current eBPF program status:
 
 ```bash
-curl -s http://localhost:8080/api/v1/ebpf/status | jq
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -s http://localhost:8080/api/v1/ebpf/status | jq
 ```
 
 ```json

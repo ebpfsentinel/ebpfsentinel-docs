@@ -149,7 +149,7 @@ Exclusions are applied after resolution - an `ip_set` with `exclude` removes mat
 The `external` type starts empty. Push content via the REST API:
 
 ```bash
-curl -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
   -H "Content-Type: application/json" \
   -d '{"ips": ["192.168.0.0/16", "10.0.0.0/8"]}'
 ```

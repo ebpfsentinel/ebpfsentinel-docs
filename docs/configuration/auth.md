@@ -2,11 +2,43 @@
 
 The `auth` section configures API authentication and RBAC.
 
+## The API is shut by default
+
+`auth.enabled` is `true` unless the file says otherwise, and the same routes
+reload configuration, write firewall rules and arm the IPS. A file that names
+no authentication method is the ordinary case: at first start the agent draws
+a key for itself, writes it to `auth.bootstrap_key_path` as `0600` inside a
+`0700` directory, and prints it once:
+
+```text
+{"level":"INFO","path":"/var/lib/ebpfsentinel/auth/api-key","api_key":"sk-...","message":"no authentication method was configured, so an API key was generated: send it as 'Authorization: Bearer <key>'. It is shown this once and kept at the path above"}
+```
+
+Every later start reads the same file back and says so without printing the
+key, so tooling written on the first day keeps working. Read it when you need
+it again:
+
+```bash
+sudo cat /var/lib/ebpfsentinel/auth/api-key
+```
+
+Drawing a new one is deleting the file and restarting the agent. Setting
+`bootstrap_key_path: ""` refuses the generated key, and then one of `api_keys`,
+`jwt` or `oidc` has to be configured or the agent refuses to start.
+
+Turning authentication off is a decision the configuration has to carry:
+`auth.enabled: false` with a non-loopback `agent.bind_address` refuses to
+start, and `agent.allow_unauthenticated_api: true` is how an estate that
+fences the port off by other means says so. The matching fence for the
+encryption half is `agent.allow_plaintext_api`, in
+[TLS](tls.md#plaintext-on-a-reachable-address-is-refused).
+
 ## Reference
 
 ```yaml
 auth:
   enabled: true
+  bootstrap_key_path: /var/lib/ebpfsentinel/auth/api-key   # "" refuses the generated key
   metrics_auth_required: true             # Set to false to expose /metrics without auth
   api_key_salt: "optional-custom-salt"    # Random 32-byte generated if omitted
   api_keys:
@@ -27,7 +59,8 @@ auth:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `bool` | `false` | Enable authentication |
+| `enabled` | `bool` | `true` | Establish a principal before the control API answers. `/healthz` and `/readyz` stay public whatever it says |
+| `bootstrap_key_path` | `string` | `/var/lib/ebpfsentinel/auth/api-key` | Where the key the agent draws for itself is kept, `0600` inside a `0700` directory. Read only when no other method is configured. `""` refuses the generated key |
 | `metrics_auth_required` | `bool` | `true` | Whether `/metrics` requires authentication when auth is enabled |
 | `api_keys` | `[ApiKey]` | `[]` | Static API keys |
 | `api_key_salt` | `string` | random | Salt for API key hashing. A random 32-byte value is generated if omitted |
@@ -63,6 +96,11 @@ API keys can be combined with JWT or OIDC. The `CompositeAuthProvider` tries eac
 
 1. Check `X-API-Key` header against `api_keys`
 2. Check `Authorization: Bearer <token>` against JWT or OIDC
+
+Either header carries either kind of credential: a bearer value is handed to
+the providers whatever its shape, because the generated key is `sk-` and hex
+rather than three dot-separated parts and it is what `--token` and
+`EBPFSENTINEL_TOKEN` put in that header.
 
 ## RBAC Roles
 

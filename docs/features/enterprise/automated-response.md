@@ -108,7 +108,7 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 
 ```bash
 # Create webhook endpoint
-curl -X POST http://agent:8444/api/v1/enterprise/response/webhooks \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://agent:8444/api/v1/enterprise/response/webhooks \
   -H 'Content-Type: application/json' \
   -d '{
     "id": "soar-splunk",
@@ -121,7 +121,7 @@ curl -X POST http://agent:8444/api/v1/enterprise/response/webhooks \
   }'
 
 # Create policy referencing the webhook
-curl -X POST http://agent:8444/api/v1/enterprise/response/policies \
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://agent:8444/api/v1/enterprise/response/policies \
   -H 'Content-Type: application/json' \
   -d '{
     "id": "notify-critical",
@@ -152,19 +152,19 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 
 ```bash
 # All recent actions
-curl http://agent:8444/api/v1/enterprise/response/audit
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://agent:8444/api/v1/enterprise/response/audit
 
 # Filter by policy
-curl "http://agent:8444/api/v1/enterprise/response/audit?policy_id=block-c2-traffic"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://agent:8444/api/v1/enterprise/response/audit?policy_id=block-c2-traffic"
 
 # Filter by action type
-curl "http://agent:8444/api/v1/enterprise/response/audit?action_type=webhook_notify"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://agent:8444/api/v1/enterprise/response/audit?action_type=webhook_notify"
 
 # Filter by outcome
-curl "http://agent:8444/api/v1/enterprise/response/audit?outcome=failed&limit=50"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://agent:8444/api/v1/enterprise/response/audit?outcome=failed&limit=50"
 
 # Only what happened after a given moment, in nanoseconds since the epoch
-curl "http://agent:8444/api/v1/enterprise/response/audit?since_ns=1750000000000000000"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://agent:8444/api/v1/enterprise/response/audit?since_ns=1750000000000000000"
 ```
 
 The four filters - `policy_id`, `action_type`, `outcome` and `since_ns` - combine,
