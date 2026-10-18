@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 16 eBPF kernel programs (the
+Detailed documentation for each of the 18 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -444,4 +444,36 @@ Data Loss Prevention via SSL/TLS interception. One object carries nine programs 
 
 The OSS agent attaches the C-library set to OpenSSL and BoringSSL. The Go and kernel TLS sets, and the other libraries, are attached by the Enterprise extended TLS scan; see [Enterprise DLP](../features/enterprise/dlp.md).
 
-This is the only program that operates at the application layer - all others work at L3/L4.
+This is the only program that reads application data. The two below it read neither a packet nor a payload: they read what a task does.
+
+## Attribution Programs
+
+### cgroup-attribution
+
+**Hook:** [cgroup sock_addr, cgroup sock and sock_ops](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) | **Path:** `crates/ebpf-programs/cgroup-attribution/`
+
+Seven programs in one object, attached to the cgroup the agent is given, answering the one question a packet cannot: which task opened this socket.
+
+- `attribution_connect4` / `attribution_connect6` fire when a task asks for a connection, before the SYN exists.
+- `attribution_post_bind4` / `attribution_post_bind6` fire when a task takes a local address, which is how a server's listening socket is named.
+- `attribution_sendmsg4` / `attribution_sendmsg6` fire on every datagram sent through an unconnected socket. DNS is the traffic this product parses most and almost none of it calls `connect()`, so leaving the datagram path out would make the identity partial exactly where it matters.
+- `attribution_sockops` runs on the established connection and is the only hook that knows both ends at once, so it is the one that writes the five-tuple index.
+
+What is written: `SOCKET_IDENTITY` (socket cookie to `SocketIdentity`: pid, tgid, uid, gid, cgroup id, the hook that recorded it and a boot-time stamp), `SOCKET_FLOW` (`FlowIdentityKey` to the same identity, for a reader holding addresses and ports rather than a cookie, such as a row of the kernel's conntrack table) and `DLP_TASK_SOCKET`, shared by name with `uprobe-dlp` so a plaintext write can be given its destination. All three are LRU: a node that opens more sockets than the table holds evicts its coldest entries instead of refusing the newest, and the capacities are a configuration the loader applies at map creation.
+
+Identities carry `ATTRIBUTION_IDENTITY_TTL_NS` and `ATTRIBUTION_METRICS` holds per-CPU counters per hook, plus `no_cookie` and `insert_failed`, which is how an operator sees which of the seven is doing the work on a node.
+
+Nothing here enforces anything: every program returns allow unconditionally. A kernel that refuses the `sock_ops` join - the one hook of the object allowed to be absent on its own - keeps the other six, reports the kernel's own error through `/api/v1/ebpf/kernel-features`, and the flows it would have named fall back to five-tuple matching.
+
+### tracepoint-process
+
+**Hook:** [raw tracepoint](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_RAW_TRACEPOINT/) | **Path:** `crates/ebpf-programs/tracepoint-process/`
+
+Two programs, `process_exec` on `sched_process_exec` and `process_exit` on `sched_process_exit`, so a pid means one thing at a time.
+
+- `sched_process_exec` fires once the new image is installed, which is what makes the userspace read of `/proc/<pid>/exe` answer with the new path rather than with the shell that called it.
+- `sched_process_exit` fires once a thread is gone; a thread exit that is not the last one is counted separately from a process exit.
+
+`ProcessEvent` carries the calling task's own numbers and nothing else: pid, tgid, uid, gid, cgroup id, `comm`, the event kind and a boot-time stamp. The executable path, the command line, the parent and the container come from `/proc` in userspace on the strength of these notifications, because they live in `task_struct` and `linux_binprm` and reading them in the kernel would pin the object to one kernel's field offsets.
+
+`PROCESS_EVENTS` is a RingBuf of its own rather than a share of the packet ring, for two reasons: a process event is rare and must not be dropped behind a flood of packets, and the table reading it wants to be woken at once, since an exec read a second late is an alert naming a pid instead of a binary. `PROCESS_METRICS` counts exec, exit, thread exit and dropped. Both programs return zero unconditionally; a raw tracepoint has no verdict to give.

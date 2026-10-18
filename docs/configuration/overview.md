@@ -121,7 +121,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 # Or let the file watcher detect changes automatically (500ms debounce)
 ```
 
-All 10 eBPF programs (XDP, TC, uprobe) support dynamic load/unload. The XDP tail-call chain is automatically rewired when programs are added or removed. Pinned maps preserve kernel state (connection tracking, counters) across reloads.
+All 17 eBPF programs a host runs (XDP, TC, uprobe, cgroup, tracepoint) support dynamic load/unload. The XDP tail-call chain is automatically rewired when programs are added or removed. Pinned maps preserve kernel state (connection tracking, counters) across reloads.
 
 See [Hot Reload](../operations/hot-reload.md) for the full reference.
 

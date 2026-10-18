@@ -1,18 +1,20 @@
 # Kernel Overview
 
-eBPFsentinel ships 16 eBPF programs that run in the Linux kernel to inspect, filter, and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack. Fifteen make up the production datapath; the sixteenth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 18 eBPF programs that run in the Linux kernel. Fourteen of them inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - two read what a process does rather than what it sends, one reads TLS plaintext inside the process, and the eighteenth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
 Traditional network security agents operate entirely in userspace, copying every packet across the kernel/user boundary. eBPF programs execute *inside* the kernel, attached to strategic hook points, and can drop, redirect, or annotate packets with zero context-switch overhead.
 
-eBPFsentinel hooks into three kernel subsystems, plus probes on userspace and kernel functions for TLS plaintext:
+eBPFsentinel hooks into five kernel subsystems, probes on userspace and kernel functions for TLS plaintext among them:
 
 | Subsystem | Hook Point | Programs |
 |-----------|-----------|----------|
 | [XDP](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_XDP/) | Driver receive path (before SKB allocation) | `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`, and the tail-call targets `xdp-firewall-reject`, `xdp-ratelimit-syncookie`, `xdp-vip-announcer` |
 | [TC](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) | Traffic Control classifier (after SKB), attached through TCX | `tc-conntrack`, `tc-nat-ingress`, `tc-nat-egress`, `tc-scrub`, `tc-ids`, `tc-threatintel`, `tc-dns`, `tc-qos` |
 | [Uprobe / kprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | TLS library calls (`SSL_write`/`SSL_read`, Go `crypto/tls`) and the kernel TLS path (`tls_sw_sendmsg`/`tls_sw_recvmsg`) | `uprobe-dlp` |
+| [cgroup sock / sock_addr / sock_ops](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) | The socket calls a task makes inside the cgroup: `connect4`/`connect6`, `sendmsg4`/`sendmsg6`, `post_bind4`/`post_bind6`, plus the `sock_ops` join that carries the socket cookie | `cgroup-attribution` |
+| [Raw tracepoint](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_RAW_TRACEPOINT/) | `sched_process_exec` and `sched_process_exit`, the process events the kernel already raises | `tracepoint-process` |
 
 Measured on live traffic, the whole stack costs about 1 µs of kernel time per received packet: the XDP chain 630-712 ns, each TC program between 23 and 292 ns. See [Performance Tuning](../operations/performance-tuning.md) for the figures and how they were taken.
 
@@ -35,7 +37,9 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 | 13 | `xdp-firewall-reject` | XDP (tail call) | Forges TCP RST / ICMP unreachable for REJECT rules | `XDP_TX`, per-source reply rate limit, `PKT_CTX` shared with `xdp-firewall` |
 | 14 | `xdp-ratelimit-syncookie` | XDP (tail call) | Answers a SYN flood with a SYN-ACK cookie | Kernel raw SYN cookie generation, `XDP_TX` |
 | 15 | `xdp-vip-announcer` | XDP (tail call) | Answers ARP for load-balancer virtual IPs while this node is the elected speaker | `XDP_TX`, fixed 28-byte ARP rewrite |
-| 16 | `xdp-pass` | XDP | Test-only: returns `XDP_PASS`, used on the peer side of a veth in tests | none |
+| 16 | `cgroup-attribution` | cgroup sock_addr, cgroup sock, sock_ops | Names the task behind a socket, so a flow carries a process and a container rather than a five-tuple | LRU hash maps keyed by socket cookie, by task and by flow; `bpf_get_current_pid_tgid`, `bpf_get_current_cgroup_id`, `bpf_get_socket_cookie` on the `sock_ops` join |
+| 17 | `tracepoint-process` | Raw tracepoint | Follows `execve` and exit, so the process table stays true without polling `/proc` | RingBuf emission, `bpf_probe_read_kernel_str` over the task struct |
+| 18 | `xdp-pass` | XDP | Test-only: returns `XDP_PASS`, used on the peer side of a veth in tests | none |
 
 ## Ingress / Egress Pipeline
 
@@ -73,6 +77,8 @@ EGRESS:
                     → TC egress (tc-nat-egress: SNAT/masquerade)
                     → TC egress (tc-qos: traffic shaping) → wire
 ```
+
+`cgroup-attribution` and `tracepoint-process` are absent from that pipeline on purpose: neither sees a packet. The first attaches to the cgroup the agent is given and runs on the socket calls a task makes, the second on the process events the kernel raises, and what they write is read by the packet programs through the identity maps rather than by passing anything along the chain. A host whose kernel refuses one of the cgroup attachments keeps the others and reports the refusal; flows then fall back to five-tuple matching.
 
 When the firewall is disabled, `xdp-ratelimit` attaches on its own, and `xdp-loadbalancer` attaches on its own when no other XDP program is active. The order above is the startup order: each TC program is attached through TCX at the tail of the chain, so a program enabled later at runtime runs after the ones already attached. The first TC program to parse a packet leaves its offsets in `skb->cb`, and the following programs of the same chain reuse them instead of parsing again; NAT invalidates that record after a rewrite. No metadata is passed from XDP to TC.
 

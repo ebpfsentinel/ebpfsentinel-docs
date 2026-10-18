@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 16 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Fifteen form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 18 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Seventeen form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -24,6 +24,8 @@ eBPFsentinel includes 16 eBPF kernel programs, all written in Rust using the [Ay
 | `tc-dns` | TC classifier | `crates/ebpf-programs/tc-dns/` | DNS capture |
 | `tc-qos` | TC egress + ingress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping (`tc_qos` on egress, `tc_qos_ingress` on ingress) |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
+| `cgroup-attribution` | cgroup sock_addr / sock / sock_ops | `crates/ebpf-programs/cgroup-attribution/` | The task behind a socket, recorded against the socket cookie and the five-tuple |
+| `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
 
 ## Interface Groups (Cross-Cutting)
 
@@ -240,6 +242,19 @@ Packet normalization running after XDP processing:
   - Kernel TLS: kprobes on `tls_sw_sendmsg` and `tls_sw_recvmsg` (entry and return) through a `kprobe_multi` link, covering every software kTLS socket on the host; a kernel probe stands down when a C-library probe on the same thread already captured the bytes
 - Captures plaintext before encryption / after decryption, and the cgroup identifier of the calling task so an event is attributed to its container
 - Forwards to userspace DLP engine via RingBuf. The OSS agent attaches the C-library set; the Go and kernel TLS sets, statically linked BoringSSL and the other C libraries are attached by the Enterprise extended TLS scan
+
+## Socket Attribution (cgroup-attribution)
+
+- Seven programs, one answer: `connect4`/`connect6` fire before any packet exists, `post_bind4`/`post_bind6` name a listening socket, `sendmsg4`/`sendmsg6` cover the unconnected datagram path (most DNS never calls `connect()`), and a `sock_ops` program joins the established connection to its five-tuple
+- Writes `SOCKET_IDENTITY` (socket cookie to task), `SOCKET_FLOW` (five-tuple to task, the index a conntrack row can be read through) and `DLP_TASK_SOCKET`, the map `uprobe-dlp` also declares so the loader gives both objects one kernel map: the uprobe holds a plaintext buffer and a thread, the `sock_ops` hook holds the socket, and the thread is what they have in common
+- All three tables are LRU, so a node opening more sockets than the table holds loses the coldest entry rather than refusing the newest, and `ATTRIBUTION_METRICS` per-CPU counters say which hooks are firing
+- Enforces nothing. Every program returns allow unconditionally, so a refused attachment or a full map costs attribution and never connectivity: flows fall back to five-tuple matching, which is what the agent reports through `/api/v1/ebpf/kernel-features`
+
+## Process Lifecycle (tracepoint-process)
+
+- Two raw tracepoints, `sched_process_exec` and `sched_process_exit`, each returning zero unconditionally
+- Puts only the calling task's own numbers on the ring - pid, tgid, uid, gid, cgroup id, `comm` - because the executable path, the command line and the parent live in `task_struct` and `linux_binprm`, and reading them here would pin the object to one kernel's field offsets. The exec record is the invitation for userspace to read `/proc/<pid>`, the exit record the order to forget
+- Its own RingBuf rather than a share of the packet ring: a process event is rare, must not be dropped behind a flood of packets, and an exec read a second late is an alert naming a pid instead of a binary
 
 ## Kernel Requirements
 

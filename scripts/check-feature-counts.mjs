@@ -266,6 +266,44 @@ for (const kind of KINDS.keys()) {
   }
 }
 
+// The program total is written on one marked page and restated on half a dozen
+// others, which is how it went stale in the first place: two programs were
+// added to the tree and every unmarked sentence kept saying sixteen. A marker
+// per restatement would mean marking a mermaid label and a workflow table, so
+// the phrase itself is the marker. Only a claim about the whole tree is read:
+// a sentence counting the programs that do one thing ("all 6 eBPF programs
+// that enforce rules") is a subset and says so, which is what the trailing
+// `that` excludes.
+const programTotal = countProgramDirectories();
+// `xdp-pass` is peer-side test scaffolding, so a page counting what a customer
+// host runs is right to say one less. Both numbers are read off the same tree,
+// and a page saying neither is the one that went stale.
+const programsRun = programTotal - 1;
+const TOTAL_CLAIMS = [
+  /(?:ships|includes|holds|each of the|Linux Kernel \(|\*\*|\ball\b)\s*(\d+|[A-Za-z]+) eBPF (?:kernel )?programs(?! that)/gi,
+  /\b(\d+|[A-Za-z]+) eBPF (?:kernel )?programs attached at\b/gi,
+];
+
+for (const file of [...markdownFiles(docsRoot), join(repoRoot, 'README.md')]) {
+  const shown = relative(repoRoot, file);
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .forEach((line, index) => {
+      const seen = new Set();
+      for (const claim of TOTAL_CLAIMS) {
+        for (const [, token] of line.matchAll(claim)) {
+          const written = numberFrom(token);
+          if (written === undefined || written === programTotal || written === programsRun) continue;
+          if (seen.has(token)) continue;
+          seen.add(token);
+          errors.push(
+            `${shown}:${index + 1} - crates/ebpf-programs/ holds ${programTotal} directories (${programsRun} a host runs), the line says ${token}`,
+          );
+        }
+      }
+    });
+}
+
 if (errors.length > 0) {
   for (const error of errors) console.error(error);
   console.error(`\n${errors.length} feature count problem(s).`);
