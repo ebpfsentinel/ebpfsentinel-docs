@@ -47,6 +47,8 @@ This starts the agent with all features disabled except basic packet forwarding.
 | [`tls`](tls.md) | No | TLS certificates for REST/gRPC |
 | [`conntrack`](conntrack.md) | No | Connection tracking flood detection thresholds |
 | `container` | No | Container resolver, Docker enricher, Kubernetes enricher |
+| [`attribution`](attribution.md) | No | Cgroup socket hooks that record the task behind a socket |
+| [`process_table`](process-table.md) | No | Exec and exit tracepoints, and the bound on the table they fill |
 | [`nat`](nat.md) | No | SNAT, DNAT, masquerade, NPTv6, hairpin NAT |
 | [`routing`](routing.md) | No | Multi-WAN gateways, health checks, default-route failover |
 | [`zones`](zones.md) | No | Network zone segmentation, inter-zone policies |

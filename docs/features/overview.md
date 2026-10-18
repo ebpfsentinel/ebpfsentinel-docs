@@ -72,7 +72,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (93 paths, 109 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (95 paths, 111 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -83,7 +83,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
 <!-- feature-count: cli-subcommands -->
-| CLI (37 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
+| CLI (38 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
 ### Enterprise
@@ -117,10 +117,10 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds sixteen program directories: twelve attached at an
-enforcement point, three reached only by tail call from one of those twelve, and
-`xdp-pass`, which is peer-side test scaffolding rather than part of the
-datapath. The twelve enforcement points:
+`crates/ebpf-programs/` holds eighteen program directories: fourteen attached at
+a hook of their own, three reached only by tail call from one of those fourteen,
+and `xdp-pass`, which is peer-side test scaffolding rather than part of the
+datapath. The fourteen attached programs, the last two of which only observe:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -136,6 +136,8 @@ datapath. The twelve enforcement points:
 | `tc-qos` | TC ingress + egress | Per-pipe token bucket bandwidth limiting with ECN CE marking, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
+| `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, and joins it to the five-tuple once the connection is established |
+| `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -146,7 +148,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the sixteenth directory. It is a no-op XDP program attached to the
+`xdp-pass` is the eighteenth directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

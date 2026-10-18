@@ -746,6 +746,38 @@ ebpfsentinel-agent fingerprints summary -o json
 ebpfsentinel-agent fingerprints ja4s
 ```
 
+### processes
+
+The process table: what a pid is, from its exec to its exit. Attribution only,
+nothing here blocks anything. See [process table
+configuration](../configuration/process-table.md).
+
+```bash
+# The processes the agent knows about, newest first, 50 rows
+ebpfsentinel-agent processes list
+
+# Every row of the table
+ebpfsentinel-agent processes list --limit 0
+
+# One process by pid
+ebpfsentinel-agent processes show 4242
+ebpfsentinel-agent processes show 4242 -o json
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--limit <N>` | Rows to print on `list`, `0` for every one of them | `50` |
+
+`list` prints what the table cost before it prints the table: how many entries
+it holds against its capacity, and how many were evicted because the bound was
+reached. The `EXECUTABLE` column shows the resolved path, or `[comm]` in
+brackets where no path could be read, so a row never claims a name the agent
+did not resolve.
+
+Both commands report `the process table is not running on this agent` when the
+table is turned off or the tracepoints did not attach;
+`ebpfsentinel-agent ebpf kernel-features` says which of the two it is.
+
 ### zones
 
 Security zones and the policies between them. A zone groups interfaces under

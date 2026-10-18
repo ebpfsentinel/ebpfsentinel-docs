@@ -128,6 +128,7 @@ const sidebars: SidebarsConfig = {
         'configuration/audit',
         'configuration/conntrack',
         'configuration/attribution',
+        'configuration/process-table',
         'configuration/container',
         'configuration/nat',
         'configuration/routing',

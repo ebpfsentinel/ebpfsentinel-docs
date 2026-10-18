@@ -1480,6 +1480,87 @@ Response:
 | `ttl_seconds` | integer | Entry TTL in seconds |
 | `persistent` | boolean | `true` when `l7.fingerprints.persistence_path` is set |
 
+### Processes
+
+The process table is attribution and never enforcement: it names a pid, it
+blocks nothing. It is filled by two tracepoints, `sched_process_exec` and
+`sched_process_exit`, so an entry appears when a program execs and is removed
+when it exits rather than aged out. See [process table
+configuration](../configuration/process-table.md).
+
+Both routes answer `503` with `the process table is not running on this agent`
+when the table is turned off or the kernel refused the tracepoints. An empty
+list would be a node running nothing, which is never true.
+
+#### GET /api/v1/processes
+
+The processes the agent currently knows about, newest first.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/processes
+```
+
+**Response:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tracing` | object | Whether the tracepoints attached, which ones, and why not |
+| `stats` | object | Capacity and what the bound has cost so far |
+| `processes` | array | One object per live process, newest first |
+
+`tracing`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `attached` | boolean | Both tracepoints are attached and the table is being filled |
+| `tracepoints` | array | The tracepoint names that attached, in attach order |
+| `reason` | string? | Why the table is off or empty, in one sentence. Absent when attached |
+| `command_line` | boolean | `true` when the agent is configured to read `/proc/<pid>/cmdline` |
+
+`stats`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `capacity` | integer | Maximum number of entries, from `process_table.capacity` |
+| `entries` | integer | How many are held right now |
+| `recorded` | integer | Execs recorded since start |
+| `replaced` | integer | Execs that overwrote an entry for a pid already held |
+| `evicted` | integer | Entries dropped because the table was full |
+| `purged` | integer | Entries removed by an exit, which is the normal path |
+| `missing_exit` | integer | Exits for a pid the table did not hold |
+
+Each entry of `processes`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pid` | integer | The process id |
+| `parent_pid` | integer? | The parent, read from `/proc/<pid>/status`. Absent where the process was gone before it could be read |
+| `comm` | string | The kernel's 16-byte command name |
+| `identity` | object | `kind` is `path` or `unknown`, and `path` carries the executable path where there is one |
+| `command_line` | string? | The full command line, only when `process_table.capture_command_line` is on |
+| `uid` | integer | Effective user id at exec |
+| `gid` | integer | Effective group id at exec |
+| `cgroup_id` | integer | The kernel cgroup id of the task |
+| `container` | object? | `id`, `runtime`, and `name` and `image` where the runtime answered. Absent for a host process |
+| `started_at_ns` | integer | Kernel monotonic time of the exec, in nanoseconds |
+
+`identity.kind` is what makes the strength of the name explicit. A path is
+forgeable: a process can be started from a binary that has since been replaced
+or deleted. `unknown` means the path could not be read at all, and the entry
+carries only `comm`, which is 16 bytes the task can set itself.
+
+#### GET /api/v1/processes/{pid}
+
+One process by pid. The body is one entry of the array above.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/processes/4242
+```
+
+`404` with code `process_not_found` where the table holds no such pid, which is
+every pid that exited and every pid that execed before the tracepoints
+attached.
+
 ### Responses
 
 #### GET /api/v1/responses
@@ -1733,6 +1814,8 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/mitre/coverage` | Yes | MITRE ATT&CK technique coverage map |
 | GET | `/api/v1/fingerprints/summary` | Yes | JA4 client fingerprint cache summary |
 | GET | `/api/v1/fingerprints/ja4s` | Yes | JA4S server fingerprint cache summary |
+| GET | `/api/v1/processes` | Yes | The process table, newest first |
+| GET | `/api/v1/processes/{pid}` | Yes | One process by pid |
 | GET | `/api/v1/responses` | Yes | List active auto-response actions |
 | POST | `/api/v1/responses/manual` | Yes (admin) | Create manual response action (block/throttle) |
 | DELETE | `/api/v1/responses/{id}` | Yes (admin) | Revoke a response action |
