@@ -58,6 +58,18 @@ The IDS itself only detects. Enable **IPS** (Intrusion Prevention) to automatica
 
 The OSS edition ships with 17 built-in patterns (payment cards, national identifiers from nine countries, credentials) that are always loaded, in alert mode. Custom patterns and block mode come with every paid tier from Professional upwards. See [DLP](features/dlp.md) for details.
 
+### Do you ship a maintained JA4 fingerprint feed?
+
+<!-- feature-count: ja4-builtin-threats -->
+
+No. The enterprise JA4+ threat database ships a starter sample of 7 sourced
+fingerprints, each naming the public source it was taken from and the day it
+was last confirmed, and the detection value comes from the intelligence you
+import: STIX 2.1 indicators, your own captures, or entries added through the
+configuration or the API. A signed content channel shipping curated
+fingerprints on our schedule does not exist today. See
+[TLS Intelligence](features/enterprise/tls-intelligence.md).
+
 ### What threat intelligence feed formats are supported?
 
 Plaintext (one IOC per line), CSV (configurable column mapping), JSON (field name mapping), and STIX 2.1 bundles. STIX feeds automatically distribute indicators to the appropriate engines: IPs to threat intel, domains to DNS blocklist and reputation, URLs to L7 firewall.

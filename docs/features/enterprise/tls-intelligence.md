@@ -8,29 +8,55 @@ TLS Intelligence provides deep visibility into TLS handshake metadata across the
 
 Four sub-capabilities:
 
+<!-- feature-count: ja4-builtin-threats -->
+
 | Capability | Description |
 |-----------|-------------|
-| JA4+ Threat Database | Fingerprint-based threat detection with 14 built-in C2, malware and scanner signatures |
+| JA4+ Threat Database | Fingerprint matching against imported intelligence, with a starter sample of 7 sourced built-in signatures |
 | TLS Behavior Anomaly | Statistical rarity scoring of TLS fingerprints over a sliding window |
 | PQC Compliance Detection | Track ML-KEM and hybrid key exchange adoption per destination |
 | Cipher/Protocol Compliance | Enforce minimum TLS versions, block weak ciphers and signature algorithms |
 
 ## JA4+ Threat Database
 
-Fourteen built-in threat fingerprints ship with the agent:
+<!-- feature-count: ja4-builtin-threats -->
+
+The detection value of this capability comes from the intelligence you import.
+The agent ships a **starter sample of seven sourced fingerprints**, enough to prove the
+pipeline end to end and no more; it is not a maintained feed and it is not
+sized to cover a threat landscape.
 
 | Category | Entries | Threats |
 |----------|---------|---------|
-| `c2` | 8 | Cobalt Strike (three versions), Metasploit Meterpreter, Metasploit over TLS 1.2, Sliver, Havoc, Brute Ratel C4 |
-| `malware` | 4 | Emotet (two variants), Trickbot, IcedID |
-| `scanner` | 2 | Nmap TLS probe, Masscan TLS probe |
+| `c2` | 6 | Sliver implant (two variants), Cobalt Strike 4.9.1 beacon (four variants) |
+| `malware` | 1 | IcedID |
 
-The list is short on purpose. A JA4 fingerprint is a truncated SHA-256 of the
-handshake, so an entry whose hash was written by hand rather than observed on the
-wire matches nothing while still counting towards a number a reader compares.
-Every entry above is a fingerprint that can be seen. Two categories the
-vocabulary carries, `botnet` and `exploit_tool`, ship no built-in entry today and
-exist for entries a deployment adds.
+### Every shipped indicator says where it came from
+
+A JA4 fingerprint is a truncated SHA-256 of the handshake, so an entry written
+by hand rather than observed on the wire matches nothing while still counting
+towards a number a reader compares against another product. Every built-in
+entry therefore carries its provenance as data, and the type refuses to be
+built without it:
+
+| Field | Description |
+|-------|-------------|
+| `source` | The named public dataset, vendor report or capture the value comes from |
+| `reference` | What a reader follows to check it: a URL for a public source, a case number or path for your own |
+| `last_confirmed` | The day the value was last confirmed, as `YYYY-MM-DD` |
+| `confidence` | Present only where the source states one |
+
+The seven sourced entries come from the FoxIO JA4 mapping
+(`https://github.com/FoxIO-LLC/ja4/blob/main/ja4plus-mapping.csv`), last
+confirmed 2026-10-18. A row the documented sources do not carry is not shipped:
+a fingerprint published for one phishing framework, for instance, is the Go
+standard library's own TLS fingerprint, so shipping it would alert on every Go
+binary in the estate.
+
+Where a source states no confidence, the number is **derived from the class of
+the source** through one function rather than typed per row: an observation of
+our own scores 90, an operator's own entry 85, a named public dataset 80, a
+vendor report 70. There is no per-row literal to drift.
 
 Each entry contains:
 
@@ -39,11 +65,32 @@ Each entry contains:
 | `ja4_hash` | JA4+ fingerprint hash (identity of the entry) |
 | `threat_name` | Human-readable threat name |
 | `category` | One of `c2`, `malware`, `exploit_tool`, `scanner`, `botnet`, `custom` |
-| `confidence` | Match confidence 0-100 (default 80) |
+| `origin` | `built_in`, `operator` or `feed`: where the row entered the database |
+| `provenance` | The four fields above |
+| `confidence` | Stated by the source, otherwise derived from its class |
 
 A `category` outside that vocabulary is refused by name at startup rather than
 filed under `custom`, so a typo in a feed stops the agent instead of producing
-entries in a category nobody wrote.
+entries in a category nobody wrote. Three categories the vocabulary carries,
+`exploit_tool`, `scanner` and `botnet`, ship no built-in entry today and exist
+for entries a deployment adds.
+
+### Importing intelligence today
+
+Three routes, all available now:
+
+1. **Configuration** - `threat_db.custom_entries`, below. Fingerprints you
+   observed yourself or took from a report, applied at boot.
+2. **API** - `POST /api/v1/enterprise/tls-intelligence/threats`, one entry per
+   call, applied without a restart. The provenance fields are required here
+   too.
+3. **STIX** - the threat intelligence feed ingests STIX 2.1 indicator objects,
+   including JA4 patterns. See
+   [Threat Intelligence](../threat-intelligence.md).
+
+A signed content channel that ships curated fingerprints on our schedule does
+not exist today. When it does, it will be announced as a capability rather
+than implied by the size of this list.
 
 ### Custom Threat Entries
 
@@ -63,7 +110,10 @@ enterprise:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
           threat_name: Internal Red Team Implant
           category: c2                # c2 | malware | exploit_tool | scanner | botnet | custom
-          confidence: 90              # 0-100 (default 80)
+          source: internal red team exercise   # required
+          reference: case-4711                 # required: URL, case number or path
+          last_confirmed: 2026-10-18           # required, YYYY-MM-DD
+          confidence: 90              # 0-100, omit to derive from the source
 ```
 
 ### Allowlist
@@ -522,6 +572,9 @@ enterprise:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
           threat_name: Internal Red Team Implant
           category: c2
+          source: internal red team exercise
+          reference: case-4711
+          last_confirmed: 2026-10-18
           confidence: 90
       allowlist:
         - "t13d1516h2_8daaf6152771_e5627efa2ab1"

@@ -28,10 +28,21 @@ const ossRoot = process.env.EBPFSENTINEL_OSS_ROOT
   ? resolve(process.env.EBPFSENTINEL_OSS_ROOT)
   : resolve(repoRoot, '..', 'ebpfsentinel');
 
+// The shipped JA4 list is a starter sample, and how small it is is the whole
+// point of saying so: a page that keeps the old number while the list grows
+// or shrinks sells something else.
+const enterpriseRoot = process.env.EBPFSENTINEL_ENTERPRISE_ROOT
+  ? resolve(process.env.EBPFSENTINEL_ENTERPRISE_ROOT)
+  : resolve(repoRoot, '..', 'ebpfsentinel-enterprise');
+
 const errors = [];
 
 function read(...parts) {
   return readFileSync(join(ossRoot, ...parts), 'utf8');
+}
+
+function readEnterprise(...parts) {
+  return readFileSync(join(enterpriseRoot, ...parts), 'utf8');
 }
 
 // Numbers on this page are written as digits in a table cell and as words in
@@ -81,6 +92,17 @@ function countVariants(source, name, file) {
 function countCommands() {
   const source = read('crates', 'agent', 'src', 'cli.rs');
   return countVariants(source, 'Command', 'crates/agent/src/cli.rs');
+}
+
+function countBuiltinThreats() {
+  const file = join('crates', 'enterprise-domain', 'src', 'tls_intelligence', 'engine.rs');
+  const source = readEnterprise(file);
+  const body = source.match(/const BUILTIN_THREATS: &\[BuiltinThreat\] = &\[([\s\S]*?)\n\];/);
+  if (!body) {
+    errors.push(`cannot find \`BUILTIN_THREATS\` in ${file}`);
+    return 0;
+  }
+  return (body[1].match(/^ {4}BuiltinThreat \{/gm) ?? []).length;
 }
 
 function countTechniques() {
@@ -170,6 +192,18 @@ const KINDS = new Map([
     },
   ],
   [
+    'ja4-builtin-threats',
+    (line) => {
+      const total = countBuiltinThreats();
+      const match = line.match(/\b([A-Za-z]+|\d+) sourced\b/);
+      if (!match) return ['the sentence no longer reads `N sourced ...`'];
+      const written = numberFrom(match[1]);
+      return written === total
+        ? []
+        : [`\`BUILTIN_THREATS\` holds ${total} entries, the page says ${match[1]}`];
+    },
+  ],
+  [
     'mitre-techniques',
     (line) => {
       const total = countTechniques();
@@ -199,7 +233,7 @@ for (const file of markdownFiles(docsRoot)) {
   const lines = readFileSync(file, 'utf8').split('\n');
 
   lines.forEach((line, index) => {
-    const marker = line.match(/<!--\s*feature-count:\s*([a-z-]+)\s*-->/);
+    const marker = line.match(/<!--\s*feature-count:\s*([a-z0-9-]+)\s*-->/);
     if (!marker) return;
     const kind = marker[1];
     const check = KINDS.get(kind);
