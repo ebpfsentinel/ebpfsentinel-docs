@@ -60,12 +60,41 @@ Per-component context:
 |--------|-----------|
 | `confidence`, `threat_type` | threat intelligence, IDS |
 | `data_type` | DLP |
+| `executable_path`, `executable_dev`, `executable_inode`, `executable_source` | DLP |
+| `flow_source` | DLP |
 | `pid`, `tgid`, `container` | anything with a process or container attribution |
 | `direction` | packet engines |
 | `matched_domain` | DNS |
 | `attack_type`, `peak_pps`, `current_pps`, `mitigation_status`, `total_packets` | DDoS |
 | `ja4_fingerprint` | TLS fingerprinting |
 | `mitre_technique_id`, `mitre_technique_name`, `mitre_tactic` | any engine with an ATT&CK mapping |
+
+#### Where a leak came from, and how that was learned
+
+A DLP alert answers two questions beyond what was matched: which binary wrote
+the data, and where it went. Both are optional, and each says how it was
+obtained rather than leaving the reader to assume:
+
+- `executable_path` is the binary the writing process was running, read in
+  the agent's own mount view, with `executable_dev` and `executable_inode`
+  beside it so a path that was replaced is still identifiable. The three are
+  present together or not at all, and `executable_source` is
+  `process_at_alert_time`, meaning the agent read `/proc` when the alert was
+  raised. A process that exited first leaves all four absent: the agent names
+  nothing it could not read.
+- `flow_source` says where the addresses on the alert came from.
+  `kernel_socket` means they were read off the socket the write went through.
+  `task_socket_correlation` means they are the destination of the same task's
+  most recent socket operation, inside the datapath's correlation window -
+  the right answer in almost every case, and still a correlation rather than
+  proof these bytes went there. The field being absent means the agent
+  resolved no socket at all, and the addresses and ports on the alert are
+  then zero: that is "nowhere known", not an address of `0.0.0.0` and not a
+  connection to port 0.
+
+None of these fields carry what was matched. The matched data is represented
+only by `data_type` and the redacted excerpt the DLP engine produces, and
+widening the attribution has not widened what leaves the machine.
 
 ### Alert Enrichment
 

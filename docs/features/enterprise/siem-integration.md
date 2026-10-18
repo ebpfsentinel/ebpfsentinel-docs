@@ -79,14 +79,34 @@ off every destination.
 | `@timestamp` | ISO 8601 |
 | `rule.id`, `rule.name` | The rule that raised the alert, under both names. There is one identifier, and a rule name that changed on every row would be a grouping nobody can use |
 | `ebpfsentinel.alert_id` | The alert's own identifier, `{timestamp}-{rule}-{sequence}` |
-| `source.ip`, `source.port` | Source address |
-| `destination.ip`, `destination.port` | Destination address |
-| `network.transport` | tcp/udp/icmp |
+| `source.ip`, `source.port` | Source address. Left off entirely when the agent resolved no socket |
+| `destination.ip`, `destination.port` | Destination address. Left off entirely when the agent resolved no socket |
+| `network.transport` | tcp/udp/icmp. Left off with the addresses |
+| `process.executable`, `process.name` | The binary the writing process was running, and its own name. DLP, when the path was resolved |
+| `process.pid`, `process.thread.id` | The process and thread the write came from, when the alert carries them |
+| `ebpfsentinel.process.executable_dev`, `ebpfsentinel.process.executable_inode` | The executable's `(dev, ino)` identity. ECS has no attribute for it, so it sits under the custom namespace rather than being dropped |
+| `ebpfsentinel.process.executable_source` | How the path was obtained: `process_at_alert_time` |
+| `ebpfsentinel.flow_source` | How the five-tuple was obtained: `kernel_socket` or `task_socket_correlation`. Absent means the address fields are absent too |
 | `message` | Alert message |
 | `threat.indicator.type` | Threat type (if present) |
 | `threat.indicator.confidence` | Confidence (if present) |
 | `ebpfsentinel.tenant_id` | Tenant ID (custom field) |
 | `ebpfsentinel.component` | OSS component |
+
+### Attribution fields, and what their absence means
+
+A DLP alert can name the binary that wrote the data and the destination it
+went to, and each of the two says how it was obtained. The rule across every
+format is the same: what the agent could not resolve is **absent**, never
+written out as a zero. An alert the agent could trace to no socket carries no
+`source.*`, no `destination.*`, no `network.transport` and no flow provenance -
+rather than a connection from `0.0.0.0:0`, which a correlation rule would read
+as a real address. An alert whose process was gone before it was raised carries
+no process fields.
+
+None of these fields carries matched content: the excerpt stays redacted
+exactly as it was before the attribution fields existed, and that is asserted
+over every format rather than reviewed.
 
 ## Durable Buffer
 
@@ -140,6 +160,7 @@ Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` se
 ### Splunk HEC
 
 - **Envelope**: `{"event": <SiemEvent JSON>, "sourcetype": "...", "index": "...", "time": <float>}` - the event as the buffer holds it, alert and enterprise metadata together, rather than an ECS document
+- **Attribution fields**: `event.alert.executable_path`, `executable_dev`, `executable_inode`, `executable_source` and `flow_source` ride the alert under their own names, and a field the agent did not resolve is not serialized at all
 - **Batch format**: NDJSON (newline-delimited envelopes)
 - **Authentication**: `Authorization: Splunk {token}`
 - **Channel**: UUIDv7-based channel ID per exporter instance (for ACK correlation)
@@ -170,14 +191,16 @@ Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the c
 
 - **Format**: `CEF:0|eBPFsentinel|Agent|1.0|{rule_id}|{message}|{severity}|{extensions}`
 - **CEF severity**: Low→3, Medium→5, High→7, Critical→10
-- **Extensions**: `src`, `dst`, `spt`, `dpt`, `proto`, `act`, `externalId`, `rt` + custom fields (`cs1`-`cs6` for component, tenant_id, threat_type, confidence, attack_type, data_type)
+- **Extensions**: `act`, `externalId`, `rt`, then `src`, `dst`, `spt`, `dpt`, `proto` when a socket was resolved + custom fields (`cs1`-`cs6` for component, tenant_id, threat_type, confidence, attack_type, data_type)
+- **Process attribution**: `sproc` (binary name), `filePath` (full path), `spid`, `fileId` (executable inode), `flexString1`/`flexString1Label=ExecutableSource` and `flexString2`/`flexString2Label=FlowSource`
 - **Escaping**: `\|` in headers, `\=` in extension values
 - **Wrapped in RFC 5424 syslog** (facility=1/user, severity mapped to syslog levels)
 
 ### IBM QRadar (LEEF)
 
 - **Format**: `LEEF:2.0|eBPFsentinel|Agent|1.0|{event_id}|{tab-delimited key=value pairs}`
-- **Fields**: `devTime`, `src`, `dst`, `srcPort`, `dstPort`, `proto`, `sev` (string), `action`, `ruleId`, `msg`, `component` + optional `tenantId`, `threatType`, etc.
+- **Fields**: `devTime`, `sev` (string), `action`, `ruleId`, `msg`, `component`, then `src`, `dst`, `srcPort`, `dstPort`, `proto` when a socket was resolved + optional `tenantId`, `threatType`, etc.
+- **Process attribution**: `processName`, `executablePath`, `processId`, `executableDev`, `executableInode`, `executableSource`, `flowSource`
 - **Escaping**: tabs replaced with spaces (tab is field delimiter)
 - **Wrapped in RFC 5424 syslog**
 
@@ -191,10 +214,11 @@ Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the c
   - `severity_id` 2 to 5 for low to critical
   - `action_id` / `disposition_id`: `Allowed` / `Detected` for an alert-mode rule, `Denied` / `Blocked` for a block-mode rule
   - `finding_info.analytic.uid` is the rule id, `finding_info.attacks` the MITRE ATT&CK technique when the alert carries one
-  - `src_endpoint`, `dst_endpoint` and `connection_info` carry the flow
+  - `src_endpoint`, `dst_endpoint` and `connection_info` carry the flow, and are all three absent when the agent resolved no socket
+  - `process` and `actor.process` carry the writing process: `process.file.path`, `process.file.name`, `process.file.uid` (the executable inode), `process.name`, `process.pid` and `process.tid`, and the object is absent when nothing about the process was resolved
   - `metadata.tenant_uid` is the tenant in multi-tenant mode
   - `confidence_score` is the threat-intelligence confidence
-  - Anything OCSF has no attribute for (threat type, DDoS attack type, DLP data type, JA4, ML engine and score) sits under `unmapped`
+  - Anything OCSF has no attribute for (threat type, DDoS attack type, DLP data type, JA4, ML engine and score, the executable device number and the two provenance words `executable_source` and `flow_source`) sits under `unmapped`
 
 ### Shared Syslog Transport
 

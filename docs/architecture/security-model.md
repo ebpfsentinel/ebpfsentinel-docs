@@ -136,6 +136,15 @@ the host pid namespace is no longer one of them:
   returns the link descriptor over the control socket. The agent itself stays
   `cap-drop: ALL` - it never holds a tracing capability.
 
+What that mount lets an alert say is part of the cost. A DLP alert names the
+binary of the writing process, read through the same `/host/proc`, and the
+destination of the write, so anyone who can read the alert stream can read the
+names of binaries running in neighbouring containers. The scope filter
+(`dlp.scope`) is what bounds it, the alert carries no command line and no
+environment, and an executable the agent could not resolve is left out rather
+than guessed. Nothing of the matched data travels with it: the content is still
+represented only by its data type and the redacted excerpt.
+
 Statically-linked TLS runtimes (Go `crypto/tls`, Rust rustls, Java JSSE) export
 no `libssl` symbol to probe and are not covered by the OSS agent.
 

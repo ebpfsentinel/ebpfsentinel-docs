@@ -135,6 +135,32 @@ namespace that leaked the data - no manual IP-to-workload correlation
 required downstream. SIEM exports, the gRPC alert stream, the REST API,
 and the audit trail all carry the enrichment.
 
+## What the alert says about the leak
+
+Beyond the workload, a DLP alert names the binary that wrote and the
+destination the write was going to, and each of them says how it was
+obtained:
+
+| Field | Meaning |
+|-------|---------|
+| `executable_path` | the binary the writing process was running, in the agent's mount view |
+| `executable_dev`, `executable_inode` | the identity that survives a rename or a replacement of that path |
+| `executable_source` | `process_at_alert_time`: the agent read `/proc` when the alert was raised |
+| `flow_source` | `kernel_socket` if the addresses were read off the socket of this write, `task_socket_correlation` if they are the same task's most recent socket |
+
+Absence is the point. A process that exited before the alert was raised
+leaves the executable fields off the record rather than carrying a guessed
+name, and an alert with no `flow_source` carries zero addresses and zero
+ports, which reads as "the agent resolved no socket" rather than as traffic
+to `0.0.0.0:0`. A correlated destination is the right answer in almost every
+case and is still a correlation: it is where that task wrote last, not proof
+that these bytes went there, which is why the field names the method rather
+than leaving the reader to assume.
+
+None of this widens what leaves the machine. The matched data is still
+represented only by its `data_type` and the redacted excerpt; no field added
+here carries a byte of what was matched.
+
 ### Coverage and limits
 
 The OSS agent covers **dynamically-linked OpenSSL and BoringSSL** (`libssl.so`,
