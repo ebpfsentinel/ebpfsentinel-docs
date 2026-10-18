@@ -6,7 +6,7 @@
 
 ```bash
 git clone https://github.com/ebpfsentinel/ebpfsentinel.git
-cd ebpfsentinel/ebpfsentinel
+cd ebpfsentinel
 
 # Build eBPF kernel programs (requires nightly)
 cargo xtask ebpf-build

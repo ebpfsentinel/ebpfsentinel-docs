@@ -18,12 +18,18 @@ printed. Each page carries the recording of that run.
 
 ## The lab
 
-The lab lives in the agent repository, under `demo/`:
+The lab is published with the release, like every other artifact, and that
+is where you fetch it from:
 
 ```bash
-git clone https://github.com/ebpfsentinel/ebpfsentinel
-cd ebpfsentinel/demo
+curl -fsSLO https://github.com/ebpfsentinel/ebpfsentinel-release/releases/latest/download/ebpfsentinel-demo.tar.gz
+tar xzf ebpfsentinel-demo.tar.gz && cd ebpfsentinel-demo
 ```
+
+It is pinned to the release it came from, and its checksum and signature are
+in that release's `SHA256SUMS`. The same lab is `demo/` in a checkout of the
+agent repository, where `sudo ./demo.sh up --local` runs it against an agent
+built from your working tree instead of the published image.
 
 The host needs Linux 6.9 or later with BTF (`/sys/kernel/btf/vmlinux`),
 Docker with the compose plugin, and on Ubuntu 24.04 and later unprivileged
