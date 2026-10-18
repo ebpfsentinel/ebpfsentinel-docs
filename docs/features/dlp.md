@@ -146,7 +146,7 @@ obtained:
 | `executable_path` | the binary the writing process was running, in the agent's mount view |
 | `executable_dev`, `executable_inode` | the identity that survives a rename or a replacement of that path |
 | `executable_source` | `process_at_alert_time`: the agent read `/proc` when the alert was raised |
-| `flow_source` | `kernel_socket` if the addresses were read off the socket of this write, `task_socket_correlation` if they are the same task's most recent socket |
+| `flow_source` | `kernel_socket` if the addresses came off a socket the kernel vouches for, either the socket of this write or the established socket [socket attribution](../configuration/attribution.md) joined to this thread, `task_socket_correlation` if they are the same task's most recent socket |
 
 Absence is the point. A process that exited before the alert was raised
 leaves the executable fields off the record rather than carrying a guessed
