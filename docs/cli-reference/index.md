@@ -418,6 +418,20 @@ ebpfsentinel-agent alerts mark-fp alert-001
 `alerts show` prints the same fields `alerts list` prints for a row, so a row
 picked out of the queue and the alert opened from it can never disagree.
 
+An alert the node could attribute carries a `Workload` line naming the process
+that opened the flow, the pod or the container it runs in where there is one,
+and in brackets how the process was reached: `socket` is read off the kernel's
+own handle, `flow` is a five-tuple match and therefore a correlation, and
+`process` is an event that already named its thread.
+
+```
+  Workload:       /usr/local/bin/exporter (8831) in pod exporter-7f9c [socket]
+```
+
+A flow the node only forwarded, or one whose socket was opened before the
+hooks attached, carries no such line rather than a line of zeroes. With
+`-o json` the same block is the `workload` object, absent under the same rule.
+
 #### stats
 
 Alert statistics: severity distribution, top sources, top rules, component breakdown with bar chart.
@@ -634,6 +648,11 @@ ebpfsentinel-agent conntrack flush
 |------|-------------|---------|
 | `--interval <SECS>` | Seconds between reads of the connection list, used only by the polling fallback | `2` |
 | `--limit <N>` | Max connections to list | `100` |
+
+`conntrack list` carries a `WORKLOAD` column holding the same summary the
+`Workload` line of an alert holds, and a `-` for a connection the node could
+attribute to no local process, which is every transited flow on a router or a
+NAT.
 
 ### dns
 

@@ -50,7 +50,7 @@ Request to subscribe to the alert stream with optional filters.
 
 A single alert event streamed to the client.
 
-37 fields, in declaration order. The number is the wire tag and never changes.
+38 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
@@ -91,6 +91,27 @@ A single alert event streamed to the client.
 | 35 | `mitre_tactic` | `string` | MITRE ATT&CK tactic in kebab-case (e.g. "command-and-control"). Empty if absent. |
 | 36 | `ja4_fingerprint` | `string` | JA4 TLS ClientHello fingerprint (e.g. "t13d1516h2_8daaf6152771_02713d6af862"). Empty if absent. |
 | 37 | `container` | [`ContainerIdentity`](#containeridentity) | Container / Kubernetes provenance resolved from the event's cgroup_id. Unset for host-namespace processes (nothing to attribute). |
+| 38 | `workload` | [`Workload`](#workload) | The process behind the flow, where the node could name one. Unset for a flow this node only forwarded, for a socket opened before the attribution hooks attached, and on a host whose kernel refused them. |
+
+### Workload
+
+The process a flow belongs to, as the agent resolved it. Mirrors the HTTP workload block field for field, so a console reading one and a SIEM reading the other describe the same process in the same words. A field is empty or zero where the node could not add it: a process table that has not seen the exec gives a pid and nothing more.
+
+11 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `pid` | `uint32` | The process that owns the socket. Never zero in a message that exists. |
+| 2 | `source` | `string` | How the process was reached: "socket" when the kernel's own handle on the socket answered, "flow" when the five-tuple was matched against the index of established connections, "process" when the event already named the task. The first and the third are read, the second is correlated. |
+| 3 | `exe` | `string` | The executable path the process table recorded. Empty if absent. |
+| 4 | `uid` | `uint32` | The real uid of the task when the socket was opened. Unset as 0 only where the table holds no uid, root being a legitimate 0. |
+| 5 | `cgroup` | `uint64` | cgroup v2 id, as the kernel numbers it (0 if absent). |
+| 6 | `container` | `string` | Container id, where the process runs in one. Empty if absent. |
+| 7 | `image` | `string` | Container image. Empty if absent. |
+| 8 | `pod` | `string` | Pod name, on a Kubernetes node. Empty if absent. |
+| 9 | `namespace` | `string` | Namespace, on a Kubernetes node. Empty if absent. |
+| 10 | `service_account` | `string` | Service account the pod runs as. Empty if absent. |
+| 11 | `unit` | `string` | systemd unit, for a host process placed in one. Empty if absent. |
 
 ### ContainerIdentity
 

@@ -87,6 +87,11 @@ off every destination.
 | `ebpfsentinel.process.executable_dev`, `ebpfsentinel.process.executable_inode` | The executable's `(dev, ino)` identity. ECS has no attribute for it, so it sits under the custom namespace rather than being dropped |
 | `ebpfsentinel.process.executable_source` | How the path was obtained: `process_at_alert_time` |
 | `ebpfsentinel.flow_source` | How the five-tuple was obtained: `kernel_socket` or `task_socket_correlation`. Absent means the address fields are absent too |
+| `ebpfsentinel.workload.source` | How the workload was reached: `socket`, `flow` or `process`. Present whenever the workload block is |
+| `container.id`, `container.image.name` | The container the process runs in, where the node resolved one |
+| `orchestrator.type`, `orchestrator.resource.type`, `orchestrator.resource.name`, `orchestrator.namespace` | `kubernetes`, `pod`, the pod and its namespace, on a Kubernetes node |
+| `user.id` | The uid that opened the socket, as a string, which is what ECS asks for |
+| `ebpfsentinel.workload.cgroup`, `ebpfsentinel.workload.service_account`, `ebpfsentinel.workload.unit` | The cgroup v2 id, the pod's service account and the systemd unit. ECS has no attribute for any of the three |
 | `message` | Alert message |
 | `threat.indicator.type` | Threat type (if present) |
 | `threat.indicator.confidence` | Confidence (if present) |
@@ -107,6 +112,29 @@ no process fields.
 None of these fields carries matched content: the excerpt stays redacted
 exactly as it was before the attribution fields existed, and that is asserted
 over every format rather than reviewed.
+
+### The workload block, in every format
+
+An alert the node could attribute carries a workload block naming the process
+that opened the flow: the pid, how it was reached, the executable, the uid, the
+cgroup, and the container, image, pod, namespace and service account where
+there are any. Every format writes it from one predicate, so no document can
+claim a process number of zero: a block naming pid 0 is a block that resolved
+nothing, and the kernel's swapper opens no connections.
+
+| Format | Where it lands |
+|---|---|
+| ECS | `process.*`, `container.*`, `orchestrator.*` and `user.id` where ECS has an attribute, `ebpfsentinel.workload.*` for the three it does not |
+| OCSF | `process` (file, name, pid, `process.user.uid`), `container` with its `image`, and one `resources[]` entry of type `pod`; the source word, cgroup, service account and systemd unit sit under `unmapped` |
+| CEF | `workloadSource`, `spid`, `sproc`, `filePath`, `suid`, then `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount` and `systemdUnit` as additional extensions, because the six `cs` slots are already spoken for |
+| LEEF | `workloadSource`, `processId`, `processName`, `executablePath`, `userId`, `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` |
+| Splunk HEC | The `workload` object of the event, serialized whole under its own names |
+
+An alert that already named its own process keeps it: the block fills the
+process fields only where the alert itself resolved none, so a document never
+carries two process numbers that could disagree. A flow the node only
+forwarded, which is every transited flow on a router or a NAT, carries no
+block at all rather than an empty one.
 
 ## Durable Buffer
 
@@ -161,6 +189,7 @@ Multiple SIEM destinations can be configured simultaneously. `FanOutExporter` se
 
 - **Envelope**: `{"event": <SiemEvent JSON>, "sourcetype": "...", "index": "...", "time": <float>}` - the event as the buffer holds it, alert and enterprise metadata together, rather than an ECS document
 - **Attribution fields**: `event.alert.executable_path`, `executable_dev`, `executable_inode`, `executable_source` and `flow_source` ride the alert under their own names, and a field the agent did not resolve is not serialized at all
+- **Workload block**: `event.alert.workload` rides the alert whole, under the same names the agent's own API serves, and is absent for a flow with no local process
 - **Batch format**: NDJSON (newline-delimited envelopes)
 - **Authentication**: `Authorization: Splunk {token}`
 - **Channel**: UUIDv7-based channel ID per exporter instance (for ACK correlation)
@@ -216,9 +245,10 @@ Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the c
   - `finding_info.analytic.uid` is the rule id, `finding_info.attacks` the MITRE ATT&CK technique when the alert carries one
   - `src_endpoint`, `dst_endpoint` and `connection_info` carry the flow, and are all three absent when the agent resolved no socket
   - `process` and `actor.process` carry the writing process: `process.file.path`, `process.file.name`, `process.file.uid` (the executable inode), `process.name`, `process.pid` and `process.tid`, and the object is absent when nothing about the process was resolved
+  - `container` and one `resources[]` entry of type `pod` carry the container, its image, the pod and the namespace, and both are absent for a host process
   - `metadata.tenant_uid` is the tenant in multi-tenant mode
   - `confidence_score` is the threat-intelligence confidence
-  - Anything OCSF has no attribute for (threat type, DDoS attack type, DLP data type, JA4, ML engine and score, the executable device number and the two provenance words `executable_source` and `flow_source`) sits under `unmapped`
+  - Anything OCSF has no attribute for (threat type, DDoS attack type, DLP data type, JA4, ML engine and score, the executable device number, the two provenance words `executable_source` and `flow_source`, and the workload's source word, cgroup id, service account and systemd unit) sits under `unmapped`
 
 ### Shared Syslog Transport
 

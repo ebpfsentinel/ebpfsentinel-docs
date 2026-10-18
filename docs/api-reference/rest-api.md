@@ -376,7 +376,9 @@ data: {"event_type":"destroy","protocol":"tcp","src":"10.0.0.1:54321","dst":"10.
 
 #### GET /api/v1/conntrack/connections
 
-List active connections in the conntrack table.
+List active connections in the conntrack table. A connection the node could
+attribute carries [the workload block](#the-workload-block); one it only
+forwarded carries none.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/conntrack/connections
@@ -656,6 +658,57 @@ List alerts. Supports query parameters:
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/alerts?component=ids&severity=high&limit=50"
+```
+
+#### The workload block
+
+An alert and a connection each carry an optional `workload` object naming the
+process that opened the flow. It is written only where the node resolved one,
+and it is absent rather than zeroed everywhere else, so a reader never has to
+tell a real pid 0 from a failed lookup.
+
+| Field | Type | When it is there |
+|-------|------|------------------|
+| `pid` | integer | Always, in a block that exists. A block is never written for pid 0 |
+| `source` | string | Always: `socket`, `flow` or `process`, how the process was reached |
+| `exe` | string | The executable path, where the process table read one |
+| `uid` | integer | The real uid of the task when the socket was opened |
+| `cgroup` | integer | cgroup v2 id, as the kernel numbers it |
+| `container` | string | Container id, for a process in one |
+| `image` | string | Container image, where a runtime enricher could read it |
+| `pod` | string | Pod name, on a Kubernetes node |
+| `namespace` | string | Namespace, on a Kubernetes node |
+| `service_account` | string | Service account of the pod, where the enricher read one |
+| `unit` | string | systemd unit, for a host process placed in one |
+
+`source` is the strength of the join and not a detail:
+
+| `source` | What it means |
+|---|---|
+| `socket` | The socket cookie on the event was found in the kernel's socket table. The task named is the task that owns that socket |
+| `flow` | No cookie was available, so the five-tuple was matched against the index the socket hooks keep. A tuple can be reused after a socket closes, so this is a correlation |
+| `process` | The event already named a process and the rest was filled in from the process table, which is how a DLP write arrives |
+
+The whole block is absent for a flow the node only forwarded, for a socket
+opened before the hooks attached, for a socket opened outside the agent's
+cgroup, and on a host where the attach was refused. There is deliberately no
+hash of the executable: the agent records the path `/proc/<pid>/exe` answered
+and says so, and a key that is always absent would be a promise it does not
+keep. Whether the hooks attached on this host is in
+[`ebpf kernel-features`](../cli-reference/index.md), and the table they fill is
+sized in [the attribution configuration](../configuration/attribution.md).
+
+```json
+{
+  "pid": 8831,
+  "source": "socket",
+  "exe": "/usr/local/bin/exporter",
+  "uid": 1000,
+  "container": "ac19f0",
+  "image": "ghcr.io/acme/exporter:1.4",
+  "pod": "exporter-7f9c",
+  "namespace": "payments"
+}
 ```
 
 #### GET /api/v1/alerts/{id}
