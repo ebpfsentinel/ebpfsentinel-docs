@@ -1,0 +1,5 @@
+# core-js's postinstall only prints a funding banner, and a build script that
+# runs on install is a script that runs in CI: answered once here so `pnpm`
+# stops asking and the package scripts stop failing before they start.
+allowBuilds:
+  core-js: false

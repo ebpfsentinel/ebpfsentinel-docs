@@ -46,19 +46,6 @@ const config: Config = {
         },
       } satisfies Preset.Options,
     ],
-    [
-      'redocusaurus',
-      {
-        specs: [
-          {
-            id: 'agent-api',
-            spec: 'static/openapi.json',
-            route: '/api-reference/api-explorer/',
-          },
-        ],
-        theme: {primaryColor: '#7c5cff'},
-      },
-    ],
   ],
 
   plugins: [
