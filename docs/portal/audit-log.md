@@ -1,6 +1,6 @@
 # Audit Log and Activity
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 The portal records every act on an organisation and on an account, including
 what was refused. You read it back in two places, as pages and as a file.

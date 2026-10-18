@@ -1,6 +1,6 @@
 # Members and Invitations
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 Who is in an organisation, what each person may do there, and how somebody new
 gets in. Everything here is on **Members**, under **Organisation**. Everybody

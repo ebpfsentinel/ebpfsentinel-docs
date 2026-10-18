@@ -1,6 +1,6 @@
 # Billing and Licence Keys
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 Everything about the subscription after it is bought: changing it, paying for it,
 ending it, our reseller's documents, what the analytics your agents sent come to
@@ -172,6 +172,12 @@ estimates what the excess would cost. These are estimates from an incomplete
 month, not an invoice: what a period costs is settled at its close, on our
 reseller's own document. Nothing is ever refused: an estate past its allowance
 keeps sending.
+
+Nothing is charged for analytics today. The meter runs, the projection is
+drawn, and no line for either the volume or the hosted analytics add-on reaches
+a subscription: analytics comes with any plan, and the prices published on the
+website are what it will cost once buying it is a step you take in the portal.
+Until then there is nothing to ask for and nothing to agree in writing.
 
 Every paid plan publishes its pooled volume. An organisation that has not
 bought anything yet still has what arrives counted.

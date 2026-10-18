@@ -1,6 +1,6 @@
 # Single Sign-On and Provisioning
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 Your colleagues can sign in to the customer portal through your own identity
 provider, and your directory can add and remove them. The portal speaks

@@ -1,6 +1,6 @@
 # Finding Your Way Around the Portal
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 The customer portal at `https://portal.ebpfsentinel.io` is where you buy, issue
 licence keys, register deployments and watch your agents report. This page names

@@ -214,7 +214,10 @@ Dynamic per-SNI certificate generation:
 > For the two unattached libraries the agent publishes the attachment
 > plan, so an operator can see exactly which binaries and symbols would
 > be probed and verify the resolved offsets against the build they
-> belong to.
+> belong to. Each such plan carries `no_probe_reason` on
+> `GET /api/v1/enterprise/tls-probes/plans`, the sentence saying why
+> nothing is attached for that library, so an empty offset is never read
+> as a resolver that failed on a build it could have handled.
 
 The OSS `uprobe-dlp` program hooks `SSL_write` / `SSL_read` in a mapped
 `libssl.so` or `libboringssl.so`, so it covers dynamically-linked OpenSSL and
@@ -229,7 +232,7 @@ library the workload links against.
 | Library | Detection | Hook target | Status | Typical workloads |
 |---------|-----------|-------------|--------|-------------------|
 | **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse; functions found in `.symtab`, or in `.gopclntab` for a stripped binary | Entry uprobes on `crypto/tls.(*Conn).Write` / `.Read`, plus one uprobe on every return instruction of `Read` | **Attached** on amd64 (Go 1.17+) and arm64 (Go 1.18+); older releases pass arguments on the stack and are discovery only | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
-| **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | JNI TLS write/read native symbols | Discovery only - plaintext lives in a JVM heap object, not in a flat buffer the probe can copy | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
+| **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | None: `libjava.so` and `libnet.so` carry the socket, not the plaintext | Discovery only, and settled rather than pending - JSSE frames and encrypts inside the JVM, behind a JNI frame, so the plaintext lives in a heap object with no native call site taking a buffer and a length. Reading it would mean loading a JVMTI or `-javaagent` component into the application, which is a different product and one many estates forbid. Terminate the JVM's TLS at a proxy linked against a readable library to inspect it | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
 | **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
 | **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on the kernel's own `tls_sw_sendmsg` / `tls_sw_recvmsg`, no image and no offset | **Attached** when the counters report an active software socket; hardware-offloaded sockets take a different path and stay unread | nginx and HAProxy built with kernel TLS, OpenSSL 3 with `Options KTLS` |
 | **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | **Attached** | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |

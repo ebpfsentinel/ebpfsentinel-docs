@@ -1,6 +1,6 @@
 # Deployments and Agents
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 A deployment is what your agents are counted in: register one per cluster, site
 or account, whichever you count your agents in. Everything here is on

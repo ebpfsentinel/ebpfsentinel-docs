@@ -1,6 +1,6 @@
 # Analytics
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 What your agents reported, read over a window you choose. Everything here is on
 **Analytics**, and everybody in the organisation reads it. What this month
@@ -8,6 +8,11 @@ comes to against the volume your plan includes is on **Billing**, see
 [Billing and Licence Keys](billing-and-licence-keys.md#analytics-sent-this-month);
 erasing what a deployment sent is on its telemetry screen, see
 [Deployments and Agents](deployments-and-agents.md#erase-what-a-deployment-sent).
+
+Analytics comes with any plan and costs nothing extra today: switch it on for a
+deployment and the screens fill. What the hosted add-on will cost once it is
+something you buy is published on the website, per agent, with its own included
+volume and retention per plan.
 
 Analytics shows totals only. Your agents send counters, and packets, payloads,
 addresses, process names and file paths stay on the machine that saw them. The

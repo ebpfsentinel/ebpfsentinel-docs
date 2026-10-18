@@ -348,7 +348,7 @@ and for the request and response bodies.
 | `DELETE` | `/api/v1/enterprise/dlp/patterns/{id}` | operator | `dlp:write` | advanced-dlp | Remove a custom pattern. |
 | `PATCH` | `/api/v1/enterprise/dlp/patterns/{id}/mode` | operator | `dlp:write` | advanced-dlp | Change pattern mode. |
 | `GET` | `/api/v1/enterprise/dlp/status` | viewer | `dlp:read` | advanced-dlp | Enterprise DLP engine status. |
-| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | `config:read` | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | `config:read` | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. A plan with null offsets carries `no_probe_reason`, the sentence saying why nothing is attached for that library; it is null for a library that is probed. |
 | `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | `config:read` | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | `config:read` | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
 

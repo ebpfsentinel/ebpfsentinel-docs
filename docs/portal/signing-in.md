@@ -1,6 +1,6 @@
 # Signing In
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 How you get into the customer portal, the two-step verification and passkeys that protect the way
 in, and how to see and end everything signed in as you. Screens are named the

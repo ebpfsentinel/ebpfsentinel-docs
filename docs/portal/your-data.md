@@ -1,6 +1,6 @@
 # Your Data
 
-> **Edition: Enterprise**
+> **Edition: any plan, including open source**
 
 What the portal holds about you is yours to take away and yours to have deleted,
 and what your agents sent is yours to erase. None of it needs anybody at our
