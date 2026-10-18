@@ -109,22 +109,27 @@ user namespace. The agent then creates the token and loads its own programs, so
 the long-running agent holds **no host capabilities**. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
-## Container DLP and host PID visibility
+## Container DLP and host procfs visibility
 
 TLS data-loss prevention is a uprobe on `SSL_write`/`SSL_read` inside each
 workload's own `libssl` - the only place TLS plaintext exists. To inspect every
 container on a node (not just the agent's own process), the agent resolves each
 workload's library through the host `/proc` and attaches a uprobe per library.
 
-This requires two privilege expansions, both isolated away from the agent:
+This requires two privilege expansions, both isolated away from the agent, and
+the host pid namespace is no longer one of them:
 
-- **Host PID namespace** (`hostPID: true` / `pid: host`) and a read-only
-  `/host/proc` mount. The agent reads `/host/proc/<pid>/maps` to find each
-  workload's `libssl`. **Security note:** sharing the host PID namespace lets the
-  pod see *every* process on the node - command lines, environment via
-  `/proc/<pid>`, and so on. This is the irreducible cost of node-wide DLP. With
-  `hostPID` disabled, DLP still works but covers only the libraries the agent
-  itself maps (its own container).
+- **A read-only `/host/proc` mount**, named by `EBPFSENTINEL_HOST_PROC`. The
+  agent and the warden read `/host/proc/<pid>/maps` to find each workload's
+  `libssl`, and `/host/proc/<pid>/{exe,root,map_files}` to read the image the
+  process actually mapped. The pod does **not** share the node's pid namespace:
+  a uprobe link is created against a path and a file offset with `pid = 0`, so
+  it fires for every process that maps the library whatever namespace it runs
+  in, and `hostPID` bought visibility rather than coverage. The mount is what
+  the node-wide scan costs, and it is a read of `/proc`, not a shared process
+  table: the pod sees the node's command lines through it, which is why it is
+  mounted read-only and why `dlp.scope` exists. Without the mount, DLP covers
+  only the libraries the agent itself maps (its own container).
 - **Tracing capabilities on the warden only.** Reading a neighbouring
   container's `/proc/<pid>/root` (`CAP_SYS_PTRACE`) and creating the uprobe link
   (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which

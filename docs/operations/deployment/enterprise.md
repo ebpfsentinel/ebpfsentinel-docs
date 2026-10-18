@@ -150,8 +150,8 @@ What the units do:
   `Wants` rather than `Requires` the warden, so a warden restart does not stop
   the agent.
 
-On bare metal the two share the host PID namespace, so the warden reads `/proc`
-directly and no `/host/proc` mount is needed. The enterprise API listens on
+On bare metal both run in the node's own pid and mount namespaces, so the
+warden reads `/proc` directly and no `/host/proc` mount is needed. The enterprise API listens on
 `127.0.0.1:8444` unless `--bind-address` says otherwise.
 
 ### The API key
@@ -208,7 +208,9 @@ docker compose logs -f
 
 The `warden` service holds the host capabilities and bind-mounts host `/proc`
 read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`) for the cross-container
-proc-TLS scan; both services run `network_mode: host` and `pid: host`. The agent
+proc-TLS scan; both services run `network_mode: host` and neither runs
+`pid: host`, because the scan reads that mount and the uprobe link carries a
+path and an offset rather than a pid. The agent
 runs as `65534:65534`, `cap-drop: ALL`, with the tailored
 `dist/seccomp/ebpfsentinel-agent.json` profile (the Docker default plus an
 allow-list for the `unshare`/`mount`/`bpf` syscalls the rootless bootstrap needs).
@@ -267,7 +269,8 @@ Key values:
 | `agent.interfaces` | `[eth0]` | Host NICs to attach eBPF to (REQUIRED) |
 | `license.secretName` / `license.key` | `""` | Enterprise license (OSS mode if unset) |
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
-| `daemonset.hostPID` | `true` | Node-wide DLP visibility (set `false` to scope to the pod) |
+| `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
+| `daemonset.hostPID` | `false` | Host PID namespace. Off: node-wide DLP reads the `/host/proc` mount instead |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |

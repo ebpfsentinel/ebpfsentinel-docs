@@ -63,7 +63,50 @@ A container is attributed to a tenant by:
 1. **Explicit claim** - the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
 2. **Kubernetes namespace** - when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
 
-Labels are read over the Docker Engine API, which also serves Podman's compatible socket. Nodes running a CRI runtime with no Docker-compatible socket keep using VLAN, interface or subnet attribution. Attribution is disabled by default because it requires the runtime socket and the host cgroup hierarchy to be visible to the agent.
+Labels are read over the Docker Engine API, which also serves Podman's compatible socket, and that is the only runtime the agent asks. **containerd and CRI-O are not resolved**: on a node running either, a container's cgroup is seen but its labels are never read, so the container matches no tenant and falls through to the default tenant, `__default__` with `tenant_id=0`. The first three modes still apply, so a node whose tenants are separated by VLAN, interface or subnet is unaffected; a node whose tenants are separated only by container labels attributes everything it runs to one tenant. Attribution is disabled by default because it requires the runtime socket and the host cgroup hierarchy to be visible to the agent. Resolving containerd and CRI-O through the CRI API is planned and not implemented.
+
+### What a node reports about its attribution
+
+The fallback is silent from outside the node - a container attributed to the
+default tenant looks exactly like a container that was never there - so the
+agent publishes what its last pass actually had:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:8444/api/v1/tenants/attribution
+```
+
+```json
+{
+  "state": "docker_api",
+  "summary": "Tenant attribution: Docker API on /var/run/docker.sock. 12 container cgroups seen, 9 attributed.",
+  "socket": "/var/run/docker.sock",
+  "socket_present": true,
+  "container_cgroups": 12,
+  "inspected": 12,
+  "inspect_failures": 0,
+  "attributed_cgroups": 9,
+  "unresolved_runtimes": [],
+  "fallback_tenant_id": 0,
+  "last_pass_unix": 1760800000
+}
+```
+
+`state` is one of three readings, and each is something the pass observed
+rather than something the configuration promised:
+
+| `state` | What it means |
+|---|---|
+| `static` | The node attributes on VLAN, interface and subnet only: cgroup attribution is off, so no runtime is asked and no container is resolved. |
+| `docker_api` | The runtime socket answered during the last pass. `container_cgroups` is how many container cgroups were seen, `attributed_cgroups` how many reached a tenant. |
+| `unavailable` | The socket is absent, or every inspect of the pass failed. Containers on this node carry `fallback_tenant_id`. |
+
+`unresolved_runtimes` names the runtimes seen on the node that the Docker API
+cannot answer for - `containerd`, `cri-o` - whatever `state` says: a node whose
+socket answers for its Docker containers still falls back for its CRI ones. The
+route is admin-only, like the rest of `/api/v1/tenants`, and the dashboard's
+container screen reads it so the gap is named on the screen instead of inferred
+from a short table.
 
 ### Limits
 
@@ -400,6 +443,7 @@ by hand.
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/tenants` | viewer | multi-tenancy | List all tenants (admin only). |
+| `GET` | `/api/v1/tenants/attribution` | viewer | multi-tenancy | What this node's last attribution pass observed (admin only). |
 | `GET` | `/api/v1/tenants/{id}` | viewer | multi-tenancy | Tenant details (read permission). |
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | multi-tenancy | Current quota limits and usage. |
 | `PUT` | `/api/v1/tenants/{id}/quota` | operator | multi-tenancy | Update quota (admin, partial update, 429 on reduction below usage). |

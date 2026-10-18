@@ -73,13 +73,49 @@ mount the ServiceAccount token into the pod.
 
 Pod-level settings: `hostNetwork: true`, `dnsPolicy: ClusterFirstWithHostNet`,
 `fsGroup: 65534` (so the agent can read the `0640` config file), and `hostPID`
-from `daemonset.hostPID` (default `true`).
+from `daemonset.hostPID`, **which defaults to `false`**.
 
-`hostPID` is what makes TLS DLP node-wide: the agent resolves each workload's
-`libssl` through `/host/proc/<pid>` and the warden attaches the uprobe against
-the host pid. It also lets the pod see every process on the node. With
-`daemonset.hostPID: false` the uprobe covers only the libraries the agent itself
-maps.
+What makes TLS DLP node-wide is the read-only `/host/proc` mount, not the pid
+namespace: the agent resolves each workload's `libssl` through
+`/host/proc/<pid>` and the warden creates the uprobe link against that path and
+a file offset with `pid = 0`, so it fires for every process mapping the library
+whatever namespace it runs in. `daemonset.hostPID: true` adds the node's
+process table to what the pod can read and buys no coverage, which is why it
+ships off and why the chart refuses to render it under `baseline`.
+
+### Pod Security Admission
+
+`daemonset.podSecurityAdmission` names the level the pod is meant to satisfy
+(`privileged`, `baseline` or `restricted`). It enforces nothing by itself - the
+namespace label does - but the chart fails to render when these values ask for
+something the named level forbids, listing every offending value at once
+instead of letting admission reject the pod on the first one it notices.
+
+As shipped the pod is `privileged`, and these are the reasons, named one by
+one rather than as a blanket requirement:
+
+| What | Why | Forbidden by |
+|---|---|---|
+| `hostNetwork: true` | XDP and TC attach to the node's own interfaces, which exist in no other namespace | `baseline` |
+| The warden's `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | bpffs delegation, conntrack and routes, the pcap pool, reading a neighbour's procfs, creating the DLP uprobe link | `baseline` |
+| `seccompProfile: Unconfined` and `appArmorProfile: Unconfined` on both containers | the agent unshares a user namespace and loads eBPF through its token without `CAP_SYS_ADMIN`; the warden issues `fsconfig`, netlink and `bpf` | `baseline` |
+| `allowPrivilegeEscalation: true` on the agent | it gains inside its own user namespace the capabilities it holds none of on the host | `restricted` |
+| hostPath volumes (`/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/fs/cgroup`, `/proc`, the state directory, `/etc/machine-id`) | the programs, the pinned maps and the node's procfs live on the node, not in the pod | `baseline` |
+| Host ports 8080, 50051 and 9090 | `hostNetwork` makes every declared port a host port | `baseline` |
+
+Cross-container DLP is no longer on that list, and `hostPID` is in neither the
+chart's list nor an API server's verdict. The rest of the list stands: a node
+that needs only the DLP path is still not a `baseline` pod, because the
+warden's capabilities, the two `Unconfined` profiles and the hostPath mounts
+are each forbidden there on their own.
+
+That list is checked against a cluster rather than reviewed:
+`scripts/check-psa-claims.sh` in the agent repository renders the pod, submits
+it to a namespace enforcing `baseline` and to one enforcing `privileged`, and
+fails when the API server names a control the chart's own list does not, when
+either side names `hostPID`, or when the declared level refuses the pod. It was
+last run against Kubernetes v1.35.0 on 2026-10-18, for both the community and
+the enterprise chart.
 
 Both containers run with AppArmor and seccomp `Unconfined`: the agent issues
 `unshare`, `mount` and `bpf` without holding `CAP_SYS_ADMIN`, which the default
@@ -197,7 +233,8 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `daemonset.hostPID` | `true` | Host PID namespace, for node-wide TLS DLP |
+| `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
+| `daemonset.hostPID` | `false` | Host PID namespace. Off: DLP reads `/host/proc` and the uprobe carries no pid |
 | `daemonset.bpfToken.bpffsPath` | `/sys/fs/bpf/ebpfsentinel` | Drives both `EBPFSENTINEL_BPFFS` and the agent's `bpf_token.bpffs_path`, so the two cannot drift |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | In-pod tmpfs bpffs, for kind and minikube |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |

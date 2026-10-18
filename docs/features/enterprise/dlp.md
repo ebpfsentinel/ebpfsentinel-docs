@@ -330,14 +330,23 @@ inode it opens is not the inode the offsets were measured against. An image
 deleted after the scan, or replaced between scan and attach, fails the attach
 rather than arming a probe at an offset that now means something else.
 
-An image is read once per inode per scan cycle, not once per process, which is
-what pays for the size limit: an image is read up to **512 MiB**, enough for
-envoy, istio-proxy, cilium-agent, kubelet and k3s, which the earlier 64 MiB
-limit dropped. A skip is never silent. A process whose image the cycle already
-read joins the plan that read it; past the limit or unreadable, the scan emits a
-warning counted under `binary_too_large` or `binary_unreadable` on
+An image is opened once per inode per scan cycle, not once per process, and it
+is never copied: the scan reads the ELF header, the symbol tables, the handful
+of sections a detector needs and, for a Go binary, the bytes of two functions,
+straight out of the open file. **There is no size limit**, because there is no
+longer an allocation for one to bound - the limit that used to exist was in
+practice the list of images the scan declined to look at, and on a node running
+a service mesh that list was envoy, istio-proxy, cilium-agent, kubelet and k3s.
+A skip is never silent. A process whose image the cycle already opened joins the
+plan that opened it; an image nobody can open emits a warning counted under
+`binary_unreadable` on
 `ebpfsentinel_ent_tls_probes_scan_warnings_total`, and
-`/api/v1/enterprise/tls-probes/warnings` names the path and the size.
+`/api/v1/enterprise/tls-probes/warnings` names the path.
+
+On a 256 MiB image, resolving a symbol pair this way takes about 257 us and
+peaks at 76 KiB of heap, against about 121 ms and 256 MiB for the same work on
+a copy of the file. Both ratios grow with the image, because one path is linear
+in file size and the other in the size of the symbol tables.
 
 ### Go specifics
 
@@ -487,8 +496,10 @@ license feature, which Enterprise and above carry. Configuration is managed via 
 
 - `CAP_SYS_PTRACE` for inspecting `/proc/{pid}/maps` and attaching
   uprobes to other processes
-- `hostPID: true` (Kubernetes) / `--pid host` (Docker) when the agent
-  must reach processes outside its own pod
+- A read-only `/host/proc` mount, named by `EBPFSENTINEL_HOST_PROC`, when the
+  agent must reach processes outside its own pod. Not `hostPID`: the scan reads
+  a procfs and the uprobe is placed on an inode and an offset, so the node's
+  pid namespace adds nothing a `baseline` namespace would have to be opened for
 - Nothing extra for the kernel TLS probes: they attach by symbol name
   through `kprobe_multi`, which the agent's own kernel floor already
   carries, and a host whose `tls` module was never loaded exports neither

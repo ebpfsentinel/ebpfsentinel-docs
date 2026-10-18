@@ -20,18 +20,22 @@ level, not in the `dlp` config block:
 
 | Setting | Where | Purpose |
 |---------|-------|---------|
-| `hostPID: true` / `pid: host` | Helm `daemonset.hostPID`, compose | Lets the agent see every node process to resolve their libraries |
 | `/host/proc` (read-only) | Helm + compose volume mount | Host `/proc` the agent reads (the warden reads the same path) |
 | `EBPFSENTINEL_HOST_PROC` | Agent env (set to `/host/proc`) | Points DLP discovery at the mounted host proc; defaults to `/proc` |
 
-The bundled Helm chart and `docker-compose.yml` set these for you. On bare metal
-(systemd) the agent already shares the host PID namespace, so `EBPFSENTINEL_HOST_PROC`
-keeps its `/proc` default and no mount is needed. Coverage is **dynamically-linked
+There is no `hostPID` row. The uprobe is created against a path and a file
+offset with `pid = 0`, so it covers every process mapping that library whatever
+pid namespace it runs in; sharing the node's pid namespace added the node's
+process table to what the pod could see and no coverage, and `baseline` Pod
+Security Admission forbids it. The bundled Helm chart and `docker-compose.yml`
+mount the procfs for you and set the variable. On bare metal (systemd) the
+agent reads the node's own `/proc`, so `EBPFSENTINEL_HOST_PROC` keeps its
+`/proc` default and no mount is needed. Coverage is **dynamically-linked
 OpenSSL / BoringSSL only**; Go, statically linked BoringSSL, GnuTLS, wolfSSL,
 mbedTLS, s2n-tls and sockets that encrypt in the kernel are Enterprise scope,
 Java JSSE and NSS are detected there without being probed, and rustls is not
-covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
-for the `hostPID` trust trade-off.
+covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-procfs-visibility)
+for what the procfs mount lets the pod read.
 
 Coverage that wide is a choice: on a shared node, set [`dlp.scope`](#scope) to
 `workloads` and name the cgroups whose plaintext this agent may read.

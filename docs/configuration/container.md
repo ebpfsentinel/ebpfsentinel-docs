@@ -38,7 +38,21 @@ Attributing locally-originated traffic (for example a container's outbound conne
 
 ## Docker Enricher
 
-Queries the Docker daemon for container metadata (name, image, labels). Requires socket access.
+Attaches container metadata (name, image, labels) to the identity the resolver
+produced. Requires socket access.
+
+Two paths feed one cache. The agent opens `GET /events` filtered to container
+`create`, `start`, `die` and `destroy`, and writes the cache from what the
+daemon sends, so a container that appears while the agent runs is named before
+its first packet is enriched and one that is removed is forgotten rather than
+waiting out `cache_ttl_seconds`. A cache miss still falls back to
+`/containers/{id}/json`, which is what covers an id first seen before the
+stream was connected, and it is also the only call that learns the creation
+time. The stream reconnects with a capped backoff and carries a bounded
+backlog: a daemon restart costs enrichment while it is down, never memory.
+
+`cache_ttl_seconds` therefore bounds how long a stale inspect result is kept,
+not how quickly a new container is learned.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -49,6 +63,14 @@ Queries the Docker daemon for container metadata (name, image, labels). Requires
 | `docker.timeout_ms` | u64 | `2000` | Docker API request timeout |
 
 > Requires bind mount: `-v /var/run/docker.sock:/var/run/docker.sock:ro`
+
+The mount is the Docker API, which is root on the host; `:ro` stops writes to
+the socket file and not requests through it. The agent issues GETs only and
+runs as 65534, so the socket's group ownership is what decides. Leaving it out
+and setting `docker.enabled: false` keeps the container id on every alert, from
+the resolver, and loses the name, the image and the labels. Either way the
+agent states the choice once at startup, including when the enricher is on and
+nothing answers at `docker.socket`.
 
 ## Kubernetes Enricher
 

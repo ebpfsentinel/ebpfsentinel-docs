@@ -40,8 +40,8 @@ In the rootless deployment the agent runs `cap-drop: ALL`, so the privileged
 uprobe attach (reading a neighbouring container's `/proc/<pid>/root` and creating
 the BPF link) is brokered to the **warden** sidecar, which returns the link
 descriptor over the control socket. See the
-[security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility)
-for the `hostPID` / `/host/proc` requirements this entails.
+[security model](../architecture/security-model.md#container-dlp-and-host-procfs-visibility)
+for the `/host/proc` mount this entails.
 
 All regex patterns (built-in and enterprise custom) are **pre-compiled at config load** with safety limits to prevent ReDoS:
 
@@ -138,10 +138,11 @@ and the audit trail all carry the enrichment.
 ### Coverage and limits
 
 The OSS agent covers **dynamically-linked OpenSSL and BoringSSL** (`libssl.so`,
-`libboringssl.so`) across all containers. The deployment must share the host PID
-namespace and mount the host `/proc` so the agent can resolve neighbouring
-containers' libraries - see the
-[security model](../architecture/security-model.md#container-dlp-and-host-pid-visibility).
+`libboringssl.so`) across all containers. The deployment must mount the host
+`/proc` read-only so the agent can resolve neighbouring containers' libraries;
+it does not need the host pid namespace, because the uprobe is placed on a
+path and an offset rather than on a pid - see the
+[security model](../architecture/security-model.md#container-dlp-and-host-procfs-visibility).
 
 Out of scope for OSS:
 

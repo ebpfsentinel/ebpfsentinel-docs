@@ -548,6 +548,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | `config:write` | multi-tenancy | Check if operation is allowed. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | `config:write` | multi-tenancy | Suspend tenant (admin). |
 | `GET` | `/api/v1/tenants` | viewer | `config:read` | multi-tenancy | List all tenants (admin only). |
+| `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `docker_api` or `unavailable` (admin only). |
 | `GET` | `/api/v1/tenants/metrics` | viewer | `config:read` | multi-tenancy | Prometheus quota metrics (admin only). |
 | `GET` | `/api/v1/tenants/{id}` | viewer | `config:read` | multi-tenancy | Tenant details (read permission). |
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | `config:read` | multi-tenancy | Current quota limits and usage. |

@@ -26,7 +26,6 @@ spec:
         app: ebpfsentinel
     spec:
       hostNetwork: true
-      hostPID: true
       serviceAccountName: ebpfsentinel
       containers:
         - name: agent

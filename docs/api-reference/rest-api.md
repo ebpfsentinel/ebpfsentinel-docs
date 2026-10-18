@@ -122,11 +122,51 @@ export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
 
 #### GET /api/v1/agent/status
 
-Agent status including version, uptime, and loaded features.
+Agent status including version, uptime, loaded features, and what the agent
+sees of the containers on this node.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/agent/status
 ```
+
+```json
+{
+  "status": "running",
+  "version": "0.1.0",
+  "uptime_seconds": 1234,
+  "ebpf_loaded": true,
+  "rule_count": 12,
+  "firewall_enabled": true,
+  "firewall_mode": "block",
+  "container_coverage": {
+    "proc_root": "/host/proc",
+    "host_proc": true,
+    "resolver": true,
+    "docker": "on",
+    "kubernetes": "off_not_in_cluster"
+  }
+}
+```
+
+`container_coverage` is a verdict rather than a copy of the configuration: it
+reports the procfs the agent actually reads, whether that procfs is the node's
+(`host_proc`, which is what covers a neighbouring container without sharing the
+pid namespace), whether the cgroup resolver is running, and where each metadata
+enricher ended up.
+
+| Enricher value | Meaning |
+|----------------|---------|
+| `on` | Running: alerts carry the workload's name, image and labels |
+| `off_no_socket` | Enabled, but the runtime socket is not there; alerts keep the container id and lose the names |
+| `off_not_in_cluster` | Enabled, but no Kubernetes API is reachable from this process |
+| `off_unavailable` | Enabled and reachable, and the client could not be built |
+| `off_by_configuration` | Turned off in the configuration |
+| `off_not_built` | This build does not carry the enricher |
+| `starting` | The agent has not finished building its enrichers yet |
+
+The same values back the container rows of the
+[deployment matrix](../features/deployment-matrix.md#what-the-node-itself-reports),
+so the page and the node can be compared.
 
 #### GET /api/v1/agent/identity
 

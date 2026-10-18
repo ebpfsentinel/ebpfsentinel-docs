@@ -93,10 +93,22 @@ container:
 
 ## Docker Enricher
 
-The Docker enricher connects to the Docker Engine API over a Unix
-socket and calls `GET /v1.43/containers/{id}/json` for every container
-id the resolver produces. Results are cached in an LRU with TTL to
-avoid hammering the daemon.
+The Docker enricher connects to the Docker Engine API over a Unix socket and
+keeps one LRU cache, written from two places.
+
+`GET /v1.43/events`, filtered to container `create`, `start`, `die` and
+`destroy`, stays open for the life of the agent. Every event carries the
+container's id, name, image and labels, so the cache is written as the daemon
+acts: a container that appears after the agent started is named on its first
+alert, and one that is destroyed is dropped from the cache instead of being
+served stale until the TTL runs out. The connection reconnects with a capped
+backoff and the applier reads from a bounded queue, so a daemon restart or a
+burst of churn costs events, never unbounded memory.
+
+`GET /v1.43/containers/{id}/json` is what a cache miss falls back to - an id
+first seen before the stream was connected, or one the stream never mentioned -
+and it is the only call that learns `created_at`, so an entry written by the
+stream is completed by exactly one inspect the first time it is looked up.
 
 ### Metadata fields
 
@@ -110,10 +122,13 @@ avoid hammering the daemon.
 
 ### Graceful degradation
 
-If the socket is unreachable (non-Docker host), the enricher logs a
-single warning at startup and returns `None` from every lookup. A
-periodic re-check (default 60 s) re-enables it if Docker later comes
-online.
+If the socket is unreachable (non-Docker host), the enricher logs a single
+warning at startup, naming what alerts lose - the name, the image and the
+labels, with the container id still arriving from the resolver - and returns
+`None` from every lookup. A periodic re-check (default 60 s) re-enables it if
+Docker later comes online. The same line is logged, as information rather than
+a warning, when `container.docker.enabled` is false: an operator reading the
+first page of the log is told which of the two decisions is in force.
 
 ### Configuration
 
@@ -135,6 +150,13 @@ read-only into the container:
 ```bash
 docker run ... -v /var/run/docker.sock:/var/run/docker.sock:ro ...
 ```
+
+The shipped `docker-compose.yml` makes that mount and enables the enricher.
+The mount hands the agent the Docker API, which is root on the host: `:ro`
+stops writes to the socket file, not requests through it. The agent issues
+GETs only and runs as uid 65534, so the socket's group ownership decides what
+it may do. Removing the two lines and setting `container.docker.enabled: false`
+runs without it, at the cost named under graceful degradation.
 
 ## Kubernetes Enricher
 

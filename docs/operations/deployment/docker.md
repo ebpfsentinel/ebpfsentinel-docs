@@ -6,8 +6,9 @@
 > capability, self-unshares a user namespace, has the warden delegate a bpffs
 > over a shared socket, and loads its own eBPF through a token against it.
 > Without the warden the agent still starts, but it reaches API-only mode and
-> attaches nothing. DLP across neighbouring containers additionally needs
-> `pid: host`. See the [BPF token guide](bpf-token.md) and the
+> attaches nothing. DLP across neighbouring containers additionally needs a
+> read-only `/proc` bind mount at `/host/proc`, and no longer `pid: host`. See
+> the [BPF token guide](bpf-token.md) and the
 > [deployment compatibility matrix](../../features/deployment-matrix.md).
 
 ## Images
@@ -99,7 +100,6 @@ services:
     image: ghcr.io/ebpfsentinel/ebpfsentinel-warden
     command: ["serve", "/run/ebpfsentinel/warden.sock", "--uid", "65534"]
     network_mode: host           # conntrack, routes, ARP in the init netns
-    pid: host                    # reach a neighbour's /proc/<pid>/root for DLP
     cap_drop: [ALL]
     cap_add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON]
     security_opt:
@@ -116,7 +116,6 @@ services:
       EBPFSENTINEL_WARDEN_SOCK: /run/ebpfsentinel/warden.sock
       EBPFSENTINEL_HOST_PROC: /host/proc
     network_mode: host           # XDP/TC attach to host interfaces
-    pid: host                    # node-wide TLS DLP
     user: "65534:65534"
     cap_drop: [ALL]              # the warden holds every host capability
     security_opt:
@@ -163,9 +162,14 @@ Two of those lines are easy to get wrong:
   read-only, so without a writable mountpoint the agent cannot mount the
   delegated bpffs and falls back to API-only mode.
 
-`pid: host` lets the agent and the warden see every process on the node, which
-is the irreducible cost of node-wide DLP. Drop it from both services to scope
-DLP to the agent's own container.
+**The read-only `/proc:/host/proc` bind mount** is what makes DLP node-wide,
+and `pid: host` is not needed for it: both services read the node's processes
+through that mount (`EBPFSENTINEL_HOST_PROC`), and the uprobe link is created
+against a path and a file offset with `pid = 0`, so it fires for every process
+mapping the library whatever pid namespace it runs in. The mount lets the
+containers read the node's command lines, which is the cost; drop it from both
+services to scope DLP to the agent's own container, or keep it and narrow what
+is inspected with `dlp.scope`.
 
 ## Without Compose
 
@@ -229,12 +233,36 @@ container:
     timeout_ms: 2000
 ```
 
-The Docker enricher is off by default. Enabling it also needs the daemon socket
-mounted read-only into the agent container
-(`-v /var/run/docker.sock:/var/run/docker.sock:ro`); the agent then calls
-`/containers/{id}/json` to attach container name, image and labels to every
-alert. See [container awareness](../../features/container-awareness.md) for the
-full reference.
+The Docker enricher is off in the agent's own defaults and on in the
+`docker-compose.yml` and `config/ebpfsentinel.yaml` this repository ships,
+because the compose file is the Docker deployment and an alert carrying a
+64-hex id there is an alert nobody reads. It needs the daemon socket mounted
+read-only into the agent container
+(`-v /var/run/docker.sock:/var/run/docker.sock:ro`).
+
+With the socket, the agent opens `/events` and keeps the connection, so a
+container created, started, stopped or removed while the agent runs is in the
+metadata cache before its first packet is enriched; `/containers/{id}/json` is
+the fallback for an id first seen before the stream was up. The stream
+reconnects with a capped backoff and its backlog is bounded, so a daemon
+restart costs enrichment for as long as it is down and nothing else.
+
+What the mount costs, stated where it is made: the Docker API is root on the
+host, and `:ro` prevents writes to the socket file rather than requests through
+it. Every call the agent makes is a GET, the agent process is the one in this
+deployment that is not root (65534), and the socket's group ownership is what
+actually decides what that uid may do. The exposure is therefore what a
+compromise of the agent would reach, not an extra privilege granted to the
+host.
+
+To run without it: remove the mount and set `container.docker.enabled: false`.
+Alerts keep the container id, which the cgroup resolver produces from the
+mounted host cgroup hierarchy and no socket, and lose the name, the image and
+the labels. The agent says so once at startup, naming what is lost, rather than
+enriching nothing in silence - and it says the same when the enricher is
+enabled and no socket is at that path. See
+[container awareness](../../features/container-awareness.md) for the full
+reference.
 
 ## Bind Address and Host Networking
 
@@ -265,7 +293,7 @@ hosts even though the container uses host networking.
 | tailored seccomp profile | agent | the default profile gates `unshare`/`mount`/`bpf` on a capability the agent does not hold |
 | unprivileged user namespaces enabled on the host | agent | `BPF_TOKEN_CREATE` is only valid inside a user namespace |
 | `--network host` | both | XDP/TC attach to host interfaces; the warden programs the init netns |
-| `--pid host` | both | uprobe DLP against processes in neighbouring containers |
+| no `--pid host` | both | the uprobe link carries a path and an offset rather than a pid, so neighbouring containers are reached through the read-only `/host/proc` mount |
 | shared socket volume | both | the `warden-proto` control channel |
 
 ## Volumes
@@ -279,7 +307,7 @@ hosts even though the container uses host networking.
 | `tmpfs` | `/sys/fs/bpf` | agent | mountpoint for the delegated bpffs |
 | `/proc` | `/host/proc` (ro) | both | container resolver and DLP library discovery |
 | `/sys/fs/cgroup` | `/sys/fs/cgroup` (ro) | agent | cgroup-id to container attribution |
-| `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | agent | Docker enricher, optional |
+| `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | agent | Docker enricher: the `/events` stream and the inspect fallback. Removable, and the section above says what that costs |
 
 ## Health Check
 

@@ -164,7 +164,7 @@ Example output:
 
 ### status
 
-Enhanced agent dashboard - shows version, uptime, eBPF programs, conntrack, DDoS status, and recent alerts in one view.
+Enhanced agent dashboard - shows version, uptime, eBPF programs, container coverage, conntrack, DDoS status, and recent alerts in one view.
 
 ```bash
 ebpfsentinel-agent status
@@ -178,6 +178,8 @@ eBPFsentinel v0.1.0 -- up 3h 12m 05s -- 24 rules loaded
 
   Programs  12/12 loaded    xdp-firewall ✓  xdp-ratelimit ✓  tc-ids ✓  tc-dns ✓
 
+  Containers /host/proc (host procfs), ids yes, docker on, kubernetes off, not in a cluster
+
   Conntrack  1,247 active connections
   DDoS       no active attacks (3 mitigated total)
 
@@ -186,6 +188,15 @@ eBPFsentinel v0.1.0 -- up 3h 12m 05s -- 24 rules loaded
   ids         high      203.0.113.42        10.0.1.15           SSH brute force detected
   dns         medium    192.168.1.50        8.8.8.8             Blocked domain: evil.example.com
 ```
+
+The `Containers` line is what the agent decided at startup, not what the
+configuration asked for: the procfs it reads, whether that procfs is the node's
+(which is what lets a containerised agent see its neighbours without the host
+pid namespace), whether the cgroup resolver is running, and where each metadata
+enricher ended up. It is the same object as `container_coverage` on
+`GET /api/v1/agent/status`, documented with its full vocabulary in the
+[REST API reference](../api-reference/rest-api.md#get-apiv1agentstatus). An
+agent too old to answer prints no such line.
 
 ### top
 

@@ -13,8 +13,8 @@ This page documents which features are fully supported, partially supported, or 
 | Mode | Description | Network Namespace | Process Namespace |
 |------|-------------|-------------------|-------------------|
 | **Bare metal / VM** | Agent binary runs directly on the host | Host | Host |
-| **Container** | Two containers with `network_mode: host`: the `warden` broker holds the host capabilities, the agent runs as uid 65534 with `cap_drop: [ALL]` (see `docker-compose.yml`) | Host (shared) | Host with `pid: host`, otherwise container |
-| **Kubernetes DaemonSet** | One pod per node with `hostNetwork: true`; the warden is a native sidecar (init container with `restartPolicy: Always`) holding the capabilities, the agent container runs as uid 65534 with every capability dropped | Host (shared) | Pod (isolated unless `hostPID: true`) |
+| **Container** | Two containers with `network_mode: host`: the `warden` broker holds the host capabilities, the agent runs as uid 65534 with `cap_drop: [ALL]` (see `docker-compose.yml`) | Host (shared) | Container. The shipped compose file sets no `pid: host`; both containers read the node's processes through the read-only `/proc:/host/proc:ro` mount (`EBPFSENTINEL_HOST_PROC`) |
+| **Kubernetes DaemonSet** | One pod per node with `hostNetwork: true`; the warden is a native sidecar (init container with `restartPolicy: Always`) holding the capabilities, the agent container runs as uid 65534 with every capability dropped | Host (shared) | Pod. `daemonset.hostPID` defaults to `false`; the node's processes are read through the same `/host/proc` mount |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
 
 In both the Container and DaemonSet modes the agent holds **no host
@@ -27,31 +27,82 @@ brokered to the warden over a Unix socket. See the
 
 ## Compatibility Matrix
 
-| Feature | Bare Metal / VM | Container | K8s DaemonSet | Sidecar |
-|---------|:-:|:-:|:-:|:-:|
-| **Stateful Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **NAT** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **Conntrack** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **Rate Limiting** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **DDoS Mitigation** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **L4 Load Balancer** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **Packet Scrubbing** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
-| **IDS/IPS** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **DLP** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: |
-| **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **Docker Enricher** (OSS) | :x: | :white_check_mark: | :white_check_mark: | :x: |
-| **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: |
-| **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: |
-| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: |
-| **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+Every row is a claim about one code path, and the path is named beside it so a
+reader can check the claim rather than believe it (see
+[How this matrix is maintained](#how-this-matrix-is-maintained)). Paths are
+relative to the agent repository unless they start with `../`.
 
-:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = requires host PID namespace (`--pid=host` or `hostPID: true`)
+| Feature | Bare Metal / VM | Container | K8s DaemonSet | Sidecar | Proven by |
+|---------|:-:|:-:|:-:|:-:|---|
+| **Stateful Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-firewall` |
+| **NAT** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-nat-ingress`, `tc-nat-egress` |
+| **Conntrack** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-conntrack` |
+| **Rate Limiting** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-ratelimit` |
+| **DDoS Mitigation** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-ratelimit-syncookie` |
+| **L4 Load Balancer** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-loadbalancer` |
+| **Packet Scrubbing** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-scrub` |
+| **IDS/IPS** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-ids` |
+| **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-threatintel` |
+| **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-dns` |
+| **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-ids` (`L7_PORTS`) |
+| **DLP** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/ebpf-programs/uprobe-dlp`, `crates/adapters/src/ebpf/dlp_attach.rs` |
+| **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/adapters/src/container/proc_resolver.rs`, `cgroupfs_resolver.rs` |
+| **Docker Enricher** (OSS) | :warning: | :white_check_mark: | :warning: | :x: | `crates/adapters/src/container/docker_events.rs`, `docker_enricher.rs` |
+| **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | `crates/adapters/src/container/k8s_enricher.rs` |
+| **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
+| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: | `crates/application/src/routing_service_impl.rs`, brokered by `crates/warden/src/net_ops.rs` |
+| **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/application/src/alert_pipeline.rs` |
+| **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/adapters/src/metrics.rs` |
+| **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/http/router.rs`, `crates/adapters/src/grpc/` |
+| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/cli.rs` |
+
+:white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = needs the node's `/proc` mounted read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), which the shipped Compose file and the Helm chart both do. **Not** `pid: host` or `hostPID: true`: the uprobe is created against a path and an offset with pid 0, and the resolver reads a path.
+
+Three rows are qualified rather than ticked, and the qualification is the
+point:
+
+- **Docker Enricher, bare metal** - the enricher is not Kubernetes-only and not
+  container-only: it reads `/var/run/docker.sock`, so an agent installed as a
+  systemd unit on a host running Docker enriches that host's containers. It is
+  a warning rather than a tick because the socket is not there on a host that
+  runs no Docker.
+- **Docker Enricher, DaemonSet** - the Helm chart mounts no Docker socket, and
+  a node running containerd or CRI-O has none to mount. The resolver still
+  names the container id; name, image and labels are what is missing.
+- **Container Resolver** - it reads `/proc/<pid>/cgroup` and the cgroup
+  hierarchy, so a containerised agent needs both the `/host/proc` mount and
+  `/sys/fs/cgroup` read-only, which is what the Compose file and the chart
+  mount.
+
+### What the node itself reports
+
+The three container rows above are the ones a customer can check against the
+running agent rather than against this page. `GET /api/v1/agent/status` carries
+a `container_coverage` object, and `ebpfsentinel-agent status` prints it as one
+line:
+
+```json
+{
+  "container_coverage": {
+    "proc_root": "/host/proc",
+    "host_proc": true,
+    "resolver": true,
+    "docker": "on",
+    "kubernetes": "off_not_in_cluster"
+  }
+}
+```
+
+| Field | Matrix row it answers |
+|-------|----------------------|
+| `proc_root`, `host_proc` | The `\*\*` footnote: the node's procfs is mounted, so DLP and the resolver see every process rather than the agent's own |
+| `resolver` | **Container Resolver** |
+| `docker` | **Docker Enricher** - `on`, `off_no_socket`, `off_by_configuration` |
+| `kubernetes` | **Kubernetes Enricher** - `on`, `off_not_in_cluster`, `off_unavailable`, `off_by_configuration`, `off_not_built` |
+
+`starting` means the agent has not finished building its enrichers yet. A
+verdict that disagrees with the row above is a bug in this page, not in the
+node.
 
 ## Detailed Explanations
 
@@ -138,10 +189,10 @@ hooks, uprobes target **processes**, not interfaces.
 | Mode | Behavior |
 |------|----------|
 | **Bare metal** | Attaches to all host processes mapping a matching SSL library. Full visibility. |
-| **Container** (`--pid=host`) | Attaches to all host processes. Full visibility with container-level enrichment. |
-| **Container** (no `--pid=host`) | Only attaches to processes inside the container. Limited - use `--pid=host` for production. |
-| **K8s DaemonSet** (`hostPID: true`) | Attaches to all node processes. Full visibility with pod-level enrichment (see below). |
-| **K8s DaemonSet** (no `hostPID`) | Only attaches to processes inside the pod. Limited - use `hostPID: true` for production. |
+| **Container** (`/proc` mounted at `/host/proc`) | Attaches to every process on the node, in any container. Full visibility with container-level enrichment. This is what `docker-compose.yml` ships. |
+| **Container** (no `/host/proc` mount) | Only attaches to processes inside the container: the scan has no other procfs to walk. |
+| **K8s DaemonSet** (`/host/proc` mounted) | Attaches to every process on the node. Full visibility with pod-level enrichment (see below). This is what the Helm chart ships, with `daemonset.hostPID` left `false`. |
+| **K8s DaemonSet** (no `/host/proc` mount) | Only attaches to processes inside the pod. |
 | **Sidecar** | Only attaches to processes in the same pod. Can inspect the application's TLS traffic if it links a matching SSL library dynamically in the same shared PID namespace. |
 
 **Container/pod enrichment**: DLP events carry `cgroup_id` (via `bpf_get_current_cgroup_id` in the uprobe), which the container resolver maps to the owning container or pod. Combined with the Docker enricher or Kubernetes metadata enricher, every DLP alert includes container/pod name, namespace, and labels - enabling per-workload DLP policy enforcement.
@@ -160,11 +211,11 @@ creates the uprobe link against `/host/proc/<pid>/root/<lib>` (it holds
 start, and each event's `cgroup_id` names the container it came from.
 
 **Recommended K8s deployment** for full DLP coverage, as the Helm chart renders
-it (trimmed):
+it (trimmed). There is no `hostPID` here: `daemonset.hostPID` defaults to
+`false` and the host-procfs mount is what carries the coverage.
 
 ```yaml
 spec:
-  hostPID: true
   hostNetwork: true
   initContainers:
     - name: warden                 # native sidecar: starts first, lives with the pod
@@ -195,9 +246,11 @@ spec:
         - { name: cgroup, mountPath: /sys/fs/cgroup, readOnly: true }
 ```
 
-> **Note:** `hostPID: true` is required for full DLP visibility. Both
-> containers run with `Unconfined` AppArmor and seccomp profiles, which the
-> user-namespace unshare and the bpffs delegation need.
+> **Note:** the read-only `/host/proc` mount on **both** containers is what
+> gives full DLP visibility; the host pid namespace is not needed and
+> `daemonset.hostPID` stays `false`. Both containers run with `Unconfined`
+> AppArmor and seccomp profiles, which the user-namespace unshare and the
+> bpffs delegation need.
 
 ### Multi-WAN Routing
 
@@ -228,7 +281,7 @@ independently after the packet pipeline.
 | Block | Requires | Notes |
 |-------|----------|-------|
 | **Container Resolver** | read access to host `/proc` (bind-mount `/proc:/host/proc:ro` when containerised) | Works anywhere a process is reachable via `/proc/{pid}/cgroup`; sidecar mode sees only pods in the shared PID namespace |
-| **Docker Enricher** | `/var/run/docker.sock:/var/run/docker.sock:ro` bind-mount | Non-Docker hosts disable the enricher at startup - zero runtime cost |
+| **Docker Enricher** | `/var/run/docker.sock:/var/run/docker.sock:ro` bind-mount, mounted and enabled by the shipped `docker-compose.yml` | With the socket, the `/events` stream names a container created after the agent started, and the inspect is the fallback. Without it, the enricher says so once at startup and every alert keeps the resolver's container id while losing name, image and labels |
 | **Kubernetes Enricher** | in-cluster service account with `pods` `get/list/watch` | Auto-disables when `KUBERNETES_SERVICE_HOST` is absent; not useful on bare metal |
 
 See the full reference at [Container Awareness](container-awareness.md).
@@ -269,9 +322,42 @@ for the kernel-version matrix.
 | Deployment Goal | Recommended Mode |
 |----------------|-----------------|
 | Full host/VM protection (all features) | Bare metal binary |
-| Containerized with full coverage | Container, warden + agent from `docker-compose.yml` (`network_mode: host`, `pid: host`) |
-| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true`, `hostPID: true`, warden sidecar (Helm chart) |
+| Containerized with full coverage | Container, warden + agent from `docker-compose.yml` (`network_mode: host`, `/proc:/host/proc:ro` on both, no `pid: host`) |
+| Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true` and the `/host/proc` mount, warden sidecar (Helm chart defaults) |
 | Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` on a netkit CNI, or the veth interfaces listed in `agent.interfaces` |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
-For production Kubernetes deployments, use the **DaemonSet** pattern with `hostPID: true` for full feature coverage including DLP, and enable the Kubernetes metadata enricher for workload-aware alerts. See the [Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the complete manifest.
+For production Kubernetes deployments, use the **DaemonSet** pattern as the
+chart renders it - `hostNetwork: true`, the warden sidecar, the `/host/proc`
+mount and `hostPID` left `false` - for full feature coverage including DLP, and
+enable the Kubernetes metadata enricher for workload-aware alerts. See the
+[Kubernetes deployment guide](../operations/deployment/kubernetes.md) for the
+complete manifest.
+
+## How this matrix is maintained
+
+A row here is a claim about a code path, not a summary of a deployment guide.
+The **Proven by** column names that path, and the rule for changing anything on
+this page is the same in both directions:
+
+1. **A cell changes when its code path changes.** Deleting or moving the path
+   named in a row means re-reading the row in the same change: somebody working
+   in `crates/` can grep this file for the path they are about to move and find
+   the sentence that is about to become false.
+2. **A cell is a tick, a qualification or a cross - never a hope.** A tick says
+   the path runs in that mode today. A `:warning:` says it runs with a stated
+   condition, and the condition is written under the table rather than left in
+   a footnote marker. A `:x:` says the path cannot run there at all. A
+   capability that is planned does not get a row.
+3. **A footnote names the mechanism, not the flag somebody used to need.** The
+   `\*\*` footnote says what has to be mounted, which is what the code reads;
+   it stopped naming `pid: host` when the uprobe stopped needing a pid.
+4. **Where the node can answer, the node wins.** The container rows are
+   reported by `GET /api/v1/agent/status`
+   ([above](#what-the-node-itself-reports)), so a disagreement between this page
+   and a running agent is resolved against the agent and fixed here.
+
+The deployment guides ([Docker](../operations/deployment/docker.md),
+[Kubernetes](../operations/deployment/kubernetes.md)) and the website's install
+page describe the same shipped files; a change to the Compose file or the chart
+is expected to move all three.
