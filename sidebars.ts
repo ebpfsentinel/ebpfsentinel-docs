@@ -127,6 +127,7 @@ const sidebars: SidebarsConfig = {
         'configuration/alerting',
         'configuration/audit',
         'configuration/conntrack',
+        'configuration/attribution',
         'configuration/container',
         'configuration/nat',
         'configuration/routing',
