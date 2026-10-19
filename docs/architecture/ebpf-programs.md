@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 18 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Seventeen form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 19 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Eighteen form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -25,6 +25,7 @@ eBPFsentinel includes 18 eBPF kernel programs, all written in Rust using the [Ay
 | `tc-qos` | TC egress + ingress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping (`tc_qos` on egress, `tc_qos_ingress` on ingress) |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
 | `cgroup-attribution` | cgroup sock_addr / sock / sock_ops | `crates/ebpf-programs/cgroup-attribution/` | The task behind a socket, recorded against the socket cookie and the five-tuple |
+| `cgroup-workload-firewall` | cgroup sock_addr | `crates/ebpf-programs/cgroup-workload-firewall/` | Firewall rules that name a workload, decided in `connect()`, `sendmsg()` and `bind()` |
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
 
 ## Interface Groups (Cross-Cutting)
@@ -250,6 +251,14 @@ Packet normalization running after XDP processing:
 - All three tables are LRU, so a node opening more sockets than the table holds loses the coldest entry rather than refusing the newest, and `ATTRIBUTION_METRICS` per-CPU counters say which hooks are firing
 - Enforces nothing. Every program returns allow unconditionally, so a refused attachment or a full map costs attribution and never connectivity: flows fall back to five-tuple matching, which is what the agent reports through `/api/v1/ebpf/kernel-features`
 
+## Workload Rules (cgroup-workload-firewall)
+
+- Six programs on the same cgroup as the attribution object, and a different question: `connect4`/`connect6`, `sendmsg4`/`sendmsg6` and the **pre-bind** pair `bind4`/`bind6`, which is where the attribution object uses post-bind - post-bind runs once the kernel has assigned the address and cannot refuse it
+- Reads a mask and never an identity. Userspace resolves what a cgroup and a task are - an executable path, a systemd unit, a cgroup path, a container - and writes one bit per selector of the loaded policy into `WORKLOAD_CGROUP_SELECTORS` (keyed by cgroup id) or `WORKLOAD_TASK_SELECTORS` (keyed by thread group id, since an executable belongs to a task and not to its cgroup). The two are ORed, and a selector naming both halves is decided in userspace and written once, so it can never be half-satisfied
+- `WORKLOAD_RULES` is the policy in priority order with no holes: the walk stops at the first disabled slot, and slot zero disabled is a node with no policy, where the hooks count nothing and allow everything
+- Returns `1` to let the syscall through and `0` to refuse it, which the caller sees as `EPERM`. A rule in observe mode counts what it would have refused and returns `1`, so a policy can be measured before it is turned on
+- The loaded object follows the rules rather than a configuration key: a document with no workload rule loads nothing, and a document whose workload rules enforce stops the agent on a host where these hooks did not attach
+
 ## Process Lifecycle (tracepoint-process)
 
 - Two raw tracepoints, `sched_process_exec` and `sched_process_exit`, each returning zero unconditionally
@@ -263,7 +272,7 @@ All features require Linux kernel **6.9+** with BTF. The 6.9 floor is set by BPF
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 16 programs with nightly
+cargo xtask ebpf-build    # Builds all 19 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

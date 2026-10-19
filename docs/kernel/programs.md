@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 18 eBPF kernel programs (the
+Detailed documentation for each of the 19 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -464,6 +464,24 @@ What is written: `SOCKET_IDENTITY` (socket cookie to `SocketIdentity`: pid, tgid
 Identities carry `ATTRIBUTION_IDENTITY_TTL_NS` and `ATTRIBUTION_METRICS` holds per-CPU counters per hook, plus `no_cookie` and `insert_failed`, which is how an operator sees which of the seven is doing the work on a node.
 
 Nothing here enforces anything: every program returns allow unconditionally. A kernel that refuses the `sock_ops` join - the one hook of the object allowed to be absent on its own - keeps the other six, reports the kernel's own error through `/api/v1/ebpf/kernel-features`, and the flows it would have named fall back to five-tuple matching.
+
+### cgroup-workload-firewall
+
+**Hook:** [cgroup sock_addr](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) | **Path:** `crates/ebpf-programs/cgroup-workload-firewall/`
+
+Six programs on the same cgroup, and the only object in the tree that answers a syscall. A firewall rule naming a binary, a systemd unit, a cgroup path or a container has nowhere to be decided on the packet path, because by the time a frame reaches an interface there is no task left to ask about.
+
+- `workload_connect4` / `workload_connect6` decide a connected socket's destination before the SYN exists.
+- `workload_sendmsg4` / `workload_sendmsg6` decide the unconnected datagram path, which is where almost all DNS goes.
+- `workload_bind4` / `workload_bind6` decide the local address a workload asks for. These are the **pre-bind** hooks, not the post-bind pair the attribution object uses: post-bind runs after the kernel has assigned the address and has no way to refuse it.
+
+The kernel compares integers and never a string. Userspace resolves who a cgroup and a task are and writes one bit per selector of the loaded policy into `WORKLOAD_CGROUP_SELECTORS`, keyed by cgroup id, or `WORKLOAD_TASK_SELECTORS`, keyed by thread group id, because an executable path belongs to a task rather than to its cgroup. The two masks are ORed; a selector naming both halves is decided in userspace and written to one map only, so it can never be half-satisfied. The cgroup table is a plain hash map rather than an LRU, since an eviction there would be a rule quietly ceasing to apply to a container that is still running.
+
+`WORKLOAD_RULES` holds the policy in priority order with no holes, so the walk stops at the first disabled slot; slot zero disabled is a node with no policy, where the hooks count nothing and allow everything. A rule matching returns `1` for allow, and `0` for a refusal the caller sees as `EPERM`. A rule in observe mode - the default - counts what it would have refused under `would_refuse` and returns `1`, so turning enforcement on changes which counter moves and not how much.
+
+`WORKLOAD_METRICS` counts the three hooks apart, then `allowed`, `refused`, `would_refuse`, and the two honest ones: `unresolved`, a task userspace had not named yet, which is the exec-then-connect race counted rather than hidden, and `no_rule`, a workload no rule covers.
+
+The object is loaded off the rules rather than off a configuration key: a document with no workload rule loads nothing. A document whose workload rules enforce stops the agent on a host where these hooks did not attach, because an agent reporting healthy while a rule enforces nothing is worse than one that refuses to start.
 
 ### tracepoint-process
 

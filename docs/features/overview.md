@@ -117,10 +117,11 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds eighteen program directories: fourteen attached at
-a hook of their own, three reached only by tail call from one of those fourteen,
+`crates/ebpf-programs/` holds nineteen program directories: fifteen attached at
+a hook of their own, three reached only by tail call from one of those fifteen,
 and `xdp-pass`, which is peer-side test scaffolding rather than part of the
-datapath. The fourteen attached programs, the last two of which only observe:
+datapath. The fifteen attached programs, the last three of which read a task
+rather than a packet and only the last of those decides anything:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -138,6 +139,7 @@ datapath. The fourteen attached programs, the last two of which only observe:
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
 | `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, and joins it to the five-tuple once the connection is established |
 | `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
+| `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -148,7 +150,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the eighteenth directory. It is a no-op XDP program attached to the
+`xdp-pass` is the nineteenth directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

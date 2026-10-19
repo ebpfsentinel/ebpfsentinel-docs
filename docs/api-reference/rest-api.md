@@ -288,6 +288,12 @@ not hold. In that case `reason` explains why and `missing_required` is empty.
 Only helpers are probed; kfuncs and map types carry no probe and stay covered by
 the documented kernel floor.
 
+Three blocks beside the probe say what actually attached on this host rather
+than what the kernel claims to support: `attribution`, `process_tracing` and
+`workload_firewall`, each carrying `attached`, the hooks that took and the
+reason where nothing did. They are read from the attach itself, because a
+kernel offering a program type can still refuse the attach.
+
 #### GET /api/v1/ebpf/uprobes
 
 The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.

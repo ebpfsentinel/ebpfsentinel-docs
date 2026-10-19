@@ -193,7 +193,20 @@ What the host actually did is answered per node rather than inferred from this t
 ebpfsentinel-agent ebpf kernel-features
 ```
 
-The `Socket attribution` and `Process tracing` sections of that output name the hooks that took, the cgroup they sit on, and the reason where nothing attached. The configuration for both, and the counters they export, are in [attribution](../configuration/attribution.md) and [the process table](../configuration/process-table.md).
+The `Workload firewall`, `Socket attribution` and `Process tracing` sections of that output name the hooks that took, the cgroup they sit on, and the reason where nothing attached. The configuration for both, and the counters they export, are in [attribution](../configuration/attribution.md) and [the process table](../configuration/process-table.md).
+
+### Workload Rules: The One Object That Answers a Syscall
+
+**Programs:** `cgroup-workload-firewall`
+
+A firewall rule naming a workload is decided in the task's own `connect()`, `sendmsg()` or `bind()`, on the same cgroup the attribution object sits on and with the opposite posture: these hooks refuse.
+
+| Program type | Hooks | Min Kernel | What its absence costs |
+|---|---|---|---|
+| `cgroup_sock_addr` | `connect4`, `connect6`, `sendmsg4`, `sendmsg6` | 4.17+ (`sendmsg*` 4.18+) | A rule naming a workload decides nothing about what that workload reaches |
+| `cgroup_sock_addr` | `bind4`, `bind6` | 4.17+ | A rule about where a workload may listen decides nothing. These are the pre-bind hooks: the post-bind pair runs after the kernel assigned the address and cannot refuse it |
+
+The attach is all-or-nothing, with no optional hook: half a policy is a policy that reads as in force and is not. What a refusal costs depends on the document rather than on the host. A policy whose rules all observe loses its readings and the agent starts, saying so. A policy with one enforcing rule stops the agent at start-up and a reload carrying one is rejected whole, because an agent reporting healthy while a deny rule enforces nothing is the failure this object exists to avoid.
 
 ### Tiered Ring Buffer Records
 
