@@ -43,6 +43,7 @@ A bundle is a directory, which is also what the tarball expands to:
 ebpfsentinel-content-<bundle version>/
 ├── content-manifest.json
 ├── content-manifest.sig
+├── content-manifest.cosign.bundle
 └── content/
     ├── ids-rules/rules.json
     ├── dlp-patterns/patterns.json
@@ -63,6 +64,10 @@ documented:
 3. The signature covers `content-manifest.json` byte for byte, and the manifest
    covers every file by SHA-256. There is no per-file signature to get out of
    step with the manifest, and no file outside the manifest's reach.
+4. Both signature files are present or the bundle is refused.
+   `content-manifest.sig` is the pair the agent verifies and
+   `content-manifest.cosign.bundle` is the one a person verifies; neither is
+   optional and neither stands in for the other.
 
 ## The Manifest
 
@@ -233,7 +238,43 @@ cosign verify-blob \
 That one needs a network, a transparency log and a clock you trust, which is
 exactly why it is not what the agent relies on.
 
-## The Four Refusals
+### What the Agent Checks and What You Check
+
+The split is worth being precise about, because the two halves answer different
+questions and only one of them is checkable without a network.
+
+| | `content-manifest.sig` | `content-manifest.cosign.bundle` |
+|---|---|---|
+| Answers | was this signed with a key this agent carries | who asked for the signature |
+| Checked by | the agent, on every fetch and every import | a person, with `cosign` |
+| Needs | nothing - the keys are compiled in | a network, Fulcio, a transparency log, a trusted clock |
+| If absent | the bundle is refused | the bundle is refused |
+
+The agent refuses a bundle whose keyless half is missing, empty or not a cosign
+bundle, and it does not pretend to verify it: a certificate chain, a signed
+certificate timestamp and a transparency-log entry are not things an enclave can
+check. What it does instead is keep the pair a person needs. The manifest and
+the keyless bundle that were in force are written to
+`<content directory>/attestation/`, so the check below runs against what the
+machine is actually using rather than against whatever is still in a download
+directory:
+
+```bash
+cd /var/lib/ebpfsentinel/content/attestation
+
+cosign verify-blob \
+  --bundle content-manifest.cosign.bundle \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/ebpfsentinel/.*/publish-content\.yml@.*$' \
+  content-manifest.json
+```
+
+The agent also records the digest of the keyless bundle it was handed, and
+prints it in `content status` and serves it at `GET /api/v1/content/status`, so
+the file in `attestation/` can be matched to the bundle a fleet reports without
+opening it.
+
+## The Five Refusals
 
 Verification is a gate, not a report. Each refusal is counted under its own
 label and raises an alert, and in every case the content already on disk stays
@@ -245,6 +286,7 @@ exactly as it was.
 | Identity outside the allow-list | `unknown_signing_key` | The envelope verifies against no key this build trusts, which is what a bundle signed by somebody else looks like |
 | Manifest and contents disagree | `contents_mismatch` | A listed file is missing, a file under `content/` is unlisted, a digest differs, or a length differs |
 | A set moving backwards | `version_regression` | The bundle version or any set version is lower than the one already applied |
+| No keyless half | `attestation_missing` | `content-manifest.cosign.bundle` is missing, empty, or is not a cosign bundle |
 
 Three more refusals exist for the same reason and are counted the same way:
 `unsupported_schema` for a schema this build does not know, `malformed_manifest`
@@ -299,6 +341,7 @@ Content
 =======
 Directory:      /var/lib/ebpfsentinel/content
 Bundle version: 142
+Attestation:    9f2c4ab1d0e7...  kept in /var/lib/ebpfsentinel/content/attestation for cosign
 ids-rules: version 118 published 2026-10-18T22:14:00Z (1842 entries, rollback to 117)
 dlp-patterns: version 64 published 2026-10-17T11:02:00Z (312 entries, rollback to 63)
 ja4-fingerprints: version 91 published 2026-10-18T22:14:00Z (8104 entries, rollback to 90)
@@ -330,13 +373,17 @@ ebpfsentinel-enterprise-agent content import \
   --bundle ebpfsentinel-content-142.json
 ```
 
-The export is the bundle rather than a rendering of it: the signature file
+The export is the bundle rather than a rendering of it: both signature files
 verbatim, and every file of the bundle with its bytes, which is what makes the
 import on the other side the same verification rather than a second one. Nothing
 is re-signed to cross the gap, and the portal has no key with which it could be.
+The keyless half crosses the gap for the same reason everything else does: an
+enclave cannot verify it on the day it imports, but somebody who later asks who
+published the rules a machine is running needs the file, and after the gap there
+is nowhere to go and get it.
 
 The import runs the same verification the online fetch runs, against the same
-compiled-in keys, with the same four refusals. There is one verification path
+compiled-in keys, with the same five refusals. There is one verification path
 and two transports, which is the only way the offline estate can be told its
 content is as trustworthy as anybody else's.
 
