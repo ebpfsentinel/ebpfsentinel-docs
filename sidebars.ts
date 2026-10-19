@@ -131,6 +131,7 @@ const sidebars: SidebarsConfig = {
         'configuration/flow-export',
         'configuration/attribution',
         'configuration/process-table',
+        'configuration/learning',
         'configuration/container',
         'configuration/nat',
         'configuration/routing',

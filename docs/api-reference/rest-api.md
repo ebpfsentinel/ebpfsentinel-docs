@@ -495,8 +495,8 @@ curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
 
 ```json
 {
-  "id": "0193f1c2-9a44-7c31-b0a7-6d2f1b4e8c90",
-  "status": "open",
+  "id": "learn-1760000000",
+  "status": "running",
   "scope": {"kind": "node"},
   "scope_description": "every workload on this node",
   "requested_duration_secs": 3600,
@@ -505,7 +505,7 @@ curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
   "gap_secs": 0,
   "remaining_secs": 3558,
   "edges": 7,
-  "capacity": 4096,
+  "capacity": 8192,
   "dropped_edges": 0,
   "observations": 128,
   "unattributed": 3,
@@ -538,8 +538,39 @@ with `status` closed, `400` when it was already closed.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
-  http://localhost:8080/api/v1/learning/sessions/0193f1c2-9a44-7c31-b0a7-6d2f1b4e8c90/stop
+  http://localhost:8080/api/v1/learning/sessions/learn-1760000000/stop
 ```
+
+#### GET /api/v1/learning/sessions/{id}/policy
+
+The allow-list the window describes, written in the agent's own rule schema.
+The document can be asked for while the window is still open, which is how an
+operator decides whether it has run long enough. Nothing is applied: every rule
+comes out in `observe` mode, and the document is applied the day somebody puts
+it in the agent's configuration.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/learning/sessions/learn-1760000000/policy
+```
+
+```json
+{
+  "session": {"id": "learn-1760000000", "status": "completed", "edges": 7},
+  "yaml": "# What this node reached, written as the rules that would allow it.\n...",
+  "workloads": 2,
+  "rules": 9,
+  "collapsed_rules": 1,
+  "skipped_edges": 0
+}
+```
+
+`session` is the window in the shape above, so a reader sees the figures the
+document was rendered from without a second call. `collapsed_rules` counts the
+rules whose destination was widened from addresses to a prefix, and each of
+those names in a comment the addresses it was built from. `skipped_edges`
+counts destinations no rule could be written for, because their workload
+cannot be named by a selector.
 
 ### Connection Tracking
 
@@ -1977,6 +2008,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/learning/sessions` | Yes | The observation windows this node holds |
 | GET | `/api/v1/learning/sessions/{id}` | Yes | One observation window |
 | POST | `/api/v1/learning/sessions/{id}/stop` | Yes (write) | Close an observation window |
+| GET | `/api/v1/learning/sessions/{id}/policy` | Yes | The allow-list a window describes |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |

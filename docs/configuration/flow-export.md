@@ -1,8 +1,8 @@
 # Flow Export Configuration
 
 Flow export turns the kernel connection table into flow records and sends them
-where a SOC already reads. IPFIX is the format this page configures; syslog, CEF,
-JSON lines and OTLP are configured in their own sections.
+where a SOC already reads. This page configures IPFIX and OTLP logs; syslog, CEF
+and JSON lines are configured in their own sections.
 
 Nothing here is licence-gated: flow export is part of the open-source agent.
 
@@ -25,6 +25,8 @@ flow_export:
     enterprise_number: 0
     template_interval_secs: 600
     max_message_bytes: 1400
+  otlp:
+    enabled: false
 ```
 
 ## Reference
@@ -45,6 +47,7 @@ flow_export:
 | `ipfix.enterprise_number` | u32 | `0` | The private enterprise number the workload block is exported under. At `0` the workload elements are not exported at all. |
 | `ipfix.template_interval_secs` | u64 | `600` | How often the templates are re-sent (RFC 7011 section 10.3.6). |
 | `ipfix.max_message_bytes` | usize | `1400` | Maximum IPFIX message size. Keep it inside the path MTU. |
+| `otlp.enabled` | bool | `false` | Send the same records as OTLP logs to the collector `alerting.otlp` names. There is no endpoint here: see below. |
 
 A target address that does not parse, an empty target list with the sink
 enabled, a sampling rate of `0` or a `max_message_bytes` too small to hold a
@@ -130,6 +133,80 @@ RFC 7012 values: `1` idle timeout, `2` active timeout, `3` end of flow
 (the kernel dropped the connection), `4` forced end (the agent is shutting
 down), `5` lack of resources (the flow table was full).
 
+## Flow records as OTLP logs
+
+`flow_export.otlp.enabled: true` exports every record the table writes as an
+OTLP log record, to the collector the `alerting.otlp` section already names.
+That section holds the endpoint, the protocol (`grpc` or `http`), the headers,
+the certificate authority and the timeout, and this one holds a single switch:
+an estate running one collector writes its address once, and two copies of it
+cannot disagree. Turning this on with no `alerting.otlp` block is refused at
+start, naming the block that is missing, rather than running a sink that sends
+nowhere.
+
+```yaml
+alerting:
+  otlp:
+    endpoint: http://otel-collector:4318
+    protocol: http
+
+flow_export:
+  enabled: true
+  otlp:
+    enabled: true
+```
+
+Each record is one log record: event name `ebpfsentinel.flow`, severity `INFO`,
+and a body that is the five-tuple as a reader recognises it
+(`tcp 10.0.0.7:51234 -> 93.184.216.34:443 12 packets 2048 bytes`). Everything
+worth querying is an attribute rather than text in the body.
+
+### Attributes
+
+Names follow the OpenTelemetry semantic conventions where one exists, so a SIEM
+already holding OTLP logs queries these with the fields it already indexes, and
+sit under `ebpfsentinel.` where no convention does.
+
+| Attribute | Source |
+|-----------|--------|
+| `source.address`, `source.port` | The local end of the flow as conntrack printed it |
+| `destination.address`, `destination.port` | The remote end |
+| `network.transport` | `tcp` or `udp`, and absent for every other protocol: the conventions name those two |
+| `network.type` | `ipv4` or `ipv6` |
+| `ebpfsentinel.flow.protocol_number` | The IP protocol number, always present, which is how an ESP or GRE flow still carries its protocol |
+| `ebpfsentinel.flow.packets`, `ebpfsentinel.flow.bytes` | Forward deltas since the previous record for this flow |
+| `ebpfsentinel.flow.packets_reverse`, `ebpfsentinel.flow.bytes_reverse` | The same two in the reverse direction |
+| `ebpfsentinel.flow.start_time_unix_ms`, `ebpfsentinel.flow.end_time_unix_ms`, `ebpfsentinel.flow.duration_ms` | The window this record covers |
+| `ebpfsentinel.flow.end_reason`, `ebpfsentinel.flow.end_reason_code` | The word and the RFC 7012 number |
+| `ebpfsentinel.flow.sampling` | The rate the table sampled at, written only when it is not `1`, because no convention carries it and a collector cannot scale a count up without it |
+
+The workload block, where the node resolved one:
+
+| Attribute | Source |
+|-----------|--------|
+| `process.pid`, `process.executable.path` | The process behind the local socket |
+| `container.id`, `container.image.name` | The container it runs in |
+| `k8s.pod.name`, `k8s.namespace.name` | The pod and namespace |
+| `ebpfsentinel.workload.source` | How the join was made: `socket`, `flow` or `process` |
+| `ebpfsentinel.workload.uid`, `ebpfsentinel.workload.cgroup_id`, `ebpfsentinel.workload.unit`, `ebpfsentinel.workload.service_account` | The rest of the block |
+
+**Absence is absence.** A field the node could not read has no attribute at
+all: no empty string and no zero. A transited flow carries no workload
+attribute whatsoever, which is the same statement the IPFIX templates make
+structurally.
+
+### What a flush confirms
+
+The SDK batches on a thread of its own, so an emit says nothing about whether a
+collector accepted the record. Delivery is confirmed on a timer, every thirty
+seconds, which is what the sink's health reports: a flush the collector refused
+counts the records that batch held under `ebpfsentinel_flow_export_failures_total`,
+backs the sink off for five seconds and then up to a minute, and shows the
+reason under `flow_sinks_unhealthy`. A flush per batch would stall the drain for
+the exporter's whole timeout on every tick a collector was down, and no flush at
+all would leave the health endpoint calling a sink fine while every record was
+lost.
+
 ## Counters
 
 Every record carries deltas. A conntrack row is cumulative, so each record
@@ -150,6 +227,9 @@ The three Prometheus families are `ebpfsentinel_flows_exported_total`,
 is counted under the reason `queue_full`, one lost to a conntrack stream the
 exporter could not keep up with under `conntrack_lag`, and one a sink refused
 under `sink_error`. A dropped flow is always a counter and never a silence.
+
+The sink name on both export series is the IPFIX target (`ipfix-udp-10.0.0.9:4739`)
+or `otlp`.
 
 An unreachable collector is reported by `/readyz` under `flow_sinks_unhealthy`
 and deliberately does not hold readiness back: a dead SIEM must not evict a node

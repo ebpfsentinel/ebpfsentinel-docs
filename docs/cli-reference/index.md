@@ -304,12 +304,19 @@ ebpfsentinel-agent learning start -d 900 --unit nginx.service --unit redis.servi
 ebpfsentinel-agent learning list
 ebpfsentinel-agent learning status
 ebpfsentinel-agent learning stop
+ebpfsentinel-agent learning policy
+ebpfsentinel-agent learning policy learn-1760000000 -f /etc/ebpfsentinel/learned.yaml
 ```
 
 `--cgroup` cannot be combined with `--exe`, `--unit` or `--container`;
 `--exe`, `--unit` and `--container` are repeatable and name one scope together.
-`status` and `stop` take a window id and act on the open window when none is
-given. Each answers `404` when learning mode is turned off on the node.
+`status`, `stop` and `policy` take a window id and act on the open window when
+none is given. Each answers `404` when learning mode is turned off on the node.
+
+`policy` writes the allow-list the window describes, in the agent's own rule
+schema: the document goes to standard output, or to the file `-f` names. It
+applies nothing - every rule comes out in `observe` mode, and the document
+takes effect the day somebody puts it in the agent's configuration.
 
 ### identity
 
