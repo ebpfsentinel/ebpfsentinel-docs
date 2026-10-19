@@ -2,6 +2,8 @@
 
 The `firewall` section configures L3/L4 packet filtering rules enforced at XDP speed, with stateful connection tracking, IP/port aliases, packet normalization, and policy routing.
 
+A rule may also name the workload that opened the connection - an executable, a systemd unit, a cgroup or a container - instead of, or as well as, an address. That half of the rule language is decided at `connect()` time by a different set of programs and has its own reference: [Workload Firewall Rules](workload-firewall.md).
+
 ## Reference
 
 ```yaml

@@ -1855,6 +1855,8 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
 | POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
+| GET | `/api/v1/firewall/workload/rules` | Yes | Workload rules in force and what each has refused |
+| GET | `/api/v1/firewall/workload/reach` | Yes | What one named workload is allowed to reach |
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |

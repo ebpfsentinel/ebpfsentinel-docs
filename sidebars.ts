@@ -115,6 +115,7 @@ const sidebars: SidebarsConfig = {
         'configuration/overview',
         'configuration/agent',
         'configuration/firewall',
+        'configuration/workload-firewall',
         'configuration/ids',
         'configuration/ips',
         'configuration/dlp',
