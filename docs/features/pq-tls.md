@@ -86,6 +86,29 @@ It stands between a workload and a server neither of which it chose, so
 refusing a classical client would not harden the agent, it would stop the
 traffic the proxy exists to read.
 
+## Dashboard
+
+The dashboard's own listener carries the same field, `server.tls.pq_mode`, with
+the same three values and the same inbound / outbound split: a browser or a
+proxy reaching the dashboard is an inbound client, while the agents, the OIDC
+provider, ClickHouse and the SMTP relay the dashboard dials are servers
+somebody else configured, so `require` never applies on the way out.
+
+| Surface | Direction | Groups |
+|---------|-----------|--------|
+| Dashboard HTTPS listener | Inbound | follows `server.tls.pq_mode`, including `require` |
+| Agent fan-out, OIDC, ClickHouse, SMTP, webhooks | Outbound | hybrid first, classical fallback |
+
+Two details are specific to that listener. `require` closes TLS 1.2 on it,
+because the hybrid group exists only in TLS 1.3 and leaving 1.2 open would be a
+classical key exchange under a policy that forbids one. And the certificate hot
+reload rebuilds the listener through the same policy, so a renewal cannot
+silently drop the posture the running process started with.
+
+The field only has an effect where the dashboard terminates TLS itself
+(`server.tls.enabled: true`). Behind an ingress or a reverse proxy, the
+handshake the browser performs is that proxy's, and so is the posture.
+
 ## What a Client Without Hybrid Support Sees
 
 Under `prefer` and `disable`, nothing: the handshake completes on a classical

@@ -26,6 +26,7 @@ fast. Every value is validated below.
 | `public_url` | URL | `https://dashboard.example.com` | Must be `http(s)://`. |
 | `tls.cert_path` | path | unset | Must exist when set. Set together with `key_path`. |
 | `tls.key_path` | path | unset | Must exist when set. Warn if mode > `0640`. |
+| `tls.pq_mode` | `prefer` \| `require` \| `disable` | `prefer` | Post-quantum key exchange on the listener. See below. |
 | `cors_allow_origins` | string list | `[]` | Empty = same-origin only. |
 | `static_dir` | path | `/app/site` | Static asset root served at `/`. |
 | `request_timeout_seconds` | u64 | `30` | `1..=600`. |
@@ -307,6 +308,29 @@ is set, rather than gating the pool on a manifest it cannot check. A
 manifest that is configured and unreadable or badly signed is fatal for
 the same reason. With the variable unset the gate is off and the licence
 verification alone admits an agent.
+
+### Post-quantum key exchange
+
+`server.tls.pq_mode` decides whether the dashboard's own listener advertises
+the `X25519MLKEM768` hybrid group, exactly as the agent's `tls.pq_mode` does.
+
+| Mode | Listener | Outbound |
+|---|---|---|
+| `prefer` (default) | hybrid first, classical fallback | hybrid first, classical fallback |
+| `require` | hybrid only, TLS 1.3 only, non-PQ clients rejected | hybrid first, classical fallback |
+| `disable` | classical only | classical only |
+
+`require` is an admission policy for the clients that reach the dashboard. The
+agents it fans out to, the OIDC provider, ClickHouse and the SMTP relay are
+servers configured by somebody else, so outbound keeps a classical fallback
+under `require` and requiring the hybrid group of browsers never cuts the
+control plane off from the fleet. `disable` is a statement about the hybrid
+group itself, so it removes it in both directions.
+
+The mode applies only where the dashboard terminates TLS itself. Behind an
+ingress or a reverse proxy, the browser's handshake is that proxy's. Full
+behaviour, including what a client without hybrid support sees, is in
+[Post-Quantum TLS](../features/pq-tls.md).
 
 ### TLS pinning
 
