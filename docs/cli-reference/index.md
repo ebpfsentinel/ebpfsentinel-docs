@@ -1128,10 +1128,11 @@ API key, a JWT or an OIDC token in that header. See
 > **Edition: Enterprise**
 
 The enterprise agent is a binary of its own, and it is not a client of the one
-above. Given no subcommand it runs as the daemon; given one of the three below
-it reads the machine, writes a file or installs one and exits. All three are
-meant to run before the daemon has ever started, which is why none of them
-takes a host or a token.
+above. Given no subcommand it runs as the daemon; given one of the four below it reads
+the machine, writes a file, installs one or puts content in force, and exits.
+None of them takes a host or a token: three of the four are meant to run before
+the daemon has ever started, and the fourth works on this machine's own content
+directory rather than through the API.
 
 ```
 ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
@@ -1217,6 +1218,64 @@ three lines, both signatures have to verify against the keys built into the
 binary, and the machine fingerprint and the size band have to cover this host.
 A refusal names the four causes and exits non-zero, so a provisioning script
 can gate on it. The parent directory is created when it is missing.
+
+### content
+
+Read, import or roll back the signed content the subscription delivers. It works
+on the content directory from the configuration and reaches no portal: these are
+what an operator does on the machine, and two of them are what an air-gapped
+estate does instead of fetching.
+
+```
+ebpfsentinel-enterprise-agent content <status|import|rollback>
+```
+
+### content status
+
+```bash
+ebpfsentinel-enterprise-agent content status
+```
+
+```
+Content
+=======
+Directory:      /var/lib/ebpfsentinel/content
+Bundle version: 142
+ids-rules: version 118 published 2026-10-18T22:14:00Z (1842 entries, rollback to 117)
+dlp-patterns: version 64 published 2026-10-17T11:02:00Z (312 entries, rollback to 63)
+```
+
+### content import
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--bundle <PATH>` | The bundle directory, or the file the portal exported for an estate with no route out | Required |
+| `--verify-only` | Verify the bundle and change nothing | Applies what it verifies |
+
+```bash
+ebpfsentinel-enterprise-agent content import \
+  --bundle ebpfsentinel-content-142.json \
+  --verify-only
+```
+
+Both signatures, the manifest and every file's digest and length are checked
+before anything is written, and a refusal names what was wrong and exits
+non-zero. A set this build is too old to read, or one that is not newer than
+what is in force, is left alone rather than failing the import.
+
+### content rollback
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--set <KIND>` | Which set, as `content status` names it | Required |
+
+```bash
+ebpfsentinel-enterprise-agent content rollback --set ids-rules
+```
+
+Puts one set back to the version it replaced, without a redeploy and without
+touching the other four. There is one version kept per set, so a rollback is one
+step back rather than a history.
 
 The whole round trip is walked in [Air-Gap Mode](../features/enterprise/airgap.md#license-activation-across-the-gap),
 and the signing half of it, which runs `ebpfsentinel-license` on a connected

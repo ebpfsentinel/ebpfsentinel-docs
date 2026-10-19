@@ -711,6 +711,29 @@ The uprobe scanner attaching to userspace TLS libraries.
 The scanner itself is documented with the feature in
 [Enterprise DLP](../features/enterprise/dlp.md).
 
+### Content channel
+
+What the subscription delivered, what this machine put in force, and what it
+refused. The gauges are what an estate alerts on: a set whose version has not
+moved while the fetches keep succeeding is content that is being skipped rather
+than applied.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_ent_content_fetches_total` | Counter | - | Requests to the portal for the published content bundle |
+| `ebpfsentinel_ent_content_up_to_date_total` | Counter | - | Answers saying this machine already holds the current bundle |
+| `ebpfsentinel_ent_content_applied_total` | Counter | `set` | Content sets put in force, by set |
+| `ebpfsentinel_ent_content_skipped_total` | Counter | `set`, `reason` | Content sets left alone in a verified bundle, by set and reason (`agent_too_old`, `unknown_kind`, `already_in_force`) |
+| `ebpfsentinel_ent_content_failures_total` | Counter | `reason` | Content fetches, verifications or applies that failed, by reason |
+| `ebpfsentinel_ent_content_rollbacks_total` | Counter | `set` | Content sets put back to the version they replaced, by set |
+| `ebpfsentinel_ent_content_set_version` | Gauge | `set` | Version of each content set in force, by set |
+| `ebpfsentinel_ent_content_published_at_seconds` | Gauge | - | When the bundle in force was published, as seconds since the epoch |
+
+A failure raises an alert as well as the counter, and only the first one in a
+run of them does: a portal that is unreachable for a day is one alert and a
+counter that keeps climbing, not a page every interval. The content already on
+disk stays in force throughout.
+
 ### Air-gap
 
 Offline bundle import and the features an air-gapped deployment turns off.

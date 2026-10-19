@@ -43,6 +43,7 @@ const FEATURE_DOCS = [
   ['/api/v1/analytics', 'analytics.md'],
   ['/api/v1/enterprise/response', 'automated-response.md'],
   ['/api/v1/compliance', 'compliance-reports.md'],
+  ['/api/v1/content', 'content-channel.md'],
   ['/api/v1/enterprise/dlp', 'dlp.md'],
   ['/api/v1/enterprise/tls-probes', 'dlp.md'],
   ['/api/v1/agent', 'fleet-management.md'],

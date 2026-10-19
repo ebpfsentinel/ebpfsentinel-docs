@@ -184,30 +184,32 @@ function fields(body, where) {
   return found;
 }
 
-function parseSource(text) {
-  const cliAt = text.indexOf('struct Cli');
-  if (cliAt === -1) fail([`${agentMain} declares no \`struct Cli\`.`]);
-  const nameAt = text.lastIndexOf('name = "', cliAt);
-  const binary = /name = "([^"]+)"/.exec(text.slice(nameAt, cliAt))?.[1];
-  if (!binary) fail([`${agentMain} names no binary in the \`#[command(...)]\` of \`Cli\`.`]);
-
-  const globals = fields(block(text, cliAt, 'struct Cli'), 'struct Cli');
-
-  const enumAt = text.indexOf('enum Command');
-  if (enumAt === -1) fail([`${agentMain} declares no \`enum Command\`.`]);
-  const body = block(text, enumAt, 'enum Command');
+// The variants of one command enum, as commands. A variant holding a
+// `#[command(subcommand)]` field is a command with subcommands of its own, and
+// each of those is documented under its own "### <parent> <child>" section: a
+// flag of `content import` is not a flag of `content`, and documenting it as
+// one would let a renamed flag pass this check.
+function commandsIn(text, enumName, prefix) {
+  const enumAt = text.indexOf(`enum ${enumName}`);
+  if (enumAt === -1) fail([`${agentMain} declares no \`enum ${enumName}\`.`]);
+  const body = block(text, enumAt, `enum ${enumName}`);
 
   const commands = [];
   const lines = body.split('\n');
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim();
     if (line.length === 0 || line.startsWith('///') || line.startsWith('//')) continue;
+    const unit = /^(\w+),$/.exec(line);
+    if (unit) {
+      commands.push({ name: `${prefix}${variantToCommand(unit[1])}`, args: [] });
+      continue;
+    }
     const open = /^(\w+)\s*\{$/.exec(line);
     if (!open) {
       fail([
-        `enum Command: cannot read \`${line}\` in ${agentMain}.`,
+        `enum ${enumName}: cannot read \`${line}\` in ${agentMain}.`,
         '',
-        'This check reads struct-like variants only. A tuple or unit variant would',
+        'This check reads struct-like and unit variants only. A tuple variant would',
         'be a subcommand with arguments it cannot enumerate.',
       ]);
     }
@@ -219,10 +221,29 @@ function parseSource(text) {
       if (depth > 0) collected.push(inner);
     }
     i -= 1;
-    const name = variantToCommand(open[1]);
-    commands.push({ name, args: fields(collected.join('\n'), `subcommand ${name}`) });
+    const name = `${prefix}${variantToCommand(open[1])}`;
+    const collectedText = collected.join('\n');
+    const nested = /#\[command\(subcommand\)\]\s*\n\s*\w+:\s*(\w+)\s*,/.exec(collectedText);
+    if (nested) {
+      commands.push({ name, args: [] });
+      commands.push(...commandsIn(text, nested[1], `${name} `));
+      continue;
+    }
+    commands.push({ name, args: fields(collectedText, `subcommand ${name}`) });
   }
-  if (commands.length === 0) fail([`${agentMain} declares \`enum Command\` with no variant.`]);
+  if (commands.length === 0) fail([`${agentMain} declares \`enum ${enumName}\` with no variant.`]);
+  return commands;
+}
+
+function parseSource(text) {
+  const cliAt = text.indexOf('struct Cli');
+  if (cliAt === -1) fail([`${agentMain} declares no \`struct Cli\`.`]);
+  const nameAt = text.lastIndexOf('name = "', cliAt);
+  const binary = /name = "([^"]+)"/.exec(text.slice(nameAt, cliAt))?.[1];
+  if (!binary) fail([`${agentMain} names no binary in the \`#[command(...)]\` of \`Cli\`.`]);
+
+  const globals = fields(block(text, cliAt, 'struct Cli'), 'struct Cli');
+  const commands = commandsIn(text, 'Command', '');
   return { binary, globals, commands };
 }
 
@@ -319,7 +340,7 @@ for (const command of commands) {
 
 const declared = new Set([GLOBAL_SECTION, ...commands.map((command) => command.name)]);
 for (const heading of parsed.keys()) {
-  if (!declared.has(heading) && /^[a-z][a-z-]*$/.test(heading)) {
+  if (!declared.has(heading) && /^[a-z][a-z-]*( [a-z][a-z-]*)*$/.test(heading)) {
     problems.push(`The page carries a "### ${heading}" section, which is not a subcommand of ${binary}.`);
   }
 }

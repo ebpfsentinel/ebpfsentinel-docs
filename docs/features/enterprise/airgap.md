@@ -251,6 +251,58 @@ POST /api/v1/airgap/check-freshness
 }
 ```
 
+## Content Across the Gap
+
+Threat intelligence feeds are not the only thing a disconnected estate is owed.
+The subscription also delivers detection rules, data patterns, client
+fingerprints, AI provider definitions and trained models, and all five cross the
+gap the same way: exported from the portal by somebody with a browser, carried
+in on a stick, and imported by the agent's own command.
+
+```bash
+# Outside the enclave.
+curl -b portal-session.txt \
+  -o ebpfsentinel-content-142.json \
+  https://portal.ebpfsentinel.io/api/v1/organisations/$ORG/content/bundle
+
+# Inside it.
+ebpfsentinel-enterprise-agent content import --bundle ebpfsentinel-content-142.json
+```
+
+It is deliberately not a second bundle format and not a second signature chain.
+The export is the signed bundle itself - the signature file verbatim and every
+file with its bytes - so the import runs the same verification an online fetch
+runs, against the same keys compiled into the agent, with the same refusals. The
+portal re-signs nothing and holds no key with which it could.
+
+The content channel's own outbound fetch is refused in air-gap mode, exactly as
+portal reporting is: a mode that refuses to reach the network cannot make an
+exception for the thing it would most like to have.
+
+### What the gap costs
+
+The lag, and it is worth stating plainly rather than leaving to be discovered:
+
+- Content applied offline is as old as the last bundle somebody carried in. A
+  bundle exported the day it is published and imported the same day is a day
+  behind a connected estate. A bundle carried in monthly is a month behind, and
+  for that month the agent is matching on content that knows nothing about
+  anything published since.
+- Nothing about the gap makes the content less trustworthy. The verification is
+  the same code, the keys are the same keys, and a bundle that was tampered with
+  on the stick is refused on the inside. What the gap costs is freshness, not
+  integrity.
+- The agent does not pretend otherwise. Each set's version and publication date
+  are in `content status` and on the portal's content screen, so the question
+  "how far behind is this enclave" has an answer on both sides of the gap.
+
+A set older than the configured ceiling raises the same staleness alert a feed
+does, for the same reason: an estate whose content stopped moving usually has
+somebody who stopped carrying it rather than a channel that stopped publishing.
+
+The format, the five sets and the refusals are in
+[Content Channel](content-channel.md).
+
 ## Verified Feed Loading
 
 The whole point of an import is what the agent enforces on afterwards. Each feed whose

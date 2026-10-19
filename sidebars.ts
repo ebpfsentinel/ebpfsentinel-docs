@@ -100,6 +100,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/analytics',
             'features/enterprise/advanced-rbac',
             'features/enterprise/fleet-management',
+            'features/enterprise/content-channel',
             'features/enterprise/ai-security',
             'features/enterprise/tls-intelligence',
             'features/enterprise/automated-response',

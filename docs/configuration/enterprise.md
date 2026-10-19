@@ -314,6 +314,12 @@ enterprise:
     state_path: /var/lib/ebpfsentinel/portal/enrolment.json
     telemetry_enabled: false
     # ingest_secret_file: /etc/ebpfsentinel/portal-ingest-secret
+
+  # ── Signed content the subscription delivers ────────────────────
+  content:
+    enabled: false
+    interval_seconds: 21600             # 6h; clamped like portal reporting
+    directory: /var/lib/ebpfsentinel/content
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -380,6 +386,30 @@ enterprise:
       ca_cert: "/etc/ebpfsentinel/collector-ca.pem"
       verify_tls: true
 ```
+
+### Content channel
+
+The `content` block is how a deployment takes the rules, patterns, fingerprints,
+provider definitions and models the subscription delivers.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `enabled` | bool | `false` | Whether to fetch content at all |
+| `interval_seconds` | int | `21600` | How often to ask. Clamped to the same floor and ceiling portal reporting uses, and the first fetch of each cycle is spread over a share of the interval so a cluster restarting in lockstep does not land on one second |
+| `directory` | string | `/var/lib/ebpfsentinel/content` | Where the content in force, and the version it replaced, are kept |
+
+There is no URL here, and that is the design rather than an omission: the
+address and the per-agent credential are the `portal` block's, so a machine that
+does not report has nothing to fetch with, and a content source somebody can
+point elsewhere is the whole attack. A `content` block with `enabled: true` and
+no `portal` block is refused at boot rather than ignored.
+
+The block does nothing without the `content-channel` licence feature, and the
+directory is where a rollback finds the version it goes back to - a volume that
+is not persisted costs the estate its rollback rather than its content.
+
+[Content Channel](../features/enterprise/content-channel.md) covers the format,
+the five sets, the refusals and how to verify a bundle by hand.
 
 ### License
 

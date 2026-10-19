@@ -246,6 +246,37 @@ For every key in the bundle the tool recomputes the SHA-256 of the signed docume
 
 Every failure in the bundle is reported before the command aborts - an operator across an air gap gets one run. The exit code is non-zero if any key was refused or if a revoked file is still present on disk.
 
+### Verify a Content Bundle
+
+The same tool verifies a content bundle, because the same library does: the
+envelope, the keys and the refusals are shared with licences and with release
+measurements rather than reimplemented per document.
+
+```bash
+ebpfsentinel-license verify-content \
+  --bundle         ./ebpfsentinel-content-142 \
+  --public-key     content-signing-ed25519.pub \
+  --pq-public-key  content-signing-mldsa.pub
+```
+
+| Flag | Effect |
+|---|---|
+| `--bundle <dir>` | The bundle directory, holding `content-manifest.json`, `content-manifest.sig` and `content/` |
+| `--public-key <path>` | The published Ed25519 half of the content signing pair |
+| `--pq-public-key <path>` | The published ML-DSA-65 half |
+
+Both key flags are required. The command verifies both signatures, validates the
+manifest, then hashes every file under `content/` and compares both directions -
+a file the manifest lists and the bundle does not carry, and a file in the bundle
+that nobody signed. It exits non-zero on any of them and names what was wrong.
+
+The content pair is a third pair, separate from the licence and release pairs:
+content is cut whenever a rule is written, so that key is in weekly use, and a
+key in weekly use must not be the one that mints entitlements. Its public halves
+are published the same way the licence ones are.
+[Content Channel](content-channel.md) covers the format and a hand check with
+`openssl`.
+
 ## Vendor Tools: Signing Keys and Licenses
 
 `keygen` and `generate` are the vendor's tools. They need the private signing
@@ -287,6 +318,23 @@ Both `--signing-key` and `--pq-signing-key` are required - every license is post
 
 `--fingerprint` defaults to `*`, which produces a fleet key with no machine
 binding, the same shape the portal issues.
+
+### Sign a Content Bundle
+
+```bash
+ebpfsentinel-license sign-content \
+  --input content-manifest.json \
+  --signing-key    content-signing-ed25519.key \
+  --pq-signing-key content-signing-mldsa.key \
+  --output content-manifest.sig
+```
+
+Signs the manifest bytes exactly as they sit on disk, so the document a customer
+hashes is the document that was signed. In practice this runs inside the
+publishing workflow that cuts the bundle rather than by hand, and the manifest it
+signs is generated from the content tree rather than written: a digest or a byte
+count typed by a person is a bundle that fails verification on somebody else's
+machine.
 
 ## Air-Gap Activation Workflow
 

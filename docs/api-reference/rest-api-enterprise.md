@@ -168,6 +168,7 @@ not from the request.
 | [Advanced analytics](#advanced-analytics) | 9 | [Advanced analytics](../features/enterprise/analytics.md) |
 | [Automated response](#automated-response) | 8 | [Automated response](../features/enterprise/automated-response.md) |
 | [Compliance reports](#compliance-reports) | 7 | [Compliance reports](../features/enterprise/compliance-reports.md) |
+| [Content channel](#content-channel) | 3 | [Content channel](../features/enterprise/content-channel.md) |
 | [Data loss prevention](#data-loss-prevention) | 8 | [Data loss prevention](../features/enterprise/dlp.md) |
 | [Fleet management](#fleet-management) | 5 | [Fleet management](../features/enterprise/fleet-management.md) |
 | [High availability](#high-availability) | 6 | [High availability](../features/enterprise/high-availability.md) |
@@ -334,6 +335,30 @@ and for the request and response bodies.
 | `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | `config:read` | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | `config:read` | compliance-reports | Export as structured text. |
 | `POST` | `/api/v1/compliance/segmentation/validate` | operator | `config:write` | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
+
+## Content channel
+
+License feature: `content-channel`. Mounted only where the configuration carries
+an enabled `content` block, so an agent with the feature and no block serves
+none of the three. See
+[Content channel](../features/enterprise/content-channel.md) for the bundle
+format and for what the agent does on an interval.
+
+| Method | Path | Role | Grant | License feature | Description |
+|--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/content/status` | viewer | `config:read` | content-channel | The content in force: bundle version, each set's version, publication date, entry count and the version a rollback would return to, and how many fetches have failed in a row. |
+| `POST` | `/api/v1/content/import` | operator | `config:write` | content-channel | Verify a bundle in a local directory and put it in force (`{ bundle_dir, verify_only? }`). `400` refuses the bundle and changes nothing. |
+| `POST` | `/api/v1/content/rollback` | operator | `config:write` | content-channel | Put one set back to the version it replaced (`{ set }`). `400` if no earlier version of that set is kept. |
+
+None of the three fetches anything on request: the fetch is on the interval the
+configuration sets, and `import` reads a directory this machine already holds.
+That is deliberate - it is what an air-gapped estate uses, and it is why no
+request body here takes a URL.
+
+`import` answers `200` for a verified bundle and says what became of each set
+rather than one verdict for the lot: a set this build is too old to read, or one
+that is not newer than what is in force, is reported as left alone beside the
+ones that were applied.
 
 ## Data loss prevention
 
