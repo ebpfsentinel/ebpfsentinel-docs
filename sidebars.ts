@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/dlp-over-tls',
         'tutorials/shadow-ai',
         'tutorials/gitops-rollout',
+        'tutorials/first-policy-from-observation',
       ],
     },
     {
@@ -48,6 +49,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'features/overview',
         'features/firewall',
+        'features/learning-mode',
         'features/ids',
         'features/ips',
         'features/dlp',

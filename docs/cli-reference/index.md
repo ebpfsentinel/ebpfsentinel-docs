@@ -376,9 +376,9 @@ ebpfsentinel-agent firewall workload
 ```
 
 ```text
-RULE                  VERDICT  MODE     SELECTOR                    DESTINATION                     DENIALS
-allow-curl-registry   allow    enforce  executable /usr/bin/curl    to 10.0.0.7 port 443 over tcp         0
-default-deny          deny     enforce  executable /usr/bin/curl    to anywhere                          14
+RULE                  VERDICT  MODE     SELECTOR              DESTINATION                        DENIALS
+allow-curl-registry   allow    enforce  exe=/usr/bin/curl     proto 6 to 10.0.0.7/32 port 443          0
+default-deny          deny     enforce  exe=/usr/bin/curl     to anywhere                             14
 ```
 
 ### firewall reach
