@@ -154,6 +154,7 @@ no `libssl` symbol to probe and are not covered by the OSS agent.
 - **OIDC** - JWKS key rotation support via discovery URL
 - **API keys** - configurable salted SHA-256 hashing with constant-time comparison to prevent timing attacks
 - **TLS 1.3** - rustls with aws-lc backend; TLS 1.2 is accepted only when `agent.tls.allow_tls12` is set, and never together with `pq_mode: require`
+- **Hybrid key exchange by default** - every TLS surface, inbound and outbound, offers `X25519MLKEM768` ahead of the classical groups, so a harvested transcript is not decrypted by a later quantum adversary. The classical groups stay behind it for compatibility, and `pq_mode: disable` is what takes the hybrid group off the wire
 - **CA private key zeroized on drop** - enterprise TLS inspection CA key material is securely erased from memory when no longer needed
 
 ## Network Security

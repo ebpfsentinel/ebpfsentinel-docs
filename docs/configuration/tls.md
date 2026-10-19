@@ -49,6 +49,10 @@ When enabled, both REST API and gRPC endpoints use TLS:
 - REST: `https://localhost:8080/`
 - gRPC: TLS on port 50051
 
+Both listeners read the same `cert_path`, `key_path`, `allow_tls12` and
+`pq_mode`, and both build their key exchange from that `pq_mode` directly, so
+`require` is enforced on the gRPC port exactly as it is on the REST one.
+
 ## Post-Quantum Key Exchange
 
 The `pq_mode` field controls whether the agent advertises the `X25519MLKEM768` hybrid key exchange during TLS handshakes.
@@ -60,11 +64,16 @@ The `pq_mode` field controls whether the agent advertises the `X25519MLKEM768` h
 | `disable` | Do not advertise PQ key exchange. Only classical key exchanges are used. |
 
 `pq_mode` states which *inbound* clients this listener accepts. The agent's own
-outbound connections keep a classical fallback under `require`, so requiring PQ
+outbound connections - threat intelligence feeds, webhooks, syslog and SIEM
+exports, and on the enterprise layer the mTLS calls to peer clusters - keep a
+classical fallback under `require`, so requiring PQ
 of the clients that reach the API does not cut the agent off from the threat
 intelligence feeds, webhooks, SIEM endpoints and OIDC provider it dials, few of
 which offer hybrid key exchange today. Only `disable` takes the hybrid group off
-the wire in both directions. See [Post-Quantum TLS](../features/pq-tls.md).
+the wire in both directions. A client that cannot negotiate the hybrid group
+sees a TLS handshake failure under `require` and nothing at all under the other
+two modes; what that looks like on the client side is in
+[Post-Quantum TLS](../features/pq-tls.md).
 
 **Important**: PQ hybrid key exchange (`X25519MLKEM768`) exists only in TLS 1.3.
 `allow_tls12: true` therefore cannot be combined with `pq_mode: require`: the

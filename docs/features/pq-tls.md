@@ -6,8 +6,14 @@ eBPFsentinel supports X25519MLKEM768 hybrid post-quantum key exchange for all TL
 
 The agent uses [aws-lc-rs](https://github.com/aws/aws-lc-rs) as its cryptographic provider, which supports ML-KEM (FIPS 203) hybrid key exchange. The PQ-aware `CryptoProvider` is installed at startup and applies to both directions, with the per-direction differences described under [Outbound TLS](#outbound-tls):
 
-- **Inbound TLS**: REST API (axum/tokio-rustls) and gRPC (tonic) servers
-- **Outbound TLS**: CTI feed downloads, OIDC JWKS fetch, webhook delivery, SMTP email alerts
+- **Inbound TLS**: the REST API, the gRPC listener, and on the enterprise layer the high-availability and federation mTLS listeners
+- **Outbound TLS**: CTI feed downloads, OIDC JWKS fetch, webhook delivery, SMTP email alerts, syslog and SIEM export, and the mTLS calls an agent makes to its peers
+
+Every one of those surfaces builds its key exchange from the same `pq_mode`,
+rather than from whichever provider happened to be installed first. The gRPC
+listener terminates TLS itself for that reason: a server built from the
+process-wide default would have offered the outbound group ordering, so
+`require` would have been accepted on the way in and not enforced.
 
 ## Configuration
 
@@ -65,6 +71,45 @@ both directions.
 | `require` | hybrid only, non-PQ clients rejected | hybrid first, classical fallback |
 | `disable` | classical only | classical only |
 
+## Enterprise Surfaces
+
+| Surface | Direction | Groups |
+|---------|-----------|--------|
+| High-availability replication (mTLS) | Outbound | hybrid first, classical fallback |
+| Federation mTLS listener | Inbound | follows `pq_mode`, including `require` |
+| Federation and member registration clients | Outbound | hybrid first, classical fallback |
+| Syslog, CEF and SIEM export over TLS | Outbound | hybrid first, classical fallback |
+| TLS inspection proxy (both halves) | Both | hybrid first, classical fallback |
+
+The inspection proxy is the one surface that never requires the hybrid group.
+It stands between a workload and a server neither of which it chose, so
+refusing a classical client would not harden the agent, it would stop the
+traffic the proxy exists to read.
+
+## What a Client Without Hybrid Support Sees
+
+Under `prefer` and `disable`, nothing: the handshake completes on a classical
+group and the connection behaves as it always did.
+
+Under `require`, the server has no key exchange group in common with the client
+and the handshake fails. The client sees a TLS alert, not an HTTP status, so
+there is no response body and no log line on the client naming post-quantum
+anything:
+
+```text
+# curl
+curl: (35) error:0A000410:SSL routines::ssl/tls alert handshake failure
+
+# openssl s_client
+140...:error:...:SSL alert number 40
+```
+
+The agent logs the refusal on its side. `grpcurl` and the gRPC clients report
+the same failure as a transport error rather than a gRPC status, because the
+connection never reaches HTTP/2. An estate that turns `require` on without
+checking its clients first should expect exactly this, which is why `prefer`
+is the default and `require` is a deliberate statement.
+
 ## Verification
 
 Check the negotiated key exchange group in the TLS handshake:
@@ -73,3 +118,15 @@ Check the negotiated key exchange group in the TLS handshake:
 openssl s_client -connect localhost:8080 2>&1 | grep "Server Temp Key"
 # Expected: Server Temp Key: X25519MLKEM768
 ```
+
+The gRPC listener answers the same question on its own port, with the ALPN
+protocol gRPC needs:
+
+```bash
+openssl s_client -connect localhost:50051 -alpn h2 2>&1 | grep "Server Temp Key"
+# Expected: Server Temp Key: X25519MLKEM768
+```
+
+An `openssl` build without ML-KEM support cannot negotiate the hybrid group and
+will report a classical one instead - which says what the client can do, not
+what the listener offered.

@@ -271,6 +271,8 @@ document it produces is incomplete.
 | `ebpfsentinel_threatintel_matches_total` | Counter | `feed` | IOC matches resolved against a threat-intelligence feed, by feed |
 | `ebpfsentinel_threatintel_feed_indicators` | Gauge | `feed` | Indicators the feed yielded at its last successful refresh: addresses, domains and URLs together. A failed refresh leaves the value from the last one that worked |
 | `ebpfsentinel_threatintel_feed_last_refresh_timestamp_seconds` | Gauge | `feed` | When the feed last refreshed successfully, in seconds since the epoch. `time() - ebpfsentinel_threatintel_feed_last_refresh_timestamp_seconds` is how stale the feed is; a failed refresh does not move it |
+| `ebpfsentinel_threatintel_reload_duration_seconds` | Histogram | - | How long one full reload of the indicator sets into the eBPF maps took. The datapath matches against a partly written table for the whole of that reload, so this is the figure that says whether a feed has outgrown the host it is loaded on |
+| `ebpfsentinel_threatintel_reload_indicators` | Gauge | - | Indicators the last full reload wrote. Read beside the duration: the two together give the per-indicator cost of a reload |
 | `ebpfsentinel_ids_domain_matches_total` | Counter | `rule_id` | IDS rule matches driven by a domain pattern |
 
 ### DLP
@@ -368,6 +370,10 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_ebpf_program_status` | Gauge | `program` | eBPF program load status (1=loaded, 0=the load was refused). Only the programs this configuration asks for have a series: a feature turned off publishes none rather than a zero, so the gauge is alertable without knowing the configuration that produced it, and a feature turned off by a reload loses its series rather than freezing at its last value. `/api/v1/ebpf/status` is the other half of the answer and does list a disabled program as `false`. `program` is the artefact name, `xdp-firewall` and not `xdp_firewall`, the same word that endpoint and the fleet API use |
 | `ebpfsentinel_ebpf_attach_blocked` | Gauge | - | Programs that loaded but could not be attached to any interface |
 | `ebpfsentinel_ebpf_verifier_rejections` | Gauge | - | Program loads the kernel verifier refused. Exports nothing until something has been loaded, so an absent series is a datapath that never tried rather than one the verifier accepted |
+| `ebpfsentinel_ebpf_link_handovers` | Gauge | - | Hooks whose program was replaced on a live link, so the interface was never left without one. A reload that moves the root of the XDP chain raises it once per interface |
+| `ebpfsentinel_ebpf_link_handover_fallbacks` | Gauge | - | Hooks the kernel made the agent detach and attach again instead of replacing. Each one is a reload during which that interface carried nothing, and the agent logs it with the program named. Zero is what a supported kernel reports |
+| `ebpfsentinel_ebpf_frozen_maps` | Gauge | - | Maps written once at load and made read-only behind that write, so no later write from userspace can reach them. The figure settles at what this kernel allowed and does not move afterwards |
+| `ebpfsentinel_ebpf_map_freeze_refusals` | Gauge | - | Maps left writable because the kernel refused the freeze. The datapath is unaffected and only the protection is absent, which is why this is published rather than fatal |
 | `ebpfsentinel_ebpf_map_fill_permille` | Gauge | `map` | How full a map is, in parts per thousand. Only the maps that refuse an insert when full are measured, so a map with no series here is one nobody could measure rather than one sitting empty |
 | `ebpfsentinel_xdp_attach_mode` | Gauge | `interface`, `mode` | The XDP mode actually in force (1=in force). `mode` is `native`, `generic`, `offloaded`, `multiple` or `unknown` |
 | `ebpfsentinel_bpf_token_used` | Gauge | - | eBPF loaded through a BPF token (1=token-loaded, 0=API-only or no eBPF) |

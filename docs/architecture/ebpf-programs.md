@@ -44,6 +44,81 @@ The eight tc classifiers attach on TCX and each returns `TCX_NEXT`, so an ingres
 
 The control block is not trusted blindly. The kernel overwrites it on an IP receive and on a locally originated skb, so the words carry a magic byte and a check word folded over the five of them, the skb length and the two interface indexes; a mismatch is a re-parse, never a wrong offset. A NAT rewrite invalidates the handoff before it touches the packet, since the ports it carries would be stale afterwards, and the next program parses again. The layout lives in `crates/ebpf-helpers/src/pktmeta.rs`.
 
+## Reloading Without a Hole (Cross-Cutting)
+
+Only one XDP program is attached to an interface: the root of the chain,
+which the others are reached from by tail call. Turning a feature on or off
+can move that root - the firewall rooted the chain, it is disabled, and the
+rate limiter takes its place - and that used to mean detaching one program,
+loading the other and attaching it, with the interface carrying nothing in
+between.
+
+It does not any more. The old root's links are kept open while the new
+program loads, and the attach hands the kernel that same link with the new
+program (`BPF_LINK_UPDATE`): the kernel swaps the program under a link that
+was never closed, so no packet crosses the interface unexamined. The same
+path covers TCX ingress and egress and both sides of a netkit device.
+
+A kernel or an attach type that refuses the replacement falls back to the
+old behaviour, detach and attach again, and that is never silent: the agent
+logs it with the program named and counts it in
+`ebpfsentinel_ebpf_link_handover_fallbacks`, beside
+`ebpfsentinel_ebpf_link_handovers` for the replacements that worked. A link
+nothing reattached - a program disabled rather than replaced, or an
+interface the new root does not cover - is detached once the reconciliation
+ends.
+
+## Programs Are Run Before They Are Attached (Cross-Cutting)
+
+The verifier is the hardest reviewer this code has, and nothing asks it until a
+program is loaded. A build that compiles says only that the compiler was happy.
+
+`cargo test -p adapters --test ebpf_prog_test_run` loads every object the eBPF
+build produced and pushes a crafted TCP SYN through each entry program with
+`BPF_PROG_TEST_RUN`, the kernel's own way of running a program with no
+interface, no attach and no traffic. The return value is the action the program
+decided, so a verifier rejection and a program that starts answering
+`XDP_ABORTED` on a well-formed packet both fail a test run rather than coming
+up as degraded mode on a host.
+
+It needs the objects, built by `cargo xtask ebpf-build` into
+`target/bpfel-unknown-none/release` or wherever `EBPFSENTINEL_EBPF_DIR` points,
+and the privilege to load a program. Without either it says what is missing and
+passes, because a contributor running `cargo test` on a laptop is not the
+audience for a failure about `CAP_BPF`; the eBPF build workflow runs it as root
+right after the objects are built, which is where it is meant to bite.
+
+## Maps Written Once Are Frozen (Cross-Cutting)
+
+Three maps carry a reading of the running kernel rather than a piece of
+configuration: the `nf_conn` member offsets the firewall and the connection
+tracker probe (`CT_NF_CONN_OFFSETS`), and the `msghdr`/`iov_iter` and
+`sock_common` offsets the kernel TLS probes read (`KTLS_ITER_OFFSETS`,
+`SOCK_OFFSETS`). The eBPF target emits no CO-RE relocations, so userspace
+resolves them from `/sys/kernel/btf/vmlinux` and writes them before anything
+attaches. That reading cannot change while the process lives.
+
+Each of the three is frozen with `BPF_MAP_FREEZE` immediately behind its one
+write, so a later write from userspace fails at the syscall instead of
+leaving a program reading kernel structures at offsets nothing asked for.
+The maps are pinned and shared, so the second program to load finds the map
+the first one already wrote: the value is read back and compared rather than
+written again, and only a reading that disagrees with itself is an error.
+
+Everything else stays writable on purpose, because almost nothing else is
+read-only: a configuration reload rewrites the feature flags and the
+thresholds, a rule API call rewrites the rule tables, a feed refresh replaces
+the indicators, an automated response writes a block, and the programs
+themselves write their counters. `crates/adapters/src/ebpf/map_freeze.rs`
+lists the maps that stay writable with the reason for each, so the question
+has an answer in the tree.
+
+The freeze is best effort. A kernel that wants a capability a token-only
+agent does not hold refuses the command, which costs the protection and
+nothing else: the agent logs the refusal with the map named and counts it in
+`ebpfsentinel_ebpf_map_freeze_refusals`, beside `ebpfsentinel_ebpf_frozen_maps`
+for the maps that are read-only.
+
 ## Shared Types (ebpf-common)
 
 All programs share types via `crates/ebpf-common/`:

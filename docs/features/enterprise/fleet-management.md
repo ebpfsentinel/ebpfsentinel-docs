@@ -234,7 +234,7 @@ Full introspection of the registered agent.
   ],
   "tls": {
     "enabled": true,
-    "pq_mode": "Hybrid"
+    "pq_mode": "Prefer"
   },
   "registered_at": 1709913600,
   "uptime_seconds": 86400,
@@ -245,7 +245,7 @@ Full introspection of the registered agent.
 
 - `enterprise`: Always `true` for enterprise agents
 - `ebpf_programs`: The programs this agent attempted to load, each with its own load state, sorted by name
-- `tls.pq_mode`: Post-quantum TLS mode (`Disabled`, `Preferred`, `Hybrid`, `Required`)
+- `tls.pq_mode`: Post-quantum key exchange mode, as the agent was configured: `Prefer`, `Require` or `Disable`. See [Post-Quantum TLS](../pq-tls.md)
 - `operator_managed`: Whether a Kubernetes operator owns this agent's configuration. This is the only route that says so, and a console that edits a configuration the operator reconciles is writing a change the next reconcile undoes
 - `operator_endpoint`: Where that operator's own console is, when it publishes one. Absent from the answer rather than `null` when it does not
 

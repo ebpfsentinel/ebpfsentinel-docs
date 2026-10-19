@@ -108,6 +108,24 @@ The `feed_id` byte is the IOC's position in the batch that was loaded, not an
 identifier of the feed it came from; the feed an alert names is resolved in
 userspace, and so is the `ebpfsentinel_threatintel_matches_total{feed}` label.
 
+The two exact-match maps are written with the kernel's batched commands
+(`BPF_MAP_UPDATE_BATCH`, `BPF_MAP_DELETE_BATCH`) in chunks of at most 4,096
+elements, because a feed of a million indicators written one element at a time
+is a million syscalls and the datapath matches against a half-written table for
+all of them. The chunk is bounded on purpose: the kernel pins and copies the
+whole chunk in one go, so an unbounded one turns a reload into a long
+non-preemptible stretch. A kernel that does not carry the batched commands
+answers the first chunk with `EINVAL` or `EOPNOTSUPP`, and the agent falls back
+to writing element by element for the rest of its life rather than paying a
+refused syscall per reload; the set that ends up in the map is the same either
+way. The two bloom filters are always written one element at a time, because a
+bloom filter is a set of bits with no key to batch on.
+
+How long a full reload took is published as
+`ebpfsentinel_threatintel_reload_duration_seconds` with the number of
+indicators it wrote as `ebpfsentinel_threatintel_reload_indicators`. The two
+together are what says whether a feed has outgrown the host it is loaded on.
+
 ### 5. Kernel Matching (tc-threatintel, hot path)
 
 The TC classifier processes every ingress packet:
@@ -303,3 +321,5 @@ indicators the IP set cannot carry, with `url`, `feed_id`, `confidence` and
 - `ebpfsentinel_rules_loaded{component="threatintel"}` - total loaded IOC count
 - `ebpfsentinel_packet_processing_duration_seconds{program="threatintel"}` - threat intel event dispatch latency
 - `ebpfsentinel_rules_reloads_total{component="threatintel", result}` - per-feed fetch outcome (`success` or `failure`)
+- `ebpfsentinel_threatintel_reload_duration_seconds` - how long one full reload of the indicator sets into the eBPF maps took
+- `ebpfsentinel_threatintel_reload_indicators` - indicators the last full reload wrote
