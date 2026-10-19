@@ -11,6 +11,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'getting-started/prerequisites',
         'getting-started/installation',
+        'getting-started/profiles',
         'getting-started/quickstart',
         'getting-started/concepts',
         'getting-started/from-purchase-to-reporting-agents',
@@ -204,6 +205,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Operations',
       items: [
+        'operations/deployment/packages',
         'operations/deployment/binary',
         'operations/deployment/docker',
         'operations/deployment/kubernetes',

@@ -1,10 +1,12 @@
 # Quickstart
 
-Get eBPFsentinel running with firewall rules, IDS detection, and rate limiting in 5 minutes.
+Get eBPFsentinel running with firewall rules, IDS detection, and rate limiting in 5 minutes. [Install](installation.md) it first; the package and the tarball both put the agent on `PATH` and the configuration at `/etc/ebpfsentinel/config.yaml`.
 
 ## 1. Minimal Configuration
 
-Create `config/ebpfsentinel.yaml`:
+A host that looks like a router, a k3s node or a hypervisor should start from the matching [host profile](profiles.md) rather than from this file, which is deliberately the smallest thing that does something.
+
+Write `/etc/ebpfsentinel/config.yaml`:
 
 ```yaml
 agent:
@@ -54,7 +56,14 @@ ratelimit:
 ## 2. Start the Agent
 
 ```bash
-sudo ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
+sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel
+journalctl -u ebpfsentinel -f
+```
+
+Or in the foreground, to watch it load:
+
+```bash
+sudo ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
 You should see:

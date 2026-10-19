@@ -11,7 +11,15 @@ A bare-metal install is two processes under systemd:
 
 Requirements: kernel 6.9 or later (the agent refuses to start below it), BTF at `/sys/kernel/btf/vmlinux`, unprivileged user namespaces enabled. `libpcap` is optional and only needed for manual packet capture.
 
-## Build
+On a host with a package manager, install the [native package](packages.md)
+instead of anything on this page: it is the same two units, installed under
+`/usr/bin` and `/usr/lib`, upgraded and removed by the mechanism the host
+already runs. What follows is the tarball layout, the runtime detail both
+installs share, and the source build.
+
+## Build from source
+
+For contributors. A local build produces eBPF objects nobody signed, so it is not what a published install path uses.
 
 ```bash
 cargo xtask ebpf-build
@@ -185,6 +193,19 @@ eBPF loads only through a BPF token; there is no capability-based loading path. 
 The agent keeps one connection to the warden per thing it brokers and reuses it for the life of the process; the warden answers each connection on a thread of its own. A connection that says nothing for ten minutes is closed by the warden and the agent reconnects on its next call, which costs a handshake and nothing else - except for the connection the capture sockets were served over, which is kept however long it idles, because the warden holds those sockets against it and freeing them while the agent still reads from them would hand the same socket to the next caller. A peer that connects and does not introduce itself within ten seconds is dropped.
 
 The unit runs the agent as root only so that user-namespace root maps to real root and the bpffs mountpoint can be created under `/sys/fs/bpf`. Once in its namespace the agent holds no capability over the host: no `CAP_BPF`, no `CAP_SYS_ADMIN`, no `CAP_NET_ADMIN`. The operations that need init-namespace capabilities (conntrack entry deletion, Multi-WAN route changes, gratuitous ARP, opening `AF_PACKET` capture sockets) are brokered by the warden rather than lost. See the [BPF token guide](bpf-token.md) for the full sequence and its troubleshooting.
+
+## Removing
+
+```bash
+sudo /usr/local/share/ebpfsentinel/uninstall.sh            # stop, detach, unpin, report what is left
+sudo /usr/local/share/ebpfsentinel/uninstall.sh --purge    # and remove /etc/ebpfsentinel and /var/lib/ebpfsentinel
+```
+
+It stops and disables both units, removes what `install.sh` wrote under
+`/usr/local`, unmounts and removes the bpffs pins under `/sys/fs/bpf/ebpfsentinel*`
+so the programs are detached from every interface, and ends by listing what it
+left behind and why. On a host where the package manager owns these files it
+says so and prints the `apt-get` or `dnf` command instead of deleting anything.
 
 ## Directories
 
