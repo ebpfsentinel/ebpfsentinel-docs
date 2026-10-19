@@ -99,4 +99,4 @@ firewall:
 
 ## Commands and routes
 
-[`ebpfsentinel-agent learning`](../cli-reference/index.md#learning) opens a window, lists them, reports one, closes one and renders its document. The same acts are the `/api/v1/learning/sessions` routes in the [REST API](../api-reference/rest-api.md#learning).
+[`ebpfsentinel-agent learning`](../cli-reference/index.md#learning) opens a window, lists them, reports one, closes one and renders its document. The same acts are the `/api/v1/learning/sessions` routes in the [REST API](../api-reference/rest-api.md#learning-mode).
