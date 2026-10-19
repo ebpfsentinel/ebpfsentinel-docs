@@ -33,7 +33,7 @@ Every alert carries these, whatever raised it:
 
 - `id` - unique alert identifier
 - `timestamp_ns` - event time in nanoseconds since the Unix epoch. Kernel events are stamped with `bpf_ktime_get_boot_ns()`, which is suspend-aware but counts from boot; userspace converts that to an epoch stamp as the record leaves the ring buffer, so a kernel alert and a userspace alert raised a second apart are a second apart.
-- `component` - the engine that raised it: `firewall`, `ratelimit`, `l7`, `ips`, `ids`, `dlp`, `threatintel`, `ddos`, `dns`, `routing`, `ml-anomaly`
+- `component` - the engine that raised it: `firewall`, `ratelimit`, `l7`, `ips`, `ids`, `dlp`, `threatintel`, `ddos`, `dns`, `routing`, `ml-anomaly`, `workload-firewall`
 - `severity` - `low`, `medium`, `high` or `critical`. There is no `info` level: a route configured with `min_severity: info` is refused at boot
 - `rule_id` - the rule that triggered the alert
 - `action` - what was done about it (`alert`, `drop`, `reject`, ...)
@@ -68,6 +68,38 @@ Per-component context:
 | `attack_type`, `peak_pps`, `current_pps`, `mitigation_status`, `total_packets` | DDoS |
 | `ja4_fingerprint` | TLS fingerprinting |
 | `mitre_technique_id`, `mitre_technique_name`, `mitre_tactic` | any engine with an ATT&CK mapping |
+| `rule_id`, `tgid`, `workload`, `dst_addr`, `dst_port`, `protocol` | the workload firewall |
+
+#### Why a connection was refused
+
+A workload firewall refusal is raised under the component
+`workload-firewall`, one alert per refused socket operation, and it is
+readable without opening the policy file:
+
+- `rule_id` is the identifier the operator wrote, not the slot the kernel
+  decided in. The kernel reports a position in its own rule array and
+  userspace names it from the policy currently in force; a record that
+  crossed a reload names nothing and is dropped rather than attributed to
+  whichever rule inherited the slot.
+- `action` is `drop` when the rule enforces and `alert` when it only
+  observes, so a policy being tried out before it is turned on reads as a
+  stream of `alert` records against the same rules.
+- `dst_addr`, `dst_port` and `protocol` are the destination the workload
+  asked for. `src_addr` and `src_port` are zero: the decision is taken at
+  `connect`, `sendmsg` or `bind`, before a source port exists, so there is
+  no five-tuple to report and none is invented.
+- `tgid` is the thread group that asked, and `workload` carries the
+  attribution the agent already keeps for that task - the executable, the
+  unit and the container where it knows them. A task that exited before the
+  record was read leaves `workload` absent.
+- `message` reads `workload rule <id> refused pid <tgid> connecting to
+  <destination>`, or `would refuse` in observe mode.
+
+The counter beside the alert is
+`ebpfsentinel_workload_denials_total{rule_id, mode}`, incremented from the
+kernel's own per-rule array rather than from the alerts, so a refusal lost to
+a full ring buffer is still counted. The difference between the two is
+`ebpfsentinel_packets_total{interface="WORKLOAD_METRICS",action="event_lost"}`.
 
 #### Where a leak came from, and how that was learned
 

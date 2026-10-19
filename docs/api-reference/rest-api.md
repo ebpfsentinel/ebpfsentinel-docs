@@ -352,6 +352,82 @@ Delete a firewall rule by ID. Returns 403 for system rules (e.g., anti-lockout r
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
 ```
 
+#### GET /api/v1/firewall/workload/rules
+
+The workload rules in force, in the
+order the kernel walks them, each with what it has refused since the policy
+was published. A disabled rule is absent rather than listed at zero: it
+occupies no slot, so the kernel keeps no counter for it. `503` when the
+workload firewall is not loaded, which is not the same answer as a policy
+with no rules in it.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/workload/rules
+```
+
+```json
+{
+  "enforcing": true,
+  "rules": [
+    {
+      "rule": "allow-curl-registry",
+      "allows": true,
+      "mode": "enforce",
+      "selector": "executable /usr/bin/curl",
+      "destination": "to 10.0.0.7 port 443 over tcp",
+      "denials": 0
+    },
+    {
+      "rule": "default-deny",
+      "allows": false,
+      "mode": "enforce",
+      "selector": "executable /usr/bin/curl",
+      "destination": "to anywhere",
+      "denials": 14
+    }
+  ]
+}
+```
+
+#### GET /api/v1/firewall/workload/reach
+
+What the workload policy lets one workload reach. Name the workload with
+`pid`, or with any of `exe`, `unit`, `container_id` and `container_name`.
+A `pid` is resolved through the agent's process table, so the answer is about
+the task actually running rather than about the facts the caller typed;
+naming no workload at all is a `400`, not an answer about every rule.
+
+Every rule naming the workload comes back, in the order the kernel walks
+them, because the rule an operator is looking for is usually the one above
+the one they wrote: the first rule admitting a destination decides, so a rule
+low in the list is one something above it may never reach.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  "http://localhost:8080/api/v1/firewall/workload/reach?pid=4312"
+```
+
+```json
+{
+  "exe": "/usr/bin/curl",
+  "unit": "backup.service",
+  "cgroup": "/system.slice/backup.service",
+  "container_id": null,
+  "container_name": null,
+  "enforcing": true,
+  "rules": [
+    {
+      "rule": "allow-curl-registry",
+      "allows": true,
+      "mode": "enforce",
+      "selector": "executable /usr/bin/curl",
+      "destination": "to 10.0.0.7 port 443 over tcp",
+      "denials": 0
+    }
+  ]
+}
+```
+
 ### Connection Tracking
 
 #### GET /api/v1/conntrack/status

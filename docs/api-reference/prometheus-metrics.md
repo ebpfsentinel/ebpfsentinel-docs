@@ -201,6 +201,7 @@ and reports only `trigger="wakeup"`.
 | `ebpfsentinel_alert_sender_circuit_state` | Gauge | `destination` | Alert sender circuit breaker state (0=closed, 1=half-open, 2=open) |
 | `ebpfsentinel_alerts_sse_subscribers` | Gauge | - | Live SSE alert-stream subscriber count |
 | `ebpfsentinel_false_positives_total` | Counter | `component`, `rule_id` | Alerts an operator marked as a false positive |
+| `ebpfsentinel_workload_denials_total` | Counter | `rule_id`, `mode` | Socket operations each workload firewall rule refused, read from the kernel's own per-rule array rather than counted off the alerts, so a refusal whose record found no room in the ring buffer is still counted. `mode` is `enforce` or `observe`, a label rather than a second metric, so a rule moved from counting to refusing keeps one series. A rule that has refused nothing publishes no series, and `/api/v1/firewall/workload/rules` is the other half of the answer: it lists every rule in force, including the ones at zero |
 
 ### DDoS
 

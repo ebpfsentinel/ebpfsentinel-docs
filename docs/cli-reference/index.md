@@ -308,6 +308,42 @@ ebpfsentinel-agent firewall add --json '{
 ebpfsentinel-agent firewall delete block-ssh
 ```
 
+### firewall workload
+
+The workload rules in force, with what each has refused. The count comes from
+the kernel's own per-rule array rather than from the alerts, so a refusal
+whose record was lost to a full ring buffer is still in it.
+
+```bash
+ebpfsentinel-agent firewall workload
+```
+
+```text
+RULE                  VERDICT  MODE     SELECTOR                    DESTINATION                     DENIALS
+allow-curl-registry   allow    enforce  executable /usr/bin/curl    to 10.0.0.7 port 443 over tcp         0
+default-deny          deny     enforce  executable /usr/bin/curl    to anywhere                          14
+```
+
+### firewall reach
+
+What the workload rules let one workload reach. This is the answer to "why
+can this not connect": every rule naming the workload comes back, in the
+order the kernel walks them, because the rule that refused is usually the one
+above the rule the operator wrote.
+
+Name the workload with `--pid`, which reads its facts out of the agent's
+process table, or with any of `--exe`, `--unit`, `--container-id` and
+`--container-name`. Naming nothing is refused rather than answered.
+
+```bash
+# The task actually running, facts read from the process table
+ebpfsentinel-agent firewall reach --pid 4312
+
+# A workload described rather than running
+ebpfsentinel-agent firewall reach --unit backup.service
+ebpfsentinel-agent --output json firewall reach --exe /usr/bin/curl
+```
+
 ### l7
 
 Manage L7 firewall rules.

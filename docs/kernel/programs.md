@@ -479,7 +479,7 @@ The kernel compares integers and never a string. Userspace resolves who a cgroup
 
 `WORKLOAD_RULES` holds the policy in priority order with no holes, so the walk stops at the first disabled slot; slot zero disabled is a node with no policy, where the hooks count nothing and allow everything. A rule matching returns `1` for allow, and `0` for a refusal the caller sees as `EPERM`. A rule in observe mode - the default - counts what it would have refused under `would_refuse` and returns `1`, so turning enforcement on changes which counter moves and not how much.
 
-`WORKLOAD_METRICS` counts the three hooks apart, then `allowed`, `refused`, `would_refuse`, and the two honest ones: `unresolved`, a task userspace had not named yet, which is the exec-then-connect race counted rather than hidden, and `no_rule`, a workload no rule covers.
+`WORKLOAD_METRICS` counts the three hooks apart, then `allowed`, `refused`, `would_refuse`, and the two honest ones: `unresolved`, a task userspace had not named yet, which is the exec-then-connect race counted rather than hidden, and `no_rule`, a workload no rule covers. `event_lost` is the ninth: a refusal the kernel counted but could not describe, because the ring buffer carrying the detail was full. It is exactly the gap between the per-rule counters and the alerts, which is why both are published.
 
 The object is loaded off the rules rather than off a configuration key: a document with no workload rule loads nothing. A document whose workload rules enforce stops the agent on a host where these hooks did not attach, because an agent reporting healthy while a rule enforces nothing is worse than one that refuses to start.
 
