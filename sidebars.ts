@@ -219,6 +219,18 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Integrations',
+      items: [
+        'integrations/index',
+        'integrations/flow-export-ipfix',
+        'integrations/flow-export-otlp',
+        'integrations/flow-export-syslog',
+        'integrations/flow-export-cef',
+        'integrations/flow-export-json-lines',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Development',
       items: [
         'development/contributing',

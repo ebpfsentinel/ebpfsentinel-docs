@@ -244,7 +244,7 @@ RFC 5424 records over `udp`, `tcp` or `tls`. The message is the field list and
 nothing else, because a collector parses it rather than reads it:
 
 ```text
-<134>1 2026-10-19T08:53:32.500Z node-1 ebpfsentinel - flow - rt=1760000012500 src=10.0.0.7 spt=51234 dst=93.184.216.34 dpt=443 proto=tcp out=2048 in=16384 flowPackets=12 flowPacketsReverse=10 start=1760000000000 end=1760000012500 flowDurationMs=12500 flowEndReason=idle_timeout
+<134>1 2025-10-09T08:53:32.500Z node-1 ebpfsentinel - flow - rt=1760000012500 src=10.0.0.7 spt=51234 dst=93.184.216.34 dpt=443 proto=tcp out=2048 in=16384 flowPackets=12 flowPacketsReverse=10 start=1760000000000 end=1760000012500 flowDurationMs=12500 flowEndReason=idle_timeout
 ```
 
 The header is RFC 5424's own: priority (`facility * 8 + 6`, since a flow record
@@ -348,7 +348,7 @@ workload keys rather than carrying them empty. A correlation rule that reads
 One JSON object per line, appended to a file:
 
 ```json
-{"timestamp":"2026-10-19T08:53:32.500Z","event.name":"ebpfsentinel.flow","source.address":"10.0.0.7","source.port":51234,"destination.address":"93.184.216.34","destination.port":443,"network.transport":"tcp","ebpfsentinel.flow.protocol_number":6,"network.type":"ipv4","ebpfsentinel.flow.packets":12,"ebpfsentinel.flow.bytes":2048,"ebpfsentinel.flow.packets_reverse":10,"ebpfsentinel.flow.bytes_reverse":16384,"ebpfsentinel.flow.start_time":1760000000000,"ebpfsentinel.flow.end_time":1760000012500,"ebpfsentinel.flow.duration_ms":12500,"ebpfsentinel.flow.end_reason":"idle_timeout","ebpfsentinel.flow.end_reason_code":1}
+{"timestamp":"2025-10-09T08:53:32.500Z","event.name":"ebpfsentinel.flow","source.address":"10.0.0.7","source.port":51234,"destination.address":"93.184.216.34","destination.port":443,"network.transport":"tcp","ebpfsentinel.flow.protocol_number":6,"network.type":"ipv4","ebpfsentinel.flow.packets":12,"ebpfsentinel.flow.bytes":2048,"ebpfsentinel.flow.packets_reverse":10,"ebpfsentinel.flow.bytes_reverse":16384,"ebpfsentinel.flow.start_time_unix_ms":1760000000000,"ebpfsentinel.flow.end_time_unix_ms":1760000012500,"ebpfsentinel.flow.duration_ms":12500,"ebpfsentinel.flow.end_reason":"idle_timeout","ebpfsentinel.flow.end_reason_code":1}
 ```
 
 The names are the OTLP attribute names listed above, so a file tailed off disk
@@ -426,6 +426,16 @@ that wait up to a minute, and says why in one sentence on `GET
 /api/v1/flows/export` and on `/readyz`. It never blocks the pipeline and never
 retries inside the call, because the caller is draining a bounded queue the
 conntrack reader is filling. A full disk is the same story as a dead collector.
+
+## Collectors
+
+This page is the agent's half of the wire. The receiving half, with a collector
+configuration that works as written, is one page per format under integrations:
+[IPFIX collectors](../integrations/flow-export-ipfix.md),
+[OpenTelemetry collectors](../integrations/flow-export-otlp.md),
+[rsyslog and syslog-ng](../integrations/flow-export-syslog.md),
+[CEF to a SIEM](../integrations/flow-export-cef.md) and
+[a file and a shipper](../integrations/flow-export-json-lines.md).
 
 ## Example
 
