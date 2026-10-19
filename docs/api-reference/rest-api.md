@@ -99,6 +99,11 @@ and each one is a different problem:
 Neither list present, and `ebpf_loaded: false`, means the agent simply has not
 finished loading yet.
 
+One further list, `flow_sinks_unhealthy`, names flow-export sinks that cannot
+reach their destination. It is reported and does not change `status`: a dead
+SIEM must not evict a node that is still enforcing traffic. See
+[Flow Export Configuration](../configuration/flow-export.md).
+
 ## Protected Endpoints
 
 Authentication is on unless the configuration turns it off, so these routes
@@ -426,6 +431,114 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
     }
   ]
 }
+```
+
+### Flow Export
+
+#### GET /api/v1/flows/export
+
+Flow record export status: the flow table's counters, the configured bounds and
+one entry per sink. Answers `404` with `SERVICE_NOT_AVAILABLE` when flow export
+is not enabled, which is a different answer from an exporter that has sent
+nothing.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/flows/export
+```
+
+```json
+{
+  "enabled": true,
+  "observed": 184203,
+  "exported": 184120,
+  "sampled_out": 0,
+  "evicted": 0,
+  "restarted": 83,
+  "queue_drops": 0,
+  "active_timeout_secs": 60,
+  "idle_timeout_secs": 15,
+  "sampling": 1,
+  "table_capacity": 65536,
+  "queue_depth": 4096,
+  "batch_size": 256,
+  "sinks": [
+    {
+      "name": "ipfix-udp-10.0.0.9:4739",
+      "healthy": true,
+      "records_sent": 184120,
+      "records_failed": 0,
+      "consecutive_failures": 0
+    }
+  ]
+}
+```
+
+An unhealthy sink also appears in `/readyz` under `flow_sinks_unhealthy`, where
+it is reported and does not hold readiness back.
+
+### Learning Mode
+
+#### POST /api/v1/learning/sessions
+
+Open an observation window. `scope` is `{"kind":"node"}`, `{"kind":"cgroup","path":"/sys/fs/cgroup/..."}`
+or `{"kind":"workloads","selectors":[{"unit":"nginx.service"}]}`, and defaults to
+the whole node; `duration_secs` is how long to watch for. Answers `409` when a
+window is already open, `400` for a scope or a duration the node cannot honour,
+and `404` with `SERVICE_NOT_AVAILABLE` when learning mode is turned off.
+
+```bash
+curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":{"kind":"node"},"duration_secs":3600}' \
+  http://localhost:8080/api/v1/learning/sessions
+```
+
+```json
+{
+  "id": "0193f1c2-9a44-7c31-b0a7-6d2f1b4e8c90",
+  "status": "open",
+  "scope": {"kind": "node"},
+  "scope_description": "every workload on this node",
+  "requested_duration_secs": 3600,
+  "started_at_ns": 1760000000000000000,
+  "elapsed_secs": 42,
+  "gap_secs": 0,
+  "remaining_secs": 3558,
+  "edges": 7,
+  "capacity": 4096,
+  "dropped_edges": 0,
+  "observations": 128,
+  "unattributed": 3,
+  "out_of_scope": 0,
+  "continuous": true
+}
+```
+
+`gap_secs` and `continuous` are what say whether the agent was up for the whole
+window, and `dropped_edges` above zero means the window reached `capacity` and
+the aggregate it holds is incomplete.
+
+#### GET /api/v1/learning/sessions
+
+The windows this node holds, newest first.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/learning/sessions
+```
+
+#### GET /api/v1/learning/sessions/{id}
+
+One window, in the shape above. `404` for an unknown id, and the same answer
+when learning mode is off.
+
+#### POST /api/v1/learning/sessions/{id}/stop
+
+Close a window before its duration runs out. Answers the window as it stands
+with `status` closed, `400` when it was already closed.
+
+```bash
+curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/learning/sessions/0193f1c2-9a44-7c31-b0a7-6d2f1b4e8c90/stop
 ```
 
 ### Connection Tracking
@@ -1859,6 +1972,11 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/firewall/workload/reach` | Yes | What one named workload is allowed to reach |
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
+| GET | `/api/v1/flows/export` | Yes | Flow export status, table counters and sink health |
+| POST | `/api/v1/learning/sessions` | Yes (write) | Open an observation window |
+| GET | `/api/v1/learning/sessions` | Yes | The observation windows this node holds |
+| GET | `/api/v1/learning/sessions/{id}` | Yes | One observation window |
+| POST | `/api/v1/learning/sessions/{id}/stop` | Yes (write) | Close an observation window |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |

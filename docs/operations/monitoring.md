@@ -176,6 +176,9 @@ curl http://localhost:8080/healthz
 # need is missing and no attachment was refused; 503 otherwise, with the
 # reason in the body (ebpf_loaded, kernel_helpers_missing, attach_blocked)
 curl http://localhost:8080/readyz
+# An unreachable flow-export collector is listed in the body under
+# flow_sinks_unhealthy and deliberately does not make the node unready: a
+# dead SIEM must not evict a node that is still enforcing traffic.
 
 # Full status
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/agent/status

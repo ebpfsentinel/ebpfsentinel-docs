@@ -261,6 +261,56 @@ FLOW                                                          CONNS    BYTES    
 3 aggregated flow(s) from 43 connection(s).
 ```
 
+#### flows export
+
+Flow record export status: the flow table's counters, the configured bounds and
+every sink with its own health.
+
+```bash
+ebpfsentinel-agent flows export
+ebpfsentinel-agent flows export -o json
+```
+
+Example output:
+
+```
+enabled: true
+sampling: 1 in 1
+active timeout: 60s
+idle timeout: 15s
+table: 65536 flows capacity, queue 4096 records, batch 256
+observed: 184203  exported: 184120  sampled out: 0  evicted: 0  restarted: 83
+dropped by a full queue: 0
+
+SINK                          HEALTHY     SENT   FAILED   FAILURES   DETAIL
+--------------------------------------------------------------------------------
+ipfix-udp-10.0.0.9:4739           yes   184120        0          0   -
+```
+
+Answers `404` when flow export is not enabled, which is a different answer from
+an exporter reporting zeroes. See
+[Flow Export Configuration](../configuration/flow-export.md).
+
+### learning
+
+Watch what this node reaches, for a window you declare, and read back what the
+window holds. A window is scoped to the whole node, to one cgroup v2 subtree or
+to the workloads a rule would name.
+
+```bash
+ebpfsentinel-agent learning start -d 3600
+ebpfsentinel-agent learning start -d 900 --cgroup /sys/fs/cgroup/system.slice/nginx.service
+ebpfsentinel-agent learning start -d 900 --unit nginx.service --unit redis.service
+ebpfsentinel-agent learning list
+ebpfsentinel-agent learning status
+ebpfsentinel-agent learning stop
+```
+
+`--cgroup` cannot be combined with `--exe`, `--unit` or `--container`;
+`--exe`, `--unit` and `--container` are repeatable and name one scope together.
+`status` and `stop` take a window id and act on the open window when none is
+given. Each answers `404` when learning mode is turned off on the node.
+
 ### identity
 
 Display the agent's identity metadata: the operator-managed flag, the running

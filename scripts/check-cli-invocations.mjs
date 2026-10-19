@@ -112,7 +112,12 @@ function parseFlags(source) {
     ['--version', false],
     ['-V', false],
   ]);
-  const pattern = /#\[arg\(([^\]]*)\)\]\s*(?:\/\/[^\n]*\n\s*)*pub\s+([a-z0-9_]+)\s*:\s*([^,\n]+)/g;
+  // `pub` is optional: a flag declared on an enum variant rather than in an
+  // args struct carries no visibility, and one of those sitting before a
+  // subcommand is what decides whether the next word is its value or a
+  // command.
+  const pattern =
+    /#\[arg\(([^\]]*)\)\]\s*(?:\/\/[^\n]*\n\s*)*(?:pub\s+)?([a-z0-9_]+)\s*:\s*([^,\n]+)/g;
   let match = pattern.exec(source);
   while (match !== null) {
     const [, inner, field, type] = match;

@@ -128,6 +128,7 @@ const sidebars: SidebarsConfig = {
         'configuration/alerting',
         'configuration/audit',
         'configuration/conntrack',
+        'configuration/flow-export',
         'configuration/attribution',
         'configuration/process-table',
         'configuration/container',

@@ -231,6 +231,30 @@ slot in their kernel counter map, read on `ebpfsentinel_packets_total` under
 
 Everything else about conntrack is a slot under `interface="CT_METRICS"`.
 
+### Flow Export
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_flows_exported_total` | Counter | `sink` | Flow records a sink accepted |
+| `ebpfsentinel_flow_export_failures_total` | Counter | `sink`, `reason` | Deliveries a sink refused, by `config`, `permission`, `transport` or `error` |
+| `ebpfsentinel_flows_dropped_total` | Counter | `reason` | Flow records lost, by `queue_full`, `conntrack_lag` or `sink_error` |
+
+A flow the exporter could not place is always one of these counters and never a
+silence. `ebpfsentinel_flows_dropped_total{reason="queue_full"}` rising means
+the sinks are slower than the flow table; raise `queue_depth`, raise `sampling`
+or fix the collector.
+
+### Learning Mode
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_learning_edges` | Gauge | none | Distinct destination edges the open window holds, zero when no window is open |
+| `ebpfsentinel_learning_observations_total` | Counter | `outcome` | Observations folded into the window, by `new_edge`, `known_edge`, `out_of_scope`, `unattributed`, `dropped` or `ignored` |
+
+`ebpfsentinel_learning_observations_total{outcome="dropped"}` rising means the
+window reached `learning.max_edges` and is refusing destinations, so the
+document it produces is incomplete.
+
 ### IPS and Automated Response
 
 | Metric | Type | Labels | Description |
