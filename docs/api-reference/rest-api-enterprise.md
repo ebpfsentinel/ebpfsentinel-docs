@@ -181,6 +181,7 @@ not from the request.
 | [Multi-tenancy](#multi-tenancy) | 13 | [Multi-tenancy](../features/enterprise/multitenancy.md) |
 | [Network forensics](#network-forensics) | 10 | [Network forensics](../features/enterprise/network-forensics.md) |
 | [SIEM integration](#siem-integration) | 2 | [SIEM integration](../features/enterprise/siem-integration.md) |
+| [Threat intelligence platforms](#threat-intelligence-platforms) | 2 | [Threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) |
 | [TLS intelligence](#tls-intelligence) | 22 | [TLS intelligence](../features/enterprise/tls-intelligence.md) |
 
 ## Always mounted
@@ -653,6 +654,21 @@ and for the request and response bodies.
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/siem/retro-ioc-scan` | operator | `config:write` | siem-integration | Retroactive IOC matching against buffered events. |
 | `GET` | `/api/v1/siem/status` | viewer | `config:read` | siem-integration | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts). |
+
+## Threat intelligence platforms
+
+License feature: `threat-intel-platforms`. See
+[Threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) for what
+the feature does and for the request and response bodies.
+
+| Method | Path | Role | Grant | License feature | Description |
+|--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/intel/indicators` | viewer | `threatintel:read` | threat-intel-platforms | Indicators imported by kind and by source, with the matcher each kind reaches and the kinds that reach none. |
+| `GET` | `/api/v1/intel/sources` | viewer | `threatintel:read` | threat-intel-platforms | One entry per configured source: its interval, its clocks, its resume markers and what the last poll took and refused. |
+
+Both calls read what the configured sources have already imported. Neither
+starts a poll: an interval is configuration, and a route that forced a fetch
+would be a way to make this agent reach a third party on a stranger's schedule.
 
 ## TLS intelligence
 

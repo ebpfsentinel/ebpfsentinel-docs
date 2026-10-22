@@ -320,6 +320,31 @@ enterprise:
     enabled: false
     interval_seconds: 21600             # 6h; clamped like portal reporting
     directory: /var/lib/ebpfsentinel/content
+
+  # ── Threat intelligence platforms ───────────────────────────────
+  intel:
+    enabled: false
+    marker_path: /var/lib/ebpfsentinel/intel-markers.json
+    taxii:
+      - id: cert-eu
+        discovery_url: https://taxii.example/taxii2/
+        collections: []                 # empty: every collection the root serves
+        auth: basic
+        username: ebpfsentinel
+        secret_file: /etc/ebpfsentinel/taxii-password
+        interval_seconds: 900
+        max_indicators: 100000
+        min_confidence: 50
+    misp:
+      - id: house-misp
+        base_url: https://misp.internal.example
+        key_file: /etc/ebpfsentinel/misp-key
+        tags: ["tlp:amber"]
+        distribution: [1, 2, 3]
+        published_only: true
+        interval_seconds: 1800
+        max_indicators: 100000
+        min_confidence: 30
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -410,6 +435,59 @@ is not persisted costs the estate its rollback rather than its content.
 
 [Content Channel](../features/enterprise/content-channel.md) covers the format,
 the five sets, the refusals and how to verify a bundle by hand.
+
+### Threat intelligence platforms
+
+The `intel` block is how TAXII 2.1 collections and MISP instances reach the
+matchers. Every source is polled on its own interval, counted on its own, and
+resumed from its own marker, so one platform failing costs nothing to the other
+and costs itself nothing it already imported.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `enabled` | bool | `false` | Whether to poll at all. Enabled with no source configured is refused at boot |
+| `marker_path` | string | `/var/lib/ebpfsentinel/intel-markers.json` | Where each source's resume marker is kept, so a restart reads what changed rather than everything |
+| `taxii` | list | empty | TAXII 2.1 sources, below |
+| `misp` | list | empty | MISP instances, below |
+
+Each `taxii` entry:
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `id` | string | required | What the marker, the counters and every indicator's provenance are keyed on. Letters, digits, `-`, `_` and `.` |
+| `discovery_url` | string | required | The TAXII discovery document. `https` unless the host is loopback |
+| `collections` | list | empty | Which collections to poll. Empty means every collection the API roots serve |
+| `auth` | string | `none` | `none`, `basic` or `bearer`. Anything else is refused at boot, naming the field |
+| `username` | string | none | Required by `basic` |
+| `secret_file` | string | none | The password or the token. Required by `basic` and `bearer`, read on every request so a rotation needs no restart |
+| `interval_seconds` | int | `900` | Clamped to 60 to 86400 |
+| `max_indicators` | int | `100000` | How many indicators this source may import, counted since the agent started. Past it an indicator is refused and reported as `capped`, and nothing already imported is displaced to make room |
+| `min_confidence` | int | `0` | 0 to 100, compared against the indicator's own confidence |
+
+Each `misp` entry:
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `id` | string | required | Same rules and same role as a TAXII source's |
+| `base_url` | string | required | The instance address, no path. `https` unless the host is loopback |
+| `key_file` | string | required | The automation key, read on every request. Read access is all it needs |
+| `tags` | list | empty | Only attributes carrying one of these tags. Empty sends no tag filter |
+| `distribution` | list | empty | Only attributes at one of these distribution levels. Empty sends none |
+| `published_only` | bool | `false` | Restrict the pull to published events |
+| `interval_seconds` | int | `900` | Clamped to 60 to 86400 |
+| `max_indicators` | int | `100000` | As above |
+| `min_confidence` | int | `0` | MISP states no per-attribute confidence, so an attribute marked fit for automatic detection counts as 75 and one kept as context counts as 30 |
+
+The block does nothing without the `threat-intel-platforms` licence feature, and
+the marker file belongs on a persisted volume. A lost marker is not a
+correctness problem - the next poll reads the collection from the beginning -
+but what it re-imports counts against `max_indicators` again, so a source near
+its bound reports `capped` after a marker file that was never persisted.
+
+[Threat Intelligence Platforms](../features/enterprise/threat-intel-platforms.md)
+covers what each indicator kind reaches, with
+[TAXII 2.1 collections](../integrations/taxii.md) and
+[MISP instances](../integrations/misp.md) for the other side of the wire.
 
 ### License
 
@@ -580,6 +658,11 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
+- `intel.marker_path` cannot be empty, enabled or not
+- `intel.enabled` needs at least one `taxii` or `misp` source
+- Every `intel` source needs an id of letters, digits, `-`, `_` and `.`, a URL the agent can parse, and `https` unless the host is loopback
+- `intel.taxii[].auth` is `none`, `basic` or `bearer`; `basic` needs a `username`, and both `basic` and `bearer` need a `secret_file`
+- `intel.misp[].key_file` cannot be empty
 - `portal.join_secret` and `portal.join_secret_file` cannot both be set, enabled or not
 - `portal.base_url` is required when `portal.enabled`, and must be `https` unless the host is `localhost`, `127.0.0.1` or `::1`
 - `portal.state_path` cannot be empty

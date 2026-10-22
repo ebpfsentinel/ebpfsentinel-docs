@@ -25,3 +25,19 @@ CEF sink writes, so an estate that upgrades keeps its correlation rules.
 The fields themselves, the defaults and every refusal are in
 [flow export configuration](../configuration/flow-export.md). What those pages
 add is the other half of the wire: the collector.
+
+## Threat intelligence platforms
+
+The other direction: a platform the estate already curates, read by the agent
+and mapped onto the matchers that can act on it. Both are Enterprise, both are
+licence feature `threat-intel-platforms`, and both share one indicator model, so
+a match carries its source and its last-confirmed date whichever it came from.
+
+| Platform | Page | Pick it when |
+|----------|------|--------------|
+| TAXII 2.1 | [TAXII 2.1 collections](taxii.md) | A CERT, a commercial feed or an ISAC publishes STIX collections the estate is entitled to |
+| MISP | [MISP instances](misp.md) | The team already runs MISP, and its events are the estate's own curation |
+
+What each indicator kind reaches, and the one kind that reaches nothing, is on
+[Threat Intelligence Platforms](../features/enterprise/threat-intel-platforms.md),
+read out of the code rather than written beside it.

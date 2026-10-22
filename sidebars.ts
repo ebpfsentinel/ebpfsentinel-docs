@@ -103,6 +103,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/content-channel',
             'features/enterprise/ai-security',
             'features/enterprise/tls-intelligence',
+            'features/enterprise/threat-intel-platforms',
             'features/enterprise/automated-response',
             'features/enterprise/network-forensics',
             'features/enterprise/l7-deep-inspection',
@@ -227,6 +228,8 @@ const sidebars: SidebarsConfig = {
       label: 'Integrations',
       items: [
         'integrations/index',
+        'integrations/taxii',
+        'integrations/misp',
         'integrations/flow-export-ipfix',
         'integrations/flow-export-otlp',
         'integrations/flow-export-syslog',

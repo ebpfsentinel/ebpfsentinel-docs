@@ -103,6 +103,15 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:mitre-coverage
 
+      # What an imported indicator reaches, and the one kind that reaches
+      # nothing, is the claim this feature is sold on. The three tables are
+      # generated off the enterprise tree, so a kind that gains or loses a
+      # matcher fails here rather than leaving a page promising a match the
+      # engine cannot make.
+      - name: Check the intelligence object tables
+        working-directory: ebpfsentinel-docs
+        run: npm run check:intel-objects
+
   build:
     name: build
     runs-on: ubuntu-latest

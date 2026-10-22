@@ -62,6 +62,7 @@ const FEATURE_DOCS = [
   ['/api/v1/enterprise/audit', 'multitenancy.md'],
   ['/api/v1/enterprise/forensics', 'network-forensics.md'],
   ['/api/v1/forensics', 'network-forensics.md'],
+  ['/api/v1/intel', 'threat-intel-platforms.md'],
   ['/api/v1/siem', 'siem-integration.md'],
   ['/api/v1/enterprise/tls-intelligence', 'tls-intelligence.md'],
 ];
