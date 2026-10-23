@@ -145,6 +145,41 @@ environment, and an executable the agent could not resolve is left out rather
 than guessed. Nothing of the matched data travels with it: the content is still
 represented only by its data type and the redacted excerpt.
 
+### What is read, and what is not
+
+Plaintext is read **only inside the selected scope**. On `dlp.scope.mode:
+workloads` the probe reads the task's cgroup id and up to eight levels of its
+ancestry against the kernel allow-list the selectors compiled, and an event
+from anything else is dropped in the probe, before any plaintext is copied out
+of the kernel. A neighbouring tenant's writes are therefore not read, not
+buffered and not redacted: there is nothing to redact, because the copy never
+happened. The default is the other way round - `mode: all` reads every task the
+agent has a probe on, which is what a single-tenant host wants and what a
+shared node must change.
+
+Two consequences follow and are stated rather than implied. A scope is a claim
+about reading, not about seeing: the `/host/proc` mount above still lets the
+pod read the node's command lines whatever the scope says. And an `exe` matcher
+narrows per task while the kernel fence is keyed per cgroup, so naming an
+executable inside a shared cgroup selects that cgroup.
+
+Verifying it on a running node is one call, and it answers with the effective
+scope rather than the configured one:
+
+```bash
+ebpfsentinel-agent dlp scope
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/dlp/scope
+```
+
+The answer names each workload in scope and the rule that selected it, each
+workload a rule took out, each rule that matched nothing - a typo in a pod
+name is DLP reading nothing, and only this report says so - and how many
+workloads the agent saw that no rule named. The dashboard's DLP screen renders
+the same report beside the pattern file. Events the scope discarded are
+counted as `out_of_scope` on the `DLP_METRICS` counter, so a fence that is too
+narrow is visible rather than quiet.
+
 Statically-linked TLS runtimes (Go `crypto/tls`, Rust rustls, Java JSSE) export
 no `libssl` symbol to probe and are not covered by the OSS agent.
 

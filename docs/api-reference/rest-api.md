@@ -1558,6 +1558,67 @@ List loaded DLP detection patterns.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dlp/patterns
 ```
 
+#### GET /api/v1/dlp/scope
+
+Which workloads the probes read plaintext from right now: the effective scope
+rather than the configured one. `404` when DLP is switched off.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/dlp/scope
+```
+
+```json
+{
+  "mode": "workloads",
+  "enabled": true,
+  "selectors": 3,
+  "allowed_cgroups": 2,
+  "in_scope": [
+    {
+      "cgroup": "/kubepods/besteffort/pod3f2a/payments-api",
+      "cgroup_id": 10421,
+      "tenant": "payments",
+      "namespace": "payments",
+      "pod": "api-7c9f",
+      "container": "api",
+      "unit": null,
+      "exe": "/usr/bin/envoy",
+      "rule": "payments"
+    }
+  ],
+  "excluded": [
+    {
+      "cgroup": "/kubepods/besteffort/pod91bd/vault-agent",
+      "cgroup_id": 11207,
+      "tenant": "payments",
+      "namespace": "payments",
+      "pod": "vault-agent-2d41",
+      "container": "vault-agent",
+      "unit": null,
+      "exe": "/bin/vault",
+      "rule": "no-vault"
+    }
+  ],
+  "unmatched": [
+    {
+      "rule": "analytics",
+      "selector": "pod=analytics-api",
+      "action": "include",
+      "reason": "no workload carries pod analytics-api"
+    }
+  ],
+  "unselected": 42,
+  "refreshed_unix": 1760000000
+}
+```
+
+`mode: all` means every task the agent has a probe on is read, and `in_scope`
+is then empty because no list decides. `unmatched` is the finding the route
+exists for: a rule that named no workload is DLP reading nothing for it, and a
+configuration file reports that rule as switched on. `unselected` counts the
+workloads the agent saw that no rule named, and `refreshed_unix` is when the
+selectors were last resolved, `0` for never.
+
 ### QoS / Traffic Shaping
 
 #### GET /api/v1/qos/status
@@ -2085,6 +2146,7 @@ keeps working without holding the agent's key.
 | PUT | `/api/v1/aliases/{id}/content` | Yes | Set external alias content |
 | GET | `/api/v1/dlp/status` | Yes | DLP status |
 | GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |
+| GET | `/api/v1/dlp/scope` | Yes | Workloads the probes read plaintext from |
 | GET | `/api/v1/qos/status` | Yes | QoS status |
 | GET | `/api/v1/qos/pipes` | Yes | List QoS pipes |
 | POST | `/api/v1/qos/pipes` | Yes (admin) | Create QoS pipe |

@@ -325,6 +325,92 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 The series these routes write are in the Prometheus Metrics table below, with
 the names and labels the registry actually carries.
 
+## Which Tenant's Plaintext DLP Reads
+
+A uprobe belongs to a library, not to a tenant, so one `libssl` layer shared by
+every container on a node arms one probe that fires for all of them. On a
+multi-tenant node that is a tenant reading a neighbour's cleartext unless the
+fence is aimed, which is what [`dlp.scope`](../../configuration/dlp.md#scope)
+is for: `mode: workloads` plus a selector list, compiled into a kernel
+allow-list keyed on cgroup id, and an event from any other task is dropped in
+the probe before plaintext leaves the kernel.
+
+A selector may name a `tenant`, and the tenant is the only matcher the open
+source agent cannot resolve: it knows cgroups, pods, namespaces, units and
+executables, and it knows nothing of the registry. The Enterprise agent
+resolves it on the way in. Each `tenant:` rule is rewritten into one rule per
+namespace that tenant owns in the registry, the rewritten rules keep every
+other matcher the original carried, and the open source datapath then compiles
+namespace rules exactly as if they had been written by hand. Which means:
+
+- A tenant the registry does not carry, or one carrying no namespace, is
+  **reported** rather than widened - the rule is dropped and the log names it,
+  because a tenant rule that resolves to nothing must not read everything.
+- A rule naming both a `tenant` and a `namespace` is kept only when the
+  registry attributes that namespace to that tenant. Otherwise it is reported
+  and dropped, for the same reason.
+- An expansion past the 64-selector ceiling drops the tenant rules and keeps
+  the rest, which narrows the fence rather than compiling a truncated one.
+- With multi-tenancy switched off, a `tenant:` rule matches nothing and the
+  agent says so at startup.
+
+The report is on the agent's log, on `GET /api/v1/dlp/scope`, in
+`ebpfsentinel-agent dlp scope` and on the dashboard's DLP screen, naming each
+workload in scope with the rule that selected it and each rule that matched
+nothing.
+
+### One example per platform
+
+Kubernetes, where the tenant owns its namespaces and one sidecar inside them
+must stay unread:
+
+```yaml
+dlp:
+  enabled: true
+  scope:
+    mode: workloads
+    selectors:
+      - name: acme
+        tenant: acme
+      - name: no-vault-sidecar
+        action: exclude
+        container: vault-agent
+```
+
+systemd, where a tenant is a set of units rather than a namespace:
+
+```yaml
+dlp:
+  enabled: true
+  scope:
+    mode: workloads
+    selectors:
+      - name: billing
+        unit: billing.service
+      - name: billing-api
+        unit: billing-api.service
+```
+
+Docker or containerd without Kubernetes, where the runtime name is what an
+operator has:
+
+```yaml
+dlp:
+  enabled: true
+  scope:
+    mode: workloads
+    selectors:
+      - name: payments
+        container: payments-api
+      - name: payments-worker
+        container: payments-worker
+```
+
+Exclusions are evaluated before inclusions, so the `exclude` rule above holds
+whatever selected the pod. The matchers inside one rule narrow together:
+`tenant: acme` with `container: api` is that tenant's `api` containers and
+nothing else.
+
 ## DDoS Impact on Shared Interfaces
 
 When multiple tenants share a physical interface (bare-metal mode):

@@ -56,8 +56,10 @@ dlp:
       description: "Description"
       enabled: true
   scope:
-    mode: all                # all or workloads
-    cgroups: []              # cgroup v2 paths, required by `workloads`
+    mode: all                # all or workloads; `all` reads every task on the node
+    cgroups: []              # cgroup v2 paths, one way to say `workloads`
+    selectors: []            # workload rules, the other way
+    refresh_seconds: 15      # how often the selectors are resolved again
 ```
 
 ## Fields
@@ -67,14 +69,22 @@ dlp:
 | `enabled` | `bool` | `true` | Enable or disable the DLP module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (Professional and above) |
 | `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs Professional or above |
-| `scope` | `Scope` | `mode: all` | Which cgroups the probes may read plaintext from, enforced in the kernel |
+| `scope` | `Scope` | `mode: all` | Which workloads the probes may read plaintext from, enforced in the kernel |
 
 ### Scope
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `mode` | `string` | No | `all` | `all` reads every task on the node; `workloads` reads only the tasks under `cgroups` |
+| `mode` | `string` | No | `all` | `all` reads every task on the node; `workloads` reads only what `cgroups` and `selectors` name |
 | `cgroups` | `[string]` | With `workloads` | `[]` | cgroup v2 paths, relative to `container.resolver.cgroup_root`. A path covers everything below it |
+| `selectors` | `[Selector]` | With `workloads` | `[]` | Workload rules resolved against what is running and compiled into the same allow-list |
+| `refresh_seconds` | `u64` | No | `15` | How often the selectors are resolved again, `1` to `3600` |
+
+`mode` is the default the whole block rests on, and it is written down rather
+than left to an empty map: `all` is every task on the node, `workloads` is
+nothing but what a cgroup path or a selector names. A selector list under
+`mode: all` is refused, so a document that aims the fence has had to say that
+everything else is outside it.
 
 A uprobe belongs to a file, not to a container, so one `libssl` layer shared by
 every container on the node arms one probe that fires for all of them. On a
@@ -85,6 +95,48 @@ plaintext is copied out of the kernel. Naming a pod slice covers the containers
 under it, up to eight levels of ancestry, so container ids that change on
 restart never appear in the configuration.
 
+#### Selector
+
+A cgroup path is exact and it changes: a pod that restarts lands under a new
+id, and a document naming ids goes stale without saying so. A selector names
+the workload instead, in the vocabulary the rest of the agent already uses,
+and the agent resolves it against what is actually running on every pass.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | `string` | No | the matchers | What to call this rule in the log, the API and the command line |
+| `action` | `string` | No | `include` | `include` reads the workload, `exclude` refuses to whatever else matched it |
+| `tenant` | `string` | No | - | Tenant as the enterprise registry knows it. The open source agent resolves no tenant, so the rule matches nothing there and says so |
+| `namespace` | `string` | No | - | Kubernetes namespace, as the pod metadata enricher read it |
+| `pod` | `string` | No | - | Pod name |
+| `container` | `string` | No | - | Container id, an id prefix of at least twelve characters, or the name the runtime gave it |
+| `cgroup` | `string` | No | - | Absolute cgroup v2 path, matching it and everything under it |
+| `unit` | `string` | No | - | systemd unit, such as `nginx.service`, compared exactly |
+| `exe` | `string` | No | - | Absolute path of the executable, compared exactly |
+
+A rule needs at least one matcher, and the matchers it carries narrow
+together: `namespace: payments` with `container: api` is the `api` container
+of that namespace and nothing else. Exclusions are evaluated first, so
+`action: exclude` on one pod of a selected namespace keeps that pod unread
+whatever else matched it. At most 64 selectors may be named on one node.
+
+An `exe` matcher is weaker than it looks, and for two reasons stated here
+rather than discovered later: a path names the binary and not the bytes
+behind it, and the kernel fence is keyed on the cgroup the task sits in, so
+the scope it buys is only as narrow as that cgroup.
+
+A rule that resolves to no workload at load time is **reported** rather than
+ignored - on the agent's log, on `GET /api/v1/dlp/scope`, in
+`ebpfsentinel-agent dlp scope` and on the dashboard's DLP screen - because a
+typo in a pod name switches DLP off for that workload and nothing else on the
+system says so. The report names the rule, the matchers it carries and why
+nothing matched.
+
+`refresh_seconds` is the width of the window in which a newly selected
+workload is not yet inspected: a pod that starts between two passes is read
+from the pass that sees it and not before. Lower it on a node whose workloads
+churn, and keep in mind that each pass walks the cgroup tree.
+
 The agent refuses to start on `mode: workloads` with an empty `cgroups` list -
 that pair would arm the probes and drop every event, which reads on a dashboard
 as DLP being on while nothing is inspected - and equally on `mode: all` with
@@ -92,6 +144,19 @@ cgroups listed, which would silently ignore them. Events the scope discards are
 counted as `out_of_scope` on the `DLP_METRICS` counter, so a scope that is too
 narrow is visible rather than quiet. At most 4096 cgroups may be named on one
 node.
+
+What the probes read right now is readable rather than inferred:
+
+```bash
+ebpfsentinel-agent dlp scope
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/dlp/scope
+```
+
+Both answer with the workloads in scope and the rule that put each one there,
+the workloads a rule took out, the rules that matched nothing, and how many
+workloads the agent saw that no rule named. That is the effective scope, not
+the configured one, which is the difference between a document and a fence.
 
 ### Pattern
 
@@ -164,6 +229,37 @@ The other sixteen built-ins stay loaded exactly as they ship.
 ```yaml
 dlp:
   enabled: false
+```
+
+### Aim the fence at two workloads on a shared node
+
+```yaml
+dlp:
+  enabled: true
+  mode: alert
+  scope:
+    mode: workloads
+    refresh_seconds: 15
+    selectors:
+      # Everything this namespace runs, whatever ids its pods take on
+      # restart.
+      - name: payments
+        namespace: payments
+      # One host service, named by its unit rather than its cgroup path.
+      - name: billing-host
+        unit: billing.service
+      # The sidecar whose plaintext nobody is to read, out whatever
+      # selected it.
+      - name: no-vault
+        action: exclude
+        container: vault-agent
+```
+
+Every other task on the node is out of scope, which is what `mode: workloads`
+says. Check it from the node:
+
+```bash
+ebpfsentinel-agent dlp scope
 ```
 
 ### Professional and above: PCI-DSS credit card detection with block mode

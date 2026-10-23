@@ -1050,7 +1050,42 @@ ebpfsentinel-agent dlp status
 
 # List patterns with severity, data type and regex
 ebpfsentinel-agent dlp patterns
+
+# Which workloads the probes read plaintext from right now
+ebpfsentinel-agent dlp scope
 ```
+
+`dlp scope` reports the effective scope rather than the configured one: the
+workloads in scope with the rule that selected each, the workloads a rule took
+out, the rules that matched nothing - a typo in a pod name switches DLP off for
+that workload and only this report says so - and how many workloads the agent
+saw that no rule named.
+
+```text
+DLP scope
+  Probes armed:    yes
+  Mode:            workloads
+  Selectors:       3
+  Allowed cgroups: 2
+
+In scope (2):
+WORKLOAD              CGROUP                                      RULE
+payments/api-7c9f     /kubepods/besteffort/pod3f2a/payments-api   payments
+billing.service       /system.slice/billing.service               billing-host
+
+Excluded (1):
+WORKLOAD                      BY RULE
+payments/vault-agent-2d41     no-vault
+
+Rules matching nothing (1):
+  analytics (include, pod=analytics-api): no workload carries pod analytics-api
+
+42 workload(s) seen and named by no rule. Resolved at epoch 1760000000.
+```
+
+On `mode: all` it says that every task the agent has a probe on is read, since
+no list decides. See [DLP configuration](../configuration/dlp.md#scope) for the
+selectors that aim it.
 
 ### tls
 
