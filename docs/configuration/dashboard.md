@@ -500,12 +500,16 @@ HTTP 503 with `{"error":"history_disabled","message":"…"}`.
 
 ### Schema
 
-The migration creates four tables (prefixed with `table_prefix`):
+The migration creates five tables (prefixed with `table_prefix`):
 
 - `_meta` - migration version bookkeeping (ReplacingMergeTree)
 - `alerts` - per-event alert records partitioned by `(tenant_id, toYYYYMM(occurred_at))`
 - `forensic_events` - raw forensic events, same partitioning
 - `flow_aggregates_1h` - hourly flow buckets partitioned by `(tenant_id, toYYYYMM(bucket_start))`
+- `case_events` - the case log, one row per change to a case, append-only. The
+  nightly purge does not reach it: a case's timeline is a record, and how long
+  it is kept is the operator's decision rather than `retention_days`. See
+  [Cases](../features/enterprise/cases.md).
 
 DDL source files live in `crates/dashboard-server/migrations/`.
 
@@ -566,6 +570,15 @@ The server exposes a single Axum router with the following route layout:
 | `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
 | `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
 | `GET /api/v1/{tenant}/enterprise/forensics/captures/{id}/pcapng?agent={id}` | session, analyst or above | Packet capture download, streamed from the one agent that wrote it, never fanned out. 403 below analyst, 400 without `agent`. |
+| `GET /api/v1/{tenant}/cases` | session | The tenant's cases, one summary each. 503 without a history store. |
+| `POST /api/v1/{tenant}/cases` | session, analyst or above | Open a case over up to 100 alerts. 409 when one of them is already in another case. |
+| `GET /api/v1/{tenant}/cases/membership` | session | Which case holds each alert, so the queue can leave them out. |
+| `GET /api/v1/{tenant}/cases/{case_id}` | session | One case: its alerts, notes, evidence and timeline. 404 outside the tenant. |
+| `PATCH /api/v1/{tenant}/cases/{case_id}` | session, analyst or above | Change the title, status, severity or owner; an empty owner unassigns. |
+| `POST /api/v1/{tenant}/cases/{case_id}/notes` | session, analyst or above | Append a note of at most 4000 characters. |
+| `POST /api/v1/{tenant}/cases/{case_id}/alerts` | session, analyst or above | Add up to 100 alerts, never past 500 in one case. 409 as on open. |
+| `DELETE /api/v1/{tenant}/cases/{case_id}/alerts/{agent_id}/{alert_id}` | session, analyst or above | Take one alert out of the case. |
+| `POST /api/v1/{tenant}/cases/{case_id}/evidence` | session, analyst or above | Record the context freezes and packet captures the agents hold about the case's alerts. 502 when an agent cannot be read. |
 | `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
 | `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
 

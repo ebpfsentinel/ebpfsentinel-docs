@@ -89,6 +89,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/license',
             'features/enterprise/dlp',
             'features/enterprise/dashboard',
+            'features/enterprise/cases',
             'features/enterprise/kubernetes-operator',
             'features/enterprise/high-availability',
             'features/enterprise/multicluster',
