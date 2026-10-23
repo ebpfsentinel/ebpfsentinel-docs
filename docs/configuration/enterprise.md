@@ -313,6 +313,7 @@ enterprise:
   response:
     enabled: true
     audit_max_entries: 10000
+    never_act: []                       # see automated-response feature page
 
   # ── Air-gap feed bundles ────────────────────────────────────────
   air_gap:                              # object, NOT a bool

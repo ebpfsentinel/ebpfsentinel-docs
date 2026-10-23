@@ -531,7 +531,8 @@ Outbound event delivery to a SIEM connector, with its buffer and circuit breaker
 
 ### Automated response
 
-Policy evaluation, response actions, SOAR webhooks and the cooldowns holding them back.
+Policy evaluation, response actions, SOAR webhooks, and the three things that
+hold an action back: a cooldown, the never-act list and a rule's own ceiling.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
@@ -541,6 +542,14 @@ Policy evaluation, response actions, SOAR webhooks and the cooldowns holding the
 | `ebpfsentinel_ent_response_policies_active` | Gauge | - | Response policies currently enabled |
 | `ebpfsentinel_ent_response_cooldowns_active` | Gauge | - | Response cooldowns currently holding an action back |
 | `ebpfsentinel_ent_response_audit_trail_depth` | Gauge | - | Entries currently held in the response audit trail |
+| `ebpfsentinel_ent_response_budget_refusals_total` | Counter | - | Actions refused because a rule's ceiling for the window was spent |
+| `ebpfsentinel_ent_response_never_act_refusals_total` | Counter | - | Actions refused by the never-act list |
+| `ebpfsentinel_ent_response_policies_in_dry_run` | Gauge | - | Enabled response policies that report and enforce nothing |
+| `ebpfsentinel_ent_response_never_act_entries` | Gauge | - | Entries on the never-act list |
+
+`response_budget_refusals_total` carries no rule label on purpose: the values
+would come from operator-chosen policy ids, which is an unbounded series, and
+the rule is named in the alert the exhaustion raises and in the audit trail.
 
 ### Forensics
 

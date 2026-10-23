@@ -16,9 +16,14 @@ OSS Alert Pipeline
         └── Response Bridge (tokio task)
               └── ResponseOrchestrationService.ingest_siem_event()
                     ├── to_snapshot() → AlertSnapshot
-                    ├── engine.evaluate_alert() → Vec<PendingAction>
+                    ├── engine.evaluate_alert() → actions + budget notices
                     │     ├── Match policies by component + severity + MITRE tactic
-                    │     └── Check cooldown per (policy_id, src_addr)
+                    │     ├── Check cooldown per (policy_id, src_addr)
+                    │     └── Decide a disposition per action:
+                    │           never-act hit → refused
+                    │           rule in dry run → reported, nothing enforced
+                    │           budget spent  → refused, one notice per window
+                    │           otherwise     → executed
                     ├── execute_action() → ResponseActionResult
                     │     ├── BlockIp / RateLimitIp / IsolateFlow → OssEnforcementAdapter → eBPF maps
                     │     ├── QuarantineCgroup / ReleaseCgroup → OssEnforcementAdapter → cgroup map
@@ -94,6 +99,108 @@ Policies map alert conditions to response actions. Multiple actions can be confi
 
 Each policy has a `cooldown_secs` setting (default: 300 seconds) that prevents action storms. After an action is executed for a `(policy_id, src_addr)` pair, no further actions for the same pair are triggered until the cooldown expires. Expired cooldowns are cleaned up every 60 seconds.
 
+### Dry run
+
+A policy carrying `"dry_run": true` is evaluated exactly as an enforcing one
+and enforces nothing: every action it matched is written to the audit trail with
+the outcome `dry_run` and a detail line saying what it would have done, and no
+map is written, no process is signalled and no webhook is sent.
+
+It defaults to off rather than on, because a rule somebody wrote to enforce must
+not be silently disarmed by a field they did not write. The way to arrive at
+enforcement safely is the other direction: create the rule in dry run, read the
+trail for as long as the estate's traffic needs, then turn the field off.
+
+A dry run spends nothing. It is refused by the never-act list like any other
+action, because an operator reading the trail should see the same refusal they
+would get in enforcement, and it draws nothing from the rule's budget, because
+a ceiling counts what reached a node.
+
+### The never-act list
+
+The list of what the automation may never touch, whatever a policy asks. It is
+configuration rather than API state: a rule arriving over the REST surface, or
+restored from a state file somebody edited, cannot shorten it. An invalid list
+is refused at startup and the subsystem does not arm at all, rather than arming
+with a fence the operator believes is there.
+
+Each entry carries an `id` and at least one selector. Entries are matched by
+**workload selector, not by address alone**, because the address an alert
+carries is the address of a flow and the thing an operator wants spared is a
+service:
+
+| Selector | Matches |
+|----------|---------|
+| `cidr` | Either endpoint of the alert inside the prefix, both families |
+| `exe` | The workload's executable path |
+| `unit` | The systemd unit the workload runs under |
+| `container` | The container id |
+| `image` | The container image |
+| `pod` | The Kubernetes pod name |
+| `namespace` | The Kubernetes namespace |
+| `cgroup_id` | The cgroup id the alert was attributed to |
+| `pid` | The thread group id |
+
+An entry naming several selectors matches only a target carrying **all** of
+them, so `{unit, namespace}` is narrower than either alone and never wider. A
+fact the agent could not read matches nothing: an alert whose workload block
+carries no unit is not spared by an entry naming a unit, in the same way that an
+alert naming no process is not killed. An entry's `id` is what the audit trail
+and the metric name, so it is required and has to be unique.
+
+```yaml
+enterprise:
+  response:
+    never_act:
+      - id: control-plane
+        cidr: 10.0.0.0/24
+      - id: database
+        unit: postgresql.service
+      - id: ingress
+        namespace: ingress-nginx
+        image: registry.k8s.io/ingress-nginx/controller
+```
+
+A refused action is written to the trail as `skipped`, naming the entry that
+refused it, and counted on
+`ebpfsentinel_ent_response_never_act_refusals_total`. A refusal is a configured
+decision rather than a breakage, which is why it is a skip and not a failure.
+
+### A budget per rule and per window
+
+A policy may carry a ceiling:
+
+```json
+{"budget": {"max_actions": 20, "window_secs": 300}}
+```
+
+Twenty actions per five minutes, counted per rule. The window is tumbling: the
+allowance is spent against the window the rule's first action opened, and the
+next window starts clean. A sliding window would be fairer and would also mean
+holding every action's timestamp per rule for the length of the longest window
+configured, which is unbounded memory driven by alert volume, and a ceiling that
+fails under volume is not a ceiling. A `max_actions` of `0`, or a `window_secs`
+of `0`, is refused when the policy is created rather than accepted as a rule
+that can never act.
+
+Exhausting the budget **raises an alert**. Continuing silently and stopping
+silently are both incidents, of different kinds: one is an automated outage
+nobody authorised, the other is containment an operator believes is running and
+is not. So the subsystem emits one alert per window, on component
+`response-budget` at severity `high`, naming the rule, the ceiling and the alert
+that hit it, and the alert travels the ordinary path: it reaches the SIEM
+exporters and the dashboard like any other.
+
+The subsystem does not respond to its own notice. An alert whose component is
+`response-budget` is evaluated against no policy, so a rule matching every
+component cannot answer the exhaustion of its own ceiling with another action.
+
+Further actions in the same window are refused, written to the trail as
+`skipped` naming the rule's own ceiling, and counted on
+`ebpfsentinel_ent_response_budget_refusals_total`. That counter deliberately
+carries no rule label: a label whose values come from operator-chosen ids is an
+unbounded series, and the rule's name is in the alert and in the trail.
+
 ### Example Policy
 
 ```json
@@ -111,9 +218,14 @@ Each policy has a `cooldown_secs` setting (default: 300 seconds) that prevents a
     {"type": "block_ip", "direction": "src", "duration_secs": 3600},
     {"type": "webhook_notify", "endpoint_id": "soar-splunk"}
   ],
-  "cooldown_secs": 300
+  "cooldown_secs": 300,
+  "dry_run": false,
+  "budget": {"max_actions": 20, "window_secs": 300}
 }
 ```
+
+`dry_run` defaults to `false` and `budget` to absent, which is no ceiling, so a
+policy written before either field existed loads unchanged and keeps enforcing.
 
 ## SOAR Webhook Integration
 
@@ -178,7 +290,7 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 |-------|-------------|
 | `id` | Action identifier |
 | `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `quarantine_cgroup`, `release_cgroup`, `kill_process`, `webhook_notify` |
-| `outcome` | `success`, `failed` (with reason), or `skipped` (with reason) |
+| `outcome` | `success`, `failed` (with reason), `skipped` (with reason), or `dry_run` (with what it would have done) |
 | `executed_at_ns` | Execution timestamp |
 | `trigger_alert_id` | The alert that triggered this action |
 | `trigger_component` | Source component |
@@ -213,7 +325,7 @@ answer is a bare array, newest first.
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/response/status` | viewer | automated-response | Service status (active policies, webhooks, cooldowns, audit depth). |
+| `GET` | `/api/v1/enterprise/response/status` | viewer | automated-response | Service status (active policies, how many of them are in dry run, webhooks, cooldowns, never-act entries, rules whose budget is spent in the window they are in now, audit depth). |
 | `GET` | `/api/v1/enterprise/response/policies` | viewer | automated-response | List all response policies. |
 | `POST` | `/api/v1/enterprise/response/policies` | operator | automated-response | Create a response policy. |
 | `DELETE` | `/api/v1/enterprise/response/policies/{id}` | operator | automated-response | Delete a response policy. |
@@ -232,6 +344,13 @@ answer is a bare array, newest first.
 | `ebpfsentinel_ent_response_policies_active` | Gauge | - | Active (enabled) policies |
 | `ebpfsentinel_ent_response_cooldowns_active` | Gauge | - | Currently active cooldowns |
 | `ebpfsentinel_ent_response_audit_trail_depth` | Gauge | - | Audit trail entry count |
+| `ebpfsentinel_ent_response_budget_refusals_total` | Counter | - | Actions refused by a rule's own ceiling |
+| `ebpfsentinel_ent_response_never_act_refusals_total` | Counter | - | Actions refused by the never-act list |
+| `ebpfsentinel_ent_response_policies_in_dry_run` | Gauge | - | Enabled policies that enforce nothing |
+| `ebpfsentinel_ent_response_never_act_entries` | Gauge | - | Entries on the never-act list |
+
+`response_policies_in_dry_run` is the series to alert on: a rule left in dry run
+after the trail was read is containment the estate believes it has.
 
 ## State Persistence
 
@@ -286,9 +405,24 @@ enterprise:
   response:
     enabled: true
     audit_max_entries: 10000
+    never_act:
+      - id: control-plane
+        cidr: 10.0.0.0/24
+      - id: database
+        unit: postgresql.service
 ```
 
-Policies and webhook endpoints are managed via the REST API at runtime, not in static YAML configuration.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `true` | Whether the subsystem is wired at all |
+| `audit_max_entries` | usize | `10000` | Ring size of the in-memory audit trail |
+| `state_path` | string | a well-known system path | Where policies and webhooks are persisted. Set it explicitly when several agents share a host, otherwise they restore each other's policies |
+| `never_act` | list of entry | `[]` | What the automation may never act on. Each entry carries an `id` and at least one selector |
+
+Policies and webhook endpoints are managed via the REST API at runtime, not in
+static YAML configuration. `never_act` is the exception on purpose: it is the
+operator's own fence, so it is not reachable over the API and an entry cannot be
+removed by a rule.
 
 ## Feature Gating
 
