@@ -84,6 +84,20 @@ is the latest moment the case's records name, so reading the same case twice
 gives the same pack. It is evidence a CRA or NIS2 notification can be written
 from. It is not the notification, and it does not make anyone compliant.
 
+### Export
+
+The pack screen downloads the pack as a PDF to file beside a notification and
+as JSON for a tool. The JSON file is the pack as the API answers it. The PDF
+lays out the same content on A4 pages, every line with the record it was read
+from, every capture with its SHA-256 and audit chain position, and states the
+SHA-256 of the JSON export of the same pack, so the document a person reads
+can be checked against the file a tool holds.
+
+Both are generated from the pack alone. The PDF carries no creation date and
+its document identifier is the case and the `as_of` moment, so two exports of
+the same case log are the same file, byte for byte, and a digest taken of one
+holds for the other.
+
 ## Storage
 
 The case log is one append-only ClickHouse table, `case_events`, with one row
