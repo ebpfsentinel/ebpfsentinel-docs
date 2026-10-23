@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 19 eBPF kernel programs (the
+Detailed documentation for each of the 20 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -495,3 +495,23 @@ Two programs, `process_exec` on `sched_process_exec` and `process_exit` on `sche
 `ProcessEvent` carries the calling task's own numbers and nothing else: pid, tgid, uid, gid, cgroup id, `comm`, the event kind and a boot-time stamp. The executable path, the command line, the parent and the container come from `/proc` in userspace on the strength of these notifications, because they live in `task_struct` and `linux_binprm` and reading them in the kernel would pin the object to one kernel's field offsets.
 
 `PROCESS_EVENTS` is a RingBuf of its own rather than a share of the packet ring, for two reasons: a process event is rare and must not be dropped behind a flood of packets, and the table reading it wants to be woken at once, since an exec read a second late is an alert naming a pid instead of a binary. `PROCESS_METRICS` counts exec, exit, thread exit and dropped. Both programs return zero unconditionally; a raw tracepoint has no verdict to give.
+
+### tracepoint-signal
+
+**Hook:** [raw tracepoint](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_RAW_TRACEPOINT/) | **Path:** `crates/ebpf-programs/tracepoint-signal/`
+
+One program, `signal_on_syscall_entry` on `sys_enter`, and the only object in the tree that can stop a running program. The object is loaded only where the configuration turns the capability on; a node that left it off carries no such program at all.
+
+The hook is what it is because of the helper. `bpf_send_signal` exists in the tracing function prototypes and in none of the packet or socket ones, and it signals the thread group of the task the program is currently running as rather than a pid it is handed. So there is no way to signal a process from the hook that saw its traffic: the decision is taken in userspace, the thread group is written into `SIGNAL_TARGETS`, and the signal leaves the kernel the next time that thread group enters a system call. A target that makes no system call before its entry expires is never signalled, and is reported as having survived rather than assumed dead.
+
+`SIGNAL_ARMED` is a one-slot array holding how many targets are live, read first on every system call entry: zero is the fast path and the only path on a node where nothing is armed. Past it, a map lookup keyed by the current thread group decides, and a task nobody armed returns immediately.
+
+Three refusals happen in the kernel rather than in userspace, because userspace decided a moment ago and a pid can be reused in between:
+
+- an entry whose `expires_at_ns` has passed is dropped, counted under `expired` and reported as such,
+- thread group `0` and `1` are refused outright,
+- a thread group present in `SIGNAL_PROTECTED` is refused and counted under `protected`.
+
+Userspace fills `SIGNAL_PROTECTED` with the ids it will not signal whatever a rule asks, which is why a refusal recorded there outranks the verdict that armed the target. The names behind those ids, and the ones configuration may add, are in [Response Configuration](../configuration/response.md).
+
+`SIGNAL_EVENTS` is a small RingBuf carrying one record per decision - the thread group, the signal, the outcome and a boot-time stamp - so what the audit log says happened is what the kernel did and not what userspace asked for. `SIGNAL_METRICS` counts `sent`, `protected`, `expired`, `helper_failed` and `event_lost`. `sent` is a signal delivered, which is not the same as a process stopped: userspace looks the process up again after the window to tell a kill from a survivor. The program returns zero unconditionally, like every raw tracepoint.

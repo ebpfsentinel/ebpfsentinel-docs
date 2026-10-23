@@ -1014,6 +1014,13 @@ interface already carrying somebody else's XDP program is called out as such.
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
 
+It also prints a `Stopping a process` block: whether that capability is armed
+on this node and, where it is, the signal a kill would send, how long the
+kernel keeps looking for the target and how many process ids it refuses to
+signal whatever a rule asks. `Armed: no` is the default and the answer on every
+node that left the capability off. See
+[Response Configuration](../configuration/response.md).
+
 ### config
 
 The running configuration, writing one section of it, and reloading it from

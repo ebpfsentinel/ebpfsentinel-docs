@@ -30,7 +30,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 ## Key Capabilities
 
 - **IPv4/IPv6 dual-stack** across every IP-path eBPF program and userspace engine, with IPv6 extension header parsing and QinQ 802.1ad support
-- **19 eBPF programs** - 7 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer, vip-announcer, pass), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 1 uprobe (dlp), 2 cgroup objects (attribution, seven socket hooks; workload-firewall, six) and 1 raw-tracepoint object (process exec and exit). `xdp-vip-announcer` answers ARP for load-balancer VIPs; `xdp-pass` is a test-only veth helper
+- **20 eBPF programs** - 7 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer, vip-announcer, pass), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 1 uprobe (dlp), 2 cgroup objects (attribution, seven socket hooks; workload-firewall, six) and 2 raw-tracepoint objects (process exec and exit; stopping a process, loaded only where that capability is turned on). `xdp-vip-announcer` answers ARP for load-balancer VIPs; `xdp-pass` is a test-only veth helper
 - **Multi-NIC support** - attach to multiple interfaces, bond masters, VLAN trunks. [Interface groups](docs/features/interface-groups.md) for per-interface rule scoping (up to 31 groups)
 - **XDP tail-call chaining** - firewall → reject, firewall → ratelimit, ratelimit → syncookie in single attach points
 - **XDP_TX packet forging** - firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation

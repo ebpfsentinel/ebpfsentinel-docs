@@ -293,11 +293,36 @@ not hold. In that case `reason` explains why and `missing_required` is empty.
 Only helpers are probed; kfuncs and map types carry no probe and stay covered by
 the documented kernel floor.
 
-Three blocks beside the probe say what actually attached on this host rather
-than what the kernel claims to support: `attribution`, `process_tracing` and
-`workload_firewall`, each carrying `attached`, the hooks that took and the
-reason where nothing did. They are read from the attach itself, because a
-kernel offering a program type can still refuse the attach.
+Four blocks beside the probe say what actually attached on this host rather
+than what the kernel claims to support: `attribution`, `process_tracing`,
+`workload_firewall` and `process_signal`, each carrying `attached` and the
+reason where nothing did, plus the hooks that took. They are read from the
+attach itself, because a kernel offering a program type can still refuse the
+attach.
+
+`process_signal` is the one capability that can stop a running program, so it
+reports its blast radius with its state:
+
+```json
+{
+  "process_signal": {
+    "attached": true,
+    "reason": null,
+    "signal": 9,
+    "window_ms": 2000,
+    "protected": 15
+  }
+}
+```
+
+`signal` is the signal a kill would send and `window_ms` how long the kernel
+keeps looking for the target: a target that makes no system call inside that
+window is reported as a survivor rather than assumed dead. `protected` counts
+the process ids the kernel refuses to signal whatever a rule asks, and is never
+zero while the capability is on, since the agent itself is one of them.
+`attached: false` is the answer on every node that did not turn the capability
+on, which is the default. See
+[Response Configuration](../configuration/response.md).
 
 #### GET /api/v1/ebpf/uprobes
 

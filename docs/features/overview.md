@@ -118,11 +118,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds nineteen program directories: fifteen attached at
-a hook of their own, three reached only by tail call from one of those fifteen,
+`crates/ebpf-programs/` holds twenty program directories: sixteen attached at
+a hook of their own, three reached only by tail call from one of those sixteen,
 and `xdp-pass`, which is peer-side test scaffolding rather than part of the
-datapath. The fifteen attached programs, the last three of which read a task
-rather than a packet and only the last of those decides anything:
+datapath. The sixteen attached programs, the last four of which read a task
+rather than a packet, and of those four only the workload firewall decides a
+syscall and only the signal program acts on a process:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -141,6 +142,7 @@ rather than a packet and only the last of those decides anything:
 | `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, and joins it to the five-tuple once the connection is established |
 | `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
 | `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind |
+| `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
