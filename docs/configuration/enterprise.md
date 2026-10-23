@@ -144,6 +144,10 @@ enterprise:
       enabled: false
       poll_interval_seconds: 10
       tenant_label: "ebpfsentinel.io/tenant"
+      cri_sockets:                      # containerd and CRI-O, dialled if present
+        - /run/containerd/containerd.sock
+        - /run/crio/crio.sock
+      cri_timeout_ms: 2000              # bounds each runtime call
 
   # ── SIEM Integration ────────────────────────────────────────────
   siem:

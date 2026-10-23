@@ -63,7 +63,11 @@ A container is attributed to a tenant by:
 1. **Explicit claim** - the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
 2. **Kubernetes namespace** - when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
 
-Labels are read over the Docker Engine API, which also serves Podman's compatible socket, and that is the only runtime the agent asks. **containerd and CRI-O are not resolved**: on a node running either, a container's cgroup is seen but its labels are never read, so the container matches no tenant and falls through to the default tenant, `__default__` with `tenant_id=0`. The first three modes still apply, so a node whose tenants are separated by VLAN, interface or subnet is unaffected; a node whose tenants are separated only by container labels attributes everything it runs to one tenant. Attribution is disabled by default because it requires the runtime socket and the host cgroup hierarchy to be visible to the agent. Resolving containerd and CRI-O through the CRI API is planned and not implemented.
+Labels are read over whichever runtime API answers on the node: the Docker Engine API, which also serves Podman's compatible socket, and the CRI runtime API that containerd and CRI-O serve. A node running both resolves through both. Nothing selects a runtime by configuration - the agent dials every socket it was given and uses the ones that answer - so a node is resolved by what is mounted into the agent rather than by what the agent was told it is.
+
+On the CRI side the kubelet puts the pod's own labels on the sandbox and only the `io.kubernetes.*` labels on the container, so the agent merges the sandbox's labels underneath the container's own: a tenant claim written on the pod is found, and a claim written on the container wins over the pod's. `io.kubernetes.pod.namespace` is taken from the container's labels, or from the sandbox metadata when the container carries none.
+
+A container whose labels no socket could read matches no tenant and falls through to the default tenant, `__default__` with `tenant_id=0`, and the runtime it belongs to is named in the node's own report rather than left to be inferred. The first three modes still apply, so a node whose tenants are separated by VLAN, interface or subnet is unaffected. Attribution is disabled by default because it requires a runtime socket and the host cgroup hierarchy to be visible to the agent.
 
 ### What a node reports about its attribution
 
@@ -78,13 +82,40 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ```json
 {
-  "state": "docker_api",
-  "summary": "Tenant attribution: Docker API on /var/run/docker.sock. 12 container cgroups seen, 9 attributed.",
-  "socket": "/var/run/docker.sock",
-  "socket_present": true,
+  "state": "runtime_api",
+  "summary": "Tenant attribution: container labels over the containerd and docker runtime API. 12 container cgroups seen, 9 attributed. containerd: 8 seen, 7 resolved, 7 attributed. docker: 4 seen, 2 resolved, 2 attributed.",
+  "sources": [
+    {
+      "runtime": "containerd",
+      "socket": "/run/containerd/containerd.sock",
+      "socket_present": true,
+      "cgroups_seen": 8,
+      "resolved": 7,
+      "attributed": 7,
+      "failures": 0
+    },
+    {
+      "runtime": "crio",
+      "socket": "/run/crio/crio.sock",
+      "socket_present": false,
+      "cgroups_seen": 0,
+      "resolved": 0,
+      "attributed": 0,
+      "failures": 0
+    },
+    {
+      "runtime": "docker",
+      "socket": "/var/run/docker.sock",
+      "socket_present": true,
+      "cgroups_seen": 4,
+      "resolved": 2,
+      "attributed": 2,
+      "failures": 2
+    }
+  ],
   "container_cgroups": 12,
   "inspected": 12,
-  "inspect_failures": 0,
+  "inspect_failures": 2,
   "attributed_cgroups": 9,
   "unresolved_runtimes": [],
   "fallback_tenant_id": 0,
@@ -92,18 +123,27 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 }
 ```
 
+`sources` carries one entry per runtime the node asks, whether or not its
+socket answered, so a missing mount is visible rather than absent. A cgroup is
+counted under the runtime whose naming convention its path follows, whichever
+socket resolved it: `cgroups_seen` is how many such cgroups the pass walked,
+`resolved` how many a runtime API named a tenant for, `attributed` how many the
+kernel map now carries, and `failures` how many lookups the runtime refused.
+
 `state` is one of three readings, and each is something the pass observed
 rather than something the configuration promised:
 
 | `state` | What it means |
 |---|---|
 | `static` | The node attributes on VLAN, interface and subnet only: cgroup attribution is off, so no runtime is asked and no container is resolved. |
-| `docker_api` | The runtime socket answered during the last pass. `container_cgroups` is how many container cgroups were seen, `attributed_cgroups` how many reached a tenant. |
-| `unavailable` | The socket is absent, or every inspect of the pass failed. Containers on this node carry `fallback_tenant_id`. |
+| `runtime_api` | At least one runtime socket answered during the last pass. `container_cgroups` is how many container cgroups were seen, `attributed_cgroups` how many reached a tenant, and `sources` says which runtime each figure came from. |
+| `unavailable` | No socket answered, or every lookup of the pass failed. Containers on this node carry `fallback_tenant_id`. |
 
-`unresolved_runtimes` names the runtimes seen on the node that the Docker API
-cannot answer for - `containerd`, `cri-o` - whatever `state` says: a node whose
-socket answers for its Docker containers still falls back for its CRI ones. The
+`unresolved_runtimes` names the runtimes seen on the node that no socket
+answers for - a `crio` entry here with `socket_present: false` is a missing
+`/run/crio` mount, not an unsupported runtime - whatever `state` says: a node
+whose containerd socket answers still falls back for the containers of a
+runtime it cannot reach. The
 route is admin-only, like the rest of `/api/v1/tenants`, and the dashboard's
 container screen reads it so the gap is named on the screen instead of inferred
 from a short table.
@@ -464,13 +504,19 @@ enterprise:
       enabled: true
       poll_interval_seconds: 10
       tenant_label: "ebpfsentinel.io/tenant"
+      cri_sockets:
+        - /run/containerd/containerd.sock
+        - /run/crio/crio.sock
+      cri_timeout_ms: 2000
 ```
 
 All fields are optional:
 - `name` defaults to `id` if omitted
 - `interfaces`, `subnets`, `vlans`, `namespaces` default to empty
 - `quotas` fields use defaults when omitted
-- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and runtime socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings
+- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and the Docker socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings
+- `cri_sockets` defaults to the containerd and CRI-O defaults above; a socket that is not there is reported once at startup with the path that was looked at, so the list costs nothing on a node running neither. Mount the parent directory read-only (`/run/containerd`, `/run/crio`) - the chart's `daemonset.criSockets` does it per runtime
+- `cri_timeout_ms` defaults to `2000` and bounds each runtime call, so a runtime that stops answering costs a pass rather than the watcher
 
 Run a container under a tenant by labelling it:
 
