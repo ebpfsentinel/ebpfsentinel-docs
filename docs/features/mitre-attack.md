@@ -21,7 +21,45 @@ one component maps to several techniques. An Enterprise row is a mapping that
 only exists once the corresponding Enterprise feature is running.
 
 `GET /api/v1/mitre/coverage` returns this matrix filtered to the components the
-agent has active, which is a subset of it and never a superset.
+agent has active, which is a subset of it and never a superset. The mappings of
+the components the agent carries and has switched off come back beside it, in
+`switched_off`, and are never counted in `techniques`.
+
+## Capability and configuration
+
+What the product can detect and what an estate detects are two different maps.
+The table above is the first: every mapping the agent carries. The second is
+what is switched on, and it is the one that answers "what would we miss".
+
+The dashboard's **Gaps** tab, beside the observed matrix under MITRE ATT&CK,
+reads the coverage of every agent of the tenant and draws every technique of
+the ATT&CK catalogue the dashboard ships against it, gaps first in each
+tactic:
+
+| State | Meaning |
+|-------|---------|
+| Covered | At least one agent that answered runs a component mapped to the technique. |
+| Switched off | An agent carries a component mapped to it, and none runs it. Turning it on is a configuration change. |
+| Not covered | Nothing that answered maps the technique. |
+| Not read | No agent answered, so nothing is classified. |
+
+Two views count differently. *What this estate detects* counts only running
+components, so a switched-off detection is a gap. *What the product could
+detect here* also counts switched-off components, marked apart, and never
+calls them coverage.
+
+The figures are counted over the distinct techniques of the shipped
+catalogue (a technique listed under two tactics counts once, at its best
+state), and a share is always printed with its numerator, its denominator and
+how many agents of how many were read. An agent that did not answer is named
+with the reason, and what it runs is not counted; when none answered there is
+no figure at all rather than a catalogue full of gaps. A technique an agent
+maps that the catalogue does not list (a newer ATT&CK release than the one
+shipped) is shown in its tactic and kept out of the counts.
+
+The classification is by configuration, not by traffic: a running component
+covers a technique whether or not it has raised an alert. The observed matrix
+is the reading of what alerts actually mapped to.
 
 <!-- BEGIN GENERATED MITRE COVERAGE -->
 
@@ -119,7 +157,15 @@ GET /api/v1/alerts?technique=T1041
 GET /api/v1/mitre/coverage
 ```
 
-Returns the full coverage matrix filtered by active components, with per-tactic summary.
+Returns the full coverage matrix filtered by active components, with per-tactic summary, and in `switched_off` the mappings of the components the agent carries and has switched off.
+
+### Detection gaps (dashboard)
+
+```
+GET /api/v1/{tenant}/mitre/gaps
+```
+
+Served by the dashboard over every agent of the tenant, narrowed by `clusters` and `agent`; see [Capability and configuration](#capability-and-configuration).
 
 ## CLI
 
@@ -128,6 +174,8 @@ ebpfsentinel-agent alerts list --tactic exfiltration
 ebpfsentinel-agent alerts list --technique T1041
 ebpfsentinel-agent mitre coverage
 ```
+
+`mitre coverage` ends with a `Mapped but switched off` line naming the count and the components when the agent carries a component that is switched off.
 
 ## Prometheus Metrics
 

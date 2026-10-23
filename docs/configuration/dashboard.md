@@ -606,6 +606,7 @@ The server exposes a single Axum router with the following route layout:
 | `GET /api/v1/{tenant}/summaries` | session | The 50 newest summaries issued for the tenant, newest first. |
 | `POST /api/v1/{tenant}/summaries` | session, tenant admin or above | Issue a summary now over the window since the last one, deliver it like a scheduled one and keep it. 201 with the summary; 502 when the history store cannot be written. |
 | `GET /api/v1/{tenant}/summaries/{summary_id}` | session | One summary as it was issued: its window, each section with its source or the reason it was not read, the comparison with the summary before, and what happened to the mail. 404 outside the tenant. |
+| `GET /api/v1/{tenant}/mitre/gaps` | session | Every technique of the ATT&CK catalogue the dashboard ships, classified over the tenant's agents (narrowed by `clusters` and `agent`) as `enabled`, `switched_off`, `uncovered` or `unread`, with the components behind each and `totals` over the distinct catalogue techniques. Agents that did not answer are named in `failed_agents`; `totals` is null when none answered. 404 for a cluster or host outside the tenant, 503 with no agent to ask. |
 | `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
 | `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
 

@@ -1834,6 +1834,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8
 
 MITRE ATT&CK technique coverage map based on active features.
 
+`techniques` holds the mappings of the components that are running. `switched_off` holds the mappings this agent carries whose component is switched off; it is kept apart so that nothing reading the response counts a switched-off component as coverage.
+
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/mitre/coverage
 ```
