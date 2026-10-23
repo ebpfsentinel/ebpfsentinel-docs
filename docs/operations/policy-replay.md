@@ -73,7 +73,9 @@ longer than 8 KiB is refused rather than truncated.
 
 ## The diff inside a two-person rollout
 
-A configuration rollout is proposed by one operator and approved by another.
+A configuration rollout is proposed by one operator and approved by another,
+and survives a restart of the dashboard (see
+[A rollout across a restart](../configuration/dashboard.md#a-rollout-across-a-restart)).
 The approver sees, on the rollouts screen:
 
 - **the diff** - the proposed document line by line against what the canary

@@ -591,6 +591,30 @@ is false.
 A store that stops answering after startup is reported on the requests that
 need it (`503`), never answered from an empty default.
 
+### A rollout across a restart
+
+A rollout is written to the store when it is proposed and again after every
+agent it writes to, so the book the next replica reads is the one the last
+replica left, agent by agent. Alongside each rollout the store keeps what
+every agent held before it was written, which is what a rollback gives back.
+Those documents are the agents' own configuration, so treat the database as
+holding it: they are stored apart from the rollout itself and no route ever
+serves them.
+
+A replica writing a rollout holds a five-minute lease on it, renewed before
+and after each agent. A rollout whose lease lapsed while it was being written
+is read as **interrupted**: the process writing it stopped. The screen says
+which stage it stopped in and names the agent that was being written at that
+moment, because whether that agent took the change is not known. Nothing is
+resumed automatically. The one control an interrupted rollout offers is
+**Roll back**, which gives every agent it reached what it held before,
+including the one in doubt; a rollback that is itself interrupted resumes
+where it stopped when pressed again, without writing an agent twice.
+
+When the store does not answer, the rollouts routes return `503` with
+`{"code":"unavailable"}` and nothing is changed; the entity page reports its
+configuration section as unread rather than as a host with no rollout.
+
 ### Backup and restore
 
 The database is ordinary PostgreSQL, so back it up the way you back up any
