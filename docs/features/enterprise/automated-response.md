@@ -29,16 +29,30 @@ OSS Alert Pipeline
 
 ## Response Actions
 
-Four types of automated response actions can be configured per policy:
+Five types of automated response actions can be configured per policy:
 
 | Action | Description |
 |--------|-------------|
 | **BlockIp** | Block source/destination/both IP addresses for a bounded duration |
 | **RateLimitIp** | Apply rate limiting to the offending IP |
 | **IsolateFlow** | Block the specific 5-tuple flow via firewall deny rule |
+| **KillProcess** | Stop the process that owns the offending flow |
 | **WebhookNotify** | Send alert details to a SOAR/webhook endpoint with retry |
 
 `BlockIp`, `RateLimitIp`, and `IsolateFlow` are enforced at the eBPF kernel level via the `OssEnforcementAdapter`, which calls into the OSS IPS blacklist and firewall services to inject actual blocking rules into eBPF maps. `WebhookNotify` executes an HTTP POST to the configured SOAR endpoint. All actions are recorded in the audit trail.
+
+### KillProcess
+
+The only action whose blast radius is a running program rather than a packet, and the only one that cannot be undone: a blocked address is unblocked when the action expires, a stopped process does not come back. It is therefore opt-in twice over. The agent loads nothing that can signal a process unless `response.kill_process.enabled` is set on that node, and a policy carrying this action is refused nothing and simply skipped where it is off, with the reason recorded.
+
+The action carries no signal number and no window of its own. Both are the node's configuration, so an operator who chose a gentler signal or widened the protected list cannot have a policy shipped from elsewhere override it. What the agent will never signal, whatever a policy asks, and how a target is confirmed stopped rather than assumed stopped, is in [Response Configuration](../../configuration/response.md).
+
+Two outcomes to read in the audit trail rather than assume:
+
+- `skipped` with a reason is a node where the capability is off, or an alert that named no process. A transited flow has no local process, and an alert whose node refused the attribution hooks carries no thread group; neither is invented, so the action is skipped rather than aimed at a guess.
+- `failed` with a reason is a target the agent refused to signal, or one that outlived the signal. The agent looks the process up again after signalling, so a survivor is reported as one.
+
+`success` means the process is gone, not that a signal was sent.
 
 ## Response Policies
 
@@ -139,7 +153,7 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 | Field | Description |
 |-------|-------------|
 | `id` | Action identifier |
-| `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `webhook_notify` |
+| `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `kill_process`, `webhook_notify` |
 | `outcome` | `success`, `failed` (with reason), or `skipped` (with reason) |
 | `executed_at_ns` | Execution timestamp |
 | `trigger_alert_id` | The alert that triggered this action |
@@ -229,8 +243,11 @@ When `BlockIp`, `RateLimitIp`, or `IsolateFlow` actions fire, the `OssEnforcemen
 | `BlockIp` | Adds source/destination IP to the IPS blacklist eBPF map |
 | `RateLimitIp` | Adds a rate-limit entry for the IP in the XDP rate limiter |
 | `IsolateFlow` | Injects a deny rule into the XDP firewall for the specific 5-tuple |
+| `KillProcess` | Arms the thread group in the signal program's target map, which signals it at that task's next system call |
 
-All enforcement actions include a TTL (duration) and auto-expire. The enforcement adapter works in both standalone and fleet/HA modes.
+`KillProcess` is the one action with no TTL, because there is nothing to expire: a process is stopped once. What is bounded is the attempt, by the node's `window_ms`, after which the target is disarmed whether or not it was ever reached.
+
+The other enforcement actions include a TTL (duration) and auto-expire. The enforcement adapter works in both standalone and fleet/HA modes.
 
 ## Configuration
 
