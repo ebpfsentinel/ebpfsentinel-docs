@@ -240,6 +240,38 @@ Both channels are best-effort: a delivery failure is logged and never aborts rep
   cannot be read or parsed is left alone, because a corrupt file must not be mistaken for an expired one
 - **Startup recovery**: loads existing reports from disk if `output_dir` configured
 
+## Posture Over Time
+
+An agent keeps at most 100 reports and drops them at `retention_days`, so the
+agent alone cannot say how the score moved across a year. The dashboard keeps
+that history itself, in its history store:
+
+- **Sampling**: every hour, for every tenant, the dashboard reads the newest
+  completed report of each framework the agents hold and keeps one point per
+  tenant, framework and day: the score and each control's status. A later
+  sample on the same day replaces the earlier one.
+- **Retention**: 456 days, which covers a year-on-year comparison plus a
+  quarter of margin, enforced by the table's own TTL.
+- **Scope**: the point is tenant-wide. The cluster and host the compliance
+  screen narrows its reports to do not narrow the trend, and the panel says so.
+- **Missing days stay missing**: a day on which no report was read (no agent
+  answered, or none had a completed report) is returned with no score, and the
+  line on the compliance screen breaks there instead of being drawn across it.
+- **Changes and causes**: between two consecutive read days whose scores or
+  control statuses differ, the trend lists the controls that improved and
+  regressed, and the configuration rollouts recorded between the two readings
+  (identifier, sections touched, whether it was rolled back). A change with no
+  recorded rollout says so. Rollouts come from the dashboard's in-memory
+  rollout book, so they are not kept across a dashboard restart: a change
+  older than the last restart carries no cause even if one existed.
+- **Without a history store** nothing is retained: the trend endpoint answers
+  503 with `{"reason":"history_store_disabled"}` and the compliance screen shows
+  only the latest report per framework.
+
+The trend is served by the dashboard, not by the agent, at
+`/api/v1/{tenant}/posture/trend?days=N`, where `N` is between 7 and 456
+(default 90); see [Dashboard configuration](../../configuration/dashboard.md#route-surface).
+
 ## Export Formats
 
 | Format | Endpoint Suffix | Content-Type | Description |
