@@ -261,6 +261,7 @@ const sidebars: SidebarsConfig = {
         'compliance/soc2',
         'compliance/nis2',
         'compliance/dora',
+        'compliance/incident-notification',
         'compliance/secnumcloud',
         'compliance/hds',
       ],
