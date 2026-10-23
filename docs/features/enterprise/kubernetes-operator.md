@@ -134,12 +134,24 @@ speaking, or that the role is fenced until a lost speaker's grant lapses;
 [Elected speaker](../../configuration/loadbalancer.md#elected-speaker) gives
 the timings.
 
+The leader alone also gives Services of type `LoadBalancer` an address from
+the pools a `LoadBalancerConfig` declares, so no address is handed out twice;
+[Services of type LoadBalancer](../../configuration/loadbalancer.md#services-of-type-loadbalancer)
+covers pools, annotations, conditions and release. The chart values
+`serviceLoadBalancer.enabled` (on by default) and
+`serviceLoadBalancer.claimUnclassed` (off by default) decide which Services
+it claims, and the operator's role grants it Services, their status and
+EndpointSlices for that purpose.
+
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ebpfsentinel_operator_leader` | Gauge | - | 1 on the replica that reconciles, 0 on a standby |
 | `ebpfsentinel_operator_vip_elected_policies` | Gauge | `namespace` | Load balancer policies whose speaker the operator elects |
 | `ebpfsentinel_operator_vip_speaking_policies` | Gauge | `namespace` | Of those, the ones with an agent answering for their VIPs |
 | `ebpfsentinel_operator_vip_speaker_handovers_total` | Counter | `namespace`, `policy` | Times the speaker role went to a different agent |
+| `ebpfsentinel_operator_lb_pool_addresses` | Gauge | `namespace` | Addresses in the accepted Service address pools |
+| `ebpfsentinel_operator_lb_allocated_addresses` | Gauge | `namespace` | Of those, the ones held by a Service |
+| `ebpfsentinel_operator_lb_pending_services` | Gauge | `namespace` | Services of type LoadBalancer claimed and given no address |
 
 ### Uninstalling
 

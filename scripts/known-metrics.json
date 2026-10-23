@@ -36,5 +36,8 @@
   "ebpfsentinel_operator_leader": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_vip_elected_policies": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_vip_speaking_policies": "Operator registry: ebpfsentinel-operator",
-  "ebpfsentinel_operator_vip_speaker_handovers_total": "Operator registry: ebpfsentinel-operator"
+  "ebpfsentinel_operator_vip_speaker_handovers_total": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_lb_pool_addresses": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_lb_allocated_addresses": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_lb_pending_services": "Operator registry: ebpfsentinel-operator"
 }

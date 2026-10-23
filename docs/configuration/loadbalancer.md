@@ -333,6 +333,115 @@ with the pod, node and the time it took the role, `Fenced` with the previous
 pod and the time its grant lapses, or `Unelected` when no selected agent took
 the grant.
 
+## Services of type LoadBalancer
+
+Under the Kubernetes operator, a `LoadBalancerConfig` can also hand out
+addresses to `Service` objects of type `LoadBalancer`, and the agents it
+selects then serve those addresses on the XDP datapath. Pools are declared on
+the policy:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: LoadBalancerConfig
+metadata:
+  name: edge
+  namespace: ebpfsentinel
+spec:
+  target:
+    all: true
+  vipAnnounce:
+    role: elected
+    interface: eth0
+  addressPools:
+    - name: public
+      addresses:
+        - 192.0.2.32/28                  # a CIDR, with no host bits set
+        - 198.51.100.10-198.51.100.19    # a range of one family
+    - name: internal
+      addresses:
+        - 10.96.200.0/24
+      namespaces: [payments]             # empty or omitted: every namespace
+      autoAssign: false                  # only given to a Service naming it or an address in it
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `string` | - | Pool name a Service selects with the `ebpfsentinel.io/address-pool` annotation. Unique across every policy the operator watches. |
+| `addresses` | `[string]` | - | CIDRs, ranges `first-last` and single addresses, IPv4 or IPv6. |
+| `namespaces` | `[string]` | `[]` | Namespaces whose Services may take an address here. Empty admits every namespace. |
+| `autoAssign` | `bool` | `true` | Whether a Service naming no pool and no address may be given one from here. |
+
+A pool whose name an earlier pool already took, one overlapping an earlier
+pool's addresses, or one with an entry that does not parse is refused whole,
+and the policy's `status.addressPools[].refused` says why. Policies are read
+in namespace then name order, so "earlier" is the same on every pass. A
+policy with `enabled: false` offers none of its pools.
+
+### Which Services are served
+
+The operator serves a Service of type `LoadBalancer` whose
+`spec.loadBalancerClass` is `ebpfsentinel.io/xdp`. A Service naming no class
+is left to whatever else serves the cluster, unless the chart value
+`serviceLoadBalancer.claimUnclassed` is `true`. `serviceLoadBalancer.enabled:
+false` turns the whole allocator off.
+
+| Annotation | Effect |
+|------------|--------|
+| `ebpfsentinel.io/address-pool` | Take the address from this pool only. |
+| `ebpfsentinel.io/load-balancer-ip` | Take this address. `spec.loadBalancerIP` is read the same way. The address may come from a pool with `autoAssign: false`. |
+| `ebpfsentinel.io/allow-shared-ip` | Services carrying the same value may share one address, as long as no two of them expose the same port and protocol. |
+
+The address is of the Service's first family, `spec.ipFamilies[0]`, IPv4 when
+unset. An address once given is kept for as long as the Service asks for
+nothing else and its pool still admits it: Services that already hold an
+address keep it first, then the others are served in the order they were
+created, each the lowest free address of the first pool that has one.
+
+The operator writes the address into `status.loadBalancer.ingress` with
+`ipMode: VIP`, and records the allocation (the address, each TCP and UDP
+port, and the ready endpoints behind it from the Service's EndpointSlices) in
+the policy's `status.addressPools`. The agents' configuration is rendered
+from that record, so every allocated port becomes a service listening on the
+address with Maglev and DNAT, and the address joins `vipAnnounce.vips` when
+the policy announces. A port with no ready endpoint is left out until one is
+ready, because an agent refuses a service with no backend.
+
+### Conditions and events
+
+Every Service the operator serves carries the condition
+`ebpfsentinel.io/AddressAllocated`. A Service the pools cannot serve keeps an
+empty ingress, the condition `False` and a warning event when the reason first
+appears; it is never left pending without saying why.
+
+| Status | Reason | Meaning |
+|--------|--------|---------|
+| `True` | `Allocated` | The address is served. |
+| `True` | `EndpointsCapped` | A port has more than 256 ready endpoints; the first 256 are served. |
+| `True` | `PortsUnsupported` | A port is neither TCP nor UDP (SCTP) and is not served; the others are. |
+| `False` | `PoolExhausted` | Every address of the Service's family in its pools is held. |
+| `False` | `NoPool` | No accepted pool admits the namespace, holds the requested address, or carries the Service's family. |
+| `False` | `AddressInUse` | The requested address is held by a Service it may not share with. |
+| `False` | `InvalidAddress` | The requested address does not parse. |
+| `False` | `AgentCeiling` | The policy already carries the 64 services or the 256 addresses an agent serves; each port counts as one service. |
+
+An agent serves at most 64 services, 256 backends per service and 256
+announced addresses, and refuses a whole document above any of them. The
+operator counts what the policy declares itself against those ceilings
+before it allocates, so a Service past them is reported here rather than
+taking every other Service of the policy down with it.
+
+### Release
+
+A Service given an address carries the finalizer `ebpfsentinel.io/load-balancer`.
+When it is deleted, changes type or class, or the allocator is turned off,
+the operator first removes the allocation from the policy's record, which
+withdraws the address from the agents, then clears the ingress and its
+condition, and only then removes the finalizer. The address is free for the
+next Service on the same pass.
+
+Only the replica holding the operator's lease allocates, so two replicas
+never give one address twice.
+
 ### Runtime control surface
 
 Both the REST API and the CLI expose live read/write access to this block;
