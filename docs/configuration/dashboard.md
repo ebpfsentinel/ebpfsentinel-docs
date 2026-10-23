@@ -113,6 +113,23 @@ History store. When omitted, the dashboard runs with live data only.
 | `batch_flush_interval_seconds` | u64 | `5` | `1..=300`. Maximum age of a batch before it is flushed regardless of size. |
 | `purge_hour_utc` | u8 | `2` | `0..=23`. Hour (UTC) at which the nightly retention purge runs. |
 
+### `state_store` (optional)
+
+The PostgreSQL database holding what operators did: their preferences,
+rollouts waiting on an approver, sessions and revoked tokens. When omitted,
+that state lives in the process's memory. See [State store](#state-store).
+
+| Field | Type | Default | Validation |
+|---|---|---|---|
+| `host` | string | (required) | Non-empty. A host other than `localhost` or a loopback address is always reached over TLS with the certificate and the host name verified. |
+| `port` | u16 | `5432` | Not `0`. |
+| `user` | string | (required) | Non-empty. |
+| `password_file` | path | (required) | Same disk-only contract as `oidc.client_secret_file`. |
+| `database` | string | (required) | Non-empty. |
+| `tls_ca_path` | path | unset | Must exist when set. The CA that signed the server's certificate, when it is not in the system store. |
+| `max_connections` | u32 | `8` | `1..=64`, per replica. |
+| `connect_timeout_seconds` | u64 | `10` | `1..=120`. How long startup waits for the database before refusing. |
+
 ### `observability`
 
 | Field | Type | Default | Validation |
@@ -450,6 +467,7 @@ warning and is ignored - restart the process to take effect.
 | `server.bind` | The listening TCP socket is bound at startup. |
 | `observability.log_format` | The tracing subscriber is built once. |
 | `observability.metrics_path` | The metrics route is mounted at startup. |
+| `state_store.*` | The connection pool is opened and migrated once, before anything is served. |
 
 Notable fields that **are** hot-reloadable:
 
@@ -524,6 +542,86 @@ The migration creates nine tables (prefixed with `table_prefix`):
   [Compliance Reports](../features/enterprise/compliance-reports.md#executive-summaries).
 
 DDL source files live in `crates/dashboard-server/migrations/`.
+
+## State store
+
+The dashboard keeps two kinds of data. What the agents report - alerts,
+flows, posture - is rebuilt by asking them again, and its long-term copy is
+the optional ClickHouse store above. What operators did is not: a rollout
+waiting on its second approver, a preference, a session, a revoked token.
+Nothing can reconstruct those after the process that held them is gone, so
+they belong in `state_store`.
+
+### Why PostgreSQL
+
+The chart runs three replicas by default. A file embedded in each pod would
+give each replica its own copy, so a change proposed on one pod could not be
+approved on another and an operator would be signed out whenever the load
+balancer picked a different one. One PostgreSQL database shared by every
+replica is what makes the second person of a two-person rollout land on the
+same record as the first.
+
+What it costs: a PostgreSQL database to run, back up and keep reachable from
+every replica. The dashboard needs one database and a role owning it; it
+creates nothing outside that database. Any managed PostgreSQL works, or the
+CloudNativePG operator in the same cluster.
+
+### Startup
+
+- The store is opened before the listener: a configured database that does
+  not answer within `connect_timeout_seconds`, or refuses the credentials,
+  stops the process with `refusing to start: state store unavailable: cannot
+  reach <host>:<port>/<database>: ...`. The server never starts empty in its
+  place, because that would silently drop every rollout in flight.
+- Migrations run on every start and are embedded in the binary. They take an
+  advisory lock, so replicas starting together apply them once and the
+  others wait; a migration that has already run is skipped. A database
+  migrated by a newer version is refused rather than written to.
+- The block is read once. A change to it needs a restart.
+
+### Without a store
+
+With no `state_store` block the server logs `state store: none configured -
+preferences, rollouts and sessions live in this process, a restart loses them
+and replicas do not share them` and keeps that state in the process. That is fine for one replica you
+are happy to restart; run more than one only with a store. The chart prints
+the same warning when `replicaCount` is above one and `stateStore.enabled`
+is false.
+
+A store that stops answering after startup is reported on the requests that
+need it (`503`), never answered from an empty default.
+
+### Backup and restore
+
+The database is ordinary PostgreSQL, so back it up the way you back up any
+other:
+
+```bash
+pg_dump --format=custom --file=dashboard.dump \
+  "host=postgres.example.com dbname=dashboard user=dashboard sslmode=verify-full"
+pg_restore --clean --if-exists --dbname=dashboard dashboard.dump
+```
+
+What a restore from an older backup costs is what happened since it was
+taken: a rollout approved after the dump reads as waiting again, a
+preference reverts, and a token revoked after the dump becomes usable again
+until its own expiry. Revoke those tokens again after a restore.
+
+### Helm
+
+```yaml
+stateStore:
+  enabled: true
+  host: dashboard-pg-rw.dashboard.svc
+  database: dashboard
+  user: dashboard
+  existingSecret: dashboard-pg-password   # key: password
+  tlsCaPath: /etc/ssl/certs/pg-ca.pem
+```
+
+The password is mounted at
+`/etc/ebpfsentinel-dashboard/secrets/state-store/password`, and the chart's
+NetworkPolicy opens egress to `networkPolicy.stateStorePort` (5432).
 
 ## SSE pass-through and ingest
 
