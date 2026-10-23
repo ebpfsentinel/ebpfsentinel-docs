@@ -42,7 +42,7 @@ fast. Every value is validated below.
 | `tenant_claim` | string | `tenant` | OIDC claim mapped to the dashboard tenant id. |
 | `role_claim` | string | `groups` | OIDC claim mapped to the dashboard role list. |
 | `post_logout_redirect_uri` | URL | unset | Optional URL the IdP redirects to after `end_session_endpoint`. Must be `http(s)://` when set. |
-| `session_ttl_seconds` | u64 | `14400` | Lifetime of the per-user session JWT (`60..=2592000`). Default 4 h. The cookie is a signed JWT rather than a server-side record, so nothing can withdraw one that has been copied off a machine and this value is how long a copied one is worth something. Raise it and that window grows with it. |
+| `session_ttl_seconds` | u64 | `14400` | Lifetime of the per-user session JWT (`60..=2592000`). Default 4 h. Signing out withdraws the token, and an administrator can sign an operator out everywhere (see [Sessions and revocation](#sessions-and-revocation)); an expiry costs a live operator a silent redirect through the identity provider rather than a sign-in. |
 | `cookie_signing_key_file` | path | (required) | Path to a file holding the HMAC seed used to sign the short-lived `pkce_state` cookie. Same on-disk contract as every other secret (mode ≤ `0640`). An empty file falls back to an ephemeral key - sessions do not survive a restart. |
 
 ### `jwt`
@@ -175,8 +175,8 @@ token - only the dashboard session JWT (HttpOnly + Secure cookie).
 |---|---|---|
 | `/auth/login` | GET | Mints PKCE verifier + CSRF state + nonce, sets the signed `pkce_state` cookie (`Path=/auth`, 10 min, HttpOnly, Secure, SameSite=Lax), redirects to the IdP `authorize_url`. Honours `?next=<relative-path>` for post-login redirects (open-redirect-safe). |
 | `/auth/callback` | GET | Validates `state`, exchanges code, verifies `id_token`, fetches userinfo (for the `groups` claim), resolves tenant + role via `tenants[].oidc_groups` / `admin_groups`. On no match → 403 + styled "no tenant assigned" page + `auth.audit` event. On match → mints session JWT, sets `session` cookie (`Path=/`, `oidc.session_ttl_seconds`), redirects to original target. |
-| `/auth/logout` | POST | Reads the session sub, drops the server-side refresh token, clears the `session` cookie, redirects to the IdP `end_session_endpoint` (with `post_logout_redirect_uri` when set) - falls back to `/`. |
-| `/auth/refresh` | POST | Reads the session JWT to find the held refresh token in-memory, swaps it at the IdP, mints a fresh session JWT, replaces the cookie. Returns 204 on success or 401 on invalid / expired session. |
+| `/auth/logout` | POST | Reads the session sub, drops the stored session and its refresh token, revokes the token it was presented with, clears the `session` cookie, redirects to the IdP `end_session_endpoint` (with `post_logout_redirect_uri` when set) - falls back to `/`. |
+| `/auth/refresh` | POST | Reads the session JWT to find the stored refresh token, swaps it at the IdP, mints a fresh session JWT, replaces the cookie. Returns 204 on success or 401 on invalid / expired session. |
 
 The session JWT is signed with the active EdDSA key from
 the active entry of `jwt.signing_keys[]` (the first non-expired item).
@@ -189,20 +189,49 @@ OIDC discovery runs once at startup against `oidc.issuer_url`. A
 discovery failure refuses to start the server with a clear error so
 configuration mistakes never present a half-functional login screen.
 
-Refresh tokens are held server-side in a per-replica DashMap keyed by
-`sub`, wrapped in `secrecy::SecretString` (zeroised on drop). The store
-is per-replica by design: the dashboard runs on your own infrastructure
-and must not oblige you to run a shared cache beside it. A refresh
-therefore succeeds only when the request lands on the replica that
-minted the session; otherwise the session runs to its expiry and the
-browser is redirected through your identity provider, whose own session
-is what answers it. That redirect is silent while the provider session
-is live, which is why the session lifetime here can be short without
-asking anyone to sign in again during their working day. The console
-takes that redirect itself: the first request answered 401 sends the
-browser to `/auth/login` carrying the page it was on, so a session that
-runs out while a tab is open comes back on the same screen rather than
-filling it with errors.
+Refresh tokens are held server-side, one session per operator, in the
+[state store](#state-store) when one is configured. The token is sealed with
+AES-256-GCM under a key derived from `oidc.cookie_signing_key_file`, so the
+database never holds a usable refresh token on its own, and rotating that key
+signs everyone out. Because every replica reads the same sessions, a refresh
+succeeds whichever replica the request lands on, and a session survives a
+restart or a rolling upgrade. When a refresh is not possible the session runs
+to its expiry and the browser is redirected through your identity provider,
+whose own session is what answers it. That redirect is silent while the
+provider session is live, which is why the session lifetime here can be short
+without asking anyone to sign in again during their working day. The console
+takes that redirect itself: the first request answered 401 sends the browser
+to `/auth/login` carrying the page it was on, so a session that runs out while
+a tab is open comes back on the same screen rather than filling it with
+errors.
+
+### Sessions and revocation
+
+Every session token carries an identifier, and the server checks it against a
+revocation list on every request, so a token can be withdrawn before it
+expires:
+
+- **Signing out** revokes the token the browser presented, as well as dropping
+  the stored session. A copy of that token taken off the machine stops working
+  with it.
+- **Signing an operator out everywhere** is done from **Admin > Sessions**,
+  which lists the operators holding a session on the tenant. It withdraws every
+  token that operator was issued up to that moment, on every device; their next
+  sign-in works as usual. It needs the `ManageSessions` permission
+  (tenant administrator and above), only operators of the same tenant can be
+  targeted, and only a platform administrator can sign out another platform
+  administrator. Each sign-out, and each one refused for the target's role
+  or a full list, is written to the audit log.
+- **Propagation:** a revocation takes effect at once on the replica that made
+  it and within five seconds on the others, which re-read the list from the
+  state store on that interval.
+- **Bound:** the list holds at most 10 000 live entries. Past that a new
+  revocation is refused (`409`, `revocation_list_full`) rather than evicting
+  an older one, because an evicted entry would bring a withdrawn token back.
+  An entry is dropped once the token it names has expired, so the list empties
+  itself at the pace of `session_ttl_seconds`.
+- Without a state store the list and the sessions live in the process: a
+  restart forgets them and replicas do not share them.
 
 ## JWKS endpoint
 
@@ -700,6 +729,8 @@ The server exposes a single Axum router with the following route layout:
 | `GET /auth/callback` | none | OIDC code exchange → session JWT cookie. |
 | `POST /auth/logout` | session | Clear session, redirect to IdP end-session. |
 | `POST /auth/refresh` | session | Refresh session via IdP refresh token. |
+| `GET /api/v1/{tenant}/sessions` | session, `ManageSessions` | The operators holding a session on the tenant: subject, email, roles, sign-in and expiry times. 503 when the state store does not answer. |
+| `DELETE /api/v1/{tenant}/sessions/{sub}` | session, `ManageSessions` | Sign the operator out everywhere. 204; 404 when they hold no session on the tenant; 403 when the target is a platform administrator and the caller is not; 409 when the revocation list is full; 503 when the state store does not answer. |
 | `GET/POST/PUT/DELETE /api/v1/{tenant}/*` | session | Proxy fan-out to agents for the tenant. |
 | `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
 | `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
