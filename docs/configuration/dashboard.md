@@ -500,7 +500,7 @@ HTTP 503 with `{"error":"history_disabled","message":"…"}`.
 
 ### Schema
 
-The migration creates five tables (prefixed with `table_prefix`):
+The migration creates six tables (prefixed with `table_prefix`):
 
 - `_meta` - migration version bookkeeping (ReplacingMergeTree)
 - `alerts` - per-event alert records partitioned by `(tenant_id, toYYYYMM(occurred_at))`
@@ -510,6 +510,9 @@ The migration creates five tables (prefixed with `table_prefix`):
   nightly purge does not reach it: a case's timeline is a record, and how long
   it is kept is the operator's decision rather than `retention_days`. See
   [Cases](../features/enterprise/cases.md).
+- `suppression_events` - the suppression log, one row when a suppression is
+  made and one when it is lifted, append-only and out of the purge's reach
+  for the same reason.
 
 DDL source files live in `crates/dashboard-server/migrations/`.
 
@@ -584,6 +587,9 @@ The server exposes a single Axum router with the following route layout:
 | `POST /api/v1/{tenant}/cases/{case_id}/alerts` | session, analyst or above | Add up to 100 alerts, never past 500 in one case. 409 as on open. |
 | `DELETE /api/v1/{tenant}/cases/{case_id}/alerts/{agent_id}/{alert_id}` | session, analyst or above | Take one alert out of the case. |
 | `POST /api/v1/{tenant}/cases/{case_id}/evidence` | session, analyst or above | Record the context freezes and packet captures the agents hold about the case's alerts. 502 when an agent cannot be read. |
+| `GET /api/v1/{tenant}/suppressions` | session | The tenant's suppressions, live, expiring, expired and lifted, each with its scope, expiry, author, note and originating alert. 503 without a history store. |
+| `POST /api/v1/{tenant}/suppressions` | session, analyst or above | Suppress alerts matching a scope of rule, source, destination and workload until an expiry at most 90 days away, with an optional note of at most 1000 characters. 201 with the suppression; 400 with the reason when the scope names nothing, the expiry is past or too far, or 500 are already in force. |
+| `DELETE /api/v1/{tenant}/suppressions/{suppression_id}` | session, analyst or above | Lift a suppression before its expiry. 404 outside the tenant; 409 with `{"reason":"suppression_ended"}` when it had already been lifted or had expired. |
 | `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
 | `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
 

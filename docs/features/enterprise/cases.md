@@ -123,6 +123,45 @@ start included and the end excluded, so two adjacent windows never count one
 case twice. A figure over no stopped clock reads as none measured, never as
 zero.
 
+## Suppressions
+
+Marking an alert a false positive is a judgement on that alert. What made it
+noisy usually raises the next one too, so the same press offers to suppress
+it for a while: the alert screen opens a short form naming the four things a
+suppression can match, each with the value this alert carries.
+
+| Field | What it matches |
+|-------|-----------------|
+| Rule | The rule identifier that raised the alert. |
+| Source | The source address. |
+| Destination | The destination address. |
+| Workload | The workload the alert was attributed to: `namespace/pod` for a pod, otherwise the container, the systemd unit or the executable. |
+
+The rule and the source are ticked by default; any combination may be picked,
+and an alert is suppressed only when every picked field matches. The expiry
+is required, one, seven, thirty or ninety days out, and the server refuses one
+in the past or more than ninety days away, so no suppression outlives the
+reason it was made. A note of at most 1000 characters is optional. The alert
+is marked first and the suppression recorded after, so a mark the agent
+refuses never leaves an unjudged alert hidden; **Mark this alert only** keeps
+the old single gesture.
+
+Nothing is dropped. The alerts queue leaves suppressed alerts out by default
+and counts them on a button that shows them again, each with a badge, and the
+alert screen says which suppression sets the alert aside and until when. A
+suppression is matched in the browser against the alerts the agents already
+returned, so it changes what the queue shows and never what an agent detects,
+records or exports.
+
+The **Suppressions** screen lists every suppression of the tenant, the ones
+in force first and the soonest to lapse on top, with what it matches, its
+end, who made it and the note. One that lapses within 24 hours is marked
+expiring, and both that screen and the alerts queue say so a day ahead, so
+the alerts it held back coming back into the queue surprise nobody. A
+suppression can be lifted before its expiry; a lifted or expired one stays in
+the list as the record of what was decided. A tenant holds at most 500
+suppressions in force at once.
+
 ## Storage
 
 The case log is one append-only ClickHouse table, `case_events`, with one row
@@ -131,15 +170,22 @@ timeline shown is the log itself rather than a history kept beside a current
 value. Nothing updates or deletes a row, and the nightly retention purge does
 not reach this table: how long a case is kept is the operator's decision.
 
-Without a history store there is nowhere to keep a case, and every case route
-answers 503 with `history_disabled`; the alerts queue keeps working, with its
-case column empty and the alert screen offering no case to open.
+Suppressions are kept the same way, in `suppression_events`: one row when a
+suppression is made and one when it is lifted, with expiry read from the
+timestamp it carries rather than written by a job. The retention purge does
+not reach this table either.
+
+Without a history store there is nowhere to keep a case, and every case and
+suppression route answers 503 with `history_disabled`; the alerts queue keeps
+working, with its case column empty, the alert screen offering no case to
+open, and the false-positive press marking the alert alone.
 
 ## Access
 
-Every role in a tenant reads its cases. Opening, changing, annotating and
-collecting evidence need the analyst role or above. Cases never cross a tenant:
-a case identifier from another tenant reads as 404.
+Every role in a tenant reads its cases and its suppressions. Opening,
+changing, annotating and collecting evidence, and making or lifting a
+suppression, need the analyst role or above. Neither crosses a tenant: an
+identifier from another tenant reads as 404.
 
 ## REST API
 
