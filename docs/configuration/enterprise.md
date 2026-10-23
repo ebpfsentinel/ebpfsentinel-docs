@@ -434,7 +434,7 @@ directory is where a rollback finds the version it goes back to - a volume that
 is not persisted costs the estate its rollback rather than its content.
 
 [Content Channel](../features/enterprise/content-channel.md) covers the format,
-the five sets, the refusals and how to verify a bundle by hand.
+the six sets, the refusals and how to verify a bundle by hand.
 
 ### Threat intelligence platforms
 

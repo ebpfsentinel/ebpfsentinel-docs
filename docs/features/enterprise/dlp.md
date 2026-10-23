@@ -287,6 +287,7 @@ A surface is read, and says how:
 | `static_symbols` | a static build kept those two entry points in its symbol table |
 | `go_runtime` | the Go runtime's entry points, resolved from the binary's own pclntab |
 | `kernel_tls` | the kernel terminates the session, so the cleartext is read on the kernel's send and receive path and no userspace symbol is needed |
+| `catalogue` | a stripped static build, read at the offsets the signed [offset catalogue](#the-offset-catalogue) publishes for its build id |
 
 Or it is not read, and says why and what to do:
 
@@ -294,6 +295,7 @@ Or it is not read, and says why and what to do:
 |---|---|---|
 | `no_symbol` | no entry point could be resolved in this build. Usually a static build linked with its symbol table stripped; for a Go binary it is also what a build older than the register calling convention looks like, since its arguments are on the stack and the probe programs read registers | send us the build id the surface carries, so its offsets can be published and this build becomes readable without a rebuild; or terminate TLS in the kernel, which reads the cleartext whatever the binary links |
 | `detection_only` | the library was identified and this agent attaches nothing to it - Java JSSE and NSS, each for the reason in the table above | terminate TLS in the kernel, or route the workload through a termination point this agent reads |
+| `not_in_catalogue` | a stripped static build, looked up in the offset catalogue this agent holds and not found there | send us the build id so the next catalogue carries it; for an image rebuilt in-house, which no catalogue entry ever covers, terminate TLS in the kernel instead |
 
 Two things the report is deliberate about. The share it carries,
 `covered_permille`, counts **surfaces** rather than processes, because a host
@@ -301,8 +303,9 @@ whose one busy proxy is unread and whose forty idle daemons are read is not a
 97 percent host; and it is absent rather than nought on a host where nothing
 speaks TLS, because zero of zero is nothing to cover. And `build_ids_to_send`
 is the list a customer sends us: every build id behind an uncovered surface,
-once each. A build id that arrives is a row in the offset catalogue, which is
-how a stripped build becomes readable without the customer rebuilding it.
+once each. A build id that arrives is a row in the
+[offset catalogue](#the-offset-catalogue), which is how a stripped build becomes
+readable without the customer rebuilding it.
 
 The same report is printed on the machine, by a binary that needs no running
 agent and no API:
@@ -317,16 +320,65 @@ DLP coverage
 Surfaces read:  2 of 4 (50.0 percent)
 Processes:      3 carrying TLS (1 covered, 1 partial, 1 not covered)
 Kernel TLS:     inactive
+Catalogue:      version 12 in force, 214 stripped builds covered
 
 [not_covered] pid 2411 shop/checkout-7f9c
-    NOT READ unknown_static   /usr/local/bin/envoy (no_symbol)
-             No entry point could be resolved in this build: its symbol table carries neither of the two, or it is a Go binary older than the register calling convention.
-             Send us this build id so its offsets can be published, or terminate TLS in the kernel so the cleartext is read there.
+    NOT READ unknown_static   /usr/local/bin/envoy (not_in_catalogue)
+             This build carries no symbol table, and the offset catalogue this agent holds has no entry for its build id.
+             Send us this build id so the next catalogue carries it; an image rebuilt in-house is never in the catalogue, so for one of those terminate TLS in the kernel instead.
              build id 7f3c9a1b22d4
 ```
 
 `--json` prints the same report as the API answers it, for a host where the
 answer is going into a ticket rather than onto a screen.
+
+### The offset catalogue
+
+A static build that kept its symbol table names its own send and receive entry
+points, and the probe attaches there. A stripped one names nothing: Envoy,
+istio-proxy and most of the large proxies ship that way, so a host running them
+would carry its busiest TLS traffic past the DLP engine unread. The code is still
+in the binary, at an offset that is a property of the build rather than of the
+host, so it can be resolved once, on our side, from a build of the same sources
+that kept its symbols, and published.
+
+That is the offset catalogue: the `tls-offsets` set of the
+[content channel](content-channel.md), one entry per build id, delivered and
+verified the same way as the rules and the patterns and served wherever TLS
+intelligence is licensed. When the scan meets a stripped build, it looks the
+build id up there; a hit is a surface read with `means: catalogue`, a miss is
+`not_in_catalogue`. An entry is only ever published after a probe at those
+offsets, attached to a container running that exact image digest, has read a
+known cleartext sent through it, because an offset nobody proved is a probe
+reading garbage on every estate running that build.
+
+**An entry covers one image and nothing else.** It is keyed by the build id of
+the binary we resolved, so the same release rebuilt from the same sources by
+anyone else - an internal image with a patched base, a hardened rebuild, a
+different compiler - has another build id and is never covered by it, however
+close the two are. For an image you build yourself, keep the symbol table in
+the binary you ship, which this agent reads without any catalogue, or terminate
+TLS in the kernel.
+
+**When your build is not in it,** the coverage report says so on the surface,
+with the build id, and lists it again under `build_ids_to_send`. Send those ids
+in writing; once the image is proven, the entry ships with the next content
+bundle and the surface turns covered without a restart or a rebuild on your
+side. Until then the remedy on the surface stands: terminate TLS in the kernel,
+which reads the cleartext whatever the binary links.
+
+**A catalogue that fails verification is not used.** The agent reads the file
+only from bytes matching the digest the content set was signed with, and refuses
+the whole file for one bad entry rather than trusting the rest. A refused
+catalogue is reported, with its reason, on the coverage answer and on the first
+lines of `dlp coverage`, and stripped builds are then reported as `no_symbol`,
+exactly as on a host that never received one:
+
+| `catalogue.state` | What it means |
+|---|---|
+| `absent` | no catalogue was ever applied on this host |
+| `in_force` | the catalogue of `version` is read, covering `entries` stripped builds |
+| `refused` | the catalogue of `version` was not used; `refusal` names why (`not_signed`, `digest_mismatch`, `malformed`, `unsupported_schema`, `too_large`, `too_many_entries`, `invalid_entry`, `duplicate`, `unreadable`) and `detail` says it in a sentence |
 
 ### Architecture
 
@@ -543,7 +595,7 @@ within one interval rather than at the next agent restart.
 | `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
 | `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
-| `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, and the build ids to send. |
+| `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, the build ids to send, and the state of the [offset catalogue](#the-offset-catalogue) the verdicts were reached with. |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the

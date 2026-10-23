@@ -5,11 +5,11 @@
 ## Overview
 
 A subscription does not only unlock code: it delivers content. Detection rules,
-data patterns, client fingerprints, provider definitions and trained models all
-change faster than a release does, and an estate that upgrades once a quarter
+data patterns, client fingerprints, provider definitions, trained models and
+the offsets of stripped TLS builds all change faster than a release does, and an estate that upgrades once a quarter
 should still be detecting what appeared last week.
 
-The channel delivers five typed content sets in one versioned bundle, each set
+The channel delivers six typed content sets in one versioned bundle, each set
 carrying its own version, its own provenance and the oldest agent version that
 can read it. Every bundle is signed, and the agent verifies the signature before
 a single file is applied, because content that arrives over the wire and changes
@@ -28,6 +28,7 @@ the channel measures is what was fetched and when.
 | JA4 fingerprints | `ja4-fingerprints` | Known client and server TLS fingerprints, with the software each one belongs to |
 | AI providers | `ai-providers` | Hostnames, API shapes and model names of AI services, for the AI security module |
 | ML models | `ml-models` | Trained detector weights for the machine learning module |
+| TLS offsets | `tls-offsets` | The send and receive offsets of stripped TLS builds, keyed by build id, each one proven on the exact image it names. Served with TLS intelligence, and explained in [Enterprise DLP](dlp.md#the-offset-catalogue) |
 
 A set the licence does not entitle is not served, and a set this build is too
 old to read is skipped rather than applied: the agent keeps what it already has
@@ -49,7 +50,8 @@ ebpfsentinel-content-<bundle version>/
     ├── dlp-patterns/patterns.json
     ├── ja4-fingerprints/fingerprints.json
     ├── ai-providers/providers.json
-    └── ml-models/<model>.bin
+    ├── ml-models/<model>.bin
+    └── tls-offsets/offsets.json
 ```
 
 Three rules hold the layout together and each one is enforced rather than
@@ -105,7 +107,7 @@ documented:
 | `schema` | `ebpfsentinel.content/v1`. A build that does not know the schema refuses the bundle rather than guessing which fields it recognises. |
 | `bundle_version` | Monotonic counter for the bundle as a whole. An agent holding a higher one refuses a lower one. |
 | `published_at` | When the bundle was cut, RFC 3339 in UTC. Shown to an operator, never used as a freshness gate on its own. |
-| `sets[].kind` | One of the five identifiers above. A kind this build does not know is ignored, so adding a sixth set does not break an older agent. A kind appearing twice refuses the bundle. |
+| `sets[].kind` | One of the six identifiers above. A kind this build does not know is ignored, so adding a seventh set does not break an older agent. A kind appearing twice refuses the bundle. |
 | `sets[].version` | Monotonic counter for that set alone. Sets move at their own pace, which is the point of versioning them separately. |
 | `sets[].minimum_agent_version` | The oldest agent that can read this set, `major.minor.patch`. An older agent skips the set and keeps the version it has. |
 | `sets[].entries` | How many rules, patterns, fingerprints, providers or models the set holds. An operator's number, not a checksum. |
@@ -412,7 +414,7 @@ from somewhere nobody signed.
 | `POST` | `/api/v1/content/rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. |
 
 A refused bundle answers `400` and changes nothing on the machine. A verified one
-answers `200` and says what became of each set, because a bundle is five
+answers `200` and says what became of each set, because a bundle is six
 decisions rather than one: sets that were applied, and sets left alone because
 this build is too old to read them or because what is in force is already as new.
 

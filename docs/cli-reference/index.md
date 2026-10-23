@@ -1264,17 +1264,20 @@ DLP coverage
 Surfaces read:  2 of 4 (50.0 percent)
 Processes:      3 carrying TLS (1 covered, 1 partial, 1 not covered)
 Kernel TLS:     inactive
+Catalogue:      version 12 in force, 214 stripped builds covered
 
 [not_covered] pid 2411 shop/checkout-7f9c
-    NOT READ unknown_static   /usr/local/bin/envoy (no_symbol)
-             No entry point could be resolved in this build: its symbol table carries neither of the two, or it is a Go binary older than the register calling convention.
-             Send us this build id so its offsets can be published, or terminate TLS in the kernel so the cleartext is read there.
+    NOT READ unknown_static   /usr/local/bin/envoy (not_in_catalogue)
+             This build carries no symbol table, and the offset catalogue this agent holds has no entry for its build id.
+             Send us this build id so the next catalogue carries it; an image rebuilt in-house is never in the catalogue, so for one of those terminate TLS in the kernel instead.
              build id 7f3c9a1b22d4
 ```
 
 The share counts surfaces rather than processes, and reads "nothing on this
 host speaks TLS" rather than nought percent where there is nothing to cover.
-Every reason and every remedy is explained in
+The `Catalogue` line says whether the signed offset catalogue for stripped
+builds is in force, and why it was refused when it was. Every reason and every
+remedy is explained in
 [Enterprise DLP](../features/enterprise/dlp.md#what-this-host-actually-reads).
 
 ### import-activation

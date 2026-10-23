@@ -300,7 +300,7 @@ A set older than the configured ceiling raises the same staleness alert a feed
 does, for the same reason: an estate whose content stopped moving usually has
 somebody who stopped carrying it rather than a channel that stopped publishing.
 
-The format, the five sets and the refusals are in
+The format, the six sets and the refusals are in
 [Content Channel](content-channel.md).
 
 ## Verified Feed Loading
