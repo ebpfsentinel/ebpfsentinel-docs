@@ -31,7 +31,7 @@ Security Admission forbids it. The bundled Helm chart and `docker-compose.yml`
 mount the procfs for you and set the variable. On bare metal (systemd) the
 agent reads the node's own `/proc`, so `EBPFSENTINEL_HOST_PROC` keeps its
 `/proc` default and no mount is needed. Coverage is **dynamically-linked
-OpenSSL / BoringSSL only**; Go, statically linked BoringSSL, GnuTLS, wolfSSL,
+OpenSSL / BoringSSL only**; Go, statically linked OpenSSL or BoringSSL, GnuTLS, wolfSSL,
 mbedTLS, s2n-tls and sockets that encrypt in the kernel are Enterprise scope,
 Java JSSE and NSS are detected there without being probed, and rustls is not
 covered. See the [security model](../architecture/security-model.md#container-dlp-and-host-procfs-visibility)

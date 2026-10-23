@@ -198,8 +198,8 @@ Dynamic per-SNI certificate generation:
 ## Extended TLS Library Coverage
 
 > **Seven of the nine libraries are read; two are discovery only.**
-> GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked BoringSSL are
-> attached: their write and read entry points take the same
+> GnuTLS, wolfSSL, mbedTLS, s2n-tls and statically linked OpenSSL or
+> BoringSSL are attached where an entry point resolves: their write and read entry points take the same
 > `(handle, buffer, length)` shape as OpenSSL's, so the existing
 > `uprobe-dlp` programs read them correctly at the offsets the scan
 > resolved. Go `crypto/tls` is attached through programs of its own, which
@@ -233,7 +233,7 @@ library the workload links against.
 |---------|-----------|-------------|--------|-------------------|
 | **Go `crypto/tls`** | `.gopclntab` ELF section + `.go.buildinfo` version parse; functions found in `.symtab`, or in `.gopclntab` for a stripped binary | Entry uprobes on `crypto/tls.(*Conn).Write` / `.Read`, plus one uprobe on every return instruction of `Read` | **Attached** on amd64 (Go 1.17+) and arm64 (Go 1.18+); older releases pass arguments on the stack and are discovery only | CoreDNS, etcd, most Go microservices, Kubernetes controllers, HashiCorp tooling |
 | **Java JSSE** | Binary-path heuristic + `libjava.so`/`libnet.so`/`libsunec.so` in `/proc/{pid}/maps` | None: `libjava.so` and `libnet.so` carry the socket, not the plaintext | Discovery only, and settled rather than pending - JSSE frames and encrypts inside the JVM, behind a JNI frame, so the plaintext lives in a heap object with no native call site taking a buffer and a length. Reading it would mean loading a JVMTI or `-javaagent` component into the application, which is a different product and one many estates forbid. Terminate the JVM's TLS at a proxy linked against a readable library to inspect it | Spring Boot, Kafka clients, JDBC drivers, Tomcat |
-| **BoringSSL (statically linked)** | No `libssl.so` mapped + `SSL_write`/`SSL_read` present in the binary's own symbol table; fast-path whitelist for `envoy`, `istio-proxy`, `cilium-agent` | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
+| **Statically linked OpenSSL or BoringSSL** | No `libssl.so` mapped, and the binary read for what it contains: `SSL_write`/`SSL_read` in whichever symbol table survived, the version strings each project writes into `.rodata`, and the entry points themselves. The process name decides nothing, so a build called anything at all is detected and a build that is neither project is labelled `unknown_static` rather than mislabelled | `SSL_write` / `SSL_read` uprobes at resolved binary offsets | **Attached** when an entry point resolves; a stripped build with no symbol table is reported as not covered, with its build id | Envoy proxies, istio-proxy, Cilium agent, CockroachDB, gVisor |
 | **kTLS (kernel TLS)** | `/proc/net/tls_stat` counters (`TlsCurrTxSw`, `TlsCurrRxSw`, `…Device`) | kprobes on the kernel's own `tls_sw_sendmsg` / `tls_sw_recvmsg`, no image and no offset | **Attached** when the counters report an active software socket; hardware-offloaded sockets take a different path and stay unread | nginx and HAProxy built with kernel TLS, OpenSSL 3 with `Options KTLS` |
 | **GnuTLS** | `libgnutls.so*` found in `/proc/{pid}/maps` | `gnutls_record_send` / `gnutls_record_recv` uprobes in the shared library | **Attached** | curl builds linked against GnuTLS, wget, LDAP clients, older Debian stacks |
 | **wolfSSL** | `libwolfssl.so*` found in `/proc/{pid}/maps` | `wolfSSL_write` / `wolfSSL_read` uprobes in the shared library | **Attached** | embedded and IoT workloads, appliance firmware, constrained gateways |
@@ -260,6 +260,74 @@ its symbol table, or one built with hidden visibility - resolves no
 offsets. It is reported as discovered, counted under `offsets_unresolved`,
 and left alone rather than probed at the start of the file.
 
+### What this host actually reads
+
+A tick next to "DLP" is one answer for four different workloads, and it is
+wrong about one of them on nearly every estate:
+
+| Class of workload | What the agent attaches to | Verdict |
+|---|---|---|
+| Links a TLS library as a shared object | the object's exported entry points, once per inode | covered, `dynamic_symbols` |
+| Go binary | the Go runtime's own `crypto/tls` entry points, read out of the pclntab | covered, `go_runtime` |
+| Static build that kept its symbol table | the two entry points the linker left in the binary | covered, `static_symbols` |
+| Static build stripped of its symbol table | nothing: there is no name to attach to | not covered, `no_symbol` |
+
+So the scan publishes a verdict per process rather than a capability per
+product. `GET /api/v1/enterprise/tls-probes/coverage` answers with one entry
+per process carrying TLS, uncovered first, and one verdict per surface that
+process speaks TLS on - a process linking two libraries has two. The entry
+carries the workload the process belongs to where the agent resolved one, so
+a reader sees a pod and a namespace rather than a pid.
+
+A surface is read, and says how:
+
+| `means` | What it means |
+|---|---|
+| `dynamic_symbols` | the library exports its send and receive entry points and the probe sits on the object every process mapping it shares |
+| `static_symbols` | a static build kept those two entry points in its symbol table |
+| `go_runtime` | the Go runtime's entry points, resolved from the binary's own pclntab |
+| `kernel_tls` | the kernel terminates the session, so the cleartext is read on the kernel's send and receive path and no userspace symbol is needed |
+
+Or it is not read, and says why and what to do:
+
+| `gap` | What it means | What you can do |
+|---|---|---|
+| `no_symbol` | no entry point could be resolved in this build. Usually a static build linked with its symbol table stripped; for a Go binary it is also what a build older than the register calling convention looks like, since its arguments are on the stack and the probe programs read registers | send us the build id the surface carries, so its offsets can be published and this build becomes readable without a rebuild; or terminate TLS in the kernel, which reads the cleartext whatever the binary links |
+| `detection_only` | the library was identified and this agent attaches nothing to it - Java JSSE and NSS, each for the reason in the table above | terminate TLS in the kernel, or route the workload through a termination point this agent reads |
+
+Two things the report is deliberate about. The share it carries,
+`covered_permille`, counts **surfaces** rather than processes, because a host
+whose one busy proxy is unread and whose forty idle daemons are read is not a
+97 percent host; and it is absent rather than nought on a host where nothing
+speaks TLS, because zero of zero is nothing to cover. And `build_ids_to_send`
+is the list a customer sends us: every build id behind an uncovered surface,
+once each. A build id that arrives is a row in the offset catalogue, which is
+how a stripped build becomes readable without the customer rebuilding it.
+
+The same report is printed on the machine, by a binary that needs no running
+agent and no API:
+
+```bash
+ebpfsentinel-enterprise-agent dlp coverage
+```
+
+```
+DLP coverage
+============
+Surfaces read:  2 of 4 (50.0 percent)
+Processes:      3 carrying TLS (1 covered, 1 partial, 1 not covered)
+Kernel TLS:     inactive
+
+[not_covered] pid 2411 shop/checkout-7f9c
+    NOT READ unknown_static   /usr/local/bin/envoy (no_symbol)
+             No entry point could be resolved in this build: its symbol table carries neither of the two, or it is a Go binary older than the register calling convention.
+             Send us this build id so its offsets can be published, or terminate TLS in the kernel so the cleartext is read there.
+             build id 7f3c9a1b22d4
+```
+
+`--json` prints the same report as the API answers it, for a host where the
+answer is going into a ticket rather than onto a screen.
+
 ### Architecture
 
 ```
@@ -267,10 +335,10 @@ and left alone rather than probed at the start of the file.
                                 │
            ┌────────────────┬───┴────┬────────────────┬──────────────┐
            │                │        │                │              │
-       GoProbes        JavaProbes  BoringSslStatic  KtlsProbes   SharedLibs
+       GoProbes        JavaProbes   StaticTls     KtlsProbes   SharedLibs
            │                │        │                │              │
-   ELF .gopclntab      path+maps  symtab scan    /proc/net/    maps marker
-   + .go.buildinfo     heuristic  (libssl-less)   tls_stat    + symbol scan
+   ELF .gopclntab      path+maps  symbols, .rodata  /proc/net/   maps marker
+   + .go.buildinfo     heuristic  markers, entries   tls_stat   + symbol scan
            │                │        │                │              │
            │                │        │                │        GnuTLS, wolfSSL,
            │                │        │                │        mbedTLS, s2n-tls,
@@ -433,7 +501,7 @@ enterprise:
         - /var/lib/flatpak
       go_tls:          { enabled: true }
       java_jsse:       { enabled: true }
-      boringssl_static: { enabled: true }
+      static_tls:      { enabled: true }   # OpenSSL or BoringSSL linked into the binary
       ktls:            { enabled: true }   # kprobes on the kernel's own software TLS path
       gnutls:          { enabled: true }
       wolfssl:         { enabled: true }
@@ -475,6 +543,7 @@ within one interval rather than at the next agent restart.
 | `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
 | `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
+| `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, and the build ids to send. |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the
@@ -488,7 +557,7 @@ replacement file is a plan of its own. `binary_dev` and `binary_ino` are that
 inode as the scanned process's own namespace resolves it, and are `null` only
 when the scan could not stat the file.
 
-All three endpoints are read-only and gated behind the `tls-intelligence`
+All four endpoints are read-only and gated behind the `tls-intelligence`
 license feature, which Enterprise and above carry. Configuration is managed via the enterprise YAML
 (`enterprise.advanced_dlp.extended_tls`), not via the API.
 

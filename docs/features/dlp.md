@@ -173,11 +173,14 @@ path and an offset rather than on a pid - see the
 Out of scope for OSS:
 
 - **Statically-linked TLS runtimes** - Go (`crypto/tls`), Rust (rustls), Java
-  (JSSE), or proxies that link BoringSSL statically - export no `libssl` symbol
-  to probe. Per-runtime symbol resolution is an **Enterprise** extension
-  covering Go, statically linked BoringSSL, GnuTLS, wolfSSL, mbedTLS and
-  s2n-tls; Java JSSE is detected there without being probed, and rustls is not
-  covered. A rustls or JSSE workload that puts its socket into kernel TLS is
+  (JSSE), or proxies that link OpenSSL or BoringSSL statically - export no
+  `libssl` symbol to probe. Per-runtime symbol resolution is an **Enterprise**
+  extension covering Go, statically linked OpenSSL and BoringSSL, GnuTLS,
+  wolfSSL, mbedTLS and s2n-tls; Java JSSE is detected there without being
+  probed, and rustls is not covered. A static build stripped of its symbol
+  table is not covered there either, and Enterprise says so per workload
+  rather than claiming it: see
+  [what a host actually reads](enterprise/dlp.md#what-this-host-actually-reads). A rustls or JSSE workload that puts its socket into kernel TLS is
   read by the kernel-side hook below, whatever its library.
 - **NSS** (`libssl3` over `libnspr4`, Firefox, Thunderbird, some RHEL tooling)
   is not hooked in any edition. The Enterprise scan detects and reports it:

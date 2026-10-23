@@ -1128,11 +1128,11 @@ API key, a JWT or an OIDC token in that header. See
 > **Edition: Enterprise**
 
 The enterprise agent is a binary of its own, and it is not a client of the one
-above. Given no subcommand it runs as the daemon; given one of the four below it reads
-the machine, writes a file, installs one or puts content in force, and exits.
-None of them takes a host or a token: three of the four are meant to run before
-the daemon has ever started, and the fourth works on this machine's own content
-directory rather than through the API.
+above. Given no subcommand it runs as the daemon; given one of the five below it reads
+the machine, writes a file, installs one, puts content in force or scans this
+host's own processes, and exits. None of them takes a host or a token: three are
+meant to run before the daemon has ever started, and the other two work on this
+machine's own content directory and its own `/proc` rather than through the API.
 
 ```
 ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
@@ -1198,6 +1198,49 @@ ebpfsentinel-enterprise-agent generate-request \
 The request carries the fingerprint, the agent version and the features asked
 for. The vendor signs the terms it sold rather than the ones the file asks for,
 so a feature nobody bought does not arrive by editing this file.
+
+### dlp
+
+Ask this machine what its data-loss prevention actually reads. One subcommand
+today, and it takes no flag of its own.
+
+```
+ebpfsentinel-enterprise-agent dlp <coverage>
+```
+
+### dlp coverage
+
+What this machine's data-loss prevention actually reads, and what it does not.
+It runs the scan here rather than asking a running agent, so it answers on a
+host whose API is unreachable and it answers about the host you are logged
+into.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--json` | Print the report as JSON, the shape `/api/v1/enterprise/tls-probes/coverage` answers with | A table |
+
+```bash
+ebpfsentinel-enterprise-agent dlp coverage
+```
+
+```
+DLP coverage
+============
+Surfaces read:  2 of 4 (50.0 percent)
+Processes:      3 carrying TLS (1 covered, 1 partial, 1 not covered)
+Kernel TLS:     inactive
+
+[not_covered] pid 2411 shop/checkout-7f9c
+    NOT READ unknown_static   /usr/local/bin/envoy (no_symbol)
+             No entry point could be resolved in this build: its symbol table carries neither of the two, or it is a Go binary older than the register calling convention.
+             Send us this build id so its offsets can be published, or terminate TLS in the kernel so the cleartext is read there.
+             build id 7f3c9a1b22d4
+```
+
+The share counts surfaces rather than processes, and reads "nothing on this
+host speaks TLS" rather than nought percent where there is nothing to cover.
+Every reason and every remedy is explained in
+[Enterprise DLP](../features/enterprise/dlp.md#what-this-host-actually-reads).
 
 ### import-activation
 

@@ -29,7 +29,7 @@ Container awareness is composed of four independent building blocks:
 | Container Resolver | OSS | cgroup → `ContainerInfo` (runtime + container id) |
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
-| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS, wolfSSL, mbedTLS, s2n-tls, statically linked BoringSSL and Go `crypto/tls` are attached at the resolved offsets, and kTLS on the kernel's own send and receive symbols; Java JSSE and NSS are discovered and reported without being probed |
+| Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS, wolfSSL, mbedTLS, s2n-tls, static OpenSSL or BoringSSL and Go `crypto/tls` are attached at the resolved offsets, and kTLS on the kernel's own send and receive symbols; Java JSSE and NSS are discovered and reported without being probed. Each workload carries a published verdict - read, or not read with the reason |
 
 Each block is opt-in: a bare-metal agent can stay lean, a Docker host
 turns on the Docker enricher, a Kubernetes DaemonSet turns on the K8s
