@@ -98,6 +98,31 @@ its document identifier is the case and the `as_of` moment, so two exports of
 the same case log are the same file, byte for byte, and a digest taken of one
 holds for the other.
 
+## Response times
+
+The **Response times** screen, reached from the cases list, reads two figures
+over the cases first observed in the window picked at the top of the screen:
+the mean time to acknowledge and the mean time to resolve, each with its
+median and the number of cases it was taken over. Every case counted is listed
+below them with its own two times, and the case screen states both for the
+case in hand. Nothing is stored for them: they are read from the timestamps
+the case log already holds, on every request.
+
+The clocks are written on the screen, because the same two words mean
+different things from one product to the next:
+
+| Clock | What it is |
+|-------|------------|
+| Start | The first observation: the earliest `occurred_at` of any alert the case was ever given, including one taken out of it since. A case that never held an alert has no start and is not counted. |
+| Acknowledged | The first act saying somebody took the case: an owner set, or the status moved past open. Opening a case or adding a note is not one. |
+| Resolved | The closure the case stands at: the last move to closed, on a case that is closed now. Contained does not stop the clock, and a reopened case is unresolved again until it is closed once more. |
+| Still running | A case not yet acknowledged or not yet resolved is counted apart, as pending, and never averaged in. An act recorded before the alert it answers counts as zero rather than as a negative duration. |
+
+A case belongs to a window when its first observation falls inside it, the
+start included and the end excluded, so two adjacent windows never count one
+case twice. A figure over no stopped clock reads as none measured, never as
+zero.
+
 ## Storage
 
 The case log is one append-only ClickHouse table, `case_events`, with one row

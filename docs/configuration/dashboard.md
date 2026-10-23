@@ -572,11 +572,13 @@ The server exposes a single Axum router with the following route layout:
 | `GET /api/v1/{tenant}/enterprise/forensics/captures/{id}/pcapng?agent={id}` | session, analyst or above | Packet capture download, streamed from the one agent that wrote it, never fanned out. 403 below analyst, 400 without `agent`. |
 | `GET /api/v1/{tenant}/cases` | session | The tenant's cases, one summary each. 503 without a history store. |
 | `POST /api/v1/{tenant}/cases` | session, analyst or above | Open a case over up to 100 alerts. 409 when one of them is already in another case. |
+| `GET /api/v1/{tenant}/cases/response-times?from=&to=` | session | Time to acknowledge and time to resolve over the cases first observed in `[from, to)`: mean, median, measured and pending counts, and each case's own two times. 400 when the window does not end after it starts. |
 | `GET /api/v1/{tenant}/cases/membership` | session | Which case holds each alert, so the queue can leave them out. |
 | `GET /api/v1/{tenant}/cases/{case_id}` | session | One case: its alerts, notes, evidence and timeline. 404 outside the tenant. |
 | `GET /api/v1/{tenant}/cases/{case_id}/evidence-pack` | session | The case read against the 24 and 72 hour marks from its first observation: assets, flows, actions, evidence and gaps, each line naming its source record. Deterministic for a given case log. |
 | `GET /api/v1/{tenant}/cases/{case_id}/evidence-pack.json` | session | The evidence pack as a JSON file download, the same document the route above answers with. Byte for byte identical across exports of the same case log. |
 | `GET /api/v1/{tenant}/cases/{case_id}/evidence-pack.pdf` | session | The evidence pack as an A4 PDF download naming the SHA-256 of the JSON export. No creation date; byte for byte identical across exports of the same case log. |
+| `GET /api/v1/{tenant}/cases/{case_id}/response-times` | session | The first observation, acknowledgement and resolution of one case and the two durations between them; a clock still running is absent. 404 outside the tenant. |
 | `PATCH /api/v1/{tenant}/cases/{case_id}` | session, analyst or above | Change the title, status, severity or owner; an empty owner unassigns. |
 | `POST /api/v1/{tenant}/cases/{case_id}/notes` | session, analyst or above | Append a note of at most 4000 characters. |
 | `POST /api/v1/{tenant}/cases/{case_id}/alerts` | session, analyst or above | Add up to 100 alerts, never past 500 in one case. 409 as on open. |
