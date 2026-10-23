@@ -595,12 +595,16 @@ Baseline learning, streaming detectors and the Random Cut Forest.
 | `ebpfsentinel_ent_ml_model_loaded` | Gauge | - | Whether an ML model is loaded (0/1) |
 | `ebpfsentinel_ent_ml_ewma_anomalies_total` | Counter | - | EWMA streaming anomalies detected |
 | `ebpfsentinel_ent_ml_cusum_drifts_total` | Counter | - | CUSUM change-point drifts detected |
-| `ebpfsentinel_ent_ml_heavy_hitter_alerts_total` | Counter | - | Heavy-hitter threshold alerts emitted |
+| `ebpfsentinel_ent_ml_heavy_hitter_alerts_total` | Counter | - | Top-talker threshold alerts emitted |
 | `ebpfsentinel_ent_ml_heavy_hitter_top1_bytes` | Gauge | - | Byte volume of current top-1 heavy hitter |
 | `ebpfsentinel_ent_ml_rcf_anomalies_total` | Counter | - | Random Cut Forest anomaly observations recorded |
 | `ebpfsentinel_ent_ml_rcf_last_score` | Gauge | - | Most recent Random Cut Forest anomaly score |
 | `ebpfsentinel_ent_ml_rcf_trees_count` | Gauge | - | Number of trees in the active Random Cut Forest |
 | `ebpfsentinel_ent_ml_rcf_points_inserted_total` | Counter | - | Points inserted into the Random Cut Forest |
+| `ebpfsentinel_ent_ml_rcf_entities_resident` | Gauge | - | Entities holding a baseline in the forest pool |
+| `ebpfsentinel_ent_ml_rcf_threshold` | Gauge | - | Score threshold the detector is judging against |
+| `ebpfsentinel_ent_ml_rcf_groups_opened_total` | Counter | - | Alert groups opened by the grouping pass |
+| `ebpfsentinel_ent_ml_rcf_bytes_per_entity` | Gauge | - | Memory one resident entity costs, measured where a forest has been serialised and estimated until then |
 
 ### Deep DLP
 

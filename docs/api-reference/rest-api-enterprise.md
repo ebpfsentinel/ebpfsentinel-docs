@@ -491,7 +491,10 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/ml/heavy-hitters` | viewer | `config:read` | ml-detection | Top-K heavy hitters by byte volume. |
 | `POST` | `/api/v1/enterprise/ml/model/reload` | operator | `config:write` | ml-detection | Hot-swap ONNX model. |
 | `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | `config:read` | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
+| `POST` | `/api/v1/enterprise/ml/rcf/groups/{group_id}/reject` | operator | `config:write` | ml-detection | Say an alert group was wrongly collapsed. Tightens the similarity the next group needs. |
+| `GET` | `/api/v1/enterprise/ml/rcf/queue` | viewer | `config:read` | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |
 | `GET` | `/api/v1/enterprise/ml/rcf/scores` | viewer | `config:read` | ml-detection | Recent Random Cut Forest anomaly scores. |
+| `GET` | `/api/v1/enterprise/ml/rcf/status` | viewer | `config:read` | ml-detection | Pool occupancy and memory cost, threshold state, calibration state, open groups. |
 | `GET` | `/api/v1/enterprise/ml/status` | viewer | `config:read` | ml-detection | Pipeline status (all engines). |
 | `GET` | `/api/v1/enterprise/ml/suggestions` | viewer | `config:read` | ml-detection | Pending rule suggestions. |
 | `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | operator | `config:write` | ml-detection | Approve suggestion. |

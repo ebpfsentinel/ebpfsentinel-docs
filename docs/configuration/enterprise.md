@@ -88,11 +88,27 @@ enterprise:
     cusum_enabled: true
     cusum_slack: 0.5
     cusum_threshold: 5.0
-    heavy_hitter_enabled: true     # Count-Min Sketch top-K detection
+    heavy_hitter_enabled: true     # Space-Saving top-K talkers
     heavy_hitter_k: 100
     heavy_hitter_threshold_pct: 10.0
-    cms_width: 2048
-    cms_depth: 4
+    rcf:                           # Random Cut Forest multi-feature detector
+      enabled: true
+      num_trees: 100               # AWS bound [50, 1000]
+      sample_size: 256             # per-tree reservoir, [1, 2048]
+      time_decay: 0.0              # 0.0 = uniform reservoir sampling
+      anomaly_threshold: 1.5
+      # seed: 42                   # optional deterministic seed
+      # num_threads: 4             # optional dedicated rayon pool
+      recent_capacity: 256         # records kept for /ml/rcf/scores
+      pool_capacity: 64            # baselines held at once, one per entity
+      entity_idle_secs: 10800      # an entity silent this long loses its baseline
+      min_observations: 256        # samples before a baseline is trusted
+      adaptive_threshold: true     # a drift detector and a tail quantile move it
+      explain: true                # name the features that drove an anomaly
+      explain_permutations: 16     # permutations averaged per explanation
+      explain_features: 4          # features reported per anomaly
+      group_alerts: true           # collapse a burst into one finding
+      calibration_capacity: 4096   # verdicts kept to calibrate the probability
 
   # ── DNS Entropy / DGA Detection ─────────────────────────────────
   dns_entropy:

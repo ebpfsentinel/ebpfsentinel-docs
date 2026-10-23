@@ -14,8 +14,8 @@ Machine learning-based behavioral anomaly detection that identifies threats with
 | **EWMA** | Gradual drift and short-term spikes (exponential moving average) | None - scores from first sample |
 | **CUSUM** | Sustained mean shifts (slow-ramp DDoS, gradual exfiltration) | None - immediate |
 | **ONNX Model** | Custom anomalies via user-trained autoencoder models | Pre-trained offline |
-| **Random Cut Forest** | Correlated multi-feature anomalies no single feature reveals | None - the forest builds as it observes |
-| **Heavy-Hitter** | Elephant flows / top talkers (Count-Min Sketch) | None - constant memory |
+| **Random Cut Forest** | Correlated multi-feature anomalies no single feature reveals | None - a forest per entity, built as it observes and reloaded after a restart |
+| **Heavy-Hitter** | Elephant flows / top talkers (Space-Saving counters) | None - a bounded table |
 | **DNS Entropy** | DGA domains and DNS tunneling (Shannon entropy + Markov model) | None - pre-trained bigram model |
 | **TLS Clustering** | Novel/spoofed TLS fingerprints (Mini-Batch K-Means) | None - browser-seeded centroids |
 | **C2 Beaconing** | Repetitive payload patterns in C2 channels (TLSH similarity) | None - per-flow hash ring |
@@ -50,10 +50,14 @@ PacketEvent (eBPF kernel)
         │     │     └── fuse_scores() → one Alert (MITRE ATT&CK mapped)
         │     │
         │     └── independent path
-        │           └── Optional: RcfDetector (Random Cut Forest)
-        │                 └── own Alert with per-feature attribution
+        │           └── Optional: RcfDetector (one Random Cut Forest per entity)
+        │                 ├── adaptive threshold (drift detector + tail quantile)
+        │                 ├── Platt calibration (score → probability)
+        │                 ├── attribution (which features drove the score)
+        │                 ├── grouping (a burst → one finding)
+        │                 └── own Alert, ranked queue, state saved to disk
         │
-        └── HeavyHitterTracker (Count-Min Sketch + TopK)
+        └── TopTalkerTracker (Space-Saving counters)
               └── threshold check → Alert
 
 DNS Query → DnsEntropyEngine (Shannon entropy + Markov bigram)
@@ -210,6 +214,104 @@ Optional. Random Cut Forest observes the same `FeatureVector` the fused engines 
 - Hyperparameters are validated by `anomstream` against the AWS reference implementation. A rejected configuration logs a warning and disables the detector rather than aborting the service.
 - Attribution is read live from the forest, so an alert raised before the forest can attribute carries an empty `top_features` rather than a guessed one.
 
+#### One baseline per entity
+
+A host is not a workload. A node running a database, an ingress controller and a
+batch job has one traffic profile made of three, and a single baseline over the
+three learns that everything is normal. The detector therefore holds a **pool of
+forests keyed by entity** - the tenant and the workload the sample was attributed
+to - and a sample with no workload is keyed `unattributed`, which is its own
+entity rather than a sample folded into somebody else's baseline.
+
+The pool is bounded by `pool_capacity`. When it is full the least recently seen
+entity is evicted, and an entity silent for `entity_idle_secs` loses its baseline
+whether the pool is full or not. Evictions and creations are counted for the life
+of the process, so a pool that is churning says so rather than looking merely
+busy.
+
+**The memory this costs is a published figure, not a guess.** An entity's forest
+holds `num_trees` trees of `sample_size` points in 14 dimensions, so at the
+defaults it is roughly 2.5 MiB, and a full pool of 64 entities roughly 160 MiB.
+`/api/v1/enterprise/ml/rcf/status` reports both the estimate and, once a forest
+has been serialised for persistence, the measured figure, together with what a
+full pool would cost at the configured capacity. Read it before raising
+`pool_capacity` on an estate with ten thousand workloads: the answer is a number
+you can multiply, and the same figure is exported as
+`ebpfsentinel_ent_ml_rcf_bytes_per_entity`.
+
+#### A baseline that survives a restart
+
+Every baseline in the pool is written to the agent's state store every five
+minutes and once more on the way out, and reloaded at start. Without it a restart
+puts every detector back into its warm-up, during which it is both noisy and
+blind - which is exactly when an operator restarts an agent.
+
+The format is versioned. A state entry written by an incompatible version, or
+truncated, is **discarded with a log line naming how many entries went** rather
+than misread, and those entities relearn. The file lives at
+`/var/lib/ebpfsentinel/ml_state.redb`, so a container that does not mount a volume
+for that directory keeps its baselines in the temporary directory and loses them
+with the container.
+
+#### What the probability means
+
+A raw score of `1.7` is a number on a scale nobody outside this estate owns. Once
+analysts have confirmed or dismissed enough anomalies, Platt scaling fits a
+logistic over the labelled scores, and the queue reports a **probability**: "83%"
+means 83% of the labelled alerts that scored like this one were real.
+
+Until the fit exists there is no probability at all - the field is absent, the
+queue ranks on the raw grade, and the surface says the figure is not yet
+calibrated. An invented probability is worse than a raw score, because it is a raw
+score that looks trustworthy. The fit needs at least eight confirmations **and**
+eight dismissals, refits every 32 further verdicts, and keeps the most recent
+`calibration_capacity` labelled scores. Feedback is submitted through
+`POST /api/v1/enterprise/ml/feedback`; `/rcf/status` reports whether a fit exists
+and how many labels of each kind it rests on.
+
+#### Thresholds that move, and say why
+
+With `adaptive_threshold` on, the configured `anomaly_threshold` is a starting
+point rather than a constant. After `min_observations` samples the detector reads
+a high quantile of what this entity's scores actually look like, and a drift
+detector watches for the distribution changing underneath it. The threshold is
+clamped to between half and four times the configured figure, so adaptation can
+never silence the detector or turn it into a pager.
+
+`/rcf/status` reports the threshold in force, the one before it, and the reason it
+moved:
+
+| Reason | Meaning |
+|--------|---------|
+| `static` | Not enough observations yet - the configured threshold is in force |
+| `quantile` | The tail of this entity's own score distribution moved it |
+| `drift` | The distribution changed, so the threshold was refitted on the new one |
+
+The figure in force is also exported as `ebpfsentinel_ent_ml_rcf_threshold`.
+
+#### A burst is one finding
+
+A scan, a backup window or a misconfigured client raises the same alert a few
+hundred times. With `group_alerts` on, near-duplicates are folded into a group and
+the queue shows the group once, with its size and its worst member. Alerts are
+compared on their **attribution** rather than on their score, so two bursts that
+are both "unusually high packet rate" group together while a burst of "unusual
+port entropy" stays a separate finding. A group closes after fifteen minutes with
+nothing joining it.
+
+An analyst who thinks a group collapsed two different things says so with
+`POST /api/v1/enterprise/ml/rcf/groups/{group_id}/reject`: the group is split, its
+members regroup on their own, and the similarity bar rises a notch. Disagreement
+makes the grouping more conservative rather than being noted and forgotten.
+
+#### The ranked queue
+
+`/api/v1/enterprise/ml/rcf/queue` is the detector's own queue, ordered by
+calibrated probability where a calibration exists and by score where it does not,
+with each row carrying its entity, its probability, the features that drove it and
+its group. The response says which of the two orders it used, so a reader never
+has to infer it from the numbers.
+
 **Severity thresholds** (on the RCF score, which is not a Z-score):
 
 | Severity | Threshold |
@@ -220,7 +322,7 @@ Optional. Random Cut Forest observes the same `FeatureVector` the fused engines 
 | High | >= 3.0 |
 | Critical | >= 4.0 |
 
-Scores and attribution are readable directly through `/api/v1/enterprise/ml/rcf/scores` and `/api/v1/enterprise/ml/rcf/attribution`.
+Scores and attribution are readable directly through `/api/v1/enterprise/ml/rcf/scores` and `/api/v1/enterprise/ml/rcf/attribution`. Every score record names the entity it was scored against; `/rcf/attribution` takes an optional `tenant` and `workload` to pick the baseline the supplied point is judged against, and judges it against the unattributed baseline when neither is given.
 
 Each score record on `/rcf/scores` carries the window it was aggregated over as `OneMin`, `FiveMin` or `FifteenMin`, and an `is_anomalous` flag that is true at or above the configured `anomaly_threshold` - `1.5` by default, so anything the table above calls Low or worse is flagged. The `window` query parameter of `/rcf/attribution` is spelled differently on purpose: it takes `one_min`, `five_min` or `fifteen_min` and defaults to `one_min`.
 
@@ -228,12 +330,23 @@ Each score record on `/rcf/scores` carries the window it was aggregated over as 
 
 ## Heavy-Hitter Detection
 
-Identifies top-K sources by byte volume using a **Count-Min Sketch** probabilistic data structure in constant memory (~64 KB).
+Identifies the heaviest sources by byte volume using **Space-Saving** counters in
+bounded memory: one table of `heavy_hitter_k` counters per window, with the
+guarantee that any source above `total / k` of the window is resident in it.
 
-- CMS dimensions: width=2048, depth=4 (epsilon ~0.001, delta ~0.018)
-- TopK tracker: min-heap maintaining the K heaviest sources
-- Window rotation: resets each aggregation window, snapshots previous top-K
-- **Threshold alerting:** sources exceeding X% of total traffic trigger alerts
+- Table size: `heavy_hitter_k` counters (100 by default), amortised constant cost per packet
+- Window rotation: resets each aggregation window, snapshots the previous one so a reader has something to compare against while the live window fills
+- **Threshold alerting:** sources exceeding X% of the window's bytes trigger alerts
+- Every row states its own slack: `estimated_bytes` is never an underestimate, and `error_bytes` is the worst case by which it overstates
+
+This replaced a Count-Min sketch paired with a hand-written top-K heap, and three
+differences are worth knowing. A sketch can answer "how much did this key send"
+but cannot enumerate the heaviest keys, so the old tracker kept a side map of
+every source in the window: a talker that went quiet could be pushed out of the
+top-K while its counter kept rising, and an evicted key never came back. The
+overestimate is now reported rather than folded invisibly into the figure. And the
+two configuration keys that sized the sketch, `cms_width` and `cms_depth`, no
+longer exist - a configuration carrying them is rejected rather than ignored.
 
 ---
 
@@ -292,7 +405,11 @@ Suggestions are stored as `Pending`, reviewed by admins via API (`approve` / `re
 
 ## Feedback Loop
 
-Operators submit false positive / true positive labels per anomaly. The `FeedbackStore` tracks per-category FP rates and exports labeled datasets for model retraining when threshold is reached (default: 100 samples).
+Operators submit false positive / true positive labels per anomaly. A verdict does
+two things, which used to be one module and are now deliberately separate:
+
+- **The ledger** records who said what, when and about which anomaly, and tracks the per-category false-positive rate. It keeps the most recent 10,000 verdicts and counts the rest, so the rates still answer for every verdict ever submitted while an export answers for what is still held. A labeled dataset is worth exporting once 100 samples exist.
+- **The score** moves. The verdict goes to the Random Cut Forest detector as well: it calibrates the probability the queue reports, and where the point the alert was raised on is still remembered, it also shifts the score of the next point in that neighbourhood. A verdict on an anomaly whose point has aged out still calibrates; it just cannot move a neighbourhood.
 
 ---
 
@@ -337,12 +454,29 @@ enterprise:
     cusum_enabled: true
     cusum_slack: 0.5
     cusum_threshold: 5.0
-    # Heavy-hitter detection (Count-Min Sketch)
+    # Heavy-hitter detection (Space-Saving counters)
     heavy_hitter_enabled: true
     heavy_hitter_k: 100
     heavy_hitter_threshold_pct: 10.0
-    cms_width: 2048
-    cms_depth: 4
+    # Random Cut Forest
+    rcf:
+      enabled: true
+      num_trees: 100              # AWS bound [50, 1000]
+      sample_size: 256            # per-tree reservoir, [1, 2048]
+      time_decay: 0.0             # 0.0 = uniform reservoir sampling
+      anomaly_threshold: 1.5
+      # seed: 42                  # optional deterministic seed
+      # num_threads: 4            # optional dedicated rayon pool
+      recent_capacity: 256        # records kept for /ml/rcf/scores
+      pool_capacity: 64           # baselines held at once, one per entity
+      entity_idle_secs: 10800     # an entity silent this long loses its baseline
+      min_observations: 256       # samples before a baseline is trusted
+      adaptive_threshold: true    # a drift detector and a tail quantile move it
+      explain: true               # name the features that drove an anomaly
+      explain_permutations: 16    # permutations averaged per explanation
+      explain_features: 4         # features reported per anomaly
+      group_alerts: true          # collapse a burst into one finding
+      calibration_capacity: 4096  # verdicts kept to calibrate the probability
 
   # DNS entropy / DGA detection (separate config section)
   dns_entropy:
@@ -432,6 +566,9 @@ memory; `model_warmed_up` says it is contributing to the fusion. A model loaded 
 | `GET` | `/api/v1/enterprise/ml/beaconing` | viewer | ml-detection | Active C2 beaconing suspects. |
 | `GET` | `/api/v1/enterprise/ml/rcf/scores` | viewer | ml-detection | Recent Random Cut Forest anomaly scores. |
 | `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
+| `GET` | `/api/v1/enterprise/ml/rcf/queue` | viewer | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |
+| `GET` | `/api/v1/enterprise/ml/rcf/status` | viewer | ml-detection | Pool occupancy and memory cost, threshold state, calibration state, open groups. |
+| `POST` | `/api/v1/enterprise/ml/rcf/groups/{group_id}/reject` | operator | ml-detection | Say an alert group was wrongly collapsed. Tightens the bar the next group needs. |
 
 ### DNS Entropy Endpoints
 
