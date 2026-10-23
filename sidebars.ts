@@ -220,6 +220,7 @@ const sidebars: SidebarsConfig = {
         'operations/upgrading',
         'operations/compatibility',
         'operations/policy-replay',
+        'operations/response-rollout',
         'operations/dashboard-accessibility',
       ],
     },
