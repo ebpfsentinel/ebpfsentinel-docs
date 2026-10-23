@@ -272,6 +272,42 @@ The trend is served by the dashboard, not by the agent, at
 `/api/v1/{tenant}/posture/trend?days=N`, where `N` is between 7 and 456
 (default 90); see [Dashboard configuration](../../configuration/dashboard.md#route-surface).
 
+## Executive Summaries
+
+The dashboard can issue, on a schedule or on request, an executive summary of
+one tenant over a window: the posture of each framework and how it moved, the
+alerts raised by severity, the cases opened with the median and mean time to
+acknowledge and to resolve them, the controls the newest report of each
+framework did not pass, and what changed against the summary before. It is
+read under **Governance, Issued summaries**.
+
+- **Sources named**: every section says what it was read from (the daily
+  posture readings, the alert history, the case log, the newest report of each
+  framework). A section that could not be read says why - no history store,
+  the store could not be reached, or nothing recorded over the window - and
+  never shows a zero in place of a figure nobody read. A case whose clock is
+  still running is counted as running, not averaged in.
+- **Schedule**: one per tenant, every 7, 30 or 90 days, carrying any of the
+  four sections and at most 20 recipients. The dashboard checks every hour
+  whether a summary is due; the next one is due one interval after the end of
+  the last one kept, so a restart delays a summary by at most an hour and
+  never skips one. Writing the schedule and issuing a summary on request need
+  the tenant administrator role; reading summaries needs only compliance read
+  access.
+- **Delivery**: each summary lands in the notification inbox, and is mailed
+  to the schedule's recipients when a mail relay is configured
+  (`notifications.enabled` with the `smtp_*` keys). The summary records what
+  happened to the mail - not mailed for want of a relay or of a recipient,
+  handed to the relay for how many recipients, or refused - rather than
+  assuming it went out.
+- **Kept as issued**: summaries are stored in the history store for 456 days,
+  as long as the posture they read, and are not recomposed afterwards: what a
+  reader opens is what was sent. Without a history store no summary is issued.
+
+The summaries are served by the dashboard, not by the agent, under
+`/api/v1/{tenant}/summaries`; see
+[Dashboard configuration](../../configuration/dashboard.md#route-surface).
+
 ## Export Formats
 
 | Format | Endpoint Suffix | Content-Type | Description |

@@ -500,7 +500,7 @@ HTTP 503 with `{"error":"history_disabled","message":"…"}`.
 
 ### Schema
 
-The migration creates seven tables (prefixed with `table_prefix`):
+The migration creates nine tables (prefixed with `table_prefix`):
 
 - `_meta` - migration version bookkeeping (ReplacingMergeTree)
 - `alerts` - per-event alert records partitioned by `(tenant_id, toYYYYMM(occurred_at))`
@@ -517,6 +517,11 @@ The migration creates seven tables (prefixed with `table_prefix`):
   (ReplacingMergeTree, the newest sample of the day wins), kept 456 days by
   the table's own TTL rather than by `retention_days`. See
   [Compliance Reports](../features/enterprise/compliance-reports.md#posture-over-time).
+- `summary_schedules` - one executive summary schedule per tenant
+  (ReplacingMergeTree, the newest edit wins).
+- `summaries` - every executive summary issued, as it was issued, kept 456
+  days by the table's own TTL like the posture it reads. See
+  [Compliance Reports](../features/enterprise/compliance-reports.md#executive-summaries).
 
 DDL source files live in `crates/dashboard-server/migrations/`.
 
@@ -596,6 +601,11 @@ The server exposes a single Axum router with the following route layout:
 | `DELETE /api/v1/{tenant}/suppressions/{suppression_id}` | session, analyst or above | Lift a suppression before its expiry. 404 outside the tenant; 409 with `{"reason":"suppression_ended"}` when it had already been lifted or had expired. |
 | `GET /api/v1/{tenant}/entities/{kind}/{value}` | session | Everything that touched one `host` (agent identifier), `address`, `workload` (`namespace/pod`, percent-encoded) or `domain` between `from` (default a day before `to`) and `to` (default now), at most 30 days apart: alerts, flows, DNS, TLS fingerprints, policy decisions and configuration changes, newest first, `limit` events per page (1 to 1000, default 200) and `next_to` for the page after. Each section says whether it was read from the history store or live from the agents, which agents did not answer or held more than one reading walks, or why it could not be read (`history_store_disabled`, `history_store_failed`); without a history store the alerts are still read from the agents. 400 for a value, range or limit refused; 404 for an unknown kind. |
 | `GET /api/v1/{tenant}/posture/trend` | session | Every day of the `days` window ending today (7 to 456, default 90), per framework: the score read that day or none where no report was read, then each change between two read days with the controls that improved and regressed and the rollouts written in between. 400 for a window refused; 503 with `{"reason":"history_store_disabled"}` without a history store. |
+| `GET /api/v1/{tenant}/summaries/schedule` | session | The tenant's executive summary schedule (enabled, `interval_days`, recipients, sections), when the next one is due, and whether a mail relay is configured. 503 without a history store. |
+| `PUT /api/v1/{tenant}/summaries/schedule` | session, tenant admin or above | Write the schedule: an interval of 7, 30 or 90 days, at least one of `posture`, `alerts`, `cases` and `gaps`, at most 20 recipient addresses. 400 with the reason when refused. |
+| `GET /api/v1/{tenant}/summaries` | session | The 50 newest summaries issued for the tenant, newest first. |
+| `POST /api/v1/{tenant}/summaries` | session, tenant admin or above | Issue a summary now over the window since the last one, deliver it like a scheduled one and keep it. 201 with the summary; 502 when the history store cannot be written. |
+| `GET /api/v1/{tenant}/summaries/{summary_id}` | session | One summary as it was issued: its window, each section with its source or the reason it was not read, the comparison with the summary before, and what happened to the mail. 404 outside the tenant. |
 | `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
 | `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
 
