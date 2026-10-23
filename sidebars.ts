@@ -221,6 +221,7 @@ const sidebars: SidebarsConfig = {
         'operations/upgrading',
         'operations/compatibility',
         'operations/policy-replay',
+        'operations/entity-investigation',
         'operations/response-rollout',
         'operations/dashboard-accessibility',
       ],
