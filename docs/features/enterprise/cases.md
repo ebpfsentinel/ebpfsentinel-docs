@@ -56,6 +56,34 @@ position in the capture chain and its chain tag, so the file downloaded later
 can be checked against what the case recorded. Collection reads; it starts no
 capture. See [Network forensics](network-forensics.md).
 
+## Evidence pack
+
+The evidence pack reads one case against the two deadlines an incident
+notification is written to, 24 and 72 hours after the first observation. The
+first observation is the earliest alert the case holds, and both marks are
+always shown: a mark by which nothing was known or done is listed as empty
+rather than left out, since an empty interval is part of what a notification
+has to say.
+
+For each mark the pack lists the alerts observed, the acts recorded on the
+case and the evidence attached before it. Beside the marks it lists the
+assets involved (agents, workloads, addresses), the flows the alerts name with
+when each was first and last seen, every act with who did it, and every freeze
+and capture with its digest and chain position. Each line names the record it
+was read from, `alert:`, `case_event:`, `freeze:` or `capture:`, so any figure
+can be traced back to the alert or the log row behind it.
+
+What the case does not hold is listed under gaps rather than left for the
+reader to notice: no alert, no owner, no evidence, an alert with no evidence
+or no flow, an alert observed before the 24 hour mark but added after it, a
+case opened after a deadline, a deadline passed with nothing recorded, a
+capture that cannot be verified and a freeze that failed.
+
+The pack is computed from the case log and never from the clock: its `as_of`
+is the latest moment the case's records name, so reading the same case twice
+gives the same pack. It is evidence a CRA or NIS2 notification can be written
+from. It is not the notification, and it does not make anyone compliant.
+
 ## Storage
 
 The case log is one append-only ClickHouse table, `case_events`, with one row

@@ -574,6 +574,7 @@ The server exposes a single Axum router with the following route layout:
 | `POST /api/v1/{tenant}/cases` | session, analyst or above | Open a case over up to 100 alerts. 409 when one of them is already in another case. |
 | `GET /api/v1/{tenant}/cases/membership` | session | Which case holds each alert, so the queue can leave them out. |
 | `GET /api/v1/{tenant}/cases/{case_id}` | session | One case: its alerts, notes, evidence and timeline. 404 outside the tenant. |
+| `GET /api/v1/{tenant}/cases/{case_id}/evidence-pack` | session | The case read against the 24 and 72 hour marks from its first observation: assets, flows, actions, evidence and gaps, each line naming its source record. Deterministic for a given case log. |
 | `PATCH /api/v1/{tenant}/cases/{case_id}` | session, analyst or above | Change the title, status, severity or owner; an empty owner unassigns. |
 | `POST /api/v1/{tenant}/cases/{case_id}/notes` | session, analyst or above | Append a note of at most 4000 characters. |
 | `POST /api/v1/{tenant}/cases/{case_id}/alerts` | session, analyst or above | Add up to 100 alerts, never past 500 in one case. 409 as on open. |
