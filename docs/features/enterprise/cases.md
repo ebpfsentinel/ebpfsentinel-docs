@@ -14,6 +14,10 @@ The queue and the case are one surface. Opening a case takes its alerts out of
 the unhandled rows, each alert names the case holding it, and an analyst can
 hide the alerts already in a case to see only what nobody has picked up.
 
+Two figures are read from the cases, the time to acknowledge and the time to
+resolve, and a false positive can set its kind aside until a date, so the
+queue gets shorter instead of raising the same alert again an hour later.
+
 ## Opening a case
 
 From the alerts queue, pick alerts and open a case over them. From one alert,
@@ -161,6 +165,15 @@ the alerts it held back coming back into the queue surprise nobody. A
 suppression can be lifted before its expiry; a lifted or expired one stays in
 the list as the record of what was decided. A tenant holds at most 500
 suppressions in force at once.
+
+## What a case is not
+
+A case holds the alerts this product raised, on the agents this console
+reaches. It is not an orchestration platform: no playbook runs from a case, no
+ticket is opened in another system, and the queue does not span the other
+security products you own. Where that is the need, the
+[response webhooks](automated-response.md) start someone else's playbook, and
+the case stays the record of what was found here.
 
 ## Storage
 
