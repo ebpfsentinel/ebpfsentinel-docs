@@ -15,6 +15,15 @@ response:
     window_ms: 2000
     protected_commands: []
     protected_pids: []
+  quarantine:
+    enabled: false
+    window_secs: 900
+    max_window_secs: 86400
+    tear_down_flows: true
+    max_flows_scanned: 65536
+    protected_paths: []
+    protected_ids: []
+    sweep_interval_secs: 30
 ```
 
 ## Fields
@@ -27,6 +36,14 @@ response:
 | `kill_process.window_ms` | u64 | `2000` | How long the kernel keeps looking for the target, in milliseconds. Minimum `1`, maximum `30000` |
 | `kill_process.protected_commands` | list of string | `[]` | Extra executable names the agent refuses to signal. An empty entry is refused at config load |
 | `kill_process.protected_pids` | list of u32 | `[]` | Extra process ids the kernel refuses to signal. `0` is refused at config load |
+| `quarantine.enabled` | bool | `false` | Whether the agent acquires the maps that cut a workload off the network |
+| `quarantine.window_secs` | u64 | `900` | How long a quarantine lasts when the rule names no duration, in seconds. Minimum `1` |
+| `quarantine.max_window_secs` | u64 | `86400` | Ceiling a rule's own duration is clamped to, in seconds. Maximum `604800` (seven days) |
+| `quarantine.tear_down_flows` | bool | `true` | Whether the connections the workload already holds are deleted as well as the ones it opens next |
+| `quarantine.max_flows_scanned` | usize | `65536` | How many conntrack rows the teardown walks. Minimum `1`, maximum `1048576` |
+| `quarantine.protected_paths` | list of string | `[]` | Extra cgroup paths the agent refuses to quarantine. An empty or relative entry is refused at config load |
+| `quarantine.protected_ids` | list of u64 | `[]` | Extra cgroup ids the agent refuses to quarantine. `0` is refused at config load |
+| `quarantine.sweep_interval_secs` | u64 | `30` | How often lapsed entries are removed from the kernel map. Minimum `1`, maximum `3600` |
 
 A request above the ceiling is refused, not clamped. A value of `0`, or one above `2592000` (thirty days), is refused at config load: a response action is a temporary measure that a firewall rule should replace, so the bound is not open-ended.
 
@@ -66,6 +83,61 @@ whether the process is gone, and the five kernel counters
 (`sent`, `protected`, `expired`, `helper_failed`, `event_lost`) are exported on
 `/metrics` like every other program's. `sent` counts a signal delivered, which
 is not the same as a process stopped.
+
+## Quarantining a workload
+
+`quarantine` is the action between denying one flow and stopping a process: the
+workload keeps its memory, its logs and its open files, and loses the network.
+It is keyed on the cgroup rather than on an address or a process, so it covers
+every process in that cgroup and every process the workload starts afterwards,
+and it survives the process the alert happened to catch.
+
+It rides the same kernel program as the [workload
+rules](workload-firewall.md), so turning it on loads that program whether or
+not the configuration carries a workload rule, and the quarantine is asked
+first: an allow rule cannot overrule it. The six hooks it answers at are
+`connect`, `sendmsg` and `bind`, for IPv4 and IPv6, so a quarantined workload
+gets `EPERM` on its next outbound connection and on its next attempt to listen.
+
+What the agent refuses to quarantine whatever a rule asks:
+
+- the root of the cgroup hierarchy and the agent's own cgroup,
+- `/init.scope` and the units of `containerd`, `docker`, `crio`, `podman`,
+  `kubelet`, the agent, its warden, `sshd` and Teleport,
+- a cgroup the agent could not place in the hierarchy, because an unidentified
+  target is not a target,
+- everything `protected_paths` and `protected_ids` add.
+
+That first list is not configurable and configuration cannot shorten it: both
+settings only widen the refusal. Cutting the container runtime off the network
+would take every container on the node with it, and cutting `sshd` off would
+take the operator's own way back in.
+
+Two halves, and the difference matters to whoever reads the outcome.
+**Arming** writes an entry the kernel reads, which refuses what the workload
+opens *next*; **tearing down** walks the connection table and deletes the flows
+it already holds. With `tear_down_flows: false` a quarantined workload can open
+nothing new and keeps every connection it had, which is a containment that an
+operator may read as complete and is not. A flow the agent could not attribute
+to a cgroup is left open and counted separately, so an outcome saying `0 flows
+torn down` is distinguishable from one saying nothing could be named.
+
+The expiry is a kernel deadline on the boot clock rather than a timer in the
+agent, so a quarantine outlives the agent dying and a workload is reachable
+again when its window closes whether or not anything is running to release it.
+`sweep_interval_secs` only tidies the map up; it is not what ends a quarantine.
+A rule's own duration is clamped to `max_window_secs` rather than refused,
+because a policy shipped from elsewhere must not be able to cut a workload off
+for longer than the operator allowed.
+
+A report-only quarantine arms the same entry without refusing anything and
+tears nothing down: it counts what the enforcing one would have cut. The four
+kernel counters (`refused`, `expired`, `observed`, `event_lost`) are exported on
+`/metrics`, and every quarantine, refusal and release is written to the audit
+log naming the rule, the cgroup and the outcome.
+`/api/v1/ebpf/kernel-features` reports whether the capability is armed, the
+default window, whether flows are torn down, and how many cgroups the fence
+protects.
 
 ## What survives a restart
 

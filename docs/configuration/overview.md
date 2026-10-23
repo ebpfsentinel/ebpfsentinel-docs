@@ -123,7 +123,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 Of the 19 eBPF programs a host runs (XDP, TC, uprobe, cgroup, tracepoint), all but one support dynamic load/unload. The XDP tail-call chain is automatically rewired when programs are added or removed. Pinned maps preserve kernel state (connection tracking, counters) across reloads.
 
-The exception is `tracepoint-signal`, the program that can stop a process: it is decided at start-up and a reload neither loads nor unloads it, so no edit to a configuration file on a running host can arm that capability. Turning it on or off is a restart. See [Response Configuration](response.md).
+The exception is `tracepoint-signal`, the program that can stop a process: it is decided at start-up and a reload neither loads nor unloads it, so no edit to a configuration file on a running host can arm that capability. Turning it on or off is a restart. The same holds for quarantining, which arms no program of its own but takes the maps that cut a workload off the network at start-up for the same reason. See [Response Configuration](response.md).
 
 See [Hot Reload](../operations/hot-reload.md) for the full reference.
 

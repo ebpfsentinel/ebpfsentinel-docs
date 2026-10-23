@@ -44,7 +44,7 @@ There is no packet at the socket layer, so ten matchers are refused at load time
 
 `mode` defaults to `observe`, deliberately. An observing rule counts what it would have refused and lets the syscall through, so the first policy anybody writes cannot take an application offline. Turning a rule to `enforce` changes which counter moves, not how much.
 
-The document is also what loads the programs: a configuration with no workload rule attaches nothing. A configuration whose workload rules are in `enforce` mode stops the agent on a host where the hooks did not attach, rather than running on with an enforcement policy that is not being enforced. On a reload, a document that cannot be applied is rejected whole and the rules already in force are left alone.
+The document is also what loads the programs: a configuration with no workload rule attaches nothing, unless [quarantining](response.md) is turned on, which rides the same programs and loads them on its own. A configuration whose workload rules are in `enforce` mode stops the agent on a host where the hooks did not attach, rather than running on with an enforcement policy that is not being enforced. On a reload, a document that cannot be applied is rejected whole and the rules already in force are left alone.
 
 At most 64 workload rules may be in force at once. The ceiling is a kernel-side bitmap, one bit per rule, and it is checked when the policy is published.
 

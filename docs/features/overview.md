@@ -141,7 +141,7 @@ syscall and only the signal program acts on a process:
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
 | `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, and joins it to the five-tuple once the connection is established |
 | `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
-| `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind |
+| `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind, and refuses a quarantined cgroup before any rule is read |
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
 
 The three tail-called programs are attached to no hook of their own. Each is

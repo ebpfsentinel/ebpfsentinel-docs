@@ -21,6 +21,7 @@ OSS Alert Pipeline
                     │     └── Check cooldown per (policy_id, src_addr)
                     ├── execute_action() → ResponseActionResult
                     │     ├── BlockIp / RateLimitIp / IsolateFlow → OssEnforcementAdapter → eBPF maps
+                    │     ├── QuarantineCgroup / ReleaseCgroup → OssEnforcementAdapter → cgroup map
                     │     └── WebhookNotify → HTTP POST with retry + backoff
                     ├── engine.record_cooldown()
                     ├── engine.record_action_result() → audit trail
@@ -29,17 +30,40 @@ OSS Alert Pipeline
 
 ## Response Actions
 
-Five types of automated response actions can be configured per policy:
+Seven types of automated response actions can be configured per policy:
 
 | Action | Description |
 |--------|-------------|
 | **BlockIp** | Block source/destination/both IP addresses for a bounded duration |
 | **RateLimitIp** | Apply rate limiting to the offending IP |
 | **IsolateFlow** | Block the specific 5-tuple flow via firewall deny rule |
+| **QuarantineCgroup** | Cut the workload that owns the offending flow off the network, leaving it running |
+| **ReleaseCgroup** | Lift a quarantine this node placed, before its own expiry |
 | **KillProcess** | Stop the process that owns the offending flow |
 | **WebhookNotify** | Send alert details to a SOAR/webhook endpoint with retry |
 
 `BlockIp`, `RateLimitIp`, and `IsolateFlow` are enforced at the eBPF kernel level via the `OssEnforcementAdapter`, which calls into the OSS IPS blacklist and firewall services to inject actual blocking rules into eBPF maps. `WebhookNotify` executes an HTTP POST to the configured SOAR endpoint. All actions are recorded in the audit trail.
+
+### QuarantineCgroup and ReleaseCgroup
+
+The step between blocking one flow and stopping a program. The workload that owns the offending flow keeps its memory, its logs and its open files, and loses the network: its next `connect()`, `sendmsg()` and `bind()` are refused by the kernel, and the connections it already holds are torn down. It is undoable, by its own expiry and by a release, which is what makes it the action to reach for when an operator wants the process alive to look at.
+
+It is keyed on the cgroup rather than on an address or a process id, which is the whole point: a workload that forks, re-execs or is restarted inside its own cgroup stays cut off, where a process kill would have caught one pid of several and a flow block would have caught one tuple of many. An alert whose workload block carries no cgroup is skipped rather than aimed at a guess, exactly as a kill is.
+
+Unlike the kill, the action carries two fields of its own:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `duration_secs` | the node's configured window | How long the quarantine lasts. Clamped by the node, never trusted as given |
+| `report_only` | `false` | Arm the entry and refuse nothing, so a rule can be watched before it cuts |
+
+The duration is the policy's to choose because the right window depends on the alert rather than on the host, and it is clamped on the node because a policy shipped from elsewhere must not be able to cut a workload off for longer than the operator allowed. What the agent will never quarantine whatever a policy asks, and what `tear_down_flows: false` leaves open, is in [Response Configuration](../../configuration/response.md).
+
+Outcomes to read rather than assume:
+
+- `skipped` with a reason is a node where the capability is off, an alert that named no workload, or a cgroup the node protects. A refused cgroup is a configured decision rather than a breakage, so it is a skip carrying the node's own sentence and not a failure.
+- `failed` with a reason is the attempt itself having failed: the map could not be written, or the node could not be reached.
+- `success` on a quarantine means an entry is armed, and a release's `success` includes a cgroup that was not quarantined, because a release racing an expiry is the ordinary case.
 
 ### KillProcess
 
@@ -153,7 +177,7 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 | Field | Description |
 |-------|-------------|
 | `id` | Action identifier |
-| `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `kill_process`, `webhook_notify` |
+| `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `quarantine_cgroup`, `release_cgroup`, `kill_process`, `webhook_notify` |
 | `outcome` | `success`, `failed` (with reason), or `skipped` (with reason) |
 | `executed_at_ns` | Execution timestamp |
 | `trigger_alert_id` | The alert that triggered this action |

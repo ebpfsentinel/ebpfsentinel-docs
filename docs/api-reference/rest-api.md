@@ -300,6 +300,10 @@ reason where nothing did, plus the hooks that took. They are read from the
 attach itself, because a kernel offering a program type can still refuse the
 attach.
 
+A fifth, `quarantine`, carries no attach of its own: it rides the workload
+firewall's hooks, so what it reports is whether the capability is armed on this
+node rather than whether anything attached.
+
 `process_signal` is the one capability that can stop a running program, so it
 reports its blast radius with its state:
 
@@ -323,6 +327,31 @@ zero while the capability is on, since the agent itself is one of them.
 `attached: false` is the answer on every node that did not turn the capability
 on, which is the default. See
 [Response Configuration](../configuration/response.md).
+
+`quarantine` reports the capability that cuts a workload off the network while
+leaving it running:
+
+```json
+{
+  "quarantine": {
+    "armed": true,
+    "reason": null,
+    "window_ms": 900000,
+    "tears_down_flows": true,
+    "protected": 13
+  }
+}
+```
+
+`window_ms` is how long a quarantine lasts when the rule names no duration.
+`tears_down_flows` is the field to read before believing a workload is
+contained: `false` means it can open nothing new and keeps every connection it
+already had. `protected` counts the cgroups the agent refuses to quarantine
+whatever a rule asks, and is never zero while the capability is on, since the
+agent's own cgroup is one of them. `armed: false` is the answer on every node
+that did not turn the capability on, which is the default, and `reason` says
+which of the three it is: off in the configuration, the workload firewall's
+object carrying no quarantine map, or its hooks not attached.
 
 #### GET /api/v1/ebpf/uprobes
 

@@ -1021,6 +1021,13 @@ signal whatever a rule asks. `Armed: no` is the default and the answer on every
 node that left the capability off. See
 [Response Configuration](../configuration/response.md).
 
+A `Quarantining a workload` block follows it, for the capability that cuts a
+workload off the network while leaving it running. `Cuts flows` is printed
+whether or not the capability is armed, because a `no` there is the difference
+between a workload that can open nothing new and one that is actually off the
+network; the default window and the number of protected cgroups are printed
+only where it is armed.
+
 ### config
 
 The running configuration, writing one section of it, and reloading it from
