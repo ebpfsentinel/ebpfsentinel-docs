@@ -268,7 +268,7 @@ loadbalancer:
   enabled: true
   services: []
   announce:
-    role: primary          # primary | standby | disabled (default: disabled)
+    role: primary          # primary | standby | elected | disabled (default: disabled)
     interface: eth0        # NIC whose MAC answers ARP for the VIPs
     vips:
       - name: web-vip      # label used in metrics ({vip="web-vip"})
@@ -279,17 +279,55 @@ loadbalancer:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `role` | string | `disabled` | `primary` = elected speaker (answers ARP, emits gratuitous ARP). `standby` = silent until promoted. `disabled` = announcer off. Aliases: `speaker`/`active`, `passive`/`backup`, `off`/`none`. |
+| `role` | string | `disabled` | `primary` = always the speaker (answers ARP, emits gratuitous ARP). `standby` = silent until its role is changed. `elected` = silent until an elector grants it the speaker role for a bounded time, and silent again when that grant is not renewed. `disabled` = announcer off. Aliases: `speaker`/`active`, `passive`/`backup`, `off`/`none`. |
 | `interface` | string | - | Interface whose NIC MAC is used as the ARP `sha`. Required unless `role: disabled`. |
 | `vips` | list | `[]` | VIPs to announce. Required unless `role: disabled`. |
 | `vips[].name` | string | - | Unique label, surfaced as the `{vip}` metric label. |
 | `vips[].addr` | string | - | Unique IPv4 address. IPv6 entries are ignored (ARP is IPv4-only). |
 
-Only the node with `role: primary` ever populates the kernel `VIP_SET`;
-`standby` and `disabled` nodes stay completely silent, so a misconfigured
-pair cannot both answer ARP. Promotion is config-driven - change `role`
-to `primary` on the surviving node and reload. A Kubernetes `Lease`-based
-election is a documented seam, not yet implemented.
+Only a speaker ever populates the kernel `VIP_SET`; `standby` and
+`disabled` nodes stay completely silent, so a misconfigured pair cannot both
+answer ARP. With fixed roles, promotion is config-driven: change `role` to
+`primary` on the surviving node and reload.
+
+### Elected speaker
+
+With `role: elected` every node carries the same block and none of them
+answers until it is granted the role through
+[`POST /api/v1/lb/vips/grant`](../api-reference/rest-api.md#post-apiv1lbvipsgrant)
+with a number of seconds, at most 300. The grant is counted on the node's
+own clock: the agent checks it every second and falls silent when it runs
+out, without hearing from anybody. A grant of `0` releases the role at once.
+A reload that keeps the role `elected` keeps the grant; any other role drops
+it.
+
+The Kubernetes operator is the elector. Only the replica holding the
+operator's lease grants anything, so there is exactly one elector, and for
+each `LoadBalancerConfig` whose `vipAnnounce.role` is `elected` it:
+
+- renews the current speaker every 2 seconds with a 30-second grant, for as
+  long as that agent answers;
+- records the speaker in a `Lease` named `<policy>-vip-speaker` beside the
+  policy and owned by it, so a replica taking over the lead keeps the speaker
+  already chosen rather than picking another;
+- when the speaker stops answering, grants nobody until 30 seconds after its
+  last renewal, the instant its own grant lapses, and then grants the first
+  selected agent (by node, then pod name) that accepts. That fence is what
+  keeps two nodes from answering for one address.
+
+What a failover costs:
+
+| Event | Addresses unanswered |
+|-------|----------------------|
+| Speaker node lost, network cut or agent stopped | Up to 32 seconds: the 30-second grant plus one 2-second pass. |
+| Operator leader lost | None. The standby replica takes the operator's lease within 17 seconds (15-second lease, 2-second retry) and renews the recorded speaker before its 30-second grant lapses. |
+| Operator leader and speaker lost together | Up to 32 seconds after the speaker's last renewal, as above. |
+| Every operator replica gone | The speaker keeps answering for up to 30 seconds, then falls silent until an operator is back. |
+
+The operator writes the outcome to the policy's `status.speaker`: `Speaking`
+with the pod, node and the time it took the role, `Fenced` with the previous
+pod and the time its grant lapses, or `Unelected` when no selected agent took
+the grant.
 
 ### Runtime control surface
 

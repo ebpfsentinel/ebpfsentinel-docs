@@ -644,6 +644,9 @@ ebpfsentinel-agent lb announce --json '{
   "interface": "eth0",
   "vips": [{ "name": "web", "addr": "192.0.2.10" }]
 }'
+
+# Grant an elected node the speaker role for 30 seconds (0 releases it)
+ebpfsentinel-agent lb grant 30
 ```
 
 ### qos

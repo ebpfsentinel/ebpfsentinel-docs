@@ -31,5 +31,10 @@
   "ebpfsentinel_conntrack_kfunc_lookups": "Retired: quoted only in the removed-series table",
   "ebpfsentinel_conntrack_kfunc_hits": "Retired: quoted only in the removed-series table",
   "ebpfsentinel_conntrack_kfunc_misses": "Retired: quoted only in the removed-series table",
-  "ebpfsentinel_firewall_dropped_total": "Never registered: quoted as the per-feature name the fold-in replaces"
+  "ebpfsentinel_firewall_dropped_total": "Never registered: quoted as the per-feature name the fold-in replaces",
+
+  "ebpfsentinel_operator_leader": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_vip_elected_policies": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_vip_speaking_policies": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_vip_speaker_handovers_total": "Operator registry: ebpfsentinel-operator"
 }

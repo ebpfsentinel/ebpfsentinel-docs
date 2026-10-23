@@ -297,6 +297,7 @@ document it produces is incomplete.
 | `ebpfsentinel_lb_backends_healthy` | Gauge | `service` | Backends passing health checks, per configured service (zero for a service that has been removed) |
 | `ebpfsentinel_lb_vip_arp_replies` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
 | `ebpfsentinel_lb_vip_takeovers_total` | Counter | `vip` | Gratuitous-ARP takeovers per VIP (L2 VIP announcer) |
+| `ebpfsentinel_lb_vip_speaker` | Gauge | - | 1 while this node answers ARP for its VIPs, 0 while it stays silent (L2 VIP announcer) |
 
 Forwarded and unbackable packets are kernel slots, read on
 `ebpfsentinel_packets_total{interface="LB_METRICS"}`.

@@ -1283,12 +1283,15 @@ Response shape:
   "role": "primary",
   "interface": "eth0",
   "is_speaker": true,
+  "grant_remaining_ms": 27400,
   "bindings_count": 2,
   "vips": [
     { "name": "web", "addr": "192.0.2.10", "arp_replies": 42, "self_announced": true }
   ]
 }
 ```
+
+`grant_remaining_ms` is present only while an `elected` node holds a grant, and says how long it keeps answering without a renewal.
 
 #### POST /api/v1/lb/vips
 
@@ -1306,9 +1309,25 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `role` | string | No | `disabled`, `primary`, or `standby`. Defaults to `disabled`. |
+| `role` | string | No | `disabled`, `primary`, `standby` or `elected`. Defaults to `disabled`. |
 | `interface` | string | Yes | NIC the announcer binds (must match an enabled XDP iface). |
 | `vips` | array | Yes | List of `{ name, addr }`. `addr` must be an IPv4 or IPv6 literal. |
+
+#### POST /api/v1/lb/vips/grant
+
+Grant an `elected` node the speaker role for a number of seconds, or release it with `0`. Requires write access. The node answers ARP from the moment the grant is taken and falls silent on its own when it runs out, checked every second on its own clock; a renewal replaces the remaining time. Refused with `400` when the role is not `elected` or the grant exceeds 300 seconds. Only a change of role is written to the audit log, not every renewal.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/lb/vips/grant \
+  -H 'Content-Type: application/json' \
+  -d '{ "seconds": 30 }'
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `seconds` | integer | Yes | `0` to `300`. `0` releases the role at once. |
+
+Under Kubernetes the operator is what calls this; see [Elected speaker](../configuration/loadbalancer.md#elected-speaker).
 
 ### DNS Intelligence
 
@@ -2170,6 +2189,7 @@ keeps working without holding the agent's key.
 | DELETE | `/api/v1/lb/services/{id}` | Yes (admin) | Delete LB service |
 | GET | `/api/v1/lb/vips` | Yes | L2 VIP announcer status |
 | POST | `/api/v1/lb/vips` | Yes (admin) | Apply VIP announce config |
+| POST | `/api/v1/lb/vips/grant` | Yes (write) | Grant or release the speaker role of an `elected` node |
 | GET | `/api/v1/dns/status` | Yes | DNS intelligence status |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
 | DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |

@@ -112,6 +112,35 @@ namespace that reads the licence Secret and the agent token Secret by name and
 nothing beside them. A resource in any other namespace is left alone. Each
 namespace listed must exist before the chart is installed.
 
+### Running more than one replica
+
+Replicas elect a leader through a `Lease` in the operator's namespace
+(chart value `leaderElection.enabled`, on by default). Only the replica
+holding it reconciles, and a standby reports itself as such rather than as
+a fault: `/readyz` answers `503` with the body `standby`, `200` with
+`leading` on the leader, and `ebpfsentinel_operator_leader` is `0` on a
+standby and `1` on the leader. The lease lasts 15 seconds and is renewed
+every 5; a standby asks for it every 2, so an unplanned handover takes at
+most 17 seconds, and a leader that loses the lease exits and comes back as a
+standby rather than carrying on beside its successor.
+
+The leader is also the only replica that grants the VIP speaker role of a
+`LoadBalancerConfig` whose `vipAnnounce.role` is `elected`. The speaker it
+chose is recorded in a `Lease` named `<policy>-vip-speaker` beside the
+policy, so a new leader renews the same speaker instead of choosing again,
+and a speaker's 30-second grant outlasts the handover, so a leader failover
+leaves the addresses answered. The policy's `status.speaker` says who is
+speaking, or that the role is fenced until a lost speaker's grant lapses;
+[Elected speaker](../../configuration/loadbalancer.md#elected-speaker) gives
+the timings.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_operator_leader` | Gauge | - | 1 on the replica that reconciles, 0 on a standby |
+| `ebpfsentinel_operator_vip_elected_policies` | Gauge | `namespace` | Load balancer policies whose speaker the operator elects |
+| `ebpfsentinel_operator_vip_speaking_policies` | Gauge | `namespace` | Of those, the ones with an agent answering for their VIPs |
+| `ebpfsentinel_operator_vip_speaker_handovers_total` | Counter | `namespace`, `policy` | Times the speaker role went to a different agent |
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource

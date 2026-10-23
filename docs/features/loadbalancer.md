@@ -230,13 +230,20 @@ re-announces ownership on failover with gratuitous ARP.
 
 ### Single-speaker election (split-brain safe)
 
-Election is **config-driven**: each node is explicitly `primary`
-(speaker) or `standby`. The userspace agent populates the kernel
-`VIP_SET` **only** while this node is the elected speaker; a `standby`
-or `disabled` node always leaves `VIP_SET` empty, so it never answers
-ARP and never emits gratuitous ARP. There is no gossip layer. A
-Kubernetes `Lease`-based election is a documented seam but is not
-implemented.
+Each node is `primary` (always the speaker), `standby` (silent), or
+`elected`: silent until an elector grants it the speaker role for a bounded
+time, and silent again on its own when that grant is not renewed. The
+userspace agent populates the kernel `VIP_SET` **only** while this node is
+the speaker; any other node leaves `VIP_SET` empty, so it never answers ARP
+and never emits gratuitous ARP. There is no gossip layer.
+
+Under Kubernetes the operator is the elector: its leader alone grants the
+role, renews it every 2 seconds, records the speaker in a `Lease` beside the
+policy, and grants nobody else until a lost speaker's grant has lapsed. A
+lost speaker is replaced within about 32 seconds, and losing the operator's
+leader costs the addresses nothing. The timings and what each failure costs
+are on the
+[configuration page](../configuration/loadbalancer.md#elected-speaker).
 
 > Only IPv4 VIPs are announced (ARP is IPv4-only). IPv6 VIPs configured
 > here are ignored by the announcer (Neighbor Discovery is out of scope).
@@ -251,3 +258,4 @@ for the `announce` block.
 - `ebpfsentinel_packets_total{interface="LB_METRICS", action="no_backend"}` - packets with no available backend
 - `ebpfsentinel_lb_vip_arp_replies{vip}` - forged ARP replies per VIP (speaker only)
 - `ebpfsentinel_lb_vip_takeovers_total{vip}` - gratuitous-ARP takeovers per VIP
+- `ebpfsentinel_lb_vip_speaker` - 1 while this node answers ARP for its VIPs, 0 while it stays silent

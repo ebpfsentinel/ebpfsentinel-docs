@@ -17,6 +17,10 @@ const SOURCES = [
     label: 'the agent',
     env: 'EBPFSENTINEL_PROTO_DIR',
     dir: resolve(repoRoot, '..', 'ebpfsentinel', 'proto'),
+    // The container runtime's own API, which the agent calls on the node's CRI
+    // socket and does not serve: it belongs to containerd and CRI-O, and a
+    // reader of this page would take it for a service of ours.
+    consumed: ['cri'],
   },
   {
     id: 'ENTERPRISE MESSAGES',
@@ -42,13 +46,14 @@ const RPC_RE = /^rpc\s+(\w+)\s*\(\s*(stream\s+)?(\w+)\s*\)\s*returns\s*\(\s*(str
 const FIELD_RE = /^(repeated\s+|optional\s+)?([\w.]+)\s+(\w+)\s*=\s*(\d+)\s*;$/;
 const ENUM_VALUE_RE = /^(\w+)\s*=\s*(\d+)\s*;$/;
 
-function protoFiles(dir) {
+function protoFiles(dir, consumed = []) {
   const out = [];
   const walk = (current) => {
     for (const entry of readdirSync(current).sort()) {
       const path = join(current, entry);
-      if (statSync(path).isDirectory()) walk(path);
-      else if (entry.endsWith('.proto')) out.push(path);
+      if (statSync(path).isDirectory()) {
+        if (current !== dir || !consumed.includes(entry)) walk(path);
+      } else if (entry.endsWith('.proto')) out.push(path);
     }
   };
   walk(dir);
@@ -234,7 +239,7 @@ function readSource(source) {
   const dir = process.env[source.env] ? resolve(process.env[source.env]) : source.dir;
   let files;
   try {
-    files = protoFiles(dir);
+    files = protoFiles(dir, source.consumed);
   } catch (error) {
     fail([
       `Cannot read the proto tree of ${source.label} at ${dir}: ${error.message}`,

@@ -20,7 +20,7 @@ const DEFAULT_ENT_AGENT_MAIN = resolve(
   'crates',
   'enterprise-agent',
   'src',
-  'main.rs',
+  'cli.rs',
 );
 const agentMain = process.env.EBPFSENTINEL_ENT_AGENT_MAIN
   ? resolve(process.env.EBPFSENTINEL_ENT_AGENT_MAIN)
@@ -60,7 +60,7 @@ function readSource() {
       `  ${error.message}`,
       '',
       'The enterprise repository is expected beside this one. Set',
-      'EBPFSENTINEL_ENT_AGENT_MAIN to point at its enterprise-agent main.rs.',
+      'EBPFSENTINEL_ENT_AGENT_MAIN to point at its enterprise-agent cli.rs.',
     ]);
   }
   return '';
@@ -166,7 +166,8 @@ function fields(body, where) {
       attrs.push(line);
       continue;
     }
-    const field = /^(\w+):\s*[^,]+,$/.exec(line);
+    // A field of the top-level struct carries its visibility; a variant's does not.
+    const field = /^(?:pub(?:\([\w:]+\))?\s+)?(\w+):\s*[^,]+,$/.exec(line);
     if (!field) {
       fail([
         `${where}: cannot read \`${line}\`.`,
@@ -223,7 +224,7 @@ function commandsIn(text, enumName, prefix) {
     i -= 1;
     const name = `${prefix}${variantToCommand(open[1])}`;
     const collectedText = collected.join('\n');
-    const nested = /#\[command\(subcommand\)\]\s*\n\s*\w+:\s*(\w+)\s*,/.exec(collectedText);
+    const nested = /#\[command\(subcommand\)\]\s*\n\s*(?:pub(?:\([\w:]+\))?\s+)?\w+:\s*(\w+)\s*,/.exec(collectedText);
     if (nested) {
       commands.push({ name, args: [] });
       commands.push(...commandsIn(text, nested[1], `${name} `));
