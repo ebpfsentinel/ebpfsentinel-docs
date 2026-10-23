@@ -49,12 +49,19 @@ rule naming the old series: the query returns no data rather than an error, so
 update the query rather than waiting for something to fail.
 
 Four more changed name because the word they carried was wrong. The feature
-they count never wrote a packet capture: it freezes the forensic events a
-flow produced inside the ring buffer and counts them, so a series named
-`captures` promised a file that no deployment has ever been able to fetch.
-The four land in the first tagged release, which is also the first release in
-which any of these series is published, so an estate running a tagged build
-has only ever seen the new names.
+they counted wrote no packet capture: it froze the forensic events a flow
+produced inside the ring buffer and counted them, so a series named
+`captures` promised a file nothing wrote. The four land in the first tagged
+release, which is also the first release in which any of these series is
+published, so an estate running a tagged build has only ever seen the new
+names.
+
+The agent now writes packet captures, and two of the old names are back with
+that meaning: `ebpfsentinel_ent_forensics_captures_failed_total` and
+`ebpfsentinel_ent_forensics_captures_expired_total` count pcapng captures, not
+freezes (see [Forensics](#forensics)). A query written against the old names
+before the rename now reads a different subject, and the freeze counts are the
+`context_freezes` series in the right-hand column.
 
 | Old series | New series | Why |
 |--------|------|--------|
@@ -555,9 +562,11 @@ the rule is named in the alert the exhaustion raises and in the audit trail.
 
 ### Forensics
 
-Forensic event ingest, the ring buffer holding it and the context freezes
-triggered off it. A freeze copies the events a flow produced inside the buffer
-window; it writes no file, so nothing here counts bytes or captures.
+Forensic event ingest, the ring buffer holding it, the context freezes
+triggered off it and the packet captures written beside them. A freeze copies
+the events a flow produced inside the buffer window and writes no file; the
+`captures` series count the pcapng files written when capture is on, and stay
+at zero while it is off.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
@@ -569,6 +578,11 @@ window; it writes no file, so nothing here counts bytes or captures.
 | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | Counter | - | Context freezes that kept at least one event |
 | `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Counter | - | Context freezes that kept nothing, with the reason on the freeze itself |
 | `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Counter | - | Context freezes removed by the retention sweep |
+| `ebpfsentinel_ent_forensics_captures_written_total` | Counter | - | Packet captures written to disk |
+| `ebpfsentinel_ent_forensics_captures_failed_total` | Counter | `reason` | Packet captures that wrote nothing: `no_packets`, `volume_cap`, `disk_pressure`, `too_many_pending`, `write_failed` |
+| `ebpfsentinel_ent_forensics_captures_expired_total` | Counter | - | Packet captures deleted by retention |
+| `ebpfsentinel_ent_forensics_captures_downloaded_total` | Counter | - | Capture files served to a caller |
+| `ebpfsentinel_ent_forensics_capture_bytes_on_disk` | Gauge | - | Bytes every written capture adds up to |
 
 ### Compliance reporting
 

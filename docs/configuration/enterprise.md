@@ -308,6 +308,18 @@ enterprise:
     trigger:
       components: [ids, threatintel, ddos, dlp]
       min_severity: high                # low | medium | high | critical
+    capture:                            # alert-triggered pcapng, off unless enabled
+      enabled: false
+      interfaces: [eth0]                # at least one when enabled
+      ring_max_bytes: 67108864          # per interface, in memory, >= 1 MiB
+      snap_length: 1600                 # 64 to 65535
+      pre_window_secs: 10               # before the alert
+      post_window_secs: 5               # after it, at most 300
+      directory: /var/lib/ebpfsentinel/captures   # absolute, created 0700
+      retention_hours: 72               # > 0, enforced by the agent
+      max_total_bytes: 2147483648       # every capture on disk together
+      min_free_bytes: 1073741824        # nothing is written below this
+      max_pending: 32                   # > 0
 
   # ── Automated response ──────────────────────────────────────────
   response:

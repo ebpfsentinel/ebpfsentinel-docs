@@ -179,7 +179,7 @@ not from the request.
 | [ML detection](#ml-detection) | 21 | [ML detection](../features/enterprise/ml-detection.md) |
 | [Multi-cluster federation](#multi-cluster-federation) | 13 | [Multi-cluster federation](../features/enterprise/multicluster.md) |
 | [Multi-tenancy](#multi-tenancy) | 13 | [Multi-tenancy](../features/enterprise/multitenancy.md) |
-| [Network forensics](#network-forensics) | 10 | [Network forensics](../features/enterprise/network-forensics.md) |
+| [Network forensics](#network-forensics) | 13 | [Network forensics](../features/enterprise/network-forensics.md) |
 | [SIEM integration](#siem-integration) | 2 | [SIEM integration](../features/enterprise/siem-integration.md) |
 | [Threat intelligence platforms](#threat-intelligence-platforms) | 2 | [Threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) |
 | [TLS intelligence](#tls-intelligence) | 22 | [TLS intelligence](../features/enterprise/tls-intelligence.md) |
@@ -596,6 +596,9 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/forensics/captures` | viewer | `config:read` | network-forensics | List every packet capture, newest trigger first. |
+| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | viewer | `config:read` | network-forensics | Get one capture's record: trigger, flow, window, file, digest and custody position. |
+| `GET` | `/api/v1/enterprise/forensics/captures/{id}/pcapng` | operator | `config:write` | network-forensics | Download a written capture as `application/x-pcapng`, checked against its digest and recorded in custody under the caller's name. A read that needs the write grant and pays the write bucket. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes` | viewer | `config:read` | network-forensics | List all context freezes. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | viewer | `config:read` | network-forensics | Get a single context freeze: the events it froze, the window it covers and its outcome. |
 | `DELETE` | `/api/v1/enterprise/forensics/context-freezes/{id}` | operator | `config:write` | network-forensics | Delete a context freeze. |

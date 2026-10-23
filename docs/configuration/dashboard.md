@@ -565,6 +565,7 @@ The server exposes a single Axum router with the following route layout:
 | `GET/POST/PUT/DELETE /api/v1/{tenant}/*` | session | Proxy fan-out to agents for the tenant. |
 | `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
 | `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
+| `GET /api/v1/{tenant}/enterprise/forensics/captures/{id}/pcapng?agent={id}` | session, analyst or above | Packet capture download, streamed from the one agent that wrote it, never fanned out. 403 below analyst, 400 without `agent`. |
 | `GET /metrics` | none | Prometheus metrics (on `observability.prometheus_bind`, default `:9100`). |
 | `GET /*` | none | Static assets from `server.static_dir`. Unknown paths serve `index.html` (SPA fallback). |
 

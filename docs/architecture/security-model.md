@@ -183,6 +183,46 @@ narrow is visible rather than quiet.
 Statically-linked TLS runtimes (Go `crypto/tls`, Rust rustls, Java JSSE) export
 no `libssl` symbol to probe and are not covered by the OSS agent.
 
+## Alert-triggered packet capture (enterprise)
+
+A packet capture is personal data in the most literal sense: it holds the
+payload of somebody's traffic, addresses included. The enterprise agent's
+capture is therefore off unless `enterprise.forensics.capture.enabled` is set,
+and what it keeps, where, for how long and who may read it are fixed by the
+agent rather than left to the deployment's housekeeping. The full behaviour is
+on the [Network forensics](../features/enterprise/network-forensics.md#alert-triggered-packet-capture)
+page.
+
+- **Nothing is written without a trigger.** Frames are kept in a per-interface
+  ring in memory, bounded by `ring_max_bytes`, and overwritten as it turns. Only
+  a context freeze writes a file, and the file holds that one flow, matched on
+  its 5-tuple, for the configured window around the alert.
+- **On disk, owner-only.** The capture directory is created `0700` and every
+  file in it `0600`: each pcapng file, its JSON record, the custody key and the
+  custody log.
+- **Retention is the agent's.** A capture is deleted with its record
+  `retention_hours` after it was written, by the agent's own sweep and again at
+  startup for whatever expired while it was down, and deleting its freeze
+  deletes it too. A volume cap (`max_total_bytes`) and a free-space floor
+  (`min_free_bytes`) stop capture before the volume fills; a capture refused for
+  either is a failed record with its reason, never a partial file.
+- **Reading a capture is a privileged act.** Listing captures needs the read
+  grant every viewer holds; downloading one needs the **write** grant on the
+  agent and, through the dashboard, the analyst role or above - never a
+  viewer or an auditor. The response carries
+  `Cache-Control: no-store`, and the dashboard fetches it from the agent that
+  wrote it rather than fanning out.
+- **Custody is chained.** Every outcome - written, failed, expired, deleted,
+  downloaded and by whom - is one HMAC-SHA256-chained line of the custody log.
+  A line carries the event, the capture and the file's SHA-256, never a packet
+  or an address, so the log can be retained and shipped longer than the
+  captures it describes. A log that does not verify stops capture rather than
+  being appended to, and a file whose digest no longer matches its record is
+  refused rather than served.
+- **The socket is brokered.** The `AF_PACKET` sockets come from the launcher's
+  pre-opened pool or from the warden, so the agent itself does not need
+  `CAP_NET_RAW`; only an agent with neither falls back to opening its own.
+
 ## Authentication Security
 
 - **JWT validation** - RS256 or EdDSA signature, issuer, audience, expiration checks
