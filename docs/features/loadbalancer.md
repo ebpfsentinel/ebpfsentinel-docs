@@ -159,7 +159,8 @@ ebpfsentinel-agent --output json lb services
 
 Each item of `GET /api/v1/lb/services` carries `id`, `name`, `protocol`,
 `listen_port`, `algorithm`, `mode`, `backend_count`, `enabled` and
-`health_checked`.
+`health_checked`, plus `listen_addr` where the service answers on one
+destination address only.
 
 `GET /api/v1/lb/services/{id}` adds the backends and, where the service carries
 one, a `health_check` block holding `protocol`, `interval_secs`, `timeout_secs`,

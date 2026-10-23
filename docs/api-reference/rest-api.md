@@ -1256,9 +1256,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 | `id` | string | Yes | Unique service identifier (max 64 chars) |
 | `name` | string | Yes | Human-readable name |
 | `protocol` | string | Yes | `tcp`, `udp`, `tls_passthrough` |
+| `listen_addr` | string | No | Destination address the service answers on (IPv4 or IPv6); omitted, every address on the port |
 | `listen_port` | integer | Yes | Frontend port (1-65535) |
 | `algorithm` | string | Yes | `round_robin`, `weighted`, `ip_hash`, `least_conn` |
 | `backends` | array | Yes | At least one backend (`id`, `addr`, `port`, `weight`) |
+
+Answers `409` with `DUPLICATE_RULE` when the identifier is taken, or when another service already listens on the same protocol, address and port: the data plane holds one service per key, so the second would replace the first. `tcp` and `tls_passthrough` count as one protocol.
 
 #### DELETE /api/v1/lb/services/{id}
 

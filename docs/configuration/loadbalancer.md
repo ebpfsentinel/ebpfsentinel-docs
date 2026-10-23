@@ -11,6 +11,7 @@ loadbalancer:
     - id: "service-id"                   # Unique service identifier (max 64 chars)
       name: "human-readable-name"        # Display name
       protocol: "tcp"                    # tcp, udp, or tls_passthrough
+      listen_addr: "192.0.2.10"          # Optional: answer on this address only (IPv4 or IPv6)
       listen_port: 443                   # Frontend port
       algorithm: "round_robin"           # round_robin, weighted, ip_hash, least_conn, maglev
       mode: "dnat"                       # dnat (default) or l2dsr
@@ -46,12 +47,15 @@ loadbalancer:
 | `id` | `string` | Yes | Unique service identifier (max 256 characters) |
 | `name` | `string` | Yes | Human-readable service name |
 | `protocol` | `string` | No | `tcp` (default), `udp`, or `tls_passthrough` |
+| `listen_addr` | `string` | No | Destination address the service answers on, IPv4 or IPv6. This is how a virtual address is served: the data plane matches the exact address first, then a service carrying no `listen_addr` on the same port, so two services can share one port at two addresses and a service bound to an address never captures traffic sent to the node itself. Omitted, the service answers on every address on its port. |
 | `listen_port` | `integer` | Yes | Frontend port to listen on (1-65535) |
 | `algorithm` | `string` | No | `round_robin` (default), `weighted`, `ip_hash`, `least_conn`, `maglev` |
 | `mode` | `string` | No | Forwarding mode: `dnat` (default) or `l2dsr`. Aliases for `l2dsr`: `l2_dsr`, `dsr`. With `l2dsr`, every backend must set `same_segment: true` or config is rejected. |
 | `enabled` | `bool` | No | Enable/disable this service (default: `true`) |
 | `backends` | `[LbBackend]` | Yes | At least one backend required, at most 256 |
 | `health_check` | `LbHealthCheck` | No | Optional backend health probe |
+
+Two services with the same protocol, `listen_addr` and `listen_port` are refused at load, because the data plane holds one service per key and the later would silently replace the earlier. `tcp` and `tls_passthrough` are one protocol on the wire, so they conflict with each other; a service carrying no `listen_addr` and one carrying an address on the same port do not.
 
 ### LbBackend
 

@@ -613,7 +613,7 @@ L4 load balancer: services, backends, and health status.
 # Load balancer status
 ebpfsentinel-agent lb status
 
-# List all services
+# List all services (ADDRESS reads `*` for a service answering on every address)
 ebpfsentinel-agent lb services
 
 # View a specific service (backends, health, connections)
