@@ -312,6 +312,9 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/response/approvals` | viewer | `config:read` | automated-response | Actions waiting for a person, oldest first. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/approve` | operator | `config:write` | automated-response | Take a waiting action. `403` for a request naming nobody, `404` when nothing waits under the id. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/refuse` | operator | `config:write` | automated-response | Decline a waiting action. `404` when nothing waits under the id. |
 | `GET` | `/api/v1/enterprise/response/audit` | viewer | `config:read` | automated-response | Query the audit trail, newest first. |
 | `GET` | `/api/v1/enterprise/response/policies` | viewer | `config:read` | automated-response | List all response policies. |
 | `POST` | `/api/v1/enterprise/response/policies` | operator | `config:write` | automated-response | Create a response policy. |

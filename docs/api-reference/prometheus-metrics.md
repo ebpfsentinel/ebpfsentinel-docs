@@ -546,6 +546,8 @@ hold an action back: a cooldown, the never-act list and a rule's own ceiling.
 | `ebpfsentinel_ent_response_never_act_refusals_total` | Counter | - | Actions refused by the never-act list |
 | `ebpfsentinel_ent_response_policies_in_dry_run` | Gauge | - | Enabled response policies that report and enforce nothing |
 | `ebpfsentinel_ent_response_never_act_entries` | Gauge | - | Entries on the never-act list |
+| `ebpfsentinel_ent_response_approval_decisions_total` | Counter | `decision` | Held actions answered, by `approved`, `refused`, `timeout_refused`, `timeout_executed`, or `queue_full` for one refused at a full queue |
+| `ebpfsentinel_ent_response_approvals_pending` | Gauge | - | Actions waiting for a person to approve or refuse them |
 
 `response_budget_refusals_total` carries no rule label on purpose: the values
 would come from operator-chosen policy ids, which is an unbounded series, and

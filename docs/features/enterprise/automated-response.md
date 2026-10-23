@@ -201,6 +201,99 @@ Further actions in the same window are refused, written to the trail as
 carries no rule label: a label whose values come from operator-chosen ids is an
 unbounded series, and the rule's name is in the alert and in the trail.
 
+### Actions that wait for a person
+
+Above a severity the operator chooses, an action is not taken when its rule
+matches: it is queued, a person approves or refuses it, and an action nobody
+answered is decided by the timeout. The threshold is node configuration, like
+the never-act list, so a rule shipped over the API cannot lower the bar it is
+held to.
+
+```yaml
+enterprise:
+  response:
+    approval:
+      min_severity: high       # low | medium | high | critical
+      timeout_secs: 900        # 60 to 86400
+      on_timeout: refuse       # refuse | execute
+      max_pending: 256
+```
+
+Without the block nothing waits, which is how a node configured before
+approvals existed keeps behaving. With it:
+
+- **A notification never waits.** `webhook_notify` changes nothing on the node,
+  and the webhook is often how the approver learns there is something to
+  approve, so it is sent at once whatever the severity.
+- **The timeout refuses by default.** An absent approver is not consent. An
+  operator who wants a window to veto rather than a gate to pass sets
+  `on_timeout: execute`, and the dashboard says so beside every held action.
+- **The timeout is between one minute and one day.** The sweep that answers it
+  runs once a minute, so a shorter one would be honoured late by up to its own
+  length; an action held for longer than a day acts on an alert nobody
+  remembers, against a target that may have moved.
+- **A repeat is folded, not queued again.** An alert repeating for the same
+  rule, the same action and the same source while the first one waits is
+  recorded against the entry already waiting.
+- **The queue is bounded.** An action arriving at a full queue is refused,
+  written to the trail as `skipped` and counted under `queue_full`, because what
+  fills a queue is an alert storm and a queue without a bound turns that storm
+  into memory.
+- **The queue is in memory.** A restart empties it, and an action that was
+  waiting is then neither taken nor recorded as refused. The rule that raised it
+  is restored, so the next matching alert asks again.
+
+The ladder is fixed and runs in this order: the never-act list, then dry run,
+then the fold onto an entry already waiting, then the rule's budget, then the
+queue. A dry run therefore never waits, and an action that waits has already
+been counted against its rule's budget, so an approver clearing a backlog
+cannot push a rule past its own ceiling.
+
+#### Deciding
+
+```bash
+# What is waiting, oldest first
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://agent:8444/api/v1/enterprise/response/approvals
+
+# Take it
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST \
+  http://agent:8444/api/v1/enterprise/response/approvals/apr-18f2c4a1b9e3d000-1/approve
+
+# Decline it
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST \
+  http://agent:8444/api/v1/enterprise/response/approvals/apr-18f2c4a1b9e3d000-1/refuse
+```
+
+Each waiting entry carries what a decision needs without opening anything else:
+the rule, the action, the alert that asked for it with its severity and
+message, the source and destination, the process and cgroup where the alert
+named them, when it was queued, when it expires and what the timeout will
+answer.
+
+An approval is recorded under **who gave it**: the subject of the verified
+token when there is one, otherwise the principal the RBAC layer resolved, and
+never a name the request asserts for itself. A request that names nobody is
+refused with `403` before the entry is touched, so it stays in the queue for
+somebody who can be named. A refusal is accepted from anyone the RBAC layer let
+through, because declining to act can harm nothing. An id nothing waits under,
+including one the timeout already answered, is a `404`.
+
+The trail reads as the sequence it was. The match writes a first record with
+the outcome `awaiting_approval`; the decision writes a second one carrying the
+action's own outcome and, in `decided_by`, the person who made it. A record the
+timeout wrote carries no `decided_by`, because nobody decided.
+
+| Answer | Second record | `decision` label |
+|--------|---------------|------------------|
+| Approved | The action's outcome, detail `approved by <who>: ...` | `approved` |
+| Refused | `skipped`, detail `refused by <who>: ...` | `refused` |
+| Timeout, `on_timeout: refuse` | `skipped`, `no decision within <n>s: refused on timeout` | `timeout_refused` |
+| Timeout, `on_timeout: execute` | The action's outcome, `no decision within <n>s: executed on timeout: ...` | `timeout_executed` |
+
+The dashboard lists the waiting actions at the top of the response screen,
+those the timeout answers first at the top, with Approve and Refuse for anyone
+allowed to push configuration.
+
 ### Example Policy
 
 ```json
@@ -238,6 +331,7 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 | `max_retries` | 3 | Retries with exponential backoff (500 ms doubling per retry: 500 ms, 1 s, 2 s, ..., capped at 30 s) |
 | `timeout_ms` | 5000 | Per-request timeout |
 | `enabled` | true | Enable/disable without deleting |
+| `signing_secret` | absent | Shared secret every delivery is signed with, at least 32 bytes. Absent sends unsigned |
 
 ### Webhook Payload
 
@@ -254,6 +348,60 @@ Webhook endpoints are configured independently from policies. Multiple policies 
 }
 ```
 
+### Verifying a delivery
+
+An endpoint holding a `signing_secret` receives every delivery signed, so a
+receiver can tell a request from this agent from one crafted by anybody who
+learnt its URL. Two headers carry it:
+
+| Header | Value |
+|--------|-------|
+| `X-EBPFSentinel-Timestamp` | Seconds since the Unix epoch at signing |
+| `X-EBPFSentinel-Signature` | `v1=` followed by the lowercase hexadecimal HMAC-SHA256 |
+
+To verify:
+
+1. read `X-EBPFSentinel-Timestamp` and refuse it when it is further from your
+   own clock than you tolerate (five minutes is usual);
+2. build the string `<timestamp>.<raw body>`, with the body exactly as it
+   arrived and before any JSON parsing;
+3. compute HMAC-SHA256 over it with the shared secret, as lowercase hexadecimal;
+4. compare it in constant time with what follows `v1=` in
+   `X-EBPFSentinel-Signature`.
+
+The timestamp is inside the signed string, so a captured request cannot be
+replayed later under a fresh timestamp, and each retry is signed afresh, so a
+retry still falls inside your tolerance. The `v1` prefix is the scheme's
+version: a change of algorithm would be a new prefix rather than a silent break.
+
+A vector to test a receiver against:
+
+| Input | Value |
+|-------|-------|
+| Secret | `0123456789abcdef0123456789abcdef` |
+| Timestamp | `1760000000` |
+| Body | `{"alert_id":"a-1","severity":"High"}` |
+| Signature | `v1=6bcd72d79b06f4a17697e4f6044f62ee4c273a8bafcd414f4895ca0bd7acd90a` |
+
+```python
+import hashlib, hmac, time
+
+def verify(secret: bytes, headers, body: bytes, tolerance=300) -> bool:
+    ts = headers["X-EBPFSentinel-Timestamp"]
+    if abs(time.time() - int(ts)) > tolerance:
+        return False
+    expected = hmac.new(secret, ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest("v1=" + expected, headers["X-EBPFSentinel-Signature"])
+```
+
+A secret shorter than 32 bytes is refused when the endpoint is created: that is
+the output size of the hash underneath, and a shorter secret is guessable well
+before the MAC is. The secret is persisted with the endpoint, so a restart
+keeps signing, and it is never read back: a listing shows `redacted` in its
+place, which is itself too short to be accepted, so a listing posted back as a
+new endpoint is refused rather than registering the mask as a secret. An
+endpoint created without a secret keeps sending unsigned.
+
 ### Example Setup
 
 ```bash
@@ -267,7 +415,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://agent:8444/ap
     "headers": [["Authorization", "Bearer eyJ..."]],
     "max_retries": 3,
     "timeout_ms": 5000,
-    "enabled": true
+    "enabled": true,
+    "signing_secret": "'"$(openssl rand -hex 32)"'"
   }'
 
 # Create policy referencing the webhook
@@ -290,13 +439,14 @@ Every executed response action is recorded in a bounded audit trail (default: 10
 |-------|-------------|
 | `id` | Action identifier |
 | `action_type` | `block_ip`, `rate_limit_ip`, `isolate_flow`, `quarantine_cgroup`, `release_cgroup`, `kill_process`, `webhook_notify` |
-| `outcome` | `success`, `failed` (with reason), `skipped` (with reason), or `dry_run` (with what it would have done) |
+| `outcome` | `success`, `failed` (with reason), `skipped` (with reason), `dry_run` (with what it would have done), or `awaiting_approval` (with the approval id) |
 | `executed_at_ns` | Execution timestamp |
 | `trigger_alert_id` | The alert that triggered this action |
 | `trigger_component` | Source component |
 | `trigger_severity` | Alert severity |
 | `policy_id` | Policy that matched |
 | `detail` | Human-readable action description |
+| `decided_by` | Who approved or refused a held action; absent when the automation acted on its own |
 
 ### Querying the Audit Trail
 
@@ -333,6 +483,9 @@ answer is a bare array, newest first.
 | `POST` | `/api/v1/enterprise/response/webhooks` | operator | automated-response | Create a webhook endpoint. |
 | `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | operator | automated-response | Delete a webhook endpoint. |
 | `GET` | `/api/v1/enterprise/response/audit` | viewer | automated-response | Query the audit trail. |
+| `GET` | `/api/v1/enterprise/response/approvals` | viewer | automated-response | Actions waiting for a decision, oldest first. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/approve` | operator | automated-response | Take a waiting action, recorded under the approver. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/refuse` | operator | automated-response | Decline a waiting action. |
 
 ## Metrics
 
@@ -348,9 +501,13 @@ answer is a bare array, newest first.
 | `ebpfsentinel_ent_response_never_act_refusals_total` | Counter | - | Actions refused by the never-act list |
 | `ebpfsentinel_ent_response_policies_in_dry_run` | Gauge | - | Enabled policies that enforce nothing |
 | `ebpfsentinel_ent_response_never_act_entries` | Gauge | - | Entries on the never-act list |
+| `ebpfsentinel_ent_response_approval_decisions_total` | Counter | `decision` | Held actions answered: `approved`, `refused`, `timeout_refused`, `timeout_executed`, or `queue_full` for one refused at a full queue |
+| `ebpfsentinel_ent_response_approvals_pending` | Gauge | - | Actions waiting for a person |
 
 `response_policies_in_dry_run` is the series to alert on: a rule left in dry run
-after the trail was read is containment the estate believes it has.
+after the trail was read is containment the estate believes it has. Its
+counterpart for approvals is a rising `timeout_refused`: actions the estate
+asked for are being declined because nobody is answering.
 
 ## State Persistence
 
@@ -410,6 +567,11 @@ enterprise:
         cidr: 10.0.0.0/24
       - id: database
         unit: postgresql.service
+    approval:
+      min_severity: high
+      timeout_secs: 900
+      on_timeout: refuse
+      max_pending: 256
 ```
 
 | Field | Type | Default | Description |
@@ -418,11 +580,21 @@ enterprise:
 | `audit_max_entries` | usize | `10000` | Ring size of the in-memory audit trail |
 | `state_path` | string | a well-known system path | Where policies and webhooks are persisted. Set it explicitly when several agents share a host, otherwise they restore each other's policies |
 | `never_act` | list of entry | `[]` | What the automation may never act on. Each entry carries an `id` and at least one selector |
+| `approval` | object | absent | Actions that wait for a person. Absent, nothing waits |
+| `approval.min_severity` | severity | required | An alert at this severity or above holds its actions |
+| `approval.timeout_secs` | u64 | `900` | How long an action waits, from `60` to `86400` |
+| `approval.on_timeout` | `refuse` or `execute` | `refuse` | What the timeout answers |
+| `approval.max_pending` | usize | `256` | How many actions may wait at once, above zero |
+
+An `approval` block the node could not honour, a timeout outside its range or a
+queue of zero, keeps the subsystem from arming at all, the way an invalid
+never-act list does: arming without it would take, unasked, the actions the
+operator wrote down as needing a person.
 
 Policies and webhook endpoints are managed via the REST API at runtime, not in
-static YAML configuration. `never_act` is the exception on purpose: it is the
-operator's own fence, so it is not reachable over the API and an entry cannot be
-removed by a rule.
+static YAML configuration. `never_act` and `approval` are the exceptions on
+purpose: they are the operator's own fences, so neither is reachable over the
+API and a rule can neither remove an entry nor lower the threshold.
 
 ## Feature Gating
 

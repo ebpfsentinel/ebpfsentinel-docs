@@ -314,6 +314,11 @@ enterprise:
     enabled: true
     audit_max_entries: 10000
     never_act: []                       # see automated-response feature page
+    approval:                           # absent: nothing waits for a person
+      min_severity: high                # low | medium | high | critical
+      timeout_secs: 900                 # 60 to 86400
+      on_timeout: refuse                # refuse | execute
+      max_pending: 256
 
   # ── Air-gap feed bundles ────────────────────────────────────────
   air_gap:                              # object, NOT a bool
