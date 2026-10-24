@@ -421,6 +421,9 @@ The pods are those the Kubernetes enricher watches on this node, so a
 here. Without the enricher there is no pod to judge and the route answers
 `404` with `SERVICE_NOT_AVAILABLE`.
 
+Why each gap exists and what lifts it is on
+[what a node agent sees](../architecture/node-agent-visibility.md).
+
 #### GET /api/v1/ebpf/uprobes
 
 The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.

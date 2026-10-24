@@ -108,7 +108,7 @@ node.
 
 ### XDP/TC Programs (Firewall, NAT, Conntrack, Rate Limiting, DDoS, Load Balancer, Scrub)
 
-These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see all traffic entering and leaving the machine. **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets - see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
+These programs attach to **host network interfaces** (e.g., `eth0`). They require access to the host network namespace to see the traffic entering and leaving the machine; what that leaves out of a pod's traffic is on [what a node agent sees](../architecture/node-agent-visibility.md). **Multi-NIC is fully supported**: configure `agent.interfaces: [eth0, eth1, ...]` and every eBPF program attaches to each listed interface. Bond masters (`bond0`), team devices, and VLAN trunk parents are all valid targets - see the [agent configuration guide](../configuration/agent.md#multi-nic-and-bond-interfaces) for details.
 
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods, and its scope is limited to the pod's own traffic.
@@ -329,7 +329,7 @@ for the kernel-version matrix.
 | Full host/VM protection (all features) | Bare metal binary |
 | Containerized with full coverage | Container, warden + agent from `docker-compose.yml` (`network_mode: host`, `/proc:/host/proc:ro` on both, no `pid: host`) |
 | Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true` and the `/host/proc` mount, warden sidecar (Helm chart defaults) |
-| Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` (the default), on any CNI that gives pods a veth, netkit, macvlan or ipvlan link |
+| Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` (the default), on any CNI that gives pods a veth, netkit, macvlan or ipvlan link; host-network pods and loopback stay out of sight, as [what a node agent sees](../architecture/node-agent-visibility.md) explains |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
 For production Kubernetes deployments, use the **DaemonSet** pattern as the

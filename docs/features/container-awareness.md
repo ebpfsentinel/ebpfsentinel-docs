@@ -425,5 +425,6 @@ eBPF (cgroup_id in PacketEvent)
 - [Extended TLS Library Hooking (Enterprise)](enterprise/dlp.md#extended-tls-library-coverage)
 - [TC attach mode & netkit hot-plug](../configuration/agent.md#tc-attachment-mode) - how TC programs attach to Cilium netkit pod interfaces
 - [Deployment Matrix](deployment-matrix.md)
+- [What a node agent sees](../architecture/node-agent-visibility.md) - which traffic of a pod a node agent does not see, and why
 - [Kubernetes Deployment](../operations/deployment/kubernetes.md)
 - [Docker Deployment](../operations/deployment/docker.md)

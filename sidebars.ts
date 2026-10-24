@@ -190,6 +190,7 @@ const sidebars: SidebarsConfig = {
         'architecture/hexagonal-ddd',
         'architecture/ebpf-programs',
         'architecture/data-flow',
+        'architecture/node-agent-visibility',
         'architecture/security-model',
       ],
     },
