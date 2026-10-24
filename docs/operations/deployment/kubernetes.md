@@ -426,7 +426,13 @@ The agent watches rtnetlink for every pod link - veth, netkit, macvlan, ipvlan
 and bridge members - and attaches to each one as it appears, releasing it when
 the pod goes (`link hot-plug watcher started` in the log, then one
 `hot-plug: workload link attached` line per pod link, carrying the container
-id when the pod's cgroup names one). See
+id when the pod's cgroup names one). A rollout or a node draining back in
+starts many pods at once: messages are folded over 100 ms so each pod link is
+attached once, a burst that overruns the socket makes the agent re-read the
+link table rather than lose a pod, and a recreated pod's new link is attached
+under its new name. The window before a new pod's link is attached is
+published as `ebpfsentinel_link_attach_gap_seconds` and the packets it carried
+meanwhile as `ebpfsentinel_link_attach_unguarded_packets_total`. See
 [workload link hot-plug](../../configuration/agent.md#workload-link-hot-plug).
 `attach_mode` has no chart value; set it through `configOverride`.
 

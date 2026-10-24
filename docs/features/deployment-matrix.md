@@ -129,29 +129,34 @@ the hook:
 | TC | IDS/IPS, threat intelligence, DNS, conntrack, NAT, scrub, QoS | :white_check_mark: | Attached to the container's host-side interface (netkit or veth), see below |
 | uprobe | DLP | :white_check_mark: | Attached to the TLS library mapped by each process, see [DLP](#dlp-data-loss-prevention) |
 
-**netkit (Kubernetes, Cilium 1.16+ in netkit mode).** With
-`agent.attach_mode: auto` (the default) or `netkit`, the agent watches for
-netkit devices and attaches the TC chain to every pod automatically:
+**Every workload link, discovered.** The agent listens to rtnetlink and
+attaches the TC chain to each workload link as the kernel announces it: veth
+(Docker, Podman, Calico, Flannel, k3s, kindnet, Cilium in veth mode), netkit
+(Cilium 1.16+ in netkit mode), macvlan and ipvlan (Multus, Docker macvlan
+networks) and any virtual device enslaved to a bridge. Nothing has to be listed
+by hand, and a container recreated under a new `veth<id>` name is picked up
+under it:
 
 - the ingress chain (IDS, threat intelligence, DNS, conntrack, NAT ingress,
   scrub, QoS ingress) runs on traffic going **into** the pod, the egress chain
   (IDS when `ids.inspect_egress` or the container resolver is on, NAT egress,
   QoS) on traffic coming **out** of it, each in the same order as on a node NIC;
-- pods already running when the agent starts are covered on the first poll,
-  new pods within one poll cycle;
-- the links are released when the pod is deleted, so pod churn does not leak
-  program references;
+- workloads already running when the agent starts are covered when it reads
+  the link table at start, new ones as their link appears;
+- the links are released when the workload goes, so churn does not leak
+  program references, and a burst of fifty containers starting at once is
+  folded into one attach each;
 - an interface also listed in `agent.interfaces` is left alone, so nothing is
-  attached twice.
+  attached twice;
+- `attach_mode: netkit` restricts the hot-plug to netkit devices; `auto` and
+  `tc` take every kind.
 
-The watcher does not run with `attach_mode: tc`.
-
-**veth (Docker, Calico, Flannel and every other veth-based CNI).** There is no
-automatic discovery: list the host-side interfaces in `agent.interfaces` to put
-the TC chain on them. For Docker, listing the bridge (`docker0`, or a
-`br-<id>` user network) covers every container attached to it; a single
-container's `veth<id>` covers that container only, and its name changes when the
-container is recreated.
+Between a link appearing and the chain being on it, its traffic is not seen by
+the TC programs; the window and the packets carried in it are published as
+metrics, see [workload link hot-plug](../configuration/agent.md#workload-link-hot-plug).
+Listing the Docker bridge (`docker0`, or a `br-<id>` user network) in
+`agent.interfaces` remains a way to inspect every container on it from the
+start, at the cost of seeing their traffic only where it crosses the bridge.
 
 Container attribution is independent of the interface: the container resolver
 maps each packet's cgroup id (read on the TC egress hook) to its container or
@@ -324,7 +329,7 @@ for the kernel-version matrix.
 | Full host/VM protection (all features) | Bare metal binary |
 | Containerized with full coverage | Container, warden + agent from `docker-compose.yml` (`network_mode: host`, `/proc:/host/proc:ro` on both, no `pid: host`) |
 | Kubernetes cluster-wide protection | DaemonSet with `hostNetwork: true` and the `/host/proc` mount, warden sidecar (Helm chart defaults) |
-| Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` on a netkit CNI, or the veth interfaces listed in `agent.interfaces` |
+| Pod-to-pod inspection on the same node | DaemonSet with `attach_mode: auto` (the default), on any CNI that gives pods a veth, netkit, macvlan or ipvlan link |
 | Per-pod application DLP only | Sidecar (limited to pod scope) |
 
 For production Kubernetes deployments, use the **DaemonSet** pattern as the

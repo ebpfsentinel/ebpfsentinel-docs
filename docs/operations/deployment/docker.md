@@ -264,6 +264,22 @@ enabled and no socket is at that path. See
 [container awareness](../../features/container-awareness.md) for the full
 reference.
 
+### Containers coming and going
+
+Each container's host-side `veth<id>` gets the TC chain the moment Docker
+creates it, with no restart and nothing listed in `agent.interfaces`: the agent
+hears the link on rtnetlink, waits 100 ms to fold a burst, attaches, and logs
+`hot-plug: workload link attached` with the container id. A container stopped
+releases its attachments; one recreated gets a new `veth<id>` name and is
+attached under it. A `docker compose up` starting many containers costs one
+attach each, and a burst large enough to overrun the socket makes the agent
+re-read the link table rather than miss one, as it also does every 60 seconds.
+Containers on a macvlan or ipvlan network are attached the same way. What
+passes before the attach completes is measured by
+`ebpfsentinel_link_attach_gap_seconds` and
+`ebpfsentinel_link_attach_unguarded_packets_total`, described under
+[workload link hot-plug](../../configuration/agent.md#workload-link-hot-plug).
+
 ## Bind Address and Host Networking
 
 With `network_mode: host`, the container shares the host network stack.
