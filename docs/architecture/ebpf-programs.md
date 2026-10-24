@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 21 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 22 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-one form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -29,6 +29,7 @@ eBPFsentinel includes 21 eBPF kernel programs, all written in Rust using the [Ay
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
 | `tracepoint-signal` | raw tracepoint | `crates/ebpf-programs/tracepoint-signal/` | Signals an armed thread group at its next system call, refusing the protected ones (loaded only where the capability is on) |
 | `lsm-exec-network` | BPF LSM | `crates/ebpf-programs/lsm-exec-network/` | Refuses an internet socket to an executable outside the configured list, at `socket_create` and `socket_connect` (loaded only where the list is on and the BPF LSM is active) |
+| `cgroup-connect-redirect` | cgroup sock_addr + sock_ops | `crates/ebpf-programs/cgroup-connect-redirect/` | Steers the TCP connections of selected cgroups to the enterprise TLS inspection proxy, recording where each was going (enterprise, loaded only where the redirect is configured) |
 
 ## Interface Groups (Cross-Cutting)
 

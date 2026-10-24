@@ -60,6 +60,18 @@ enterprise:
         - "healthcare.example.org"
       bypass_ips:
         - "10.0.0.0/8"
+      listen_port: 8443          # where the proxy accepts connections
+      # Opt-in, per workload: send the TCP connections of the selected
+      # workloads through the proxy. Without this block the proxy only sees
+      # what something else routes to it.
+      # redirect:
+      #   cgroups: ["system.slice/payments.service"]
+      #   selectors:
+      #     - namespace: payments
+      #   ports: [443]
+      #   listener_ipv4: 10.0.0.5    # an address of this node a workload can reach
+      #   listener_ipv6: fd00::5
+      #   refresh_seconds: 15
     l7_advanced:
       # Empty = every payload submitted to the L7 analyze endpoint is
       # scanned. Populate to opt in rule by rule; anything not named is
@@ -547,6 +559,15 @@ covers what each indicator kind reaches, with
 | `advanced_dlp.tls_inspection.ca_key` | string | required | CA private key PEM path |
 | `advanced_dlp.tls_inspection.bypass_domains` | list | `[]` | Domains to skip (exact or `*.suffix`) |
 | `advanced_dlp.tls_inspection.bypass_ips` | list | `[]` | IPs/CIDRs to skip |
+| `advanced_dlp.tls_inspection.listen_port` | u16 | `8443` | Port the proxy listens on, and the port a redirected connection is sent to. Not `0` |
+| `advanced_dlp.tls_inspection.redirect` | object | absent | Sends the TCP connections of selected workloads through the proxy. Refused while inspection is disabled, and the agent does not start when it is set and cannot be put in force |
+| `advanced_dlp.tls_inspection.redirect.cgroups` | list | `[]` | Cgroup paths, relative to the cgroup root, whose tasks and descendants are redirected. No `..` |
+| `advanced_dlp.tls_inspection.redirect.selectors` | list | `[]` | Workload selectors, the same shape as the DLP scope selectors, resolved against the running containers and pods. At least one cgroup or one selector is required |
+| `advanced_dlp.tls_inspection.redirect.ports` | list | `[443]` | Destination ports redirected. 1 to 64 entries, never `0` |
+| `advanced_dlp.tls_inspection.redirect.listener_ipv4` | IPv4 | absent | Node address IPv4 connections are sent to. Not loopback, not unspecified: a workload in its own network namespace reaches its own loopback |
+| `advanced_dlp.tls_inspection.redirect.listener_ipv6` | IPv6 | absent | Node address IPv6 connections are sent to. At least one of the two listeners is required |
+| `advanced_dlp.tls_inspection.redirect.refresh_seconds` | u64 | `15` | How often the selectors are resolved again against the workloads running on the node |
+| `advanced_dlp.tls_inspection.redirect.dry_run` | bool | `false` | Resolve the selection and report on it at `/api/v1/enterprise/tls-probes/redirect` without loading the redirect programs: nothing is redirected. Run it first to see which selected workloads lack the authority or appear to pin |
 | `advanced_dlp.l7_advanced.deep_inspect_rule_ids` | list | `[]` | Rule ids allowed to trigger a deep-inspection scan. Empty means every submitted payload is scanned |
 | `advanced_dlp.l7_advanced.custom_inspect_patterns` | list | `[]` | Deep-inspection patterns loaded on top of the built-in catalogue |
 

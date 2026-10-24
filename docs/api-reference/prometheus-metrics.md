@@ -742,6 +742,9 @@ The uprobe scanner attaching to userspace TLS libraries.
 | `ebpfsentinel_ent_tls_probes_binaries_tracked` | Gauge | `library` | Unique binaries currently tracked per TLS library |
 | `ebpfsentinel_ent_tls_probes_scan_duration_seconds` | Gauge | - | Most recent extended TLS probe scan duration in seconds |
 | `ebpfsentinel_ent_tls_probes_scan_warnings_total` | Counter | `library` | Warnings emitted during extended TLS probe scans, labelled by category |
+| `ebpfsentinel_ent_tls_redirect_connections_total` | Counter | `outcome` | Connections of redirected workloads by what the kernel did: `redirected`, `refused` (destination not recorded, connection refused), `port_skipped` (selected workload, port not listed), `published` and `publish_failed` (the record moved under the source address, or not) |
+| `ebpfsentinel_ent_tls_redirect_workloads` | Gauge | - | Cgroups the TLS redirect currently selects |
+| `ebpfsentinel_ent_tls_redirect_attached` | Gauge | - | `1` when the TLS redirect hooks are attached |
 
 The scanner itself is documented with the feature in
 [Enterprise DLP](../features/enterprise/dlp.md).

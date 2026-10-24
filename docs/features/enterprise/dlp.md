@@ -195,6 +195,124 @@ Dynamic per-SNI certificate generation:
 
 **Privacy Note:** TLS deep inspection requires explicit opt-in. The CA certificate must be deployed to all monitored endpoints.
 
+### Redirecting chosen workloads to the proxy
+
+The proxy reads what reaches it, and on its own nothing does. `redirect`
+steers the TCP connections of the workloads you name to it, at the moment
+the workload calls `connect()`, so no route, no iptables rule and no sidecar
+is involved:
+
+```yaml
+enterprise:
+  advanced_dlp:
+    tls_inspection:
+      enabled: true
+      ca_cert: /etc/ebpfsentinel/ca.crt
+      ca_key: /etc/ebpfsentinel/ca.key
+      listen_port: 8443
+      redirect:
+        cgroups: ["system.slice/payments.service"]
+        selectors:
+          - namespace: payments
+        ports: [443]
+        listener_ipv4: 10.0.0.5
+```
+
+It is the last resort, after symbols and the offset catalogue, because it
+costs the workload a trust it did not need before. It is opt-in per workload
+and nothing else moves: a task whose cgroup, or
+one of its ancestors, is not selected connects exactly as before, and so
+does a selected task connecting to a port that is not listed. The agent's
+own cgroup is always exempt, so the proxy's upstream connection is never
+sent back to itself.
+
+What happens to a selected connection: the kernel records where it was
+going, rewrites the destination to the listener, and once the source port is
+chosen files the record under the address the proxy will see the connection
+come from. The proxy takes that record on accept, terminates TLS with a
+certificate from the configured authority, inspects the cleartext, and opens
+its own connection to the recorded destination. The record is consumed by
+the lookup, so a reused source port cannot inherit a previous destination.
+
+It fails visibly rather than quietly:
+
+- the agent does not start when the redirect is configured and the
+  programs do not load or attach, or the selection cannot be resolved,
+  because an agent running without it is one claiming coverage it does not
+  have;
+- a selected connection whose destination the kernel could not record is
+  refused there, counted as `refused`, rather than delivered to a proxy that
+  could not route it;
+- a connection the proxy cannot find a record for is dropped and logged.
+
+A workload read this way shows in the coverage report as covered with
+`means: termination`, on the surfaces the probes could not read.
+
+#### Before turning it on: the trust anchor and pinned clients
+
+A terminated session succeeds only when the workload trusts the authority
+named by `ca_cert`. A workload that does not will fail every TLS handshake
+the moment the redirect is in force, so install the certificate first, in
+the store that workload's runtime actually reads:
+
+| Workload | Where the authority goes |
+|----------|--------------------------|
+| Debian, Ubuntu | Copy to `/usr/local/share/ca-certificates/ebpfsentinel.crt`, run `update-ca-certificates` |
+| RHEL, Fedora, Amazon Linux | Copy to `/etc/pki/ca-trust/source/anchors/`, run `update-ca-trust` |
+| Alpine | Copy to `/usr/local/share/ca-certificates/`, run `update-ca-certificates` |
+| Kubernetes pod | Mount a ConfigMap holding a bundle that includes the authority, point `SSL_CERT_FILE` at it, or rebuild the image with the system steps above |
+| Go | Reads the system bundle; `SSL_CERT_FILE` overrides it |
+| Node.js | `NODE_EXTRA_CA_CERTS=/path/to/ca.crt`, read at process start |
+| Python `requests` | `REQUESTS_CA_BUNDLE=/path/to/bundle.pem`; `certifi` ignores the system store otherwise |
+| curl | The system bundle, or `CURL_CA_BUNDLE` |
+| Java | `keytool -importcert -cacerts -alias ebpfsentinel -file ca.crt`, in the JDK the process runs |
+
+A process reads the variable at start, so a workload picks up a new
+authority on restart.
+
+A client that **pins** is another matter: it compares the server's
+certificate or public key against a value compiled into it rather than
+against a trust store, so it refuses the proxy's certificate whatever the
+store holds. That is the expected behaviour of a mobile backend SDK, of
+`OkHttp` with a `CertificatePinner`, of some update agents and of most
+software that ships its own certificate. Such a workload cannot be read by
+termination; leave it out of the selection, and rely on the probes for it.
+
+#### Dry run: what would be redirected, and who would refuse
+
+`dry_run: true` resolves the selection exactly as an enforcing redirect
+would and loads no kernel program, so nothing is redirected and every
+workload connects as before:
+
+```yaml
+      redirect:
+        selectors:
+          - namespace: payments
+        listener_ipv4: 10.0.0.5
+        dry_run: true
+```
+
+`GET /api/v1/enterprise/tls-probes/redirect` answers in both modes with the
+`mode`, the number of selected cgroups, the authority (`sha256` of its DER
+and the `pem` to install) and one entry per selected process, the ones that
+are not ready first:
+
+| Field | Meaning |
+|-------|---------|
+| `trust_anchor` | `installed`, with the `trust_store` it was found in; `missing`, with the `stores_checked`; `unknown` when no store could be read |
+| `pinning` | Traces of a pin in the executable: `spki_pin` for a `sha256/` public key pin, `embedded_certificate` for a PEM certificate compiled in |
+| `verdict` | `ready`, `appears_to_pin`, `anchor_missing` or `unknown`. A pin outranks the trust store, because installing the authority does not fix it |
+
+`not_ready` counts the processes whose verdict is not `ready`: each of them
+would fail its handshakes once the redirect is enforced. The stores are read
+through the process's own root, so a container is checked against its own
+image rather than the node's, at the paths of the variables above, the usual
+system bundles and the Java `cacerts` beside the executable. A pin trace is
+an indication rather than a proof: a binary can carry a pin it never uses,
+and a client can pin in a way no byte pattern reveals. Run the dry run,
+bring `not_ready` to zero or take the remaining workloads out of the
+selection, then remove `dry_run`.
+
 ## Extended TLS Library Coverage
 
 > **Seven of the nine libraries are read; two are discovery only.**
@@ -288,13 +406,14 @@ A surface is read, and says how:
 | `go_runtime` | the Go runtime's entry points, resolved from the binary's own pclntab |
 | `kernel_tls` | the kernel terminates the session, so the cleartext is read on the kernel's send and receive path and no userspace symbol is needed |
 | `catalogue` | a stripped static build, read at the offsets the signed [offset catalogue](#the-offset-catalogue) publishes for its build id |
+| `termination` | the means of last resort, after symbols and the catalogue: the process is in a workload an operator named for [redirection to this agent's proxy](#redirecting-chosen-workloads-to-the-proxy), which terminates the session and reads the cleartext itself. Only given to a surface the probes could not read, and never to a workload nobody named |
 
 Or it is not read, and says why and what to do:
 
 | `gap` | What it means | What you can do |
 |---|---|---|
 | `no_symbol` | no entry point could be resolved in this build. Usually a static build linked with its symbol table stripped; for a Go binary it is also what a build older than the register calling convention looks like, since its arguments are on the stack and the probe programs read registers | send us the build id the surface carries, so its offsets can be published and this build becomes readable without a rebuild; or terminate TLS in the kernel, which reads the cleartext whatever the binary links |
-| `detection_only` | the library was identified and this agent attaches nothing to it - Java JSSE and NSS, each for the reason in the table above | terminate TLS in the kernel, or route the workload through a termination point this agent reads |
+| `detection_only` | the library was identified and this agent attaches nothing to it - Java JSSE and NSS, each for the reason in the table above | terminate TLS in the kernel, or, as a last resort, name the workload for [redirection to this agent's proxy](#redirecting-chosen-workloads-to-the-proxy) |
 | `not_in_catalogue` | a stripped static build, looked up in the offset catalogue this agent holds and not found there | send us the build id so the next catalogue carries it; for an image rebuilt in-house, which no catalogue entry ever covers, terminate TLS in the kernel instead |
 
 Two things the report is deliberate about. The share it carries,
@@ -596,6 +715,7 @@ within one interval rather than at the next agent restart.
 | `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
 | `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, the build ids to send, and the state of the [offset catalogue](#the-offset-catalogue) the verdicts were reached with. |
+| `GET` | `/api/v1/enterprise/tls-probes/redirect` | viewer | tls-intelligence | What the [connection redirect](#dry-run-what-would-be-redirected-and-who-would-refuse) selects, in dry run or in force: the mode, the authority to install, and per selected process whether it trusts that authority, whether its binary carries traces of a pin, and the verdict. Mounted only when `redirect` is configured. |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the

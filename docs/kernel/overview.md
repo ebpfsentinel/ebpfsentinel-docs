@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel ships 21 eBPF programs that run in the Linux kernel. Fourteen of them inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - five run on what a task does rather than on what it sends, one reads TLS plaintext inside the process, and the twenty-first, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 22 eBPF programs that run in the Linux kernel. Fourteen of them inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - five run on what a task does rather than on what it sends, one reads TLS plaintext inside the process, one steers the connections of selected workloads to the enterprise TLS proxy, and the twenty-second, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 

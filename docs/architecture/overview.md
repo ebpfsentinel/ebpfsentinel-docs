@@ -2,12 +2,12 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** - 21 eBPF programs attached at XDP, TC, uprobe, cgroup socket, raw tracepoint and BPF LSM hook points
+1. **Kernel-space** - 22 eBPF programs attached at XDP, TC, uprobe, cgroup socket, raw tracepoint and BPF LSM hook points
 2. **Userspace** - Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
 flowchart TB
-    subgraph kernel["Linux Kernel (21 eBPF programs)"]
+    subgraph kernel["Linux Kernel (22 eBPF programs)"]
         direction TB
         subgraph xdp["XDP - wire-speed packet processing"]
             fw["xdp-firewall\n(stateful L3/L4)"]

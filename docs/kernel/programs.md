@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 21 eBPF kernel programs (the
+Detailed documentation for each of the 22 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -486,6 +486,17 @@ The object is loaded off the rules rather than off a configuration key, with one
 `QUARANTINE_CGROUPS` is asked **before** the rule walk, and before the early return that leaves a node with no policy. A cgroup holding an entry is refused whatever the rules say, since an allow rule written for a workload's ordinary traffic must not survive the decision to cut that workload off. Each entry carries a deadline on the boot clock rather than a TTL, so an expired entry is answered as allow by the kernel itself and a quarantine outlives the agent dying; userspace only sweeps the lapsed keys out of the map afterwards. The entry also carries its mode, and enforcing is the zero mode on purpose: a zeroed or truncated entry refuses rather than failing open. A report-only entry counts what it would have refused and allows. The table is a plain hash map for the same reason as the selector one, an eviction being a quarantine quietly ending, and `QUARANTINE_METRICS` counts `refused`, `expired`, `observed` and `event_lost` while `QUARANTINE_EVENTS` carries the detail of each decision in a ring of its own, so a flood of refusals cannot push a workload rule's alerts out.
 
 Two `cgroup_skb` programs sit on the packet side of the same cgroups. `workload_skb_egress` and `workload_skb_ingress` copy the UDP DNS of a workload whose rules name a destination by host name up to userspace, and carry the ingress half of Kubernetes `NetworkPolicy` when the agent enforces it. That half lives in `NETPOL_RULES`, one longest-prefix trie keyed by rule set, direction, family and address, with `NETPOL_CGROUPS` pointing each container cgroup of a selected pod at its rule set. Egress is answered in the connect and sendmsg hooks, ahead of the workload rules; ingress drops only an opening `SYN` or a UDP datagram that `NETPOL_REPLIES` does not recognise as an answer to one the pod sent. `NETPOL_METRICS` counts `egress_checked`, `egress_refused`, `egress_would_refuse`, the same three for ingress, and `reply_admitted`. See [Kubernetes NetworkPolicy](../features/network-policy.md).
+
+### cgroup-connect-redirect
+
+**Hook:** [cgroup sock_addr](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) and [sock_ops](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SOCK_OPS/) | **Path:** `crates/ebpf-programs/cgroup-connect-redirect/`
+
+Three programs, loaded only by the enterprise agent and only where its TLS inspection proxy is given a redirect. They steer the TCP connections of selected workloads to that proxy without a route or a netfilter rule.
+
+- `redirect_connect4` / `redirect_connect6` run while the destination is still an argument of `connect()`. A task whose own cgroup, or one of its first eight ancestors from the root, is in `REDIRECT_CGROUPS`, and is not in `REDIRECT_EXEMPT`, connecting to a port in `REDIRECT_PORTS`, has its destination recorded in `REDIRECT_BY_COOKIE` against the socket cookie and rewritten to the listener in `REDIRECT_TARGET`. When the record cannot be written the connection is refused, since the proxy would receive a connection it cannot route.
+- `redirect_sockops` runs once the kernel has chosen the source port, and moves the record into `REDIRECT_BY_PEER` under the address the proxy will see the connection come from. The proxy deletes the entry when it reads it.
+
+Userspace writes the selection off the configured cgroups and the workload selectors, the same resolver the DLP scope uses, and always exempts the agent's own cgroup. `REDIRECT_METRICS` counts `redirected`, `refused`, `port_skipped`, `published` and `publish_failed`.
 
 ### tracepoint-process
 

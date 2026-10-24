@@ -92,7 +92,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Description |
 |---------|-------------|
 | [License System](enterprise/license.md) | Ed25519 + ML-DSA-65 dual-signed keys, machine fingerprint, air-gap activation |
-| [Advanced DLP](enterprise/dlp.md) | Vectorscan engine, custom patterns, block mode, TLS deep inspection |
+| [Advanced DLP](enterprise/dlp.md) | Vectorscan engine, custom patterns, block mode, TLS termination opt-in per workload as a last resort |
 | [ML Anomaly Detection](enterprise/ml-detection.md) | ONNX behavioral anomaly detection, multi-window, rule suggestion |
 | [Multi-Tenancy](enterprise/multitenancy.md) | Namespace/interface isolation, quotas, RBAC, self-service API |
 | [SIEM Integration](enterprise/siem-integration.md) | 10 connectors: Splunk, ES, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
@@ -119,12 +119,13 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-one program directories: seventeen attached
+`crates/ebpf-programs/` holds twenty-two program directories: eighteen attached
 at a hook of their own, three reached only by tail call from one of those
-seventeen, and `xdp-pass`, which is peer-side test scaffolding rather than part
-of the datapath. The seventeen attached programs, the last five of which read a
-task rather than a packet, and of those five only the workload firewall and the
-executables list decide a syscall and only the signal program acts on a process:
+eighteen, and `xdp-pass`, which is peer-side test scaffolding rather than part
+of the datapath. The eighteen attached programs, the last six of which read a
+task rather than a packet, and of those six only the workload firewall, the
+executables list and the connection redirect decide a syscall and only the
+signal program acts on a process:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -145,6 +146,7 @@ executables list decide a syscall and only the signal program acts on a process:
 | `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind, and refuses a quarantined cgroup before any rule is read |
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
 | `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
+| `cgroup-connect-redirect` | cgroup socket hooks | Rewrites the destination of a selected cgroup's TCP connect to the enterprise TLS proxy and records where it was going, so the proxy can reach it; loaded only by the enterprise agent where a TLS redirect is configured |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:

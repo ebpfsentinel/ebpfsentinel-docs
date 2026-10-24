@@ -173,6 +173,36 @@ pod read the node's command lines whatever the scope says. And an `exe` matcher
 narrows per task while the kernel fence is keyed per cgroup, so naming an
 executable inside a shared cgroup selects that cgroup.
 
+### Terminating a workload's TLS, only when named
+
+The Enterprise agent can also read a workload by terminating its TLS, and
+nothing is terminated unless an operator names the workload in
+`advanced_dlp.tls_inspection.redirect`. It is the last resort, used where
+neither a symbol nor the offset catalogue reaches a build, because it changes
+what the workload trusts and what it talks to:
+
+- **The workload trusts a second authority.** The agent's CA certificate has
+  to be in the workload's trust store, and anything holding the matching key
+  can impersonate any server to that workload. The key stays on the node, read
+  by the agent alone; a workload that was never named is never asked to trust
+  it.
+- **The workload talks to the agent, not to its server.** Its `connect()` is
+  rewritten in the kernel to the agent's listener, and the agent opens the
+  upstream connection itself. The server sees the node's address, the
+  workload sees the agent's certificate, and the cleartext exists in the
+  agent's memory for the time it takes to inspect it.
+- **A pinned client refuses.** A workload that checks its server against a
+  value of its own fails rather than being read, which is the client doing its
+  job. The dry run reports the workloads that appear to pin before anything is
+  redirected.
+- **A failure is loud.** The agent does not start when a configured redirect
+  cannot load, a connection whose destination could not be recorded is refused
+  in the kernel rather than sent nowhere, and the agent's own cgroup is never
+  redirected.
+
+Everything outside the named workloads keeps the library-boundary model above:
+no certificate, no rewritten connection, no change to what it trusts.
+
 Verifying it on a running node is one call, and it answers with the effective
 scope rather than the configured one:
 
