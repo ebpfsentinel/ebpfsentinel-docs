@@ -203,7 +203,9 @@ them to the policy's `status.bgp`, one row per pod and peer with the state,
 since when, and the last error; an agent that could not be read is one row
 in state `Unknown` saying why. The status is written only when it changed.
 [BGP announcement](../../configuration/loadbalancer.md#bgp-announcement)
-covers what the agent asks of BIRD.
+covers what the agent asks of BIRD, and
+[Bare-Metal Load Balancer](bare-metal-load-balancer.md) puts pools,
+announcement and failover together.
 
 ### Uninstalling
 

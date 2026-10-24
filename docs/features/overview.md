@@ -110,6 +110,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Automated Response](enterprise/automated-response.md) | Policy engine, SOAR webhook, eBPF enforcement, audit trail |
 | [Dashboard UI](enterprise/dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
 | [Kubernetes Operator](enterprise/kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
+| [Bare-Metal Load Balancer](enterprise/bare-metal-load-balancer.md) | Services of type LoadBalancer given an address from your pools, served by XDP, announced over ARP or BGP |
 
 ## Deployment Compatibility
 

@@ -40,6 +40,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Dashboard UI](dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
 | [Cases](cases.md) | Alerts grouped into cases with an owner, a status and one timeline, time to acknowledge and time to resolve, false-positive suppressions that expire, and an incident evidence pack |
 | [Kubernetes Operator](kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
+| [Bare-Metal Load Balancer](bare-metal-load-balancer.md) | Services of type LoadBalancer given an address from your pools, served by XDP, announced over ARP or BGP |
 
 ## API Surface
 

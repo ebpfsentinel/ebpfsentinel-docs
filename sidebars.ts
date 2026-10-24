@@ -91,6 +91,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/dashboard',
             'features/enterprise/cases',
             'features/enterprise/kubernetes-operator',
+            'features/enterprise/bare-metal-load-balancer',
             'features/enterprise/high-availability',
             'features/enterprise/multicluster',
             'features/enterprise/multitenancy',
