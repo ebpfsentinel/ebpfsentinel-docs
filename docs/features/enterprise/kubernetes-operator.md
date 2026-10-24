@@ -327,6 +327,64 @@ event, repeated only when its reason changes:
 kubectl get ebpfsentinelagent agent -o jsonpath='{.status.networkPolicy}'
 ```
 
+#### Importing policies written for Cilium
+
+An estate leaving Cilium for a CNI that enforces nothing carries its policies
+as `CiliumNetworkPolicy` objects, which nothing reads once Cilium is gone. The
+operator image translates them into `NetworkPolicy`, the kind the agent
+enforces, and writes down everything it could not carry. It is an offline
+step: it reads a file, needs no cluster access and no licence, and applies
+nothing.
+
+```bash
+kubectl get ciliumnetworkpolicies -A -o yaml > cilium.yaml
+docker run --rm -i ghcr.io/ebpfsentinel/ebpfsentinel-operator:<version> \
+  import - < cilium.yaml > imported.yaml
+```
+
+The translated policies go to standard output, one document each, labelled
+`app.kubernetes.io/managed-by: ebpfsentinel-import` and annotated
+`ebpfsentinel.io/imported-from` with the object they came from; a policy with
+several `specs` becomes one `NetworkPolicy` per spec, suffixed `-0`, `-1`.
+The report goes to standard error, one line per object and one per field,
+with the reason:
+
+```text
+CiliumNetworkPolicy/shop/api  partial
+  refused  spec.egress[0].toFQDNs  a NetworkPolicy has no host names; write the destination as a firewall workload rule by name, or as CIDRs
+```
+
+The command exits `2` when anything was refused, so a pipeline cannot apply a
+partial import without having seen it. Each object is `translated`,
+`partial`, `refused`, or `as written` for a `NetworkPolicy` already in the
+input, which is checked against the agent's limits and noted rather than
+rewritten.
+
+**A refusal never widens a policy.** A peer that cannot be carried is dropped
+from its rule, which allows less. A restriction that cannot be carried, such
+as a layer 7 rule on a port, drops the whole rule, because the port without
+it would allow more. A rule left with no peer at all is dropped rather than
+written as "every peer", and the direction stays isolated.
+
+| In the Cilium policy | What the import does |
+|---|---|
+| `endpointSelector`, `fromEndpoints`, `toEndpoints` | Pod and namespace selectors; `k8s:` and `any:` prefixes stripped, `io.kubernetes.pod.namespace` and `io.cilium.k8s.namespace.labels.*` read as namespace labels |
+| `fromCIDR`, `toCIDR`, `fromCIDRSet`, `toCIDRSet` | `ipBlock`, with `except` |
+| `toPorts` with ports only | `ports`, with `endPort`; `ANY` written as TCP, UDP and SCTP |
+| Entity `all` / `cluster` | Every peer / every namespace |
+| Entity `host`, `remote-node`, `fromNodes`, `toNodes` | Nothing written, noted: node addresses are always open on the agent |
+| An empty rule `{}` | Nothing written, noted: it allows nothing in Cilium and would allow everything in a `NetworkPolicy` |
+| `toFQDNs` | Refused: a `NetworkPolicy` has no names. A [workload rule by name](#workload-rules-by-name) carries it |
+| Entity `world` and the other reserved entities, `cidrGroupRef`, `toGroups`, `toServices` | Refused: the addresses are Cilium's to resolve |
+| `ingressDeny`, `egressDeny` | Refused: a `NetworkPolicy` only allows |
+| `enableDefaultDeny` set to `false` | That direction refused: a rule that allows without isolating has no equivalent |
+| `toPorts` with `rules`, `serverNames`, TLS or `listener`; `icmps`; `fromRequires`, `toRequires`; `authentication` | The rule refused |
+| `nodeSelector`, `CiliumClusterwideNetworkPolicy`, labels Cilium derives (`io.cilium.k8s.policy.*`, `reserved:`) | The policy or the peer refused |
+
+Read the report before applying anything. A policy partly imported is a hole
+the operator can believe is covered, which is why the import says so
+rather than staying quiet.
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource

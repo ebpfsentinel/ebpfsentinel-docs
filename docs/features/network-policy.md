@@ -49,6 +49,11 @@ carries the decision table. Deployed through the agent's own chart, nobody
 makes that check for you: choose `enforce` only on a CNI you know enforces
 nothing.
 
+Policies written as `CiliumNetworkPolicy` are read by nothing once Cilium is
+gone. The operator image translates them into `NetworkPolicy` offline and
+reports, by object, field and reason, everything it could not carry; see
+[importing policies written for Cilium](enterprise/kubernetes-operator.md#importing-policies-written-for-cilium).
+
 The mode needs the Kubernetes enricher on and an in-cluster ServiceAccount.
 See [container configuration](../configuration/container.md#networkpolicy) for
 the field, and [Kubernetes deployment](../operations/deployment/kubernetes.md)
