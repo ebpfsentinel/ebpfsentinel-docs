@@ -411,6 +411,46 @@ Delete a firewall rule by ID. Returns 403 for system rules (e.g., anti-lockout r
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
 ```
 
+#### GET /api/v1/firewall/workload/fqdn
+
+What every workload rule naming its destinations by name has resolved on
+this node. Each pattern lists the names it matched, newest first, with how
+many addresses each currently opens, for how many workloads, when the last
+answer naming it arrived and when its last address lapses. A name whose
+addresses have all lapsed keeps its row with no `expires_at`, and a pattern
+that nothing has resolved since the policy was published lists no name at
+all: that is usually a typo. Timestamps are Unix seconds. `503` when the
+workload firewall is not loaded.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/workload/fqdn
+```
+
+```json
+{
+  "rules": [
+    {
+      "rule": "allow-payments-to-psp",
+      "patterns": [
+        {
+          "pattern": "api.psp.example",
+          "names": [
+            {
+              "name": "api.psp.example",
+              "addresses": 2,
+              "workloads": 1,
+              "refreshed_at": 1792310400,
+              "expires_at": 1792310730
+            }
+          ]
+        },
+        { "pattern": "*.cdn.psp.exmaple", "names": [] }
+      ]
+    }
+  ]
+}
+```
+
 #### GET /api/v1/firewall/workload/rules
 
 The workload rules in force, in the
@@ -2162,6 +2202,7 @@ keeps working without holding the agent's key.
 | POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
 | GET | `/api/v1/firewall/workload/rules` | Yes | Workload rules in force and what each has refused |
+| GET | `/api/v1/firewall/workload/fqdn` | Yes | What each workload rule by name has resolved |
 | GET | `/api/v1/firewall/workload/reach` | Yes | What one named workload is allowed to reach |
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |

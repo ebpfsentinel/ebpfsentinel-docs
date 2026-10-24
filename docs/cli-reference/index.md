@@ -381,6 +381,25 @@ allow-curl-registry   allow    enforce  exe=/usr/bin/curl     proto 6 to 10.0.0.
 default-deny          deny     enforce  exe=/usr/bin/curl     to anywhere                             14
 ```
 
+### firewall fqdn
+
+What the workload rules naming destinations by name have resolved on this
+node: one row per name a pattern matched, with the addresses it opens, the
+workloads holding them, how long ago the last answer arrived and how long
+until it lapses. A name whose addresses all expired reads `lapsed`, and a
+pattern nothing has resolved reads `never resolved`, which is usually a
+misspelt name.
+
+```bash
+ebpfsentinel-agent firewall fqdn
+```
+
+```text
+RULE                   PATTERN             NAME              ADDRESSES  WORKLOADS  REFRESHED  EXPIRES IN
+allow-payments-to-psp  api.psp.example     api.psp.example   2          1          12s ago    5m 18s
+allow-payments-to-psp  *.cdn.psp.exmaple   never resolved    -          -          -          -
+```
+
 ### firewall reach
 
 What the workload rules let one workload reach. This is the answer to "why

@@ -207,6 +207,47 @@ covers what the agent asks of BIRD, and
 [Bare-Metal Load Balancer](bare-metal-load-balancer.md) puts pools,
 announcement and failover together.
 
+### Workload rules by name
+
+A `FirewallPolicy` rule carries a `workload` block, the matchers of the
+[workload firewall](../../configuration/workload-firewall.md), and may name
+its destinations with `fqdn`; the resolvers whose answers are believed and
+the grace kept past each record's TTL sit in `workloadDns` beside the rules.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: FirewallPolicy
+spec:
+  workloadDns:
+    resolvers:
+      - 10.96.0.10
+    graceSecs: 30
+  rules:
+    - id: allow-payments-to-psp
+      action: allow
+      protocol: tcp
+      destinationPort:
+        start: 443
+        end: 443
+      workload:
+        container: payments
+        mode: observe
+        fqdn:
+          - api.psp.example
+          - "*.cdn.psp.example"
+```
+
+Every 15 seconds the leader asks each selected agent what such a rule has
+resolved and writes the sum to the policy's `status.fqdn`: per rule, how many
+names are currently resolved and how many agents were asked and answered, and
+per name its state (`Resolved`, `Lapsed` once every address expired,
+`NeverResolved` for a pattern nothing matched), the addresses it opens, the
+agents opening them and when it was last refreshed. A pattern nothing
+resolved is a row of its own, because a rule allowing a name nobody resolves
+is usually a typo. "Never resolved" means never on the agents that answered,
+which is why both counts are on the row. The status is written only when it
+changed, and dropped once the policy no longer names a destination by name.
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource

@@ -215,6 +215,9 @@ To see what a given workload may reach, ask the agent rather than reading the do
 ```bash
 ebpfsentinel-agent firewall reach --exe /usr/bin/curl
 ebpfsentinel-agent firewall workload
+ebpfsentinel-agent firewall fqdn
 ```
 
-See the [CLI reference](../cli-reference/index.md) for both commands, and [Socket Attribution](attribution.md) for the hooks that name the task in the first place.
+`firewall fqdn`, and `GET /api/v1/firewall/workload/fqdn` behind it, lists every name each rule by name has resolved, when it was last refreshed and when it lapses, and shows a pattern nothing has resolved as `never resolved` rather than leaving it out: a rule allowing a name nobody resolves is usually a typo, not a quiet success. Under the Kubernetes operator the same reading, summed over every agent the policy selects, is written to the `FirewallPolicy` status.
+
+See the [CLI reference](../cli-reference/index.md) for these commands, and [Socket Attribution](attribution.md) for the hooks that name the task in the first place.
