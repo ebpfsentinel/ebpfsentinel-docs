@@ -422,9 +422,13 @@ whose CNI creates netkit pod devices (Cilium 1.16+ with netkit on kernel 6.7+),
 | `netkit` | netkit only; a non-netkit interface fails its attach |
 | `tc` | TCX only |
 
-The agent polls for new netkit devices every five seconds and attaches to them
-as they appear (`netkit hot-plug watcher started (5s poll, auto-attach enabled)`
-in the log). `attach_mode` has no chart value; set it through `configOverride`.
+The agent watches rtnetlink for every pod link - veth, netkit, macvlan, ipvlan
+and bridge members - and attaches to each one as it appears, releasing it when
+the pod goes (`link hot-plug watcher started` in the log, then one
+`hot-plug: workload link attached` line per pod link, carrying the container
+id when the pod's cgroup names one). See
+[workload link hot-plug](../../configuration/agent.md#workload-link-hot-plug).
+`attach_mode` has no chart value; set it through `configOverride`.
 
 ## State
 

@@ -108,11 +108,30 @@ The programs eligible for netkit attach are the TC datapath: `tc-ids`, `tc-threa
 
 In `netkit` mode, attaching to a non-netkit interface is a hard error. In `auto` mode the agent silently falls back to TC clsact for any interface that is not a netkit device, so the same config works on bare metal and on Cilium clusters.
 
-### Netkit hot-plug
+### Workload link hot-plug
 
-In `auto` or `netkit` mode a background watcher polls `/sys/class/net/` every 5 seconds for new netkit devices. When one appears (e.g. a Kubernetes pod is scheduled) every loaded TC program is auto-attached to it **without restarting the agent**; when the device disappears (pod deleted) the link is dropped and the program detaches.
+A container's traffic crosses the host on a link its runtime creates for it, and the agent attaches its TC chain to each such link as it appears, **without restarting**. The watcher subscribes to rtnetlink's link group, so it hears a link created or removed the moment the kernel announces it rather than on a poll. It recognises:
 
-The same poll cycle scans `/proc/*/ns/net` for new pod network namespaces (deduplicated by inode) and correlates them with the new device, so hot-plug log lines carry the owning pod's PID and namespace inode for troubleshooting. The watcher only runs when at least one TC program is loaded and `attach_mode` is not `tc`.
+| Link | Typical source | Hook used |
+|------|----------------|-----------|
+| `veth` | Docker, Podman, most CNIs (Calico, Flannel, kindnet, Cilium in veth mode) | TCX ingress and egress |
+| `netkit` | Cilium 1.16+ in netkit mode | netkit primary and peer hooks (TCX in `tc` mode) |
+| `macvlan`, `ipvlan` | Multus secondary networks, Docker macvlan/ipvlan networks | TCX ingress and egress |
+| any virtual device enslaved to a bridge (a tap, for example) | VMs and KubeVirt, custom bridges | TCX ingress and egress |
+
+`attach_mode` decides which of them the hot-plug takes: `auto` attaches all of them, netkit devices through their own hooks; `tc` attaches all of them through TCX; `netkit` attaches netkit devices only. Physical devices, loopback, bridges themselves, bonds, VLANs and tunnels (`vxlan`, `geneve`, `wireguard`...) are infrastructure and left alone. A link of a kind the agent does not know is logged once per kind, with the kind, and not attached:
+
+```
+hot-plug: link kind not understood, links of this kind are not attached (reported once per kind) kind=tun iface=tun0
+```
+
+Each attach is logged with the owning workload when the agent can find it: the namespace the link's peer sits in is matched against every network namespace behind a process in the host procfs (`EBPFSENTINEL_HOST_PROC` when the agent does not share the host pid namespace), and that process's cgroup gives the container id and runtime. A link whose owner cannot be found is attached all the same.
+
+When a link goes away its attachments are released at once; a link renamed or re-enslaved is released and attached again under its new identity. Interfaces listed in `interfaces` are attached by the configuration and never a second time by the hot-plug.
+
+**Bursts.** Messages are gathered over 100 ms and folded per interface before anything is attached, so a node starting fifty containers at once costs one attach per container, and a link created and moved into a namespace within that window costs nothing extra. If a burst overruns the socket buffer (the agent asks for 4 MB), the agent reads the whole link table again instead of trusting what survived, and it does so every 60 seconds regardless, so a lost message cannot leave a link unattached.
+
+The watcher runs whenever at least one TC program is loaded.
 
 ## CLI Overrides
 

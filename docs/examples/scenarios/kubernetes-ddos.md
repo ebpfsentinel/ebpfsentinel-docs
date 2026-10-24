@@ -122,7 +122,7 @@ alerting:
 ## Verification
 
 ```bash
-# Check netkit hot-plug is active
+# Check the agent is running (pod links attach as they appear)
 ebpfsentinel-agent status
 
 # Verify DDoS protection
