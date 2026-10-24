@@ -59,6 +59,35 @@ anyway. An enterprise agent refuses every time - it applies its configuration
 once, at startup, and mounts no reload route - so on an enterprise DaemonSet the
 rollout is the whole of how a policy lands.
 
+## What the operator says on a resource
+
+Every policy resource carries a `Ready` condition, saying whether every agent
+it selects runs it, and a `Conflicted` condition naming each value an agent
+dropped in favour of another resource's. An agent resource carries the
+same two, about its rollout and about the policies it folded in.
+
+Beside the conditions, the operator files Kubernetes events on the resource
+itself, where `kubectl describe` already looks. A condition says where the
+resource stands; an event keeps the order in which it got there. An event is
+filed on a change and not on every pass, read off the status the resource
+carried before the pass, so a restart or a new leader does not repeat them.
+
+| Reason | Type | When |
+|---|---|---|
+| `Accepted` | Normal | a new generation of the resource was read and acted on |
+| `Programmed` | Normal | every agent the resource selects now runs it |
+| `Degraded` | Warning | the resource was running everywhere and no longer is; the note carries the `Ready` reason and message |
+| `Unselected` | Warning | no agent in the namespace selects the resource |
+| `Refused` | Warning | a value the resource sets was dropped for another resource's; the note names both and which one runs |
+| `Released` | Normal | an agent resource being deleted had its DaemonSet removed and is free to go |
+| `ReconcileFailed` | Warning | a pass failed and will be retried; repeats fold into one event series |
+| `NotLicensed` | Warning | an enterprise kind the licence does not carry |
+
+```bash
+kubectl describe firewallpolicy edge-baseline
+kubectl get events --field-selector involvedObject.name=edge-baseline
+```
+
 ## Resources
 
 | Group | Kinds |
