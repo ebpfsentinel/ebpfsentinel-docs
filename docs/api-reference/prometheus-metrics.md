@@ -321,6 +321,7 @@ query that says so, and `GET /api/v1/geoip/status` is the authoritative answer.
 | `ebpfsentinel_dns_cache_hits_total` | Counter | - | DNS cache lookup hits |
 | `ebpfsentinel_dns_cache_evictions_total` | Counter | - | DNS cache entries evicted (LRU and TTL expiry) |
 | `ebpfsentinel_dns_blocked_domains_total` | Counter | - | Domains matched by the blocklist |
+| `ebpfsentinel_dns_allowlist_queries_total` | Counter | `container`, `verdict` (`allowed`/`refused`) | Queries the DNS allow-list resolver decided for a container its list names. Only named containers are counted, so the label is bounded by the configuration |
 | `ebpfsentinel_dns_injected_ips` | Gauge | - | IPs currently injected into the datapath from the DNS blocklist |
 | `ebpfsentinel_domain_reputation_high_risk` | Gauge | - | Domains the reputation engine currently rates high risk |
 | `ebpfsentinel_domain_auto_blocked_total` | Counter | - | Domains auto-blocked by the reputation engine |

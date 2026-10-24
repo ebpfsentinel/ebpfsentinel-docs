@@ -147,6 +147,38 @@ Encrypted DNS detection emits security alerts to the alert pipeline (webhooks, e
 
 See [Operational Essentials: Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) for details.
 
+## Per-container allow-list
+
+`tc-dns` observes; it does not stop a name from resolving. For containers,
+the agent can also be the resolver: with `dns.allowlist` enabled it listens on
+an address the containers are pointed at, and each container named in the
+list may resolve only the names that list carries. Anything else is answered
+`REFUSED` at the resolver, so the container never learns the address, rather
+than being noticed after the fact.
+
+```yaml
+container:
+  docker:
+    enabled: true
+dns:
+  allowlist:
+    enabled: true
+    listen: 172.17.0.1:53
+    upstream: [1.1.1.1:53]
+    containers:
+      - container: web
+        domains: [api.github.com, "*.debian.org"]
+```
+
+The container is known by its address on a bridge network, read from the
+Docker socket and kept for 30 seconds, read again sooner when an address the
+agent does not know asks. Containers the list does not name are forwarded
+untouched, so turning it on changes nothing for them. A container can still
+reach another resolver on its own: pair the list with a rule refusing port 53
+to anything but the agent, as shown on the
+[Docker deployment page](../operations/deployment/docker.md#a-dns-allow-list-per-container).
+Fields are on the [DNS configuration page](../configuration/dns.md#allowlist).
+
 ## DNS Coverage Summary
 
 | Transport | Capture Method | Analysis |
@@ -175,6 +207,7 @@ All DNS enforcement actions emit security alerts through the unified alert pipel
 | Blocklist match (log) | Low | T1071.004 - DNS | `dns-blocklist:{pattern}` |
 | Reputation auto-block | High | T1568 - Dynamic Resolution | `dns-reputation:{score}` |
 | Encrypted DNS (DoH/DoT) | Medium | T1071.004 - DNS | `dns-encrypted:{protocol}:{resolver}` |
+| Allow-list refusal | Medium | T1071.004 - DNS | `dns-allowlist:{container}` |
 
 Alerts include `matched_domain` for correlation and are routed through the same dedup/throttle/route matching as all other alert types.
 
@@ -188,4 +221,5 @@ Alerts include `matched_domain` for correlation and are routed through the same 
 - `ebpfsentinel_dns_injected_ips` - IPs currently injected into the datapath from the blocklist
 - `ebpfsentinel_domain_reputation_high_risk` - domains the reputation engine currently rates high risk
 - `ebpfsentinel_domain_auto_blocked_total` - domains auto-blocked by the reputation engine
+- `ebpfsentinel_dns_allowlist_queries_total{container, verdict}` - queries the allow-list resolver decided for a listed container, `verdict` being `allowed` or `refused`
 - `ebpfsentinel_encrypted_dns_detections_total{protocol, resolver}` - DoH and DoT connections detected

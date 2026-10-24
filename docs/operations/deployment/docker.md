@@ -404,6 +404,51 @@ nothing until a rule is moved to `enforce`; the shape of the document and what
 it cannot know are on the [learning mode](../../features/learning-mode.md)
 page.
 
+### A DNS allow-list per container
+
+The agent can be the resolver a container uses, and refuse it every name
+outside a short list: a compromised web container that may resolve only
+`api.github.com` cannot look up its command server. With the agent on host
+networking, it listens on the bridge gateway:
+
+```yaml
+container:
+  docker:
+    enabled: true
+dns:
+  allowlist:
+    enabled: true
+    listen: 172.17.0.1:53
+    upstream: [1.1.1.1:53, 9.9.9.9:53]
+    containers:
+      - container: web
+        domains: [api.github.com, "*.debian.org"]
+```
+
+Point the containers at it, one service at a time with compose:
+
+```yaml
+services:
+  web:
+    image: nginx
+    dns: [172.17.0.1]
+```
+
+or for every container through `"dns": ["172.17.0.1"]` in
+`/etc/docker/daemon.json`. On a user-defined network the container still asks
+Docker's embedded resolver at `127.0.0.11` first, which answers the names of
+its peers itself and forwards everything else to that address from the
+container's own network namespace, so the agent sees the container's address
+and decides by it. A refused name comes back `REFUSED`, raises an alert with
+rule id `dns-allowlist:<container>` and counts in
+`ebpfsentinel_dns_allowlist_queries_total`.
+
+A container can ignore the resolver it was given and send queries anywhere,
+so the list holds only with a rule refusing port 53, and 853 for DNS over
+TLS, to everything but the agent. The agent's port 53 needs
+`CAP_NET_BIND_SERVICE`, and a bind that fails stops the agent at startup. The
+fields are on the [DNS configuration page](../../configuration/dns.md#allowlist).
+
 ## Bind Address and Host Networking
 
 With `network_mode: host`, the container shares the host network stack.

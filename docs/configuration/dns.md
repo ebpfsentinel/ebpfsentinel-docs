@@ -32,6 +32,13 @@ dns:
     max_tracked_domains: 50000        # Maximum domains tracked for reputation
     high_risk_countries: [RU, CN]     # ISO 3166-1 alpha-2 codes
   doh_resolvers: []                   # Extra DoH resolver hostnames for encrypted DNS detection
+  allowlist:
+    enabled: false
+    listen: 172.17.0.1:53             # Where the governed containers send their queries
+    upstream: [1.1.1.1:53]            # Where everything else is forwarded
+    containers:
+      - container: web
+        domains: [api.github.com, "*.debian.org"]
 ```
 
 ## Fields
@@ -45,6 +52,7 @@ dns:
 | `blocklist` | `Blocklist` | see below | Domain blocklist settings |
 | `reputation` | `Reputation` | see below | Domain reputation settings |
 | `doh_resolvers` | `[string]` | `[]` | Extra DoH resolver hostnames, matched against the TLS SNI exactly or as a parent of it, on top of the built-in list. A URL never matches, since an SNI carries a host and nothing else. Detection rides the L7 capture path, so `l7.enabled` and the port in `l7.ports` are what make it fire |
+| `allowlist` | `AllowList` | see below | A resolver the agent answers itself, refusing each listed container the names its list does not carry |
 
 ### Cache
 
@@ -105,6 +113,31 @@ the host's own services.
 | `decay_half_life_hours` | `integer` | `24` | Exponential decay half-life in hours. A domain that stops misbehaving loses half its score every half-life, so an old incident stops holding a domain near the auto-block threshold forever. The same value is used by the score the API reports and by the auto-block decision |
 | `max_tracked_domains` | `integer` | `50000` | Maximum domains tracked for reputation |
 | `high_risk_countries` | `[string]` | `[]` | ISO 3166-1 alpha-2 country codes. Domains resolving to IPs in listed countries receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold |
+
+### AllowList
+
+The agent listens on `listen`, UDP and TCP, and answers the containers pointed
+at it. A query from a container named under `containers` is forwarded only
+when the name matches one of its `domains`; anything else is answered
+`REFUSED` without reaching an upstream, raised as an alert and counted. A
+container the list does not name, and any source no container holds, is
+forwarded untouched. The container behind a query is found by its address on
+a bridge network, read from the Docker socket, so `container.docker.enabled`
+must be true.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Run the resolver. Startup stops if the address cannot be bound, since a container pointed at a resolver that is not there resolves nothing |
+| `listen` | `socket address` | none | Required when enabled. An address the containers reach directly, usually the bridge gateway on port 53. Loopback is refused, because a query relayed through the host arrives from the host and no container could be told apart; the unspecified address is refused too. Binding port 53 needs `CAP_NET_BIND_SERVICE` |
+| `upstream` | `[socket address]` | `[]` | Required when enabled, at most 8, tried in order with a 2 second deadline each. May not include `listen` |
+| `containers` | `[Container]` | `[]` | At most 256 entries |
+
+Each `Container` entry:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `container` | `string` | required | Container name, or its full id. A name may appear once |
+| `domains` | `[string]` | `[]` | Exact names and `*.suffix` wildcards, the same patterns as the blocklist, at most 256. An empty list refuses every name |
 
 ## Examples
 
