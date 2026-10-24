@@ -38,6 +38,17 @@ container:
       mode: observe
 ```
 
+The agent enforces where the cluster's CNI enforces nothing. Running it in
+`enforce` beside a CNI that also enforces `NetworkPolicy` (Cilium, Calico,
+Antrea and the like) puts two enforcers on one policy, and when they read it
+differently nobody can tell which one refused a connection. Deployed through
+the Kubernetes operator, `enforce` is rendered as `observe` when the operator
+finds such a CNI or cannot tell, unless the resource says to run alongside
+it; the [operator page](enterprise/kubernetes-operator.md#when-the-cni-already-enforces)
+carries the decision table. Deployed through the agent's own chart, nobody
+makes that check for you: choose `enforce` only on a CNI you know enforces
+nothing.
+
 The mode needs the Kubernetes enricher on and an in-cluster ServiceAccount.
 See [container configuration](../configuration/container.md#networkpolicy) for
 the field, and [Kubernetes deployment](../operations/deployment/kubernetes.md)

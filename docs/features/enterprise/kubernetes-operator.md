@@ -277,6 +277,56 @@ your own, the same way the pod metadata enricher's read of `pods` is. See
 [Kubernetes NetworkPolicy](../network-policy.md) for the semantics and the
 counters.
 
+#### When the CNI already enforces
+
+Two enforcers reading the same policy differently is an outage nobody can
+debug, so the operator looks at what else runs on the nodes before it renders
+`enforce`. It lists the cluster's `DaemonSet`s and recognises a CNI by the
+container carrying its policy engine:
+
+| Recognised as enforcing | Recognised as enforcing nothing |
+|-------------------------|---------------------------------|
+| Cilium (`cilium-agent`), including GKE Dataplane V2 (`anetd`) | Flannel alone (`kube-flannel`) |
+| Calico and Canal (`calico-node`) | AWS VPC CNI without its policy agent turned on |
+| Antrea (`antrea-agent`) | |
+| kube-router (`kube-router`) | |
+| Weave Net (`weave-npc`) | |
+| kube-network-policies (`kube-network-policies`) | |
+| Azure Network Policy Manager (`azure-npm`) | |
+| AWS VPC CNI with `aws-network-policy-agent` run with `--enable-network-policy=true` | |
+
+Anything else is unknown, and so is a cluster whose `DaemonSet`s the operator
+may not list, which is the case when `watchNamespaces` narrows it to a Role
+per namespace. The decision:
+
+| Mode asked | CNI | Mode rendered | `reason` |
+|------------|-----|---------------|----------|
+| `off` | not looked at | `off` | none, no status block |
+| `observe` | any | `observe` | `ObserveOnly` |
+| `enforce` | enforces nothing | `enforce` | `NoOtherEnforcer` |
+| `enforce` | enforces, or unknown | `observe` | `CniEnforces` or `CniUnknown` |
+| `enforce` with `alongsideCni: true` | enforces, or unknown | `enforce` | `AlongsideCni` |
+
+`observe` is allowed beside anything because it counts and refuses nothing.
+Set `alongsideCni: true` only when you mean both enforcers to run, for
+example to enforce on the agent's side while a CNI migration is in progress:
+
+```yaml
+        networkPolicy:
+          mode: enforce
+          alongsideCni: true
+```
+
+The decision is on the resource's status, under `status.networkPolicy`
+(`requested`, `effective`, `cniState`, `cni`, `reason`, `message`), and in a
+`NetworkPolicy` condition that is `False` when the mode rendered is not the
+one asked for. A downgrade also raises one `NetworkPolicyNotEnforced` warning
+event, repeated only when its reason changes:
+
+```bash
+kubectl get ebpfsentinelagent agent -o jsonpath='{.status.networkPolicy}'
+```
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource
