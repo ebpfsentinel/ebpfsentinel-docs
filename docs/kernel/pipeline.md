@@ -52,7 +52,7 @@ flowchart TD
     RINGBUF -.-> AGENT["Agent userspace"]
 ```
 
-Every TC program is attached as a TCX link (kernel 6.6+, no qdisc) appended at the tail of the interface's chain, so the chain runs in the order the agent loads the programs. Only the programs whose feature is enabled are loaded; the diagram shows all of them.
+Every TC program is attached as a TCX link (kernel 6.6+, no qdisc) placed at the head of the interface's chain, the agent's programs together and in the order the agent loads them, ahead of any program another component attached (a CNI's datapath, for instance). A foreign program found ahead of them refuses the attach: see [TCX order beside a CNI](../operations/deployment/kubernetes.md#tcx-order-beside-a-cni). Only the programs whose feature is enabled are loaded; the diagram shows all of them.
 
 ## Egress Pipeline
 

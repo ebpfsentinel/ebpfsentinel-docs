@@ -351,6 +351,41 @@ Alerts then carry the pod name, namespace and labels of the container that
 produced them. The enricher stays off when `KUBERNETES_SERVICE_HOST` is absent.
 See [container configuration](../../configuration/container.md).
 
+## TCX order beside a CNI
+
+A TCX hook runs a chain of programs, and a program that passes or redirects
+a packet ends the chain there. The agent's classifiers return "next" on a
+pass, so whatever runs after them still sees every packet; a CNI's datapath
+does not owe the agent the same, so a program of the agent's attached behind
+Cilium's would miss whatever Cilium passes or redirects, without an error
+anywhere.
+
+So every TC program the agent attaches goes to the head of the chain, its
+own programs together and in startup order, and the chain is read back
+after each attach. When a program the agent did not attach runs ahead of or
+between its own, the attach is refused rather than left where detections
+silently miss traffic: `/readyz` and the log carry the hook, the program ids
+ahead of the agent and what to run to see them, for instance
+
+```text
+tc_ids on eth0: TCX ingress on eth0: program id(s) 812 run ahead of the agent's
+classifiers; a program ahead of the agent that passes or redirects a packet ends
+the chain, so detections would silently miss that traffic. Refused rather than
+attached behind it: read the chain with `bpftool net show dev eth0`, and restart
+the agent once nothing foreign runs before it
+```
+
+This happens when something re-attaches at the head after the agent, which
+is what a program pinned with the "before" flag does. Cilium and Calico do
+not: CI runs the agent beside each of them and reads the chain from the
+node with `bpftool` on both hooks.
+
+Reading the chain needs `CAP_NET_ADMIN` in the host's user namespace, which
+the agent does not hold in its own; the warden answers that read when the
+agent's is refused. Without a warden the attach stands and the log says,
+once per hook, `TCX order unverified: the chain could not be read`, because
+a chain nobody could read is an unknown rather than a fault.
+
 ## Netkit
 
 TC programs attach through TCX (kernel 6.6+, no `clsact` qdisc). On clusters

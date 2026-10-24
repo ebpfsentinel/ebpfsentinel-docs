@@ -260,5 +260,5 @@ No RingBuf.
 | Tenant subnets | 4,096 IPv4, 2,048 IPv6 | `TENANT_SUBNET_V4` / `TENANT_SUBNET_V6` (LPM Trie) |
 | Total RingBuf memory | 13.25 MB | 4 MB each for `tc-ids` and `uprobe-dlp`, 1 MB each for the five other packet programs that report, 256 KB for `tc-dns`; each ring is private to its program |
 | Tail-call chain depth | 2 | xdp-firewall → xdp-ratelimit → xdp-ratelimit-syncookie (or xdp-loadbalancer) |
-| TC programs per hook | 7 ingress, 3 egress | TCX links appended in attach order; `tc-ids` on egress only with `inspect_egress` or the cgroup resolver |
+| TC programs per hook | 7 ingress, 3 egress | TCX links at the head of the chain, in attach order; `tc-ids` on egress only with `inspect_egress` or the cgroup resolver |
 | eBPF programs total | 16 | 7 XDP + 8 TC + 1 uprobe (`xdp-pass` is test-only) |
