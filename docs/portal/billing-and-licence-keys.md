@@ -173,11 +173,26 @@ month, not an invoice: what a period costs is settled at its close, on our
 reseller's own document. Nothing is ever refused: an estate past its allowance
 keeps sending.
 
-Nothing is charged for analytics today. The meter runs, the projection is
-drawn, and no line for either the volume or the hosted analytics add-on reaches
-a subscription: analytics comes with any plan, and the prices published on the
-website are what it will cost once buying it is a step you take in the portal.
-Until then there is nothing to ask for and nothing to agree in writing.
+What lies past the allowance is billed; the allowance itself is not. Six hours
+after a month ends, the portal freezes what your agents sent during it, the
+pooled allowance your contract held at the time and the volume past it, counted
+in gigabytes with any part of one counted whole, priced at the overage the
+website publishes for your plan. That figure never changes afterwards, whatever
+happens to the readings it came from. If anything lies past the pool, it goes to
+our reseller as one line against your running contract, and the reseller adds it
+to its own document, excluding VAT, which it adds at its checkout. The per-agent
+price of the hosted analytics add-on is not charged yet: the pooled volume comes
+with any paid plan, and there is nothing to ask for and nothing to agree in
+writing.
+
+Under the meter, **Months already closed** lists the last two years, newest
+first, each with what was sent, what was included and what lay past the pool,
+and where its line stands: **Nothing owed** when the month stayed inside the
+pool, **On its way to our reseller** while the line has not reached it yet, and
+**Sent to our reseller on** with the date once it has. A month appears there
+before the reseller's document does, so the amount you will be invoiced is never
+a surprise. The list is read from the frozen figures alone, so it is shown even
+while the live meter above it cannot be reached.
 
 Every paid plan publishes its pooled volume. An organisation that has not
 bought anything yet still has what arrives counted.
