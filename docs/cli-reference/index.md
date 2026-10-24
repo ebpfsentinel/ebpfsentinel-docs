@@ -647,6 +647,9 @@ ebpfsentinel-agent lb announce --json '{
 
 # Grant an elected node the speaker role for 30 seconds (0 releases it)
 ebpfsentinel-agent lb grant 30
+
+# Show BGP announcement: whether this node exports routes, and each session
+ebpfsentinel-agent lb bgp
 ```
 
 ### qos

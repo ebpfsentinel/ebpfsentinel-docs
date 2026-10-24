@@ -39,5 +39,6 @@
   "ebpfsentinel_operator_vip_speaker_handovers_total": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_lb_pool_addresses": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_lb_allocated_addresses": "Operator registry: ebpfsentinel-operator",
-  "ebpfsentinel_operator_lb_pending_services": "Operator registry: ebpfsentinel-operator"
+  "ebpfsentinel_operator_lb_pending_services": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_bgp_sessions": "Operator registry: ebpfsentinel-operator"
 }

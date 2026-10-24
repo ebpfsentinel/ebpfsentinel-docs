@@ -152,6 +152,58 @@ EndpointSlices for that purpose.
 | `ebpfsentinel_operator_lb_pool_addresses` | Gauge | `namespace` | Addresses in the accepted Service address pools |
 | `ebpfsentinel_operator_lb_allocated_addresses` | Gauge | `namespace` | Of those, the ones held by a Service |
 | `ebpfsentinel_operator_lb_pending_services` | Gauge | `namespace` | Services of type LoadBalancer claimed and given no address |
+| `ebpfsentinel_operator_bgp_sessions` | Gauge | `namespace`, `state` | BGP sessions of the selected agents, by state, `Unknown` for an agent that could not be read |
+
+### BGP announcement
+
+A `LoadBalancerConfig` whose `vipAnnounce` carries a `bgp` block announces
+its VIPs over BGP as well as over ARP. The agent drives BIRD 2, a routing
+daemon run beside it, rather than speaking BGP itself, and the operator runs
+that daemon when the agent resource names its image. No BIRD image is
+published under this project's name, so the image is required and has no
+default: use the one your estate already trusts.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+spec:
+  bgpDaemon:
+    repository: registry.example.com/bird
+    tag: "2.17"
+---
+apiVersion: ebpfsentinel.io/v1
+kind: LoadBalancerConfig
+spec:
+  vipAnnounce:
+    role: elected
+    interface: eth0
+    vips:
+      - name: web
+        address: 192.0.2.10
+    bgp:
+      localAsn: 64512
+      peers:
+        - name: tor1
+          address: 10.0.0.1
+          asn: 64513
+          passwordSecretRef:
+            name: tor-md5
+            key: password
+```
+
+With `bgpDaemon` set, each agent pod gains a `bird` container that starts on
+a two-line base configuration from the agent's configuration Secret, binds
+the BGP port and drops to the agent's user, and shares an `emptyDir` at
+`/run/bird` with the agent for the control socket and the configuration the
+agent writes. A peer password names a Secret and reaches the agent as a
+mounted file, never as a value in the rendered document.
+
+Every 10 seconds the leader reads each selected agent's sessions and writes
+them to the policy's `status.bgp`, one row per pod and peer with the state,
+since when, and the last error; an agent that could not be read is one row
+in state `Unknown` saying why. The status is written only when it changed.
+[BGP announcement](../../configuration/loadbalancer.md#bgp-announcement)
+covers what the agent asks of BIRD.
 
 ### Uninstalling
 

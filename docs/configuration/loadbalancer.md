@@ -333,6 +333,95 @@ with the pod, node and the time it took the role, `Fenced` with the previous
 pod and the time its grant lapses, or `Unelected` when no selected agent took
 the grant.
 
+### BGP announcement
+
+Where the VIPs have to reach a routed network rather than one L2 segment,
+the same `announce` block can also announce them over BGP. The agent
+implements no BGP itself: it drives [BIRD 2](https://bird.network.cz/), a
+routing daemon run beside it, by writing BIRD's whole configuration to a file
+and asking it to load that file over its control socket, then reading the
+sessions back from the same socket. BIRD rather than a stack of our own,
+because a BGP implementation is a multi-year commitment and an attack
+surface, and BIRD is what the routers it peers with are already tested
+against.
+
+```yaml
+loadbalancer:
+  announce:
+    role: elected
+    interface: eth0
+    vips:
+      - name: web-vip
+        addr: "192.0.2.10"
+    bgp:
+      enabled: true
+      local_asn: 64512
+      router_id: "10.0.0.11"            # optional; BIRD picks one when unset
+      socket: /run/bird/bird.ctl        # default
+      config_path: /run/bird/ebpfsentinel.conf  # default
+      peers:
+        - name: tor1                    # {peer} metric label
+          address: "10.0.0.1"
+          asn: 64513
+          port: 179                     # default
+          hold_time: 90                 # default; 0, or 3 and above
+          password_file: /etc/ebpfsentinel/secrets/tor-md5/password  # optional
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Turns BGP announcement on. Refused with `role: disabled`. |
+| `local_asn` | integer | - | Autonomous system of this node. Required when enabled. |
+| `router_id` | string | - | IPv4 router ID. Unset lets BIRD derive one from the node's addresses. |
+| `socket` | string | `/run/bird/bird.ctl` | BIRD control socket. The agent must be allowed to connect to it. |
+| `config_path` | string | `/run/bird/ebpfsentinel.conf` | File the agent writes BIRD's configuration to, mode `0600`. BIRD must be able to read it. |
+| `peers` | list | `[]` | One to 16 neighbours. |
+| `peers[].name` | string | - | 1 to 32 lowercase letters, digits or underscores, unique. |
+| `peers[].address` | string | - | Neighbour address, IPv4 or IPv6, unique. |
+| `peers[].asn` | integer | - | Neighbour autonomous system. |
+| `peers[].port` | integer | `179` | Neighbour port. |
+| `peers[].hold_time` | integer | `90` | Hold time in seconds: `0`, or `3` and above. |
+| `peers[].password_file` | string | - | File holding the TCP MD5 password, read at load and never written into a log or an API answer. 1 to 80 printable characters, no quote or backslash. |
+
+What the agent asks of BIRD:
+
+- **Sessions on every node, routes only from the speaker.** Every node
+  carrying the block holds its sessions up, and only the node that answers
+  for the VIPs (`primary`, or `elected` while it holds a grant) exports a
+  route for them, a `/32` or `/128` per VIP. A `standby` node, or an
+  `elected` one whose grant lapsed, withdraws its routes on the same pass
+  that silences ARP, so two nodes never announce one address and a takeover
+  is a route appearing on a session that is already established. IPv6 VIPs
+  are announced over BGP even though ARP ignores them.
+- **Nothing imported.** Every session is `import none`: BIRD learns no
+  route from a peer and installs nothing in the node's kernel table.
+- **Supervision.** Every 5 seconds the agent reads the sessions back. A BIRD
+  that restarted on its base configuration has lost the peers, and the agent
+  pushes its configuration again. A daemon it cannot reach is reported as an
+  error and retried on the next pass.
+
+BIRD needs a base configuration to start on, and that is all it needs: the
+agent replaces it on the first push.
+
+```text
+log stderr all;
+protocol device {}
+```
+
+Run BIRD with `bird -f -c <base> -s /run/bird/bird.ctl -u <agent uid> -g <agent gid>`.
+It binds the BGP port as root and then drops to the agent's user, which is
+what makes the socket one the agent may dial and the configuration file one
+BIRD may read. No BIRD image is published under this project's name: use the
+one your estate already trusts. Under the Kubernetes operator, name it in
+`bgpDaemon` on the agent resource and the operator runs it beside the agent
+(see the [operator page](../features/enterprise/kubernetes-operator.md#bgp-announcement)).
+
+The sessions are read through
+[`GET /api/v1/lb/vips/bgp`](../api-reference/rest-api.md#get-apiv1lbvipsbgp),
+`ebpfsentinel-agent lb bgp`, and the
+`ebpfsentinel_lb_vip_bgp_session_established{peer}` gauge (`1` while the
+session is established).
+
 ## Services of type LoadBalancer
 
 Under the Kubernetes operator, a `LoadBalancerConfig` can also hand out
@@ -450,4 +539,5 @@ reload (Maglev tables are re-generated and bindings re-registered under
 the per-domain reload lock).
 
 - REST: [`GET /api/v1/lb/vips`, `POST /api/v1/lb/vips`](../api-reference/rest-api.md#get-apiv1lbvips)
-- CLI: [`ebpfsentinel-agent lb vips`, `lb announce --json`](../cli-reference/index.md#lb)
+- REST: [`GET /api/v1/lb/vips/bgp`](../api-reference/rest-api.md#get-apiv1lbvipsbgp)
+- CLI: [`ebpfsentinel-agent lb vips`, `lb announce --json`, `lb bgp`](../cli-reference/index.md#lb)

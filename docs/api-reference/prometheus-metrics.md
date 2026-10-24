@@ -298,6 +298,7 @@ document it produces is incomplete.
 | `ebpfsentinel_lb_vip_arp_replies` | Gauge | `vip` | Forged ARP replies per VIP (L2 VIP announcer, speaker only) |
 | `ebpfsentinel_lb_vip_takeovers_total` | Counter | `vip` | Gratuitous-ARP takeovers per VIP (L2 VIP announcer) |
 | `ebpfsentinel_lb_vip_speaker` | Gauge | - | 1 while this node answers ARP for its VIPs, 0 while it stays silent (L2 VIP announcer) |
+| `ebpfsentinel_lb_vip_bgp_session_established` | Gauge | `peer` | 1 while the BGP session with this peer is established, 0 otherwise (BGP VIP announcement) |
 
 Forwarded and unbackable packets are kernel slots, read on
 `ebpfsentinel_packets_total{interface="LB_METRICS"}`.

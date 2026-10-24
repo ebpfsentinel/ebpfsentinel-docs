@@ -1332,6 +1332,29 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 Under Kubernetes the operator is what calls this; see [Elected speaker](../configuration/loadbalancer.md#elected-speaker).
 
+#### GET /api/v1/lb/vips/bgp
+
+BGP announcement of the VIPs: whether it is on, whether this node currently exports routes for them, and each session as the BIRD daemon reports it. Read every 5 seconds by the agent's own supervisor, so the answer is at most that old. `error` carries why the last push to, or read of, the daemon failed, and is absent once it succeeds again.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/lb/vips/bgp
+```
+
+Response:
+
+```json
+{
+  "enabled": true,
+  "exporting": true,
+  "sessions": [
+    { "peer": "tor1", "state": "Established", "since": "2026-10-24 10:00:00" },
+    { "peer": "tor2", "state": "Active", "since": "2026-10-24 10:00:03", "last_error": "Socket: Connection refused" }
+  ]
+}
+```
+
+`state` is the BGP state (`Idle`, `Connect`, `Active`, `OpenSent`, `OpenConfirm`, `Established`), or `Down` when the session is administratively off. See [BGP announcement](../configuration/loadbalancer.md#bgp-announcement).
+
 ### DNS Intelligence
 
 #### GET /api/v1/dns/status
@@ -2193,6 +2216,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/lb/vips` | Yes | L2 VIP announcer status |
 | POST | `/api/v1/lb/vips` | Yes (admin) | Apply VIP announce config |
 | POST | `/api/v1/lb/vips/grant` | Yes (write) | Grant or release the speaker role of an `elected` node |
+| GET | `/api/v1/lb/vips/bgp` | Yes | BGP sessions announcing the VIPs |
 | GET | `/api/v1/dns/status` | Yes | DNS intelligence status |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
 | DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |
