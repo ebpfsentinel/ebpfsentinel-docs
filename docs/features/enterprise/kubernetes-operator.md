@@ -88,6 +88,38 @@ kubectl describe firewallpolicy edge-baseline
 kubectl get events --field-selector involvedObject.name=edge-baseline
 ```
 
+### What each node agent sees of its pods
+
+A node agent sees the links its chain is attached to and nothing else, so a
+pod on the host network, a link kind the attach mode leaves alone or traffic
+wrapped in a tunnel on the uplink is something the agent on that node does
+not see. Each agent judges this per pod and serves the verdict at
+[`GET /api/v1/ebpf/coverage`](../../api-reference/rest-api.md#get-apiv1ebpfcoverage);
+the operator reads it on every status poll and writes a summary per node
+under `status.agentStatuses[].coverage` on the agent resource:
+
+| Field | Meaning |
+|---|---|
+| `uncovered` | pods on the node the agent sees in no traffic class |
+| `partial` | pods seen in some classes and not in others |
+| `full` | pods seen in every class the agent judges |
+| `gaps` | up to twenty pods that are not fully seen, as `namespace/name: class (gap), ...` |
+
+The block is absent, rather than zeroed, for a node whose agent answered no
+inventory: an agent running outside Kubernetes, or one that did not answer
+the poll. Loopback is never seen by a node agent, since it does not leave
+the pod, so it is listed as a gap without lowering a pod below `full`.
+
+```bash
+kubectl get ebpfsentinelagent agent -o jsonpath='{.status.agentStatuses[*].coverage}'
+```
+
+The dashboard's **Pod coverage** screen, under the fleet section, reads the
+same verdicts from every agent of the tenant: the pods nothing is seen of
+first, the namespaces ranked by their worst pod, the traffic class not seen
+and the agent's reason beside it, and the nodes that did not answer named
+so the counts are read against them.
+
 ## Resources
 
 | Group | Kinds |
