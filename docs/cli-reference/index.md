@@ -308,12 +308,18 @@ ebpfsentinel-agent learning policy
 ebpfsentinel-agent learning policy learn-1760000000 -f /etc/ebpfsentinel/learned.yaml
 ebpfsentinel-agent learning segmentation
 ebpfsentinel-agent learning segmentation learn-1760000000 -f /etc/ebpfsentinel/bridges.yaml
+ebpfsentinel-agent learning edges
+ebpfsentinel-agent learning edges learn-1760000000 -o json
 ```
 
 `--cgroup` cannot be combined with `--exe`, `--unit` or `--container`;
 `--exe`, `--unit` and `--container` are repeatable and name one scope together.
-`status`, `stop`, `policy` and `segmentation` take a window id and act on the open window when
+`status`, `stop`, `policy`, `segmentation` and `edges` take a window id and act on the open window when
 none is given. Each answers `404` when learning mode is turned off on the node.
+
+`edges` prints every destination the window recorded with the workload that
+reached it, then the local addresses each workload dialled from: the raw
+reading the dashboard joins across nodes to propose segments.
 
 `policy` writes the allow-list the window describes, in the agent's own rule
 schema: the document goes to standard output, or to the file `-f` names. It

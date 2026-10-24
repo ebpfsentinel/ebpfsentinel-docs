@@ -520,7 +520,7 @@ Each entry of `probes`:
 
 #### GET /api/v1/firewall/rules
 
-List all firewall rules.
+List all firewall rules. A workload rule carries a `workload` block naming its matchers (`exe`, `unit`, `cgroup`, `container`, `kubernetes: true` when it selects pods, namespaces or a service account, and `fqdn`) and its `mode`, `observe` or `enforce`.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/rules
@@ -832,6 +832,45 @@ rules whose destination was widened from addresses to a prefix, and each of
 those names in a comment the addresses it was built from. `skipped_edges`
 counts destinations no rule could be written for, because their workload
 cannot be named by a selector.
+
+#### GET /api/v1/learning/sessions/{id}/edges
+
+Every destination the window recorded, with the workload that reached it, and
+the local addresses each workload dialled from. This is the raw reading the
+dashboard joins across nodes to propose segments: a destination one node
+reached is recognised as a workload because another node saw that workload
+dial from the address. At most 16 addresses are kept per workload, and only
+for a workload that reached something; loopback and unspecified addresses are
+never kept. Answers `404` when the window does not exist or learning mode is
+off.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/learning/sessions/learn-1760000000/edges
+```
+
+```json
+{
+  "session": {"id": "learn-1760000000", "status": "completed", "edges": 2},
+  "edges": [
+    {
+      "workload": {"kind": "container", "value": "storefront"},
+      "destination": "10.42.0.13",
+      "port": 6379,
+      "protocol": "tcp",
+      "first_seen_ns": 1760000000000000000,
+      "last_seen_ns": 1760250000000000000,
+      "observations": 8064
+    }
+  ],
+  "addresses": [
+    {"workload": {"kind": "container", "value": "storefront"}, "addresses": ["10.42.0.11"]}
+  ]
+}
+```
+
+`workload.kind` is `container`, `unit` or `executable`, the three names a
+workload rule can select by.
 
 #### GET /api/v1/learning/sessions/{id}/segmentation
 
@@ -2467,6 +2506,7 @@ keeps working without holding the agent's key.
 | POST | `/api/v1/learning/sessions/{id}/stop` | Yes (write) | Close an observation window |
 | GET | `/api/v1/learning/sessions/{id}/policy` | Yes | The allow-list a window describes |
 | GET | `/api/v1/learning/sessions/{id}/segmentation` | Yes | The bridge segmentation a window describes |
+| GET | `/api/v1/learning/sessions/{id}/edges` | Yes | The destinations a window recorded and the addresses each workload dialled from |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |

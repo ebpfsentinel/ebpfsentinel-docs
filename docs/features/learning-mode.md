@@ -53,6 +53,31 @@ A container the window never saw gets **no rule at all** and is named in the hea
 
 The bridges are read from the Docker socket when the document is asked for, so `container.docker.enabled` must be on; without it, or when the socket does not answer, the route answers `503` with the reason.
 
+## Segments across the fleet
+
+One node's window says what its workloads reached. Read across every node of a tenant, the windows are a graph, and the dashboard proposes segments from it.
+
+- **A workload is the name the agents give it**: a container, a systemd unit or an executable. The replicas of one container on three nodes are one workload, and the flows each replica opened are added together.
+- **A destination is recognised as a workload** when some agent saw that workload dial from the address. Each window keeps, for every workload that reached something, up to 16 local addresses it dialled from. An address nobody dialled from is listed as an external destination of the workload that reached it, and joins nothing.
+- **An address several workloads dialled from names none of them.** A node address shared by its systemd units is the usual case. Flows to it are listed with the candidates, and never used to join two segments on a guess.
+- **A segment is a set of workloads held together by at least two independent paths.** Each segment lists the links that put its workloads together, so the grouping can be checked rather than trusted. A link whose removal would split the graph is a **bridge**, named with the two segments it is the only link between: the one flow keeping them joined.
+- **A segment carries its window.** `window_secs` is the shortest window among the agents whose flows built it, so a segment read off a two-day window says two days even when its neighbour was read off a week. An agent with no window is named, and so is a window the agent was down for part of, or one that filled up.
+
+Each agent's most recent window holding at least one flow is read, running or not. The raw reading is `ebpfsentinel-agent learning edges` on one node, and the fleet's proposal is `GET /api/v1/{tenant}/segments/proposal` on the dashboard.
+
+## The proposal as policy
+
+`GET /api/v1/{tenant}/segments/policy` writes the same windows as workload rules, in both shapes a rule can take: the agent's `firewall.rules` block and an operator `FirewallPolicy`. Nothing is applied: the text goes through the same rollout, approval and replay as any other change, and its first lines say which window it was computed from.
+
+- **One allow rule per destination, port and protocol** a workload was seen reach, each to the single address it reached, then **one rule refusing everything else** for that workload. Every allow sits at a lower priority number than every refusal.
+- **Every rule is written in `observe` mode**, so applying the text as it stands changes no verdict. Moving a rule to `enforce` is a decision taken after reading what it would have refused.
+- **A workload enters whole or not at all.** An agent holds at most 64 workload rules at once, so the busiest workloads are written first and the ones that do not fit are listed as `unrestricted` with the reason: the ceiling, a destination that is not an address, or a kind no rule can name. Confining half of a workload's destinations would refuse the other half.
+- **The replay reads every rule as if it were enforced.** Every observed flow is asked against the proposal, and a flow the proposal would refuse is listed in `refused` rather than summed away; read off its own window, that list is empty. The same flows are asked against each agent's deployed workload rules, and `changes` lists every flow whose verdict the proposal would change on its node, with the deployed rule that decides it today.
+- **A deployed rule the window cannot answer for is named, not guessed**: a cgroup, a pod or namespace selector, a domain name, a source address, an alias, a negation, or several workload matchers on one rule. The window records one name per workload and a destination address, nothing more. Rules carrying no workload block belong to the packet firewall and are not asked.
+- **The diff is by rule id**, agent by agent: proposed rules not deployed, deployed workload rules the proposal does not carry, and rules carrying the same id with different fields, naming the fields.
+
+A recommendation describes a window; a service used once a quarter is not in it. Read the proposal against what the estate is meant to do, not only against what it did.
+
 ## What the mode cannot know
 
 This is the part that decides whether the document is useful or dangerous, so the agent writes it into the document itself rather than leaving it in this page:
@@ -68,6 +93,8 @@ This is the part that decides whether the document is useful or dangerous, so th
 ## Reading it in the console
 
 The dashboard offers the document in the configuration editor, diffed line by line against what the node runs today, with the caveats of the window it came from stated above the diff. Each replayable rule the draft carries gets the per-rule replay beside it, so "what would this have done over the events already recorded" is answered on the same screen. Taking the proposal puts it in the editor as an unapplied edit: it is then applied, or not, through the ordinary two-person rollout with its canary, like any other configuration change.
+
+The fleet's reading has a screen of its own, **Segments** under the network section. It states the window the proposal was read off before any segment, warns when a window was interrupted or filled up and names every agent left out of the reading. The replay comes before the rules: the flows the proposal would refuse, the verdicts it would change on each node with the deployed rule deciding them today, and the deployed rules the window cannot answer for. Both texts download as they are, and the way to a rollout is the firewall editor, since nothing on that screen is applied.
 
 ## Configuration and commands
 
