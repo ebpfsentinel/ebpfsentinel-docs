@@ -311,6 +311,78 @@ suite proves it on every pull request: it shows the `INPUT` rule walked past,
 then starts the agent with the deny rule and records nothing from the client in
 a capture on the Docker bridge.
 
+### Policy on the container's labels
+
+The person who knows what a container may reach is usually the person who
+wrote its compose file, so a container can carry its own egress policy in its
+labels. Turn the reading on next to the enricher:
+
+```yaml
+container:
+  docker:
+    enabled: true
+    label_policy: true
+```
+
+Four labels make up the vocabulary, and any other label under
+`io.ebpfsentinel.` is refused as a typo rather than ignored:
+
+| Label | Values | Default |
+|-------|--------|---------|
+| `io.ebpfsentinel.policy.mode` | `observe` or `enforce` | `observe` |
+| `io.ebpfsentinel.policy.egress.deny` | destinations refused | none |
+| `io.ebpfsentinel.policy.egress.allow` | destinations let through | none |
+| `io.ebpfsentinel.policy.egress.default` | `allow` or `deny`, for a destination neither list names | `allow` |
+
+A destination is `<protocol>[/<port>[-<port>]][@<address>[/<prefix>]]`, the
+protocol being `tcp`, `udp` or `any`, and a list separates destinations with
+commas. The deny list is examined first, then the allow list, then the
+default. A web container that may answer on 443 and resolve names through one
+resolver, and nothing else:
+
+```yaml
+services:
+  web:
+    image: nginx:1.27
+    labels:
+      io.ebpfsentinel.policy.mode: enforce
+      io.ebpfsentinel.policy.egress.allow: "tcp/443, udp/53@10.0.0.2"
+      io.ebpfsentinel.policy.egress.default: deny
+```
+
+A worker that may reach anything except mail and the management network,
+counted rather than refused while it is being tried out:
+
+```yaml
+  worker:
+    image: example/worker:2
+    labels:
+      io.ebpfsentinel.policy.egress.deny: "tcp/25, any@192.168.100.0/24"
+```
+
+The labels become ordinary workload rules whose selector is the container's
+id, decided in the same cgroup hooks and listed by `firewall workload` beside
+the rules from the configuration file, which always come first. They are read
+when the agent starts and followed through the Docker event stream: a
+container that is recreated with new labels is policed by the new ones
+without a reload, and its rules go when it is removed. A container that stops
+keeps its rules until it is removed, so a restart never comes back unpoliced
+for a moment.
+
+A label that cannot be read is never skipped over: a policy with one entry
+left out is not the policy that was written. A container with any refused
+label gets no label rule at all, the problem is logged, and
+`ebpfsentinel-agent firewall labels` (or `GET /api/v1/firewall/workload/labels`)
+names the container, the label and the reason. One container may name at
+most 16 destinations across both lists, and the node as a whole carries at
+most 64 workload rules; a container that would go past that is refused whole
+rather than half-applied, and reported the same way.
+
+The option loads the workload firewall's cgroup hooks even with no workload
+rule in the file, and the agent refuses to start with it on when the kernel
+refuses those hooks, since a label saying `enforce` on a container started
+later would otherwise enforce nothing.
+
 ## Bind Address and Host Networking
 
 With `network_mode: host`, the container shares the host network stack.

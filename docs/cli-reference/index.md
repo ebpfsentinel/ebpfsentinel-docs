@@ -400,6 +400,23 @@ allow-payments-to-psp  api.psp.example     api.psp.example   2          1       
 allow-payments-to-psp  *.cdn.psp.exmaple   never resolved    -          -          -          -
 ```
 
+### firewall labels
+
+The containers whose `io.ebpfsentinel.policy.*` labels carry policy, with
+the mode they asked for, how many workload rules their labels became, and
+the reason for any label refused. A container with a refused label has no
+label rule in force at all, so it is listed rather than left out.
+
+```bash
+ebpfsentinel-agent firewall labels
+```
+
+```text
+CONTAINER     NAME     MODE     RULES  REFUSED
+4f1c2a9b8e7d  web      enforce  3      -
+9a8b7c6d5e4f  worker   observe  0      io.ebpfsentinel.policy.egress.allow: 'tcp/99999' has '99999' where a port from 1 to 65535 goes
+```
+
 ### firewall reach
 
 What the workload rules let one workload reach. This is the answer to "why

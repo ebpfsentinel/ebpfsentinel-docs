@@ -17,6 +17,7 @@ container:
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
+    label_policy: false
   kubernetes:
     enabled: false
     node_name: ""
@@ -63,6 +64,16 @@ not how quickly a new container is learned.
 | `docker.cache_size` | usize | `1024` | Max cached container metadata entries |
 | `docker.cache_ttl_seconds` | u64 | `300` | Cache TTL in seconds |
 | `docker.timeout_ms` | u64 | `2000` | Docker API request timeout |
+| `docker.label_policy` | bool | `false` | Read each container's `io.ebpfsentinel.policy.*` labels and put them in force as workload rules; requires `docker.enabled` |
+
+With `label_policy` on, the same stream also carries each container's policy
+labels into the workload firewall: the running containers are listed every
+time the stream connects, and each `create`, `start` and `destroy` updates the
+container it names, so a relabelled or recreated container is policed without
+a reload. The vocabulary and its compose examples are on the
+[Docker deployment page](../operations/deployment/docker.md#policy-on-the-containers-labels).
+The option loads the cgroup hooks on its own, and the agent refuses to start
+with it on when those hooks cannot attach.
 
 > Requires bind mount: `-v /var/run/docker.sock:/var/run/docker.sock:ro`
 

@@ -283,6 +283,8 @@ ebpfsentinel-agent firewall workload
 ebpfsentinel-agent firewall fqdn
 ```
 
+A container on a Docker host can also carry its rules in its own labels, with `container.docker.label_policy` on: they become rules of this same policy, selected by the container's id and examined after every rule in this file. The vocabulary is on the [Docker deployment page](../operations/deployment/docker.md#policy-on-the-containers-labels).
+
 `firewall fqdn`, and `GET /api/v1/firewall/workload/fqdn` behind it, lists every name each rule by name has resolved, when it was last refreshed and when it lapses, and shows a pattern nothing has resolved as `never resolved` rather than leaving it out: a rule allowing a name nobody resolves is usually a typo, not a quiet success. Under the Kubernetes operator the same reading, summed over every agent the policy selects, is written to the `FirewallPolicy` status.
 
 See the [CLI reference](../cli-reference/index.md) for these commands, and [Socket Attribution](attribution.md) for the hooks that name the task in the first place.

@@ -411,6 +411,40 @@ Delete a firewall rule by ID. Returns 403 for system rules (e.g., anti-lockout r
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/rules/block-telnet
 ```
 
+#### GET /api/v1/firewall/workload/labels
+
+The containers whose `io.ebpfsentinel.policy.*` labels carry policy, with
+`container.docker.label_policy` on. Each entry gives the container's id and
+name, the mode its labels asked for, the identifiers of the workload rules
+they became in the order the kernel walks them, and every label refused. A
+container with any refused label has an empty `rules` list: it is policed by
+all of its labels or by none. A container that would take the node past the
+64 workload rules the kernel walks is refused whole, with the problem
+reported against the label prefix. `503` when the workload firewall is not
+loaded.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/workload/labels
+```
+
+```json
+{
+  "containers": [
+    {
+      "container_id": "4f1c2a9b8e7d6c5b4a3928170615f4e3d2c1b0a99887766554433221100ffeed",
+      "container_name": "web",
+      "mode": "enforce",
+      "rules": [
+        "label-4f1c2a9b8e7d-allow-0",
+        "label-4f1c2a9b8e7d-allow-1",
+        "label-4f1c2a9b8e7d-default-0"
+      ],
+      "problems": []
+    }
+  ]
+}
+```
+
 #### GET /api/v1/firewall/workload/fqdn
 
 What every workload rule naming its destinations by name has resolved on
@@ -2255,6 +2289,7 @@ keeps working without holding the agent's key.
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
 | GET | `/api/v1/firewall/workload/rules` | Yes | Workload rules in force and what each has refused |
 | GET | `/api/v1/firewall/workload/fqdn` | Yes | What each workload rule by name has resolved |
+| GET | `/api/v1/firewall/workload/labels` | Yes | Containers whose labels carry policy, and any label refused |
 | GET | `/api/v1/firewall/workload/reach` | Yes | What one named workload is allowed to reach |
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
