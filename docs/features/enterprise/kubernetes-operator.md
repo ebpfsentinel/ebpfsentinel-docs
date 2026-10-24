@@ -208,8 +208,18 @@ covers pools, annotations, conditions and release. The chart values
 it claims, and the operator's role grants it Services, their status and
 EndpointSlices for that purpose.
 
+Every replica serves `/metrics` on its health port, `8081`. What each
+series means, the alerts the chart ships on them and the switches that turn
+on a `ServiceMonitor` and a `PrometheusRule` are on
+[Monitoring the operator](../../operations/operator-monitoring.md).
+
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
+| `ebpfsentinel_operator_reconcile_total` | Counter | `controller`, `result` | Reconciliation passes, `result` being `success` or `error` |
+| `ebpfsentinel_operator_reconcile_errors_total` | Counter | `controller` | Passes that failed and will be retried |
+| `ebpfsentinel_operator_reconcile_duration_seconds` | Histogram | `controller`, `result` | How long a pass took |
+| `ebpfsentinel_operator_reconcile_in_flight` | Gauge | `controller` | Passes running now |
+| `ebpfsentinel_operator_objects` | Gauge | `kind`, `namespace`, `ready` | Resources of each kind by their `Ready` condition: `true`, `false` or `unknown` |
 | `ebpfsentinel_operator_leader` | Gauge | - | 1 on the replica that reconciles, 0 on a standby |
 | `ebpfsentinel_operator_vip_elected_policies` | Gauge | `namespace` | Load balancer policies whose speaker the operator elects |
 | `ebpfsentinel_operator_vip_speaking_policies` | Gauge | `namespace` | Of those, the ones with an agent answering for their VIPs |

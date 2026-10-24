@@ -218,6 +218,7 @@ const sidebars: SidebarsConfig = {
         'operations/deployment/enterprise',
         'operations/hot-reload',
         'operations/monitoring',
+        'operations/operator-monitoring',
         'operations/troubleshooting',
         'operations/performance-tuning',
         'operations/upgrading',

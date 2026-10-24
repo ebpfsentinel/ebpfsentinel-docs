@@ -40,5 +40,10 @@
   "ebpfsentinel_operator_lb_pool_addresses": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_lb_allocated_addresses": "Operator registry: ebpfsentinel-operator",
   "ebpfsentinel_operator_lb_pending_services": "Operator registry: ebpfsentinel-operator",
-  "ebpfsentinel_operator_bgp_sessions": "Operator registry: ebpfsentinel-operator"
+  "ebpfsentinel_operator_bgp_sessions": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_reconcile_total": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_reconcile_errors_total": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_reconcile_duration_seconds": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_reconcile_in_flight": "Operator registry: ebpfsentinel-operator",
+  "ebpfsentinel_operator_objects": "Operator registry: ebpfsentinel-operator"
 }
