@@ -79,6 +79,8 @@ observes packets for, so this is usually more than enough.
 | `ebpfsentinel_container_resolver_cache_hits_total` | Resolved via cache |
 | `ebpfsentinel_container_resolver_cache_misses_total` | Resolved via `/proc` |
 | `ebpfsentinel_container_resolver_errors_total` | `/proc` read failed |
+| `ebpfsentinel_link_attach_gap_seconds` | Time a new workload link went without the TC chain, by link kind |
+| `ebpfsentinel_link_attach_unguarded_packets_total` | Packets a new workload link carried before the TC chain was on it, by link kind |
 
 ### Configuration
 

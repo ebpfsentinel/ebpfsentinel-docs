@@ -131,6 +131,15 @@ When a link goes away its attachments are released at once; a link renamed or re
 
 **Bursts.** Messages are gathered over 100 ms and folded per interface before anything is attached, so a node starting fifty containers at once costs one attach per container, and a link created and moved into a namespace within that window costs nothing extra. If a burst overruns the socket buffer (the agent asks for 4 MB), the agent reads the whole link table again instead of trusting what survived, and it does so every 60 seconds regardless, so a lost message cannot leave a link unattached.
 
+**Before the chain is attached.** A workload link carries traffic from the moment its runtime brings it up, and the TC chain is on it only once the attach completes: the 100 ms gathering window plus a few system calls per program, typically well under a second. Packets crossing the link in that window are not seen by the TC programs (IDS, threat intelligence, DNS, NAT, QoS, scrub). They are not unprotected altogether: XDP on the node's physical interfaces still applies to traffic entering or leaving the node, and the workload firewall, when enabled, sits on the cgroup rather than on the link, so a connection the workload opens is judged whether or not its link is attached yet. The window is measured rather than assumed, per link kind:
+
+| Metric | What it says |
+|--------|--------------|
+| `ebpfsentinel_link_attach_gap_seconds{kind}` | Time from the first message announcing a link to the chain being attached to it |
+| `ebpfsentinel_link_attach_unguarded_packets_total{kind}` | Packets the link had carried, both directions, by the time the chain was attached, read from the kernel's own counters for it |
+
+Only links the watcher heard announced are counted. A link found by reading the table, at start, after a socket overrun or on the 60-second resync, has no announcement to measure from and is not counted: at start its traffic predates the agent. A link renamed or re-enslaved is not counted either, since the chain was on it until the release just before. A steady non-zero rate on the packet counter means workloads are talking before the agent can see them, and is the figure to alert on.
+
 The watcher runs whenever at least one TC program is loaded.
 
 ## CLI Overrides
