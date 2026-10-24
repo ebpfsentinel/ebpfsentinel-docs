@@ -323,6 +323,34 @@ is usually a typo. "Never resolved" means never on the agents that answered,
 which is why both counts are on the row. The status is written only when it
 changed, and dropped once the policy no longer names a destination by name.
 
+### Workload rules by pod, namespace and service account
+
+A `workload` block may also name pods by label with `podSelector`, their
+namespaces by label with `namespaceSelector`, and the service account they run
+as with `serviceAccount`. The selectors reach the agents as written, and each
+agent resolves them against the pods of its own node as its pod and namespace
+watches report them: a pod created, relabelled or deleted, or a namespace
+relabelled, changes what the rule covers within about a second, without the
+operator rendering anything or the DaemonSet rolling.
+
+Every 30 seconds the leader counts the running pods each such rule selects
+and writes them to the policy's `status.workloads`, one row per rule with
+`selectedPods`. A rule selecting no running pod is still accepted, since the
+pods it names may be about to arrive, and it sets the condition
+`WorkloadsSelected` to `False` with the reason `SelectorMatchesNothing` and
+the rule named in the message; `True` says every such rule selects at least
+one. Narrowed to a list of namespaces with `watchNamespaces`, the operator
+counts only the pods in those namespaces, and since a `Role` cannot grant
+read access to namespaces, a rule naming `namespaceSelector` gets no count, a
+`reason` on its row, and the condition `Unknown`; the agents still resolve it.
+The cluster-wide `ClusterRole` grants `list` on `namespaces` for this.
+
+```sh
+kubectl get firewallpolicy allow-api -o jsonpath='{.status.workloads}'
+kubectl get firewallpolicy allow-api \
+  -o jsonpath='{.status.conditions[?(@.type=="WorkloadsSelected")]}'
+```
+
 ### Enforcing the cluster's NetworkPolicy
 
 On a CNI that enforces no `NetworkPolicy`, the agents can carry the policies
