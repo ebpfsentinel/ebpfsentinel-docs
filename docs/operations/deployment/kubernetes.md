@@ -351,6 +351,30 @@ Alerts then carry the pod name, namespace and labels of the container that
 produced them. The enricher stays off when `KUBERNETES_SERVICE_HOST` is absent.
 See [container configuration](../../configuration/container.md).
 
+## Tested beside a CNI
+
+The agent runs beside the cluster's CNI rather than replacing it. On every
+change, CI stands up a two-node cluster networked only by each CNI below, runs
+the operator and the agent built from source on it, and reads pod traffic
+across nodes, a `NetworkPolicy` enforced by the CNI, the agent's own drops and
+the order of the TCX chain on both nodes. This table is generated from those
+lanes, so it states what they run and nothing more:
+
+<!-- BEGIN GENERATED CNI MATRIX -->
+
+| CNI | Version | What the lane stands up | Kubernetes |
+|-----|---------|-------------------------|------------|
+| Cilium | 1.20.4 | veth pod devices, VXLAN tunnel, beside kube-proxy | 1.32.2 |
+| Calico | 3.33.0 | iptables dataplane, VXLAN, beside kube-proxy | 1.32.2 |
+
+Untested, because no lane runs it, so nothing is claimed for it: Cilium at any other version, Cilium with netkit pod devices, Cilium replacing kube-proxy, Cilium with native routing, Calico at any other version, Calico with the eBPF dataplane, Calico with BGP and no encapsulation, Canal, Flannel, Antrea, kube-router, OVN-Kubernetes, AWS VPC CNI, Azure CNI, GKE Dataplane V2.
+
+<!-- END GENERATED CNI MATRIX -->
+
+Untested does not mean known broken: it means nobody has read the result, and
+the [deployment matrix](../../features/deployment-matrix.md) says what each
+device type is expected to do.
+
 ## TCX order beside a CNI
 
 A TCX hook runs a chain of programs, and a program that passes or redirects

@@ -48,6 +48,16 @@ jobs:
           path: ebpfsentinel-enterprise
           token: ${{ secrets.SIBLING_READ_TOKEN }}
 
+      # The coexistence lanes are the source of the tested CNI matrix: their
+      # pinned versions, what each one stands up and what none of them does.
+      # The operator is private like the enterprise agent.
+      - name: Check out the operator
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-operator
+          path: ebpfsentinel-operator
+          token: ${{ secrets.SIBLING_READ_TOKEN }}
+
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -111,6 +121,15 @@ jobs:
       - name: Check the intelligence object tables
         working-directory: ebpfsentinel-docs
         run: npm run check:intel-objects
+
+      # Which CNI at which version CI runs the agent beside, and every
+      # combination it does not, is the first thing a platform engineer
+      # checks. The table is generated off the lanes, so a lane that moves or
+      # disappears fails here rather than leaving a page promising coverage
+      # nothing reads.
+      - name: Check the tested CNI matrix
+        working-directory: ebpfsentinel-docs
+        run: npm run check:cni-matrix
 
   build:
     name: build
