@@ -51,7 +51,8 @@ customers opens an organisation per customer from the same page, see
 Every organisation screen sits under `/o/<your-organisation>/`, and the
 organisation's own address opens its **Overview**. The bar above it has six
 entries, and only lists what your role opens: **Overview**, **Billing**,
-**Licence keys**, **Deployments**, which holds **Deployments** and **Usage**,
+**Licence keys**, **Deployments**, which holds **Deployments**, **Usage** and
+**Downloads**,
 **Analytics**, and **Organisation**, which holds **Members**, **Single
 sign-on**, **Audit log** and **Settings**. An entry holding more than one screen
 shows them in a second row once it is open. The four roles are owner,
@@ -64,6 +65,7 @@ administrator, billing and member; a member reads and changes nothing:
 | Licence keys | **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
 | Deployments | **Deployments** | Deployments, their join secrets, their agents, their telemetry switch and erasing what each one sent. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
 | Deployments | **Usage** | What you bought, what the key admits and what is running. **What your licence key admits** sets the key's ceiling beside the subscription's, because a plan change replaces nothing: when the key admits fewer agents than the subscription pays for, the screen says your own agents will refuse ones already paid for, with **Replace the key** for owners and administrators. An order waiting for payment is named with the agents on it and counts toward nothing until it is paid. | Everybody |
+| Deployments | **Downloads** | Every published release your licence lets you run, newest first, with the one to install marked **Recommended**: each file linked to the release that publishes it with its SHA-256 beside it, and a block to copy that downloads the files, checks the signed checksum list with `cosign verify-blob` and then checks each file against it, plus a `cosign verify` line per image. A product your key does not carry is named under the release rather than left out, with **Change plan** for owners and billing members. Nothing is served by the portal itself: every file comes from the release. | Everybody |
 | Analytics | **Analytics** | The counters your agents send once telemetry is on, read over a window in four views: **Posture**, **Activity**, **Health and capacity** and **Feeds**. See [Analytics](analytics.md). | Everybody |
 | Organisation | **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. See [Members and Invitations](members-and-invitations.md). | Everybody reads it; owners and administrators change it |
 | Organisation | **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |
