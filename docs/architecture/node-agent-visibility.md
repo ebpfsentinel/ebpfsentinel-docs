@@ -115,14 +115,16 @@ surfaces either (see
 enricher there is no inventory to judge, and the route answers `404` rather
 than an empty, reassuring list.
 
-## A pod-scoped agent
+## An agent inside the pod
 
-A per-pod deployment, the sidecar of the
-[deployment matrix](../features/deployment-matrix.md), sits inside the pod's
-network namespace and sees the pod's own interface whatever the host side
-of the link is, and before any tunnel wraps the packet. It trades that for
-everything the node agent covers: it cannot protect the host or other pods,
-and its blocking reaches only that pod. It closes the link-kind and
-encapsulation gaps for the one pod it runs in. It does not close loopback,
-and it does not help a host-network pod, whose sidecar shares the host's
-stack exactly as the pod does.
+The same agent under
+[`profile: pod`](../configuration/agent.md#pod-profile) puts the TC chain
+inside selected pods' network namespaces, so it sees each pod's own
+interface whatever the host side of the link is, before any tunnel wraps the
+packet, and its loopback too. It trades that for everything the node agent
+covers: it cannot protect the host or other pods, and its blocking reaches
+only the pods it selects. It closes every gap above but one: a host-network
+pod has no namespace of its own and is never selected. Whether an estate
+needs it at all, and what it costs per pod, is
+[When to Run an Agent Inside Pods](../operations/deployment/pod-profile.md);
+for most, the verdict says it does not.

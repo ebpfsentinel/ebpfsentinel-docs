@@ -361,6 +361,7 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_container_resolver_errors_total` | Counter | - | `/proc` read failures during resolution |
 | `ebpfsentinel_link_attach_gap_seconds` | Histogram | `kind` | Time from the first message announcing a workload link to the TC chain being attached to it |
 | `ebpfsentinel_link_attach_unguarded_packets_total` | Counter | `kind` | Packets workload links carried, both directions, before the TC chain was attached to them |
+| `ebpfsentinel_link_inspected_twice_seconds` | Histogram | `kind` | Time workload links were read both by the node agent and by a `pod` profile agent inside the pod, before the node agent stood back |
 
 ### Audit
 

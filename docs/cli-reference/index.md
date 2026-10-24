@@ -1128,7 +1128,10 @@ provide. An empty list there is the answer you want.
 
 `ebpf coverage` lists every pod on the node with its links and the traffic
 classes the agent does not observe, each with a reason code, the uncovered
-pods first. It needs the Kubernetes enricher; see
+pods first. A `Pod profile:` line says whether an agent under
+[`profile: pod`](../configuration/agent.md#pod-profile) would close a gap
+beyond loopback on this node, and marks those pods with `*`. It needs the
+Kubernetes enricher; see
 [`GET /api/v1/ebpf/coverage`](../api-reference/rest-api.md#get-apiv1ebpfcoverage)
 for the codes.
 

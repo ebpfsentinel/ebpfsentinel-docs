@@ -216,6 +216,7 @@ const sidebars: SidebarsConfig = {
         'operations/deployment/binary',
         'operations/deployment/docker',
         'operations/deployment/kubernetes',
+        'operations/deployment/pod-profile',
         'operations/deployment/bpf-token',
         'operations/deployment/enterprise',
         'operations/hot-reload',

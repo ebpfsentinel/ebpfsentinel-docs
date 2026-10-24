@@ -419,6 +419,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
   "uncovered": 0,
   "partial": 1,
   "full": 1,
+  "pod_profile_recommended": 1,
   "pods": [
     {
       "uid": "6f1c2d3e-4a5b-4c6d-8e7f-0123456789ab",
@@ -426,6 +427,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "namespace": "shop",
       "host_network": false,
       "level": "partial",
+      "pod_profile_recommended": true,
       "interfaces": [
         {"name": "lxc8a1", "kind": "veth", "attached": false,
          "refusal": "attach_mode_skips_kind",
@@ -436,10 +438,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
         {"class": "east_west_across_nodes", "observed": true},
         {"class": "east_west_on_node", "observed": false,
          "gap": "attach_mode_skips_kind",
-         "reason": "attach mode netkit leaves the pod's link kind alone"},
+         "reason": "attach mode netkit leaves the pod's link kind alone",
+         "closed_by_pod_profile": true},
         {"class": "loopback", "observed": false,
          "gap": "loopback_stays_in_pod",
-         "reason": "loopback inside the pod never crosses a link on the host"}
+         "reason": "loopback inside the pod never crosses a link on the host",
+         "closed_by_pod_profile": true}
       ]
     }
   ]
@@ -459,6 +463,20 @@ agent sees it. The gap codes are stable:
 | `programs_refused` | Only some programs of the chain went on the link; the kernel or a program ahead of the agent refused the rest. |
 | `no_uplink_attached` | Neither the pod's link nor the node's configured interfaces carry the chain. |
 | `encapsulated_on_uplink` | Only the uplink carries it, and the node wraps traffic between nodes in an outer header (VXLAN, Geneve, WireGuard, IP-in-IP, GRE). |
+
+An interface entry can also carry `inspected_inside`, which is never a gap: a
+`pod` profile agent holds the chain inside that pod, so the node agent stands
+back from the host side of its link, and the pod is at `full` with its
+loopback observed (see
+[One flow, counted once](../configuration/agent.md#one-flow-counted-once)).
+
+A class with a gap also carries `closed_by_pod_profile`: whether an agent
+running under [`profile: pod`](../configuration/agent.md#pod-profile) inside
+that pod would observe it. Every gap but `host_network_stays_on_host` is,
+because a host-network pod has no namespace of its own. A pod's
+`pod_profile_recommended` is true when a class other than loopback has such a
+gap, and the top-level `pod_profile_recommended` counts those pods; loopback
+alone never recommends the profile, since it would buy that and nothing else.
 
 The pods are those the Kubernetes enricher watches on this node, so a
 `container.kubernetes.label_filter` that excludes a pod also leaves it out

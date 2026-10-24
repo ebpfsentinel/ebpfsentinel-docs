@@ -6,7 +6,8 @@ The `agent` section configures the core agent behavior - network interfaces, API
 
 ```yaml
 agent:
-  interfaces: [eth0]                    # Required. Network interfaces to attach eBPF programs to.
+  interfaces: [eth0]                    # Required under profile: node. Network interfaces to attach eBPF programs to.
+  profile: node                         # node or pod (see below). Default: node
   xdp_mode: auto                        # XDP attachment mode: auto, native, generic, offloaded. Default: auto
   bind_address: "127.0.0.1"             # REST API listen address. Default: 127.0.0.1
   allow_unauthenticated_api: false      # Safety override for non-loopback bind with auth disabled. Default: false
@@ -30,7 +31,10 @@ agent:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `interfaces` | `[string]` | Yes | - | Network interfaces to monitor |
+| `interfaces` | `[string]` | Under `node` | - | Network interfaces to monitor. Required, and non-empty, under `profile: node`; empty under `profile: pod` |
+| `profile` | `string` | No | `node` | `node` or `pod`, see [Pod profile](#pod-profile) |
+| `pod_selector` | `object` | Under `pod` | - | The pods a `pod` profile agent attaches inside: `namespaces` and `match_labels`. Required under `profile: pod`, refused under `node` |
+| `pod_claims_dir` | `string` | No | - | A node directory shared by every agent on the node, an absolute path. A `pod` profile agent writes in it which pods it inspects inside; a `node` profile agent reads it and stands back from those pods' links. Unset, neither looks, see [One flow, counted once](#one-flow-counted-once) |
 | `xdp_mode` | `string` | No | `auto` | XDP attachment mode (see below) |
 | `bind_address` | `string` | No | `127.0.0.1` | REST API listen address |
 | `allow_unauthenticated_api` | `bool` | No | `false` | Safety override. With `auth.enabled: false` the agent **refuses to start** when `bind_address` is non-loopback, because that would expose the control plane (firewall, IPS, NAT, config reload) to anyone who can reach the port. Set `true` only when the API is fenced off by other means (network policy, mTLS-terminating proxy). Leaving auth enabled, or binding to `127.0.0.1`/`::1`, is the safe default. |
@@ -47,6 +51,140 @@ agent:
 | `log_format` | `string` | No | `json` | Log output format |
 | `api_rate_limit` | `object` | No | see below | Rate limit for the mutating control-plane API (see below) |
 | `config_writes` | `string` | No | `refused` | Whether `PUT /api/v1/config/{section}` may rewrite this agent's own configuration file: `refused` or `allowed`. Refused by default. Where the file is rendered by the Kubernetes operator from a custom resource, a write accepted here is reverted at the next reconcile and nobody is told why the setting went back, so allow it only where the file on disk is what decides what this agent does. |
+
+## Pod profile
+
+`profile: node` is the agent as it is everywhere else on this site: XDP on the
+node's uplinks and the TC chain on the host side of every workload link.
+`profile: pod` is the same binary and the same configuration schema, run
+**beside** a node agent and never instead of one, attaching inside the network
+namespace of each pod its selector names. That is the only place two things are
+visible: traffic over a pod's own loopback, and traffic on a link whose host
+side refused the chain.
+
+Deploy it only where the node agent's
+[coverage verdict](../api-reference/rest-api.md#get-apiv1ebpfcoverage) says a
+pod is missed for a reason it closes. Each class there carries
+`closed_by_pod_profile`, each pod `pod_profile_recommended`, and the response
+counts them; `ebpfsentinel-agent ebpf coverage` prints the same verdict as one
+`Pod profile:` line. A host-network pod has no namespace of its own and is
+beyond the profile; a node whose only gap is loopback is a node where the
+profile buys loopback and nothing else.
+What it closes gap by gap, what it costs per pod and when not to deploy it is
+[When to Run an Agent Inside Pods](../operations/deployment/pod-profile.md).
+
+```yaml
+agent:
+  profile: pod
+  interfaces: []
+  pod_selector:
+    namespaces: [shop]              # Any namespace when empty
+    match_labels:                   # Every label must match
+      app: cart
+container:
+  kubernetes:
+    enabled: true                   # The pods are selected from this inventory
+ids:
+  enabled: true
+dns:
+  enabled: true
+```
+
+The selector must name something, a namespace, a label or both: a selector
+naming nothing would put a chain in every pod on the node, which is the node
+agent's job done at a far higher cost. The Kubernetes enricher must be on, since
+the pods are read from its inventory; a pod profile without it is refused at
+startup.
+
+**Refused, not ignored.** The sections that belong to the node are refused at
+startup when the file names them, even with `enabled: false`, and every one of
+them is off otherwise: `firewall`, `ratelimit`, `ddos`, `loadbalancer`, `nat`,
+`routing`, `qos`, `zones`, `interface_groups`, `dlp`, `attribution`,
+`process_table`, `auto_capture`, and `response.kill_process`. The XDP programs
+sit on the uplink, NAT, routing and shaping decide for the node, and the cgroup,
+tracepoint and uprobe programs are node-wide, so a second copy would see every
+event the node agent already sees. A rule written into a configuration that
+would never load it is a rule somebody believes is enforced, which is why the
+agent says so rather than starting without it. A reload through the API is held
+to the same rule.
+
+What stays available is the TC chain and what reads from it: `ids`, `ips`,
+`threatintel`, `dns`, `conntrack`, `l7`, `alerting`, `audit`, and the API.
+
+**Resource envelope.** The programs and their maps are loaded once per agent,
+not once per pod, so the agent's memory is sized by its configuration exactly
+like a node agent's (map capacities, IDS rule count, threat-intelligence feed
+size) and does not grow with the number of pods it selects. What does scale
+with the pods is one TC chain per selected pod, on its interface and its
+loopback, which costs a few kernel link objects each and a pass through the
+chain for every packet the pod sends or receives, loopback included. Size
+`resources` from the node agent of the same configuration, and measure the per-packet cost with
+[`ebpfsentinel-agent ebpf status`](../cli-reference/index.md#ebpf) on the pods
+you select rather than assuming it.
+
+**How the chain gets inside.** Entering a pod's network namespace takes a
+capability the agent never holds, so every link is made by the privileged
+warden (`EBPFSENTINEL_WARDEN_SOCK`) and handed back; the agent holds the links
+and dropping them detaches. The pods come from the Kubernetes pod inventory, read again every
+fifteen seconds: a pod that
+starts is covered within that, one that stops or stops matching the selector is
+released, and a pod whose sandbox was recreated is attached again in its new
+namespace. Each selected pod gets every loaded TC program on every interface
+its namespace holds, loopback included, in the order the node agent runs them,
+or nothing: a chain with a program missing is dropped whole and tried again on
+the next pass. Without the warden socket, or when the enricher cannot reach the
+API server, the agent logs why once and attaches nothing, and a host-network pod is never selected.
+The warden's refusals are listed in the
+[security model](../architecture/security-model.md).
+
+Under the Kubernetes operator, an `EbpfSentinelAgent` with `profile: pod` and
+`podSelector` is a second DaemonSet beside the node agent's; the operator
+leaves the node sections out of its configuration and refuses to render a
+policy that writes one into it, naming the policy.
+
+### One flow, counted once
+
+A pod's traffic crosses its own interface inside the pod and the host side of
+its link, so with both agents attached every packet would be read, alerted on
+and counted twice. Which of the two reads a pod's link is decided per link,
+through `pod_claims_dir`:
+
+- The `pod` profile agent writes one file per pod it holds the chain inside,
+  named after the pod's uid and carrying the pod's network namespace, rewritten
+  every fifteen seconds and removed when it lets the pod go.
+- The `node` profile agent reads the directory when a link appears and again
+  every fifteen seconds. While a pod's claim is fresh and names the namespace
+  the link leads into, the node agent attaches nothing to that link, or drops
+  what it had attached, and the coverage verdict reports the link as
+  `inspected_inside`, with the pod at full coverage, loopback included.
+- A claim the pod agent stops refreshing lapses after 45 seconds, and the node
+  agent takes the link back on its next pass. A pod agent that crashed or was
+  removed therefore leaves the pod read by nobody for at most a minute, and a
+  claim naming another namespace (a recreated sandbox) is not this link's.
+
+The decision cannot be taken per packet instead. On the host side of a veth a
+pod's packet carries no socket and no cgroup, so nothing the kernel hands the
+node agent says the pod agent has already read it.
+
+Two places still read a selected pod's traffic twice, and both are stated
+rather than hidden:
+
+- **The uplink.** Traffic leaving or entering the node also crosses the
+  node's physical interfaces, which belong to the node agent alone. A flow
+  between a selected pod and the outside world is read inside the pod and
+  again at the uplink. A flow between two pods of the node is read once.
+- **The window before the claim is read.** When a pod is selected after the
+  node agent attached to its link, both read it until the node agent's next
+  pass. That window is measured, per link kind, as
+  `ebpfsentinel_link_inspected_twice_seconds{kind}`, and is normally under
+  fifteen seconds.
+
+Every agent on the node runs as the same uid and reads the same directory; the
+operator mounts `/run/ebpfsentinel-claims` from the node into every agent pod
+and sets `pod_claims_dir` on both profiles. Outside the operator, set the same
+absolute path on both agents and give the directory to the agents' uid. A
+`pod` profile agent without it says once at startup that the node agent keeps
+reading its pods.
 
 ## Write-API rate limit
 

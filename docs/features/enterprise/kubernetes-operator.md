@@ -467,6 +467,47 @@ signalled, `protectedCommands` only adds to that list, and a stopped process
 does not come back. See
 [Stopping the process behind a blocked flow](../../configuration/ips.md#stopping-the-process-behind-a-blocked-flow).
 
+### Inside selected pods
+
+Where the node agent's coverage verdict names a pod it misses for a reason only
+an agent inside the pod closes, a second resource runs the same agent under
+[`profile: pod`](../../configuration/agent.md#pod-profile) beside the first:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: agent-in-pods
+spec:
+  profile: pod
+  podSelector:
+    namespaces: [shop]
+    matchLabels:
+      app: cart
+  config:
+    container:
+      kubernetes:
+        enabled: true
+```
+
+It is a DaemonSet of its own. `interfaces` is not read, the node sections are
+left out of its configuration, and a policy that would write one of them into
+it (a `FirewallPolicy`, a `QoSPolicy`, a `NATPolicy` and the rest) fails the
+render with the policy's name, rather than every pod refusing the file at boot.
+A `pod` profile with no `podSelector`, one without
+`config.container.kubernetes.enabled` to read its pods from, or a
+`podSelector` on a `node` profile, is refused the same way. The chain is put
+inside each pod by the warden sidecar the DaemonSet already carries, which
+holds `SYS_ADMIN` among its default capabilities for exactly that.
+
+Every agent pod, under either profile, mounts the node directory
+`/run/ebpfsentinel-claims`, handed to the agent's uid by a `claims-dir` init
+container, and its configuration names it as `agent.pod_claims_dir`. Through
+it the node agent stands back from the link of each pod the `pod` profile
+agent holds the chain inside, so a flow between two pods of the node is read
+once; the rule and its limits are under
+[One flow, counted once](../../configuration/agent.md#one-flow-counted-once).
+
 ### Enforcing the cluster's NetworkPolicy
 
 On a CNI that enforces no `NetworkPolicy`, the agents can carry the policies

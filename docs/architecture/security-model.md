@@ -135,6 +135,16 @@ the host pid namespace is no longer one of them:
   (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which
   returns the link descriptor over the control socket. The agent itself stays
   `cap-drop: ALL` - it never holds a tracing capability.
+- **Entering a pod's network namespace on the warden only.** A `pod` profile
+  agent attaches its TC chain inside each selected pod, which means entering
+  that pod's network namespace (`CAP_SYS_ADMIN`), so the warden does it: the
+  agent hands over the program descriptor and a host pid, and the warden
+  returns the link. The warden refuses before entering anything when the pid
+  is 0 or 1, when the process is not in a cgroup the kubelet made for a pod,
+  when its namespace is the host's or the warden's own, and when the interface
+  name is one no interface could carry. The namespace is entered on a thread
+  that ends with the request, so nothing else the warden serves ever runs
+  inside a pod.
 
 What that mount lets an alert say is part of the cost. A DLP alert names the
 binary of the writing process, read through the same `/host/proc`, and the
