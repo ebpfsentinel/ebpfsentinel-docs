@@ -345,6 +345,35 @@ read access to namespaces, a rule naming `namespaceSelector` gets no count, a
 `reason` on its row, and the condition `Unknown`; the agents still resolve it.
 The cluster-wide `ClusterRole` grants `list` on `namespaces` for this.
 
+The fields are spelt the way a `NetworkPolicy` spells them, and the agent's
+reference for the matchers states the two places they mean something
+different: a selector left out narrows nothing, and `{}` selects every pod.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: FirewallPolicy
+metadata:
+  name: allow-api
+  namespace: payments
+spec:
+  target:
+    all: true
+  rules:
+    - id: allow-api-to-database
+      action: allow
+      protocol: tcp
+      destination: 10.96.14.7/32
+      destinationPort: {start: 5432, end: 5432}
+      priority: 45
+      workload:
+        podSelector:
+          matchLabels: {app.kubernetes.io/name: api}
+        namespaceSelector:
+          matchLabels: {kubernetes.io/metadata.name: payments}
+        serviceAccount: api
+        mode: enforce
+```
+
 ```sh
 kubectl get firewallpolicy allow-api -o jsonpath='{.status.workloads}'
 kubectl get firewallpolicy allow-api \

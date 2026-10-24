@@ -39,6 +39,66 @@ A selector must name at least one of the seven. Naming several is an AND: every 
 - **A rule naming a workload and no address is about that workload anywhere.** Leave `dst_ip` and `dst_port` out and the rule decides every connection that workload opens.
 - **A rule naming both is the intersection**: that workload, to that destination.
 
+### Selecting by pod, namespace and service account
+
+The three Kubernetes matchers read like a `NetworkPolicy`, with two
+differences worth stating before the first rule. A selector left out does not
+narrow anything, so `pods` alone matches that label in every namespace rather
+than in one; and a selector written as `{}` matches every pod and never a
+process outside one, so `pods: {}` is how a rule says "any pod, not the host".
+
+One label on the pod:
+
+```yaml
+- id: api-to-database
+  priority: 45
+  action: allow
+  protocol: tcp
+  dst_ip: 10.96.14.7/32
+  dst_port: 5432
+  workload:
+    pods:
+      match_labels: {app.kubernetes.io/name: api}
+      match_expressions:
+        - {key: track, operator: NotIn, values: [canary]}
+    mode: enforce
+```
+
+Every pod of a namespace, picked by its name:
+
+```yaml
+- id: sandbox-no-egress
+  priority: 50
+  action: deny
+  workload:
+    namespaces:
+      match_labels: {kubernetes.io/metadata.name: sandbox}
+    mode: enforce
+```
+
+One service account, held to one namespace because the same name elsewhere is
+another account:
+
+```yaml
+- id: backup-to-object-store
+  priority: 40
+  action: allow
+  protocol: tcp
+  dst_port: 443
+  workload:
+    service_account: backup
+    namespaces:
+      match_labels: {kubernetes.io/metadata.name: storage}
+    mode: enforce
+```
+
+A pod that names no service account runs as `default`, and that is the name
+the rule compares. A selector that matches no pod on a node is not an error:
+the rule loads, decides nothing there, and starts deciding the moment a
+matching pod is scheduled or relabelled. Under the operator, a rule matching
+no running pod anywhere is reported on the policy rather than left to be
+found by the traffic it never stopped.
+
 ### Matchers a workload rule may not carry
 
 There is no packet at the socket layer, so ten matchers are refused at load time with the reason on the line that has to be edited: `src_ip` (and `src_alias`), `src_port` (and `src_port_alias`), `vlan_id`, `src_mac`, `dst_mac`, `state`, `flags`, `icmp_type` and `icmp_code`, `dscp_match` and `dscp_mark`, and `interfaces`. The kernel has chosen neither a source address, a source port nor a route when `connect()` is called, and there is no frame to read a tag, an address or a flag from. The `reject` action is refused for the same reason: there is no packet to answer with a reset, so a workload rule either allows or denies, and a denied task gets `EPERM` from its own syscall like any other error.
