@@ -807,6 +807,9 @@ List all IDS detection rules.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ids/rules
 ```
 
+A rule scoped to containers, pods or units carries a `workload` field holding
+its selector as one line; a rule that applies to every workload has none.
+
 ### IPS
 
 #### GET /api/v1/ips/rules

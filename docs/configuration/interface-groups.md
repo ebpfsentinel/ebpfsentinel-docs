@@ -30,6 +30,10 @@ in the order it is listed, so the kernel can hold a rule to that interface. An
 interface left without a bit cannot carry an interface-scoped rule, and such a
 rule fails the configuration load. Keep groups plus interfaces within 31.
 
+Containers do not take bits. An IDS rule meant for one container or pod names
+it in a `workload` block instead, decided on the container's cgroup with no
+ceiling of 31, see [IDS workload scope](ids.md#workload-scope).
+
 ## Inversion
 
 When referencing interface groups in rules (firewall, QoS classifiers, QoS pipes, etc.), prefix the group name with `"!"` to invert the match. For example, `"!lan"` means "all interfaces except those in the lan group."

@@ -166,6 +166,7 @@ Both rule listings answer the same ruleset, in the vocabulary the configuration 
 | `domain_pattern`, `domain_match_mode` | The resolved name the rule is decided on, omitted where the rule names none |
 | `threshold` | `threshold_type`, `count`, `window_secs`, `track_by`, omitted where the rule carries none |
 | `country_thresholds` | Per-country overrides keyed by ISO 3166-1 alpha-2, omitted where the rule carries none |
+| `workload` | The containers, pods or units the rule is scoped to, as one line, omitted where the rule applies to every workload |
 | `kernel_slot` | Present only where the slot is contended, see below |
 
 Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_port)` slot another rule holds, since detection and prevention rules share the same kernel maps. See [IPS](ips.md) for what a lost slot means for each kind of rule.

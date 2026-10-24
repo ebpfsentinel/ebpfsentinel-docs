@@ -66,6 +66,7 @@ ids:
 | `domain_match_mode` | `string` | No | `exact`, `wildcard`, or `regex` (required when `domain_pattern` is set) |
 | `country_thresholds` | `map<string, Threshold>` | No | Per-country threshold overrides (ISO 3166-1 alpha-2 → Threshold). Overrides the rule's `threshold` for traffic from listed countries |
 | `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+| `workload` | `Workload` | No | Restrict the rule to the containers, pods or units it names (see [Workload scope](#workload-scope)). A rule names `interfaces` or a `workload`, not both |
 | `tenant_id` | `integer` | No | Tenant this rule belongs to. `0` (the default) is global: the rule applies to traffic from every tenant. A non-zero value scopes the rule to packets the agent resolves to that tenant, and takes precedence over a global rule on the same port. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
 
 The classifier keys its lookup on a port, and it is the only thing that
@@ -96,6 +97,58 @@ the bytes the classifier copies out of the packet. What that changes:
 
 Both `dst_port` and `src_port` are honoured, so a rule can fire on the reply
 leg of a conversation.
+
+### Workload scope
+
+A `workload` block limits a port rule to traffic that crosses the link of a
+selected container. The agent learns which container owns each veth or netkit
+device as the link appears, and the kernel classifier decides the rule on that
+container's cgroup, so a scoped rule costs two map lookups and no extra pass
+over the packet. On a host interface, where there is no container link, the
+cgroup is the one of the local socket that sent the packet.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `unit` | `string` | A systemd unit, such as `nginx.service` |
+| `cgroup` | `string` | A cgroup path prefix, such as `/system.slice/docker-` |
+| `container` | `string` | A container name or id |
+| `pods` | `LabelSelector` | Kubernetes pod labels (`matchLabels`, `matchExpressions`) |
+| `namespaces` | `LabelSelector` | Kubernetes namespace labels, combined with `pods` |
+| `service_account` | `string` | A Kubernetes service account |
+
+Every field set must match, and at least one must be set. What a scoped rule
+does not do:
+
+- **No executable path.** A packet crossing a container link has no process
+  attached, so a selector on an executable could never be decided there. The
+  agent refuses it.
+- **No content pattern.** A rule carrying a `pattern` is decided in userspace,
+  on bytes copied out of the packet, where the link it crossed is no longer
+  known. The agent refuses a `workload` on a content rule.
+- **On Kubernetes, select pods.** The link belongs to the pod sandbox, not to
+  any one of its containers, so a `container` selector matches the sandbox.
+  Name the pods by label instead.
+- **Coverage starts once the workload is seen.** A container is known from the
+  moment its link appears with a process behind it, or from its first exec
+  once the process table is on. Traffic before that is not inspected by the
+  scoped rule.
+
+```yaml
+ids:
+  rules:
+    - id: redis-from-anywhere
+      severity: high
+      protocol: tcp
+      dst_port: 6379
+      description: "Redis reached on the cache pods"
+      workload:
+        pods:
+          matchLabels:
+            app: cache
+```
+
+`GET /api/v1/ids/rules` returns the selector of a scoped rule in its
+`workload` field, as one line.
 
 ### Threshold
 
