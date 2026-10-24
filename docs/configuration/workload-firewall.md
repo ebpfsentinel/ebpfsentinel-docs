@@ -40,6 +40,70 @@ A selector must name at least one of the four. Naming several is an AND: every m
 
 There is no packet at the socket layer, so ten matchers are refused at load time with the reason on the line that has to be edited: `src_ip` (and `src_alias`), `src_port` (and `src_port_alias`), `vlan_id`, `src_mac`, `dst_mac`, `state`, `flags`, `icmp_type` and `icmp_code`, `dscp_match` and `dscp_mark`, and `interfaces`. The kernel has chosen neither a source address, a source port nor a route when `connect()` is called, and there is no frame to read a tag, an address or a flag from. The `reject` action is refused for the same reason: there is no packet to answer with a reset, so a workload rule either allows or denies, and a denied task gets `EPERM` from its own syscall like any other error.
 
+## Destinations by name
+
+A destination that is a host name rather than an address goes in `fqdn`, inside the `workload` block:
+
+```yaml
+firewall:
+  workload_dns:
+    resolvers: ["10.96.0.10"]
+    grace_secs: 30
+  rules:
+    - id: allow-dns-to-cluster-resolver
+      priority: 90
+      action: allow
+      protocol: udp
+      dst_ip: 10.96.0.10/32
+      dst_port: 53
+      workload:
+        container: payments
+        mode: enforce
+    - id: allow-payments-to-psp
+      priority: 100
+      action: allow
+      protocol: tcp
+      dst_port: 443
+      workload:
+        container: payments
+        fqdn: ["api.psp.example", "*.cdn.psp.example"]
+        mode: enforce
+    - id: deny-payments-elsewhere
+      priority: 200
+      action: deny
+      workload:
+        container: payments
+        mode: enforce
+```
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `workload.fqdn` | list of strings | `[]` | Names this rule opens. An exact name, or `*.` followed by a domain of at least two labels |
+| `firewall.workload_dns.resolvers` | list of addresses or CIDRs | `[]` | The resolvers whose answers are believed. Required as soon as one rule carries `fqdn` |
+| `firewall.workload_dns.grace_secs` | integer | `30` | Seconds an address stays open past its record's TTL, at most `300` |
+
+The address of a name is not written in the rule because it is whatever the resolver answered. So the agent reads the DNS traffic of every workload a rule names, on its way in and out of the workload's own sockets, and opens each address in an answer **for the cgroup that asked and for no other**. An address learned by one pod is never reused for another pod, even one that asked for the same name a moment later. An answer is believed only when all of these hold:
+
+- it came from one of `resolvers`;
+- it answers a query that same cgroup sent, with the same transaction id and port, less than five seconds earlier;
+- it names what was asked;
+- it reports success.
+
+CNAME chains are followed for up to eight hops.
+
+**TTL and grace.** Each address stays open for its record's own TTL, capped at one day, plus `grace_secs`. The grace covers the gap between the moment a cached answer lapses and the moment the application asks again. The expiry is checked by the kernel at every `connect()` and `sendmsg()`, so a lapsed address stops opening connections at that instant. A reload drops every learned address, and the workload learns them again from its next resolution.
+
+**Wildcards.** `*.example.com` matches `api.example.com` and nothing deeper. One leftmost label is the only wildcard that can be decided precisely from the name a workload asked for, so every other shape is refused at load time, with the reason, on the line that names it: `*`, `api.*.example.com`, `*example.com` and a wildcard directly under a top-level domain such as `*.com`.
+
+**What a rule by name requires.** A rule carrying `fqdn` must `allow`. It cannot also carry `dst_ip` or `dst_alias`, and its selector cannot be `exe`, because an answer is credited to the cgroup whose socket received it and a cgroup can run several executables. The workload also needs a rule letting it reach its resolver on port 53, as in the first rule above, or its queries are refused before they are asked.
+
+### What a rule by name does not see
+
+- **A resolution the agent did not read opens nothing, and the connection is refused.** That covers DNS over HTTPS, DNS over TLS, DNS over TCP, a resolver not listed in `resolvers`, an address written into the application's configuration, and a name resolved by a sidecar or a node-local cache running in another cgroup. An application that bypasses the cluster resolver fails closed rather than being guessed at. Only the first 512 bytes of a UDP answer are read, and whatever a longer answer carries past them opens nothing.
+- **An address shared by many names is opened for every one of them.** A content delivery network serves thousands of names from the same addresses, so once `api.psp.example` resolves to one of them, any other site behind that address is reachable from that pod until the grant lapses. The allowance is coarser than the rule reads, and the rule cannot make it finer, because the connection carries an address and not a name.
+- **A connection already open outlives its grant.** Only new connections and new datagrams consult it. A long-lived connection keeps running after the address has lapsed.
+- **Capacity is bounded.** At most 16384 addresses are open at once across the node. Past that, a new answer is logged and its address stays closed. The kernel copies DNS packets through a ring buffer: a packet that does not fit is counted under `dns_lost` and teaches nothing, which again lands on the closed side.
+
 ## Modes
 
 `mode` defaults to `observe`, deliberately. An observing rule counts what it would have refused and lets the syscall through, so the first policy anybody writes cannot take an application offline. Turning a rule to `enforce` changes which counter moves, not how much.
@@ -144,7 +208,7 @@ A cgroup matcher includes everything under the path, so the pod slice covers eac
 
 ## What it costs and what it reports
 
-Counters are published under `ebpfsentinel_packets_total{interface="WORKLOAD_METRICS"}`, one slot per hook plus `allowed`, `refused`, `would_refuse`, `unresolved`, `no_rule` and `event_lost`. Each denial also increments `ebpfsentinel_workload_denials_total{rule_id, mode}` and raises an alert naming the rule, the workload and the destination. `unresolved` is the task that executed and connected before the policy learned what it was; it is counted rather than hidden.
+Counters are published under `ebpfsentinel_packets_total{interface="WORKLOAD_METRICS"}`, one slot per hook plus `allowed`, `refused`, `would_refuse`, `unresolved`, `no_rule`, `event_lost` and `dns_lost`, the last being DNS packets the kernel could not hand to the agent. Each denial also increments `ebpfsentinel_workload_denials_total{rule_id, mode}` and raises an alert naming the rule, the workload and the destination. `unresolved` is the task that executed and connected before the policy learned what it was; it is counted rather than hidden.
 
 To see what a given workload may reach, ask the agent rather than reading the document:
 

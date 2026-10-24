@@ -63,6 +63,7 @@ firewall:
 | `rules` | `[Rule]` | `[]` | Firewall rules list |
 | `anti_lockout` | `AntiLockout` | see below | Anti-lockout safety mechanism |
 | `scrub` | `Scrub` | see below | Packet normalization settings |
+| `workload_dns` | `WorkloadDns` | no resolver, 30 s grace | Resolvers whose answers open the destinations a workload rule names by host name; see [Destinations by name](workload-firewall.md#destinations-by-name) |
 
 ### Rule
 
