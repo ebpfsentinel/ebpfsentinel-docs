@@ -353,6 +353,50 @@ that did not turn the capability on, which is the default, and `reason` says
 which of the three it is: off in the configuration, the workload firewall's
 object carrying no quarantine map, or its hooks not attached.
 
+`bpf_lsm` says whether a program attached at a Linux security module hook can
+load on this host. It is read from the host rather than from any attach, so it
+answers before anything that needs it is configured:
+
+```json
+{
+  "bpf_lsm": {
+    "active": false,
+    "built": true,
+    "modules": ["lockdown", "capability", "landlock", "yama", "apparmor"],
+    "reason": "bpf is not among the active security modules",
+    "remedy": "add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=lockdown,landlock,yama,apparmor,bpf"
+  }
+}
+```
+
+`active` is the one to read: `true` only when `bpf` is among the active
+security modules in `/sys/kernel/security/lsm`. `built` comes from the kernel's
+own BTF and is `null` when that could not be read, which proves nothing either
+way; `false` means no boot parameter can help and `remedy` says so. A kernel
+built with it but booted without it, which is the common case, gets the exact
+`lsm=` value to set, keeping the modules already active. The same answer is
+available on a host where no agent runs yet, from
+[`ebpf host-check`](../cli-reference/index.md#ebpf).
+
+`network_executables` says what became of the list of executables allowed to
+reach the network:
+
+```json
+{
+  "network_executables": {
+    "attached": false,
+    "enforcing": false,
+    "executables": 0,
+    "reason": "turned off in the configuration"
+  }
+}
+```
+
+`attached` is `true` once both hooks are attached and the set is written;
+`executables` counts the files in it, the agent's own included. When it is not
+attached, `reason` says why: off in the configuration, the BPF LSM not active
+on the host, or the load or attach that failed.
+
 #### GET /api/v1/ebpf/coverage
 
 What the agent sees of each pod scheduled on its node, computed from the links

@@ -55,9 +55,21 @@ const WORDS = new Map(
   ].map((word, value) => [word, value]),
 );
 
+const TENS = new Map([
+  ['twenty', 20], ['thirty', 30], ['forty', 40], ['fifty', 50],
+]);
+
+// A compound past twenty is written with a plain hyphen, `twenty-one`.
 function numberFrom(token) {
   if (/^\d+$/.test(token)) return Number(token);
-  return WORDS.get(token.toLowerCase());
+  const word = token.toLowerCase();
+  const compound = word.match(/^([a-z]+)-([a-z]+)$/);
+  if (compound) {
+    const tens = TENS.get(compound[1]);
+    const unit = WORDS.get(compound[2]);
+    return tens !== undefined && unit !== undefined && unit > 0 && unit < 10 ? tens + unit : undefined;
+  }
+  return TENS.get(word) ?? WORDS.get(word);
 }
 
 function countProgramDirectories() {
@@ -119,7 +131,7 @@ const KINDS = new Map([
     (line) => {
       const total = countProgramDirectories();
       const match = line.match(
-        /holds ([a-z]+) program directories: ([a-z]+) attached[^,]*, ([a-z]+) reached only by tail call/,
+        /holds ([a-z-]+) program directories: ([a-z-]+) attached[^,]*, ([a-z-]+) reached only by tail call/,
       );
       if (!match) return ['the sentence no longer names a total, an attached count and a tail-call count'];
       const [, totalWord, attachedWord, tailWord] = match;

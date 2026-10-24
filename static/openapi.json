@@ -2799,6 +2799,66 @@
         ]
       }
     },
+    "/api/v1/ebpf/coverage": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "`GET /api/v1/ebpf/coverage` - what the agent sees of each pod on this node.",
+        "description": "Computed from the links the chain is actually on, so a pod whose link was\nrefused is reported with the reason rather than counted as watched.",
+        "operationId": "get_ebpf_coverage",
+        "responses": {
+          "200": {
+            "description": "One verdict per pod on this node, uncovered first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbpfCoverageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pod inventory on this node: Kubernetes enrichment is off or the agent was built without it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/ebpf/kernel-features": {
       "get": {
         "tags": [
@@ -3442,6 +3502,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkloadFqdnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The workload firewall is not loaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/api/v1/firewall/workload/labels": {
+      "get": {
+        "tags": [
+          "Firewall"
+        ],
+        "summary": "`GET /api/v1/firewall/workload/labels` - the containers whose labels\ncarry policy, the rules each produced and any label refused.",
+        "operationId": "workload_labels",
+        "responses": {
+          "200": {
+            "description": "Containers carrying policy labels, by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContainerLabelsResponse"
                 }
               }
             }
@@ -5248,6 +5367,86 @@
         ]
       }
     },
+    "/api/v1/learning/sessions/{id}/segmentation": {
+      "get": {
+        "tags": [
+          "Learning"
+        ],
+        "summary": "`GET /api/v1/learning/sessions/{id}/segmentation` - the rules that keep\neach container on a bridge to the peers the window saw it reach.",
+        "operationId": "get_learning_segmentation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The window's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The proposed segmentation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningSegmentationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such window, or learning mode is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Docker enrichment is off, or the Docker socket did not answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/learning/sessions/{id}/stop": {
       "post": {
         "tags": [
@@ -5641,6 +5840,86 @@
           },
           "403": {
             "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/api/v1/netpol/replay": {
+      "post": {
+        "tags": [
+          "NetworkPolicy"
+        ],
+        "summary": "`POST /api/v1/netpol/replay` - what proposed policies would have refused.",
+        "description": "Changes nothing: the proposal is compiled beside the policies in force\nand the connections this node tracks are put to both.",
+        "operationId": "replay_netpol",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetpolReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "What the proposal would have refused, by pod",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetpolReplayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The manifests are not namespaced NetworkPolicy objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Network policy or connection tracking is off on this node",
             "content": {
               "application/json": {
                 "schema": {
@@ -8721,6 +9000,48 @@
           }
         }
       },
+      "BpfLsmReport": {
+        "type": "object",
+        "description": "Whether the BPF LSM runs on this host, and what would make it run.",
+        "required": [
+          "active",
+          "modules"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "`bpf` is among the active security modules."
+          },
+          "built": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the kernel was built with the BPF LSM, read from its BTF.\nAbsent when the BTF could not be read, which proves nothing either way."
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The active security modules in the order the kernel runs them, empty\nwhen the list could not be read."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why an LSM program cannot attach here, in one sentence."
+          },
+          "remedy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What would make it attach, in one sentence."
+          }
+        }
+      },
       "BulkTriageRequest": {
         "type": "object",
         "description": "`POST /api/v1/alerts/triage` body: one change applied to many alerts.",
@@ -9051,6 +9372,145 @@
           "runtime": {
             "type": "string",
             "description": "Detected runtime (docker, containerd, crio, podman, unknown)."
+          }
+        }
+      },
+      "ContainerLabelEntry": {
+        "type": "object",
+        "description": "One container carrying policy labels, and what came of them.",
+        "required": [
+          "container_id",
+          "container_name",
+          "mode",
+          "rules",
+          "problems"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string",
+            "description": "Container id, in full."
+          },
+          "container_name": {
+            "type": "string",
+            "description": "Container name, when the runtime gave one."
+          },
+          "mode": {
+            "type": "string",
+            "description": "`observe` or `enforce`, as the mode label says."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerLabelProblem"
+            },
+            "description": "What kept its labels out of force."
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Identifiers of the workload rules its labels produced, in kernel\norder. Empty whenever a problem is listed: a container is policed by\nevery one of its labels or by none."
+          }
+        }
+      },
+      "ContainerLabelProblem": {
+        "type": "object",
+        "description": "A label of a container that could not be put in force.",
+        "required": [
+          "label",
+          "reason"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label key, or the label prefix when the problem is the\ncontainer as a whole."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why it was refused."
+          }
+        }
+      },
+      "ContainerLabelsResponse": {
+        "type": "object",
+        "description": "Every container whose labels carry policy.",
+        "required": [
+          "containers"
+        ],
+        "properties": {
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerLabelEntry"
+            }
+          }
+        }
+      },
+      "CoverageClass": {
+        "type": "object",
+        "required": [
+          "class",
+          "observed"
+        ],
+        "properties": {
+          "class": {
+            "type": "string",
+            "description": "`north_south`, `east_west_across_nodes`, `east_west_on_node` or\n`loopback`."
+          },
+          "gap": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it does not, as a stable code. Absent when observed."
+          },
+          "observed": {
+            "type": "boolean",
+            "description": "The agent's chain sees this traffic."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The same reason in a sentence. Absent when observed."
+          }
+        }
+      },
+      "CoverageInterface": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "attached"
+        ],
+        "properties": {
+          "attached": {
+            "type": "boolean",
+            "description": "Every program of the chain is on the link."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`veth`, `netkit`, `macvlan`, `ipvlan`, `bridge-member`, or the\nkernel's own word for a kind the agent does not attach to."
+          },
+          "name": {
+            "type": "string",
+            "description": "Interface name in the host namespace."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The same reason in a sentence. Absent when attached."
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it is not, as a stable code. Absent when attached."
           }
         }
       },
@@ -10308,6 +10768,55 @@
           }
         }
       },
+      "EbpfCoverageResponse": {
+        "type": "object",
+        "required": [
+          "uplinks_attached",
+          "encapsulated",
+          "links_without_pod",
+          "uncovered",
+          "partial",
+          "full",
+          "pods"
+        ],
+        "properties": {
+          "encapsulated": {
+            "type": "boolean",
+            "description": "The node carries an encapsulating device, so traffic between nodes\ncrosses the uplink inside an outer header."
+          },
+          "full": {
+            "type": "integer",
+            "description": "Pods with every class but loopback observed.",
+            "minimum": 0
+          },
+          "links_without_pod": {
+            "type": "integer",
+            "description": "Workload links whose owner names no pod the inventory holds.",
+            "minimum": 0
+          },
+          "partial": {
+            "type": "integer",
+            "description": "Pods with some classes observed.",
+            "minimum": 0
+          },
+          "pods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PodCoverageEntry"
+            },
+            "description": "One verdict per pod, uncovered first."
+          },
+          "uncovered": {
+            "type": "integer",
+            "description": "Pods with no class observed.",
+            "minimum": 0
+          },
+          "uplinks_attached": {
+            "type": "boolean",
+            "description": "The chain is on the node's configured interfaces."
+          }
+        }
+      },
       "EbpfStatusResponse": {
         "type": "object",
         "required": [
@@ -10955,6 +11464,13 @@
                 "type": "null"
               }
             ]
+          },
+          "workload": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The workload this rule is scoped to, written out the way the\nfirewall's workload rules are. Absent is a rule that inspects every\nworkload."
           }
         }
       },
@@ -11066,6 +11582,10 @@
               }
             ]
           },
+          "kill_process": {
+            "type": "boolean",
+            "description": "The rule also stops the process behind a flow it blocks. Present only\nwhen it does."
+          },
           "mode": {
             "type": "string"
           },
@@ -11125,12 +11645,18 @@
           "process_tracing",
           "workload_firewall",
           "process_signal",
-          "quarantine"
+          "quarantine",
+          "bpf_lsm",
+          "network_executables"
         ],
         "properties": {
           "attribution": {
             "$ref": "#/components/schemas/AttributionReport",
             "description": "Whether the socket-attribution hooks are on this host's cgroup, and\nwhy not where they are not. Read from what the attach actually did,\nnot from the probe: a kernel that supports the program type can still\nrefuse the attach, and a flow with no workload on it is the same\nsilence either way."
+          },
+          "bpf_lsm": {
+            "$ref": "#/components/schemas/BpfLsmReport",
+            "description": "Whether an LSM program can attach on this host. Read from the host\nrather than from any attach, because it is asked before anything that\nneeds it is configured, and the kernel version does not answer it."
           },
           "helpers": {
             "type": "array",
@@ -11147,6 +11673,10 @@
             "items": {
               "$ref": "#/components/schemas/MissingHelperEntry"
             }
+          },
+          "network_executables": {
+            "$ref": "#/components/schemas/NetworkExecutablesReport",
+            "description": "Whether the kernel decides which executables reach the network, and\nwhether it refuses or only reports. Reported whether or not the list is\nconfigured, with the reason it is not in force."
           },
           "probed": {
             "type": "boolean"
@@ -11705,6 +12235,64 @@
           }
         }
       },
+      "LearningSegmentationResponse": {
+        "type": "object",
+        "description": "The rules segmenting the containers on the node's bridges, with what it\ntook to write them.",
+        "required": [
+          "session",
+          "yaml",
+          "bridges",
+          "containers",
+          "rules",
+          "peer_rules",
+          "unlearned",
+          "unnamed"
+        ],
+        "properties": {
+          "bridges": {
+            "type": "integer",
+            "description": "Bridges that carried at least one container.",
+            "minimum": 0
+          },
+          "containers": {
+            "type": "integer",
+            "description": "Containers given rules, counted once per bridge they sit on.",
+            "minimum": 0
+          },
+          "peer_rules": {
+            "type": "integer",
+            "description": "Rules letting a container through to a peer on its bridge.",
+            "minimum": 0
+          },
+          "rules": {
+            "type": "integer",
+            "description": "Rules written.",
+            "minimum": 0
+          },
+          "session": {
+            "$ref": "#/components/schemas/LearningSessionResponse",
+            "description": "The window it was rendered from, as it stood at the reading."
+          },
+          "unlearned": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Containers on a bridge the window never saw, which get no rule."
+          },
+          "unnamed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Containers the window saw under a name no rule can select them by."
+          },
+          "yaml": {
+            "type": "string",
+            "description": "The document, YAML in the agent's own rule schema."
+          }
+        }
+      },
       "LearningSessionResponse": {
         "type": "object",
         "description": "A window, as it stands.\n\nEverything a reader needs to decide whether the document it would\nproduce is worth applying: how long it has really been watching, whether\nthe agent was up for all of it, how many destinations it holds, how many\nit had to refuse, and how long since it last found a new one.",
@@ -12136,6 +12724,157 @@
         ],
         "description": "The addresses and ports a translation rewrites to.\n\nTagged with the same word `nat_type` carries, since a reader deciding what\na rule does reads the two together."
       },
+      "NetpolRefusedFlow": {
+        "type": "object",
+        "required": [
+          "direction",
+          "peer",
+          "protocol",
+          "port",
+          "already_refused",
+          "flows"
+        ],
+        "properties": {
+          "already_refused": {
+            "type": "boolean",
+            "description": "The policies in force refuse it already."
+          },
+          "direction": {
+            "type": "string",
+            "description": "`ingress` or `egress`, seen from the pod that would refuse."
+          },
+          "flows": {
+            "type": "integer",
+            "description": "How many tracked connections had this shape.",
+            "minimum": 0
+          },
+          "peer": {
+            "type": "string",
+            "description": "The address at the other end, as the deciding hook sees it: the\ndestination the pod connected to, a Service address included, or\nthe source the pod was reached from."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "protocol": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "NetpolReplayRequest": {
+        "type": "object",
+        "required": [
+          "manifests"
+        ],
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many tracked connections to replay, at most 100000.",
+            "minimum": 0
+          },
+          "manifests": {
+            "type": "string",
+            "description": "One or more `networking.k8s.io/v1` `NetworkPolicy` manifests, as a\nYAML stream. A `List` is read item by item. A policy with the\nnamespace and name of one in force replaces it; any other is added."
+          }
+        }
+      },
+      "NetpolReplayResponse": {
+        "type": "object",
+        "required": [
+          "flows",
+          "judged",
+          "newly_refused",
+          "still_refused",
+          "workloads"
+        ],
+        "properties": {
+          "flows": {
+            "type": "integer",
+            "description": "Tracked connections read.",
+            "minimum": 0
+          },
+          "judged": {
+            "type": "integer",
+            "description": "Connections with a known pod at one end at least, the only ones a\npolicy can decide.",
+            "minimum": 0
+          },
+          "newly_refused": {
+            "type": "integer",
+            "description": "Connections the proposal refuses that the policies in force let\nthrough.",
+            "minimum": 0
+          },
+          "still_refused": {
+            "type": "integer",
+            "description": "Connections the proposal refuses that are refused already.",
+            "minimum": 0
+          },
+          "workloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetpolWorkloadReplay"
+            }
+          }
+        }
+      },
+      "NetpolWorkloadReplay": {
+        "type": "object",
+        "required": [
+          "namespace",
+          "pod",
+          "refused"
+        ],
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "pod": {
+            "type": "string"
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetpolRefusedFlow"
+            }
+          }
+        }
+      },
+      "NetworkExecutablesReport": {
+        "type": "object",
+        "description": "What became of the network executables list on this host.",
+        "required": [
+          "attached",
+          "enforcing",
+          "executables"
+        ],
+        "properties": {
+          "attached": {
+            "type": "boolean",
+            "description": "Both hooks are attached and deciding."
+          },
+          "enforcing": {
+            "type": "boolean",
+            "description": "An executable outside the list is refused rather than reported."
+          },
+          "executables": {
+            "type": "integer",
+            "description": "How many distinct executables the kernel holds, the agent included.",
+            "minimum": 0
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the list is not in force, in one sentence."
+          }
+        }
+      },
       "NptV6RuleResponse": {
         "type": "object",
         "description": "Response DTO for an `NPTv6` prefix translation rule.",
@@ -12182,6 +12921,51 @@
           "mode": {
             "type": "string",
             "description": "`alert` or `block`."
+          }
+        }
+      },
+      "PodCoverageEntry": {
+        "type": "object",
+        "required": [
+          "uid",
+          "name",
+          "namespace",
+          "host_network",
+          "level",
+          "interfaces",
+          "classes"
+        ],
+        "properties": {
+          "classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverageClass"
+            },
+            "description": "One entry per traffic class, in a fixed order."
+          },
+          "host_network": {
+            "type": "boolean",
+            "description": "The pod shares the node's network namespace."
+          },
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverageInterface"
+            },
+            "description": "The links found leading into the pod; empty for a host-network pod,\nor when none was found."
+          },
+          "level": {
+            "type": "string",
+            "description": "`none`, `partial` or `full`, loopback aside: no node agent sees a\npod's loopback."
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
           }
         }
       },
@@ -14078,6 +14862,10 @@
     {
       "name": "Learning",
       "description": "Learning mode: what this node reached, for a declared window and scope"
+    },
+    {
+      "name": "NetworkPolicy",
+      "description": "What proposed Kubernetes NetworkPolicy would refuse, replayed against tracked connections"
     },
     {
       "name": "IDS",

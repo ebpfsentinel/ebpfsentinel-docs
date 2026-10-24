@@ -52,7 +52,9 @@ A request above the ceiling is refused, not clamped. A value of `0`, or one abov
 `kill_process` is the only response action whose blast radius is a running
 program rather than a packet, so it is off by default and turning it on arms
 nothing by itself: with `enabled: true` the agent loads the program and
-attaches it, and a process is stopped only where a response rule asks for it.
+attaches it, and a process is stopped only where a rule asks for it: an IPS
+rule carrying [`kill_process: true`](ips.md#stopping-the-process-behind-a-blocked-flow),
+or an Enterprise response policy.
 A node that leaves this block out carries no such program at all, and the
 `attached` field of `/api/v1/ebpf/kernel-features` says so.
 

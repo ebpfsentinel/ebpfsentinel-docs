@@ -1090,7 +1090,33 @@ ebpfsentinel-agent ebpf kernel-features
 
 # What the agent sees of each pod on this node, uncovered first
 ebpfsentinel-agent ebpf coverage
+
+# Can an LSM program attach on this host? No agent, no root, no configuration
+ebpfsentinel-agent ebpf host-check
 ```
+
+`ebpf host-check` answers for the machine it runs on and talks to no agent, so
+it is the command to run before buying or installing anything: download the
+binary from the release, run it as any user, and read one block. It reads the
+active security modules from `/sys/kernel/security/lsm` and whether the kernel
+was built with the BPF LSM from `/sys/kernel/btf/vmlinux`, installs nothing and
+changes nothing.
+
+```text
+BPF LSM
+  Active:     no
+  Built in:   yes
+  Modules:    lockdown,capability,landlock,yama,apparmor
+  Reason:     bpf is not among the active security modules
+  Remedy:     add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=lockdown,landlock,yama,apparmor,bpf
+```
+
+`Active: yes` means the executables allowed to reach the network can be
+enforced on this host. Anything else comes with the reason and the one change
+that would fix it. `--output json` gives the same fields as the `bpf_lsm` block
+of [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md#get-apiv1ebpfkernel-features),
+which a running agent fills from the same two files, so the two cannot
+disagree.
 
 `ebpf status` reports loading and attaching apart, because they fail
 separately: a program can sit in the kernel and still reach no wire, which the

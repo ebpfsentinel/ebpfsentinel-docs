@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 20 eBPF kernel programs (the
+Detailed documentation for each of the 21 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -519,3 +519,15 @@ Three refusals happen in the kernel rather than in userspace, because userspace 
 Userspace fills `SIGNAL_PROTECTED` with the ids it will not signal whatever a rule asks, which is why a refusal recorded there outranks the verdict that armed the target. The names behind those ids, and the ones configuration may add, are in [Response Configuration](../configuration/response.md).
 
 `SIGNAL_EVENTS` is a small RingBuf carrying one record per decision - the thread group, the signal, the outcome and a boot-time stamp - so what the audit log says happened is what the kernel did and not what userspace asked for. `SIGNAL_METRICS` counts `sent`, `protected`, `expired`, `helper_failed` and `event_lost`. `sent` is a signal delivered, which is not the same as a process stopped: userspace looks the process up again after the window to tell a kill from a survivor. The program returns zero unconditionally, like every raw tracepoint.
+
+## BPF LSM Programs
+
+### lsm-exec-network
+
+**Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-exec-network/`
+
+Two programs, `exec_network_socket_create` on `socket_create` and `exec_network_socket_connect` on `socket_connect`, sharing one decision: an internet socket is refused to a task whose executable is outside `EXEC_NET_ALLOWED`. The connect hook is the one that matters for a socket handed over by a parent that was allowed to create it. The object is loaded only where the list is turned on and the BPF LSM is active; see [The BPF LSM](requirements.md#the-bpf-lsm-a-boot-parameter-not-a-version).
+
+The executable is read in the kernel from the task making the call, `current->mm->exe_file->f_inode`, as its inode number and the device of its superblock, so a process that executes and connects at once is decided like any other. The field offsets along that walk are read by userspace from the running kernel's BTF and written into `EXEC_NET_CONFIG` with the mode; a hook reading a slot not yet marked valid decides nothing, because the programs are attached after the set is written and a hook refusing every call in between would cut the node off. `EXEC_NET_ALLOWED` is a plain hash of at most 1024 `(inode, device)` keys rather than an LRU, since an eviction would be an allowed binary silently refused.
+
+Only `AF_INET` and `AF_INET6` are decided; kernel sockets and kernel threads are let through. A refusal returns `-EPERM`, and an observing hook counts and lets the call through. `EXEC_NET_EVENTS` is a small RingBuf carrying one record per refused or would-be-refused call, throttled through the `EXEC_NET_REPORTED` LRU to one per thread group and hook a minute. `EXEC_NET_METRICS` counts `checked`, `allowed`, `refused`, `would_refuse`, `unreadable` and `event_lost`, exact whatever the throttle drops.

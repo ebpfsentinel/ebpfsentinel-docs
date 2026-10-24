@@ -44,6 +44,16 @@ Read it as follows.
 
 The probe does not move the floor, and cannot: the newest helper in the matrix below arrived in 6.0, well under 6.9. What sets the floor is BPF token delegation, which the probe does not cover. Measured on a 7.0 kernel with `CAP_BPF`, every helper/program-type pair the agent needs is supported and `missing_required` is empty.
 
+## The BPF LSM: a boot parameter, not a version
+
+Restricting which executables may reach the network is decided at a Linux security module hook, and a program attached there loads only where the kernel was built with `CONFIG_BPF_LSM=y` **and** booted with `bpf` among its active security modules. The second half is the `lsm=` boot parameter, which distributions and host providers set differently, so no kernel version and no table here can answer it for your host. One command does, as any user and with nothing installed:
+
+```bash
+ebpfsentinel-agent ebpf host-check
+```
+
+It prints whether the BPF LSM is active and, when it is not, the exact `lsm=` value that keeps the modules already running and adds `bpf`. A running agent reports the same answer in the `bpf_lsm` block of `/api/v1/ebpf/kernel-features`. It is what [Executables allowed to reach the network](../configuration/workload-firewall.md#executables-allowed-to-reach-the-network) needs; everything else the agent does works without it.
+
 ## Feature-to-Kernel-Version Matrix
 
 Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which program relies on it.

@@ -267,6 +267,48 @@ A whole pod, every container in it, is a cgroup rule against the pod slice:
 
 A cgroup matcher includes everything under the path, so the pod slice covers each container's own scope without naming them.
 
+## Executables allowed to reach the network
+
+A workload rule is decided against what the agent learned about a task from `/proc`, which leaves a window: a process that executes and connects before the agent has read it carries no identity yet, and is counted under `unresolved`. An allow-list cannot live with that window, because the window is exactly where something unexpected starts. `firewall.network_executables` closes it by moving the decision into the kernel, at the `socket_create` and `socket_connect` security module hooks, where the executable is read from the task making the call.
+
+**This needs the BPF LSM active at boot.** A program attached at a security module hook loads only where the kernel was built with `CONFIG_BPF_LSM=y` and booted with `bpf` among its active modules, which is the `lsm=` boot parameter and not a kernel version. Distributions and host providers set it differently, so check your own host before relying on it:
+
+```bash
+ebpfsentinel-agent ebpf host-check
+```
+
+It answers as any user, with no agent running, and prints the exact `lsm=` value to set when the module is missing. See [The BPF LSM](../kernel/requirements.md#the-bpf-lsm-a-boot-parameter-not-a-version).
+
+```yaml
+firewall:
+  network_executables:
+    enabled: true
+    mode: observe                       # observe (default) or enforce
+    executables:
+      - /usr/sbin/sshd
+      - /usr/bin/curl
+      - /usr/lib/apt/methods/http
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Turn the list on |
+| `mode` | `string` | `observe` | `observe` reports what would be refused and lets it through; `enforce` refuses it |
+| `executables` | `[string]` | `[]` | Absolute paths, at most 1024, none listed twice; an empty list is refused when `enabled` is on |
+
+What the hooks decide, and what they leave alone:
+
+- Only `AF_INET` and `AF_INET6` sockets are decided. A local socket is not the network, and refusing one would break the node long before it protected anything.
+- Sockets the kernel opens for itself, and calls from a kernel thread, which has no executable, are never decided.
+- The agent's own executable is always in the set, whatever the list says.
+- A task whose executable the kernel cannot read is outside the set, and counted under `unreadable`. A list that opened whenever a read failed would be open to anybody able to make it fail.
+
+The identity compared is the executable's **inode and the device** it lives on, not its path. The agent stats each listed path when it starts, and again every thirty seconds, so a package upgrade that replaces a binary with a new file is picked up within half a minute; in enforce mode that half minute is the upgraded binary being refused. A copy of a listed binary elsewhere is a different file and is outside the set, a symlink names the file it points at, and a path that does not exist yet is reported at startup and added as soon as it appears. The paths are resolved in the agent's own mount view: under a container runtime, a path names the file the agent sees, so a container's own image is not covered by naming a path inside it. The list is read at startup, and changing it takes a restart.
+
+On a host where the BPF LSM is not active, an observing list is skipped with a warning and the reason is reported, while an **enforcing list refuses to start the agent**, because an operator who asked for enforcement and got none would not otherwise find out.
+
+Counters are published under `ebpfsentinel_packets_total{interface="EXEC_NET_METRICS"}`: `checked`, `allowed`, `refused`, `would_refuse`, `unreadable` and `event_lost`. Each call outside the set raises an alert under the rule `network-executables` naming the process, the executable's device and inode and whether the call was refused; a process is reported at most once a minute per hook, while the counters stay exact. Whether the list is attached, its mode and how many executables it holds are in the `network_executables` block of [`/api/v1/ebpf/kernel-features`](../api-reference/rest-api.md) and in `ebpfsentinel-agent ebpf kernel-features`.
+
 ## An executable path is forgeable
 
 `exe` is the path the kernel reports for the running binary, and anything that can write a file can arrange for a path to look like the one in the rule: copy a binary to `/usr/bin/curl` on a writable mount, bind-mount over it, or run from a namespace where that path is something else. A workload rule is therefore an operational control - it stops the normal behaviour of normal software, which is what most egress incidents are made of - and it is not an identity. What would close it is identifying the binary by the hash of its contents rather than by where it sits, and that is **not shipped**: there is no `exe_hash` matcher and no hashing in the agent today. Until there is, every alert a workload rule raises says which identity it carried, so a reader can see that a path was what matched. The `unit`, `cgroup` and `container` matchers are not paths and do not share this weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.

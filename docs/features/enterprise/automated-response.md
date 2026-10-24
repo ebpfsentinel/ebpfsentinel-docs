@@ -78,6 +78,8 @@ The only action whose blast radius is a running program rather than a packet, an
 
 The action carries no signal number and no window of its own. Both are the node's configuration, so an operator who chose a gentler signal or widened the protected list cannot have a policy shipped from elsewhere override it. What the agent will never signal, whatever a policy asks, and how a target is confirmed stopped rather than assumed stopped, is in [Response Configuration](../../configuration/response.md).
 
+The open-source agent has the narrow half of this action: an IPS rule in block mode carrying [`kill_process: true`](../../configuration/ips.md#stopping-the-process-behind-a-blocked-flow) stops the process behind the one flow it blocked, behind the same protected list and on the same node switch. What it lacks is everything in front of the act: a dry run of the kill, the never-act list, budgets, approval by a person and policies matching on more than one rule are this layer's.
+
 Two outcomes to read in the audit trail rather than assume:
 
 - `skipped` with a reason is a node where the capability is off, or an alert that named no process. A transited flow has no local process, and an alert whose node refused the attribution hooks carries no thread group; neither is invented, so the action is skipped rather than aimed at a guess.

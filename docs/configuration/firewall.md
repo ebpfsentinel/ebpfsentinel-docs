@@ -64,6 +64,7 @@ firewall:
 | `anti_lockout` | `AntiLockout` | see below | Anti-lockout safety mechanism |
 | `scrub` | `Scrub` | see below | Packet normalization settings |
 | `workload_dns` | `WorkloadDns` | no resolver, 30 s grace | Resolvers whose answers open the destinations a workload rule names by host name; see [Destinations by name](workload-firewall.md#destinations-by-name) |
+| `network_executables` | `NetworkExecutables` | off | The only executables allowed to open an internet socket, decided by the kernel at a security module hook; needs the BPF LSM active at boot. See [Executables allowed to reach the network](workload-firewall.md#executables-allowed-to-reach-the-network) |
 
 ### Rule
 

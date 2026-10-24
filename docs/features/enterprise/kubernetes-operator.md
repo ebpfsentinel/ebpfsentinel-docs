@@ -412,6 +412,61 @@ kubectl get firewallpolicy allow-api \
   -o jsonpath='{.status.conditions[?(@.type=="WorkloadsSelected")]}'
 ```
 
+### Executables allowed to reach the network
+
+A `FirewallPolicy` may carry `networkExecutables`, the list of executables
+that alone open an internet socket on the nodes it targets, decided in the
+kernel at the socket call. **It needs the BPF LSM active at boot on each
+node**, which is the `lsm=` boot parameter and not a kernel version, so run
+`ebpfsentinel-agent ebpf host-check` on a node of each pool before relying on
+it. Where the module is off, an observing list is skipped and the agent says
+why, and an enforcing list stops the agent from starting, which the DaemonSet
+reports as a pod that never becomes ready.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: FirewallPolicy
+metadata:
+  name: egress-binaries
+spec:
+  target:
+    all: true
+  networkExecutables:
+    enabled: true
+    mode: observe          # observe, then enforce
+    executables:
+      - /usr/bin/curl
+      - /usr/sbin/sshd
+```
+
+The paths are resolved in the agent's own mount view, so a binary inside a
+pod's image is not covered by naming its path. See
+[Executables allowed to reach the network](../../configuration/workload-firewall.md#executables-allowed-to-reach-the-network).
+
+### Stopping the process behind a blocked flow
+
+An `IPSPolicy` rule in `block` mode may carry `killProcess: true`, which also
+stops the process that owns a flow the rule blocks. The agent refuses the
+whole configuration unless the agent resource turns the capability on, node
+pool by node pool, under `config.response.killProcess`:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+spec:
+  config:
+    response:
+      killProcess:
+        enabled: true
+        protectedCommands:
+          - postgres
+```
+
+Process 1, the container runtimes, the kubelet and the agent are never
+signalled, `protectedCommands` only adds to that list, and a stopped process
+does not come back. See
+[Stopping the process behind a blocked flow](../../configuration/ips.md#stopping-the-process-behind-a-blocked-flow).
+
 ### Enforcing the cluster's NetworkPolicy
 
 On a CNI that enforces no `NetworkPolicy`, the agents can carry the policies

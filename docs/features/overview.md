@@ -73,7 +73,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (107 paths, 124 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (110 paths, 127 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -119,12 +119,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty program directories: sixteen attached at
-a hook of their own, three reached only by tail call from one of those sixteen,
-and `xdp-pass`, which is peer-side test scaffolding rather than part of the
-datapath. The sixteen attached programs, the last four of which read a task
-rather than a packet, and of those four only the workload firewall decides a
-syscall and only the signal program acts on a process:
+`crates/ebpf-programs/` holds twenty-one program directories: seventeen attached
+at a hook of their own, three reached only by tail call from one of those
+seventeen, and `xdp-pass`, which is peer-side test scaffolding rather than part
+of the datapath. The seventeen attached programs, the last five of which read a
+task rather than a packet, and of those five only the workload firewall and the
+executables list decide a syscall and only the signal program acts on a process:
 
 | Program | Hook | Features |
 |---------|------|----------|
@@ -144,6 +144,7 @@ syscall and only the signal program acts on a process:
 | `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
 | `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind, and refuses a quarantined cgroup before any rule is read |
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
+| `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -154,7 +155,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the nineteenth directory. It is a no-op XDP program attached to the
+`xdp-pass` is the twenty-first directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

@@ -49,7 +49,7 @@ ips:
 | `whitelist_aliases` | `[string]` | `[]` | Named IP-set aliases that are never blacklisted, resolved once the alias service has loaded |
 | `sampling` | `Sampling` | none | Optional sampling configuration (same schema as IDS). Sampled-out packets never reach the blacklist counter |
 | `country_thresholds` | `map<string, integer>` | `{}` | Per-country auto-blacklist thresholds (ISO 3166-1 alpha-2 to count). IPs from listed countries are blacklisted after fewer detections. When blacklisted, the source /24 (v4) or /48 (v6) subnet is also injected into the firewall LPM maps |
-| `rules` | `[Rule]` | `[]` | IPS rules (`id`, `description`, `severity`, `protocol`, `dst_port`, `pattern`, `mode`, `threshold`, `enabled`, `tenant_id`) |
+| `rules` | `[Rule]` | `[]` | IPS rules (`id`, `description`, `severity`, `protocol`, `dst_port`, `pattern`, `mode`, `threshold`, `enabled`, `tenant_id`, `kill_process`) |
 
 An IPS rule shares the IDS rule schema, so those fields behave as they do in
 [IDS configuration](ids.md#rule). `tenant_id` defaults to `0`, which is global
@@ -74,6 +74,42 @@ captured.
 - `alert` is a dry run: detections are alerted and the blacklist still records what would have been blocked, but nothing is installed in the kernel. Removals always go through, so lowering the mode never strands an entry in the kernel.
 
 A per-rule `mode` decides what the match escalates to: a rule in `alert` mode raises an alert but does not feed the auto-blacklist counter, whatever the module mode is.
+
+### Stopping the process behind a blocked flow
+
+`kill_process: true` on a rule asks the agent to stop the process that owns a
+flow the rule blocks, on top of blocking it. It is refused at config load
+unless the rule's effective mode is `block` (its own `mode`, or `ips.mode`
+when it names none) and `response.kill_process.enabled` is on, so a dry run
+never stops anything and a node that did not agree to signalling processes
+cannot be made to by a rule.
+
+```yaml
+response:
+  kill_process:
+    enabled: true
+ips:
+  mode: block
+  rules:
+    - id: ips-reverse-shell
+      severity: critical
+      protocol: tcp
+      dst_port: 4444
+      kill_process: true
+```
+
+The target is the process the agent attributed the flow to, the same one the
+alert names in its `workload` block. A flow nobody could attribute stops no
+process: the agent logs that it skipped, and never guesses. The protected list
+of [Stopping a process](response.md#stopping-a-process) is checked before
+anything is armed, whatever the rule says, and the outcome is in the audit log.
+The field shows on `GET /api/v1/ips/rules` only on a rule that sets it.
+
+This is the whole of it in the open-source agent: one rule, one flow, one
+process. A dry run of the kill itself, budgets, approval before acting and
+policies matching on more than one rule are the
+[automated response](../features/enterprise/automated-response.md) of the
+Enterprise layer.
 
 ### Blacklist duration
 
