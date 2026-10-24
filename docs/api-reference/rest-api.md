@@ -353,6 +353,74 @@ that did not turn the capability on, which is the default, and `reason` says
 which of the three it is: off in the configuration, the workload firewall's
 object carrying no quarantine map, or its hooks not attached.
 
+#### GET /api/v1/ebpf/coverage
+
+What the agent sees of each pod scheduled on its node, computed from the links
+its chain is actually on rather than from what the configuration asked for.
+Each pod carries the links found leading into it and one entry per traffic
+class: `north_south` (outside the cluster), `east_west_across_nodes`,
+`east_west_on_node` and `loopback`. A class that is not observed carries a
+`gap` code and a `reason` sentence; an observed one carries neither, and an
+attached interface carries no `refusal`. Pods come uncovered first.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/coverage
+```
+
+```json
+{
+  "uplinks_attached": true,
+  "encapsulated": false,
+  "links_without_pod": 0,
+  "uncovered": 0,
+  "partial": 1,
+  "full": 1,
+  "pods": [
+    {
+      "uid": "6f1c2d3e-4a5b-4c6d-8e7f-0123456789ab",
+      "name": "db-0",
+      "namespace": "shop",
+      "host_network": false,
+      "level": "partial",
+      "interfaces": [
+        {"name": "lxc8a1", "kind": "veth", "attached": false,
+         "refusal": "attach_mode_skips_kind",
+         "reason": "attach mode netkit leaves the pod's link kind alone"}
+      ],
+      "classes": [
+        {"class": "north_south", "observed": true},
+        {"class": "east_west_across_nodes", "observed": true},
+        {"class": "east_west_on_node", "observed": false,
+         "gap": "attach_mode_skips_kind",
+         "reason": "attach mode netkit leaves the pod's link kind alone"},
+        {"class": "loopback", "observed": false,
+         "gap": "loopback_stays_in_pod",
+         "reason": "loopback inside the pod never crosses a link on the host"}
+      ]
+    }
+  ]
+}
+```
+
+`level` is `none`, `partial` or `full` and leaves loopback out, because no node
+agent sees it. The gap codes are stable:
+
+| Code | Meaning |
+|------|---------|
+| `loopback_stays_in_pod` | Traffic between a pod's own containers never crosses a host link. |
+| `host_network_stays_on_host` | A host-network pod has no link of its own; traffic to a pod on the same node stays on the host's stack. |
+| `no_link_found` | No link leading into this pod was found on the host. |
+| `link_kind_unknown` | The pod's link is of a kind the agent does not attach to. |
+| `attach_mode_skips_kind` | `agent.attach_mode` leaves this link kind alone. |
+| `programs_refused` | Only some programs of the chain went on the link; the kernel or a program ahead of the agent refused the rest. |
+| `no_uplink_attached` | Neither the pod's link nor the node's configured interfaces carry the chain. |
+| `encapsulated_on_uplink` | Only the uplink carries it, and the node wraps traffic between nodes in an outer header (VXLAN, Geneve, WireGuard, IP-in-IP, GRE). |
+
+The pods are those the Kubernetes enricher watches on this node, so a
+`container.kubernetes.label_filter` that excludes a pod also leaves it out
+here. Without the enricher there is no pod to judge and the route answers
+`404` with `SERVICE_NOT_AVAILABLE`.
+
 #### GET /api/v1/ebpf/uprobes
 
 The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.
@@ -2394,6 +2462,7 @@ keeps working without holding the agent's key.
 | PUT | `/api/v1/config/{section}` | Yes (admin) | Write one config section and reload |
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
 | GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
+| GET | `/api/v1/ebpf/coverage` | Yes | What the agent sees of each pod on this node |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |

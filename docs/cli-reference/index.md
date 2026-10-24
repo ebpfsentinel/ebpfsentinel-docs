@@ -1087,6 +1087,9 @@ ebpfsentinel-agent ebpf uprobes
 
 # Kernel feature probe: load mode, program types, helpers
 ebpfsentinel-agent ebpf kernel-features
+
+# What the agent sees of each pod on this node, uncovered first
+ebpfsentinel-agent ebpf coverage
 ```
 
 `ebpf status` reports loading and attaching apart, because they fail
@@ -1096,6 +1099,12 @@ interface already carrying somebody else's XDP program is called out as such.
 
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
+
+`ebpf coverage` lists every pod on the node with its links and the traffic
+classes the agent does not observe, each with a reason code, the uncovered
+pods first. It needs the Kubernetes enricher; see
+[`GET /api/v1/ebpf/coverage`](../api-reference/rest-api.md#get-apiv1ebpfcoverage)
+for the codes.
 
 It also prints a `Stopping a process` block: whether that capability is armed
 on this node and, where it is, the signal a kill would send, how long the
