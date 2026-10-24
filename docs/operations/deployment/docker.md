@@ -280,6 +280,37 @@ passes before the attach completes is measured by
 `ebpfsentinel_link_attach_unguarded_packets_total`, described under
 [workload link hot-plug](../../configuration/agent.md#workload-link-hot-plug).
 
+### Published ports
+
+Publishing a port (`-p 8080:80`, or `ports:` in a compose file) makes Docker
+write a DNAT rule in the `nat` table's `PREROUTING` chain. The packet is
+rewritten towards the container and routed through `FORWARD`, so a `DROP` in
+the host's `INPUT` chain never sees it: the rule most operators write first
+does nothing for a published port.
+
+The XDP firewall runs on the receiving interface before netfilter, so the
+packet it decides still carries the host's address and the published port. A
+rule written against those refuses the packet before Docker translates it:
+
+```yaml
+firewall:
+  enabled: true
+  mode: block
+  rules:
+    - id: no-admin-from-outside
+      priority: 10
+      action: deny
+      protocol: tcp
+      dst_port: 8080    # the published port, not the container's 80
+```
+
+Name the published port, not the container's own: the translation has not
+happened yet when the rule is decided. The interface the rule applies on is
+the one the traffic arrives on, listed in `agent.interfaces`. The integration
+suite proves it on every pull request: it shows the `INPUT` rule walked past,
+then starts the agent with the deny rule and records nothing from the client in
+a capture on the Docker bridge.
+
 ## Bind Address and Host Networking
 
 With `network_mode: host`, the container shares the host network stack.
