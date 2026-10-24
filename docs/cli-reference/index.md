@@ -772,6 +772,38 @@ ebpfsentinel-agent conntrack flush
 attribute to no local process, which is every transited flow on a router or a
 NAT.
 
+### netpol
+
+Kubernetes `NetworkPolicy` enforced by the agent on the pods of its node.
+
+`netpol replay` asks the node what proposed `NetworkPolicy` manifests would
+have refused among the connections it tracks, and changes nothing. The file
+holds one or more manifests as a YAML stream, and `-` reads standard input.
+A manifest with the namespace and name of a policy in force replaces it; any
+other is added.
+
+```bash
+ebpfsentinel-agent netpol replay policies.yaml
+ebpfsentinel-agent netpol replay policies.yaml --limit 50000
+kubectl get networkpolicy -A -o yaml | ebpfsentinel-agent netpol replay -
+```
+
+```
+  412 connections read, 388 with a pod at one end: 14 newly refused, 3 refused already.
+  NAMESPACE  POD       DIRECTION  PEER        PROTO  PORT  FLOWS  TODAY
+  shop       api-7d9f  ingress    10.244.2.9  TCP    8080     14  allowed
+  shop       api-7d9f  ingress    10.244.3.4  TCP    9090      3  refused
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--limit <N>` | Tracked connections to replay, at most 100000 | `10000` |
+
+`TODAY` says whether the policies in force refuse the row already. A node that
+tracked no connection with a pod at either end says nothing was checked rather
+than that nothing would be refused. See
+[Kubernetes NetworkPolicy](../features/network-policy.md#what-would-this-break).
+
 ### dns
 
 DNS intelligence data and cache management.

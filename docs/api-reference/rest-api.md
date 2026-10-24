@@ -712,6 +712,55 @@ Flush the connection tracking table. Requires `admin` role.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/conntrack/flush
 ```
 
+### NetworkPolicy
+
+#### POST /api/v1/netpol/replay
+
+What proposed Kubernetes `NetworkPolicy` manifests would have refused among
+the connections this node tracks, by pod. Changes nothing: the proposal is
+compiled beside the policies in force and every tracked connection is put to
+both. `manifests` is a YAML stream of `networking.k8s.io/v1` `NetworkPolicy`
+objects, a `List` read item by item; a manifest with the namespace and name of
+a policy in force replaces it and any other is added. `limit` is how many
+tracked connections to read, 10000 by default and at most 100000.
+
+Answers `400` with `INVALID_MANIFESTS` and the reason when a document is not a
+namespaced `NetworkPolicy`, and `404` when network policy is `off` on the node,
+the cluster could not be read, or connection tracking is off.
+
+```bash
+curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -Rs '{manifests: .}' policies.yaml)" \
+  http://localhost:8080/api/v1/netpol/replay
+```
+
+```json
+{
+  "flows": 412,
+  "judged": 388,
+  "newly_refused": 14,
+  "still_refused": 3,
+  "workloads": [
+    {
+      "namespace": "shop",
+      "pod": "api-7d9f",
+      "refused": [
+        {"direction": "ingress", "peer": "10.244.2.9", "protocol": 6, "port": 8080, "already_refused": false, "flows": 14},
+        {"direction": "ingress", "peer": "10.244.3.4", "protocol": 6, "port": 9090, "already_refused": true, "flows": 3}
+      ]
+    }
+  ]
+}
+```
+
+`judged` counts the connections with a known pod at one end at least, the only
+ones a policy can decide, so `judged: 0` means nothing was checked rather than
+that nothing would be refused. `newly_refused` is what applying the proposal
+would break; `still_refused` is refused by the policies in force already. An
+egress row's `peer` is the address the pod connected to, a Service address
+included; an ingress row's is the source the pod was reached from.
+
 ### L7 Firewall
 
 #### GET /api/v1/firewall/l7-rules
@@ -2216,6 +2265,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |
 | POST | `/api/v1/conntrack/flush` | Yes (admin) | Flush connection table |
+| POST | `/api/v1/netpol/replay` | Yes (write) | What proposed NetworkPolicy manifests would have refused |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
 | POST | `/api/v1/firewall/l7-rules` | Yes | Create L7 rule |
 | DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes | Delete L7 rule |
