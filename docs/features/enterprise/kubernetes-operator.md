@@ -112,6 +112,42 @@ namespace that reads the licence Secret and the agent token Secret by name and
 nothing beside them. A resource in any other namespace is left alone. Each
 namespace listed must exist before the chart is installed.
 
+### Refused at admission
+
+A resource's own schema refuses what it can see in one object. The chart
+also registers a validating admission webhook, served by every operator
+replica, which refuses at `kubectl apply` what needs the rest of the cluster
+to be known, rather than leaving it to a condition on the resource's status:
+
+- an enterprise kind the licence does not cover, naming the feature it needs;
+- a Secret a policy names that does not exist, or that has no key by the
+  name the policy reads;
+- a value another policy of the same kind already sets differently on some
+  of the same agents, naming that policy;
+- a `LoadBalancerConfig` address pool that overlaps a pool of another policy,
+  or takes a name another one already uses.
+
+A refusal names every reason at once. When the webhook could not read what
+it needed, a Secret or the policies beside the incoming one, it admits the
+resource with a warning saying so, and the reconciler reports the outcome on
+the resource as it always has. A delete is never sent to the webhook, so a
+resource can always be taken away, whatever else is wrong with it.
+
+`webhook.failurePolicy` decides what the API server does when no replica
+answers within `webhook.timeoutSeconds`. It is `Ignore` by default: every
+check made at admission is made again by the reconciler, so an unreachable
+operator delays a refusal instead of stopping every change to a policy.
+`Fail` makes the webhook a gate, at the price of refusing every create and
+update of a policy resource while the operator is down.
+
+The chart issues the serving certificate and its authority itself, keeps them
+in the Secret `<release>-webhook-tls` and reuses them on every upgrade;
+deleting that Secret and upgrading issues a new pair, and the pods roll to
+read it. A certificate issued elsewhere, by cert-manager for one, is served
+instead through `webhook.tls.existingSecret` and `webhook.tls.caBundle`. With
+`watchNamespaces` set, the webhook is registered for those namespaces only.
+`webhook.enabled=false` removes it.
+
 ### Running more than one replica
 
 Replicas elect a leader through a `Lease` in the operator's namespace
