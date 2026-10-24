@@ -21,6 +21,8 @@ container:
     enabled: false
     node_name: ""
     label_filter: []
+    network_policy:
+      mode: off
 ```
 
 ## Container Resolver
@@ -87,3 +89,19 @@ entry with commas) is refused at load rather than at watch time, where the
 API server's rejection would surface only in the watcher's log.
 
 > Requires a ServiceAccount with `get`, `list`, `watch` on the `pods` resource. See [Kubernetes deployment](../operations/deployment/kubernetes.md).
+
+### NetworkPolicy
+
+The agent can carry out the cluster's `NetworkPolicy` on the pods of its own
+node, for clusters whose CNI enforces none. See
+[Kubernetes NetworkPolicy](../features/network-policy.md) for what is decided
+where and how the specification is read.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `kubernetes.network_policy.mode` | `off`, `observe`, `enforce` | `off` | `observe` counts what the policies would refuse and lets it through; `enforce` refuses it, and stops the agent at startup when the hooks cannot attach or the cluster cannot be read |
+
+Any mode other than `off` requires `kubernetes.enabled`, and is refused at load
+otherwise. The ServiceAccount also needs `list` and `watch` on `namespaces`
+and `services`, on `networkpolicies` in `networking.k8s.io` and on
+`endpointslices` in `discovery.k8s.io`.

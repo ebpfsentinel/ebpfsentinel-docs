@@ -248,6 +248,35 @@ is usually a typo. "Never resolved" means never on the agents that answered,
 which is why both counts are on the row. The status is written only when it
 changed, and dropped once the policy no longer names a destination by name.
 
+### Enforcing the cluster's NetworkPolicy
+
+On a CNI that enforces no `NetworkPolicy`, the agents can carry the policies
+out on the pods of their own node:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: agent
+spec:
+  config:
+    container:
+      kubernetes:
+        enabled: true
+        networkPolicy:
+          mode: observe
+```
+
+The operator only renders the mode. Each agent watches the policies, pods,
+namespaces, services and endpoint slices itself and compiles them for its
+node, so a pod starting or stopping changes no configuration Secret and rolls
+no agent. The agent's ServiceAccount needs `list` and `watch` on `pods`,
+`namespaces` and `services`, on `networkpolicies` in `networking.k8s.io` and
+on `endpointslices` in `discovery.k8s.io`, bound through a `ClusterRole` of
+your own, the same way the pod metadata enricher's read of `pods` is. See
+[Kubernetes NetworkPolicy](../network-policy.md) for the semantics and the
+counters.
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource

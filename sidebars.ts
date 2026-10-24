@@ -80,6 +80,7 @@ const sidebars: SidebarsConfig = {
         'features/response',
         'features/operational-essentials',
         'features/container-awareness',
+        'features/network-policy',
         'features/deployment-matrix',
         {
           type: 'category',

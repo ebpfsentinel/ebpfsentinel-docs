@@ -61,6 +61,7 @@ own subcommands through `kubectl exec`.
 | `Service`, headless `ClusterIP`, ports `http` 8080, `grpc` 50051, `metrics` 9090 | always |
 | `DaemonSet` | always |
 | `ClusterRole` + `ClusterRoleBinding` (`pods`: `get`, `list`, `watch`) | `container.kubernetes.enabled` |
+| The same `ClusterRole` widened with `list`, `watch` on `namespaces`, `services`, `networkpolicies` and `endpointslices` | `container.kubernetes.networkPolicy.mode` other than `off` |
 | `ServiceMonitor` | `metrics.serviceMonitor.enabled` |
 | `PrometheusRule` | `metrics.prometheusRule.enabled` |
 | `PodDisruptionBudget` | `podDisruptionBudget.enabled` |
@@ -268,6 +269,7 @@ other domain setting go through `configOverride`.
 |-----|---------|-------------|
 | `container.kubernetes.enabled` | `false` | Kubernetes pod metadata on alerts, see below |
 | `container.kubernetes.labelFilter` | `[]` | `key=value` pairs narrowing the pod watcher |
+| `container.kubernetes.networkPolicy.mode` | `off` | `observe` or `enforce` carries out the cluster's NetworkPolicy on the node's pods, see [Kubernetes NetworkPolicy](../../features/network-policy.md) |
 | `auto_response` | `enabled: false` | Rendered as the `auto_response` section |
 | `auto_capture` | `enabled: false` | Rendered as the `auto_capture` section |
 | `aliases` | `{}` | Named IP and port aliases, e.g. `trusted: {type: ip_set, values: ["10.0.0.0/8"]}` |
@@ -445,6 +447,11 @@ out of the box so a ServiceMonitor scrapes the counters without the key; set it
 leaves egress open. The pod runs on the host network, and many CNIs do not
 enforce NetworkPolicy on host-network pods, so check your CNI before relying on
 it to protect an API that `agent.allowUnauthenticatedApi` left open.
+
+This value is about the agent's own pod. Enforcing the cluster's policies on
+the workloads of each node, for a CNI that enforces none, is
+`container.kubernetes.networkPolicy.mode`; see
+[Kubernetes NetworkPolicy](../../features/network-policy.md).
 
 ## Upgrade, rollback, uninstall
 

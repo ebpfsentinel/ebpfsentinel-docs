@@ -110,6 +110,8 @@ CNAME chains are followed for up to eight hops.
 
 The document is also what loads the programs: a configuration with no workload rule attaches nothing, unless [quarantining](response.md) is turned on, which rides the same programs and loads them on its own. A configuration whose workload rules are in `enforce` mode stops the agent on a host where the hooks did not attach, rather than running on with an enforcement policy that is not being enforced. On a reload, a document that cannot be applied is rejected whole and the rules already in force are left alone.
 
+The same programs carry out the cluster's `NetworkPolicy` when `container.kubernetes.network_policy.mode` asks for it, and that mode loads them on its own as well. A connection then has to be allowed by both: the policy is asked first, then the workload rules. See [Kubernetes NetworkPolicy](../features/network-policy.md).
+
 At most 64 workload rules may be in force at once. The ceiling is a kernel-side bitmap, one bit per rule, and it is checked when the policy is published.
 
 ## An example per platform
