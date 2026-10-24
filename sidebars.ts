@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/shadow-ai',
         'tutorials/gitops-rollout',
         'tutorials/first-policy-from-observation',
+        'tutorials/docker-host',
       ],
     },
     {

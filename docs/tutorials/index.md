@@ -4,13 +4,14 @@ slug: /tutorials
 
 # Tutorials
 
-Five scenarios, each run end to end on one Linux host you control, with
+Six scenarios, each run end to end on one Linux host you control, with
 nothing to sign up for. The first four were run as written against the lab
 in the agent repository, every output shown is what they printed, and each
-of those pages carries the recording of that run. The fifth runs on your own
+of those pages carries the recording of that run. The last two run on your own
 host rather than in the lab, because a policy learned from a machine nobody
-documented is the whole point of it, so its outputs are the shape the
-commands print rather than a recording of yours.
+documented, and the Docker host you already have, are the whole point of
+them, so their outputs are the shape the commands print rather than a
+recording of yours.
 
 | Tutorial | What you watch happen | Lab |
 |---|---|---|
@@ -19,6 +20,7 @@ commands print rather than a recording of yours.
 | [Cut off a workload calling an AI provider](./shadow-ai.md) | A TLS handshake naming an AI provider denied, the workload blocked for two minutes | Compose |
 | [Roll a rule out through GitOps](./gitops-rollout.md) | A policy change committed, synced to the cluster by Argo CD, and reverted the same way | kind + Argo CD |
 | [From observation to a deny-by-default policy](./first-policy-from-observation.md) | A window watching one host, the allow-list it writes, and each workload turned to enforce once its deny has counted nothing | Your own host |
+| [Put a firewall in front of a Docker host](./docker-host.md) | A published port refused before Docker translates it, a policy read off each container's labels, a bridge segmented, and a container refused every name outside its DNS allow-list | Your own Docker host |
 
 ## The lab
 
