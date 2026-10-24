@@ -210,7 +210,7 @@ EndpointSlices for that purpose.
 
 Every replica serves `/metrics` on its health port, `8081`. What each
 series means, the alerts the chart ships on them and the switches that turn
-on a `ServiceMonitor` and a `PrometheusRule` are on
+on a `ServiceMonitor`, a `PrometheusRule` and a Grafana dashboard are on
 [Monitoring the operator](../../operations/operator-monitoring.md).
 
 | Metric | Type | Labels | Description |

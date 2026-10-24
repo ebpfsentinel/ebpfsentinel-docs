@@ -43,6 +43,75 @@ be an estimate. `reconcile_in_flight` is the honest substitute: a value that
 stays at its ceiling while `reconcile_duration_seconds` climbs means passes
 are waiting on each other.
 
+## What a healthy loop looks like
+
+- `sum(ebpfsentinel_operator_leader)` is exactly 1 per installation, and the
+  replica count matches the chart's `replicaCount`.
+- `reconcile_total` moves steadily for every controller that has resources,
+  even when nobody edits anything, because each resource is requeued on a
+  timer after every pass. A flat line on the leader for a kind that has
+  resources is a loop that stopped, not a quiet cluster.
+- `result="error"` is zero most of the time. A single error that clears on
+  the next pass is a conflict with another writer and needs nothing.
+- The 99th percentile pass stays well under a second. The agent controller
+  is the slowest, because it renders the whole configuration document.
+- `reconcile_in_flight` goes up and comes back to zero. It never sits at a
+  fixed value.
+- `ebpfsentinel_operator_objects{ready="false"}` is zero, or shows resources
+  being rolled out that become ready within a few minutes. `ready="unknown"`
+  is a resource the operator has not reconciled yet, and is only seen just
+  after a start.
+
+## Which alert to act on first
+
+The alerts are ordered by what they hide. When several fire at once, work
+down this list. Each one below it can be a consequence of the ones above.
+
+1. **EbpfSentinelOperatorNoLeader** or **EbpfSentinelOperatorSplitLeadership**:
+   until exactly one replica reconciles, every other figure describes
+   either nothing or a race.
+2. **EbpfSentinelOperatorReconcileErrors**: failing passes leave resources
+   not ready, so fix the error before reading the census.
+3. **EbpfSentinelOperatorReconcileSlow**: slowness is usually the API
+   server, and shows up in every other controller in the cluster as well.
+4. **EbpfSentinelResourcesNotReady**: with the loop healthy, this is about
+   the resources themselves, which is a question for their authors more
+   than for the operator.
+
+## The dashboard
+
+The chart ships a Grafana dashboard as a ConfigMap, for the Grafana sidecar
+that loads dashboards by label (the one in the `kube-prometheus-stack` and
+`grafana` charts):
+
+```yaml
+metrics:
+  grafanaDashboard:
+    enabled: true
+    label: grafana_dashboard   # the label your sidecar watches
+    labelValue: "1"
+    namespace: ""              # set when the sidecar reads another namespace
+    annotations:
+      grafana_folder: eBPFsentinel  # if your sidecar files by annotation
+```
+
+It has three rows, read top to bottom:
+
+- **Is anything reconciling**: leaders, replicas scraped, failed passes in
+  the last fifteen minutes, resources not ready, and which replica held the
+  lease over time.
+- **The reconcile loop**: passes per second by controller and outcome, error
+  ratio, 99th percentile duration and passes in flight, with the alert
+  thresholds stated in each panel's description.
+- **What the loop runs on**: resources by `Ready` state, and a table of the
+  kinds and watched namespaces that have resources not ready.
+
+The dashboard selects its data source and the operator's namespace at the
+top, and every panel is filtered on that namespace, so one Grafana can show
+several installations one at a time. It reads the scraped `namespace` and
+`pod` labels, which a ServiceMonitor adds. A collector that scrapes by pod
+annotation has to add them as well.
+
 ## Scraping with the Prometheus Operator
 
 Two chart values, both off by default because both need the
