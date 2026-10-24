@@ -306,17 +306,26 @@ ebpfsentinel-agent learning status
 ebpfsentinel-agent learning stop
 ebpfsentinel-agent learning policy
 ebpfsentinel-agent learning policy learn-1760000000 -f /etc/ebpfsentinel/learned.yaml
+ebpfsentinel-agent learning segmentation
+ebpfsentinel-agent learning segmentation learn-1760000000 -f /etc/ebpfsentinel/bridges.yaml
 ```
 
 `--cgroup` cannot be combined with `--exe`, `--unit` or `--container`;
 `--exe`, `--unit` and `--container` are repeatable and name one scope together.
-`status`, `stop` and `policy` take a window id and act on the open window when
+`status`, `stop`, `policy` and `segmentation` take a window id and act on the open window when
 none is given. Each answers `404` when learning mode is turned off on the node.
 
 `policy` writes the allow-list the window describes, in the agent's own rule
 schema: the document goes to standard output, or to the file `-f` names. It
 applies nothing - every rule comes out in `observe` mode, and the document
 takes effect the day somebody puts it in the agent's configuration.
+
+`segmentation` writes the rules that keep each container on a Docker bridge to
+the peers the window saw it reach, with Docker's embedded resolver and the
+bridge's gateway allowed ahead of a closing deny for the rest of the bridge.
+It reads the bridges from the Docker socket, so it needs
+`container.docker.enabled`. With `-f`, it also names the containers the window
+never saw, which get no rule, and the ones seen under a name no rule can select.
 
 ### identity
 

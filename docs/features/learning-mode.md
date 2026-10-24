@@ -38,6 +38,21 @@ A window survives a restart, or says it did not. The agent writes it down as it 
 
 The header states the window, the scope, how much of it was really watched, how many readings were folded in, and how many destinations were refused for want of room.
 
+## Segmenting a Docker bridge
+
+`learning segmentation` renders a second document from the same window, for the containers on the node's Docker bridge networks. Containers on one bridge reach each other on every port by default; this document turns that into the peers the window actually saw each container reach. For each container on a bridge, in order:
+
+- **Docker's embedded resolver**, `127.0.0.11` on port 53 in UDP and TCP, on every user-defined network. The default `bridge` network has no embedded resolver and gets no such rule.
+- **The bridge's gateway**, which is the host itself. What a container may reach on the host is the allow-list's question rather than the bridge's.
+- **Each peer the container reached during the window**, by address and port range, with the peer's name in a comment.
+- **A closing deny for the rest of the bridge's subnet.**
+
+Destinations off the bridge are left to the allow-list, and the two documents load together: segmentation rules take priorities from 100 and the allow-list from 1000, so a bridge's closing deny is evaluated before an allow-list rule could let a peer through. Every rule comes out in `observe` mode, like the allow-list.
+
+A container the window never saw gets **no rule at all** and is named in the header, because segmenting a container from a reading that never included it would cut every peer it has. A container seen under a name no selector can carry, such as a short hexadecimal name that reads as an id, is named the same way. The header also warns when the document would carry more rules than the workload firewall's 64-rule ceiling.
+
+The bridges are read from the Docker socket when the document is asked for, so `container.docker.enabled` must be on; without it, or when the socket does not answer, the route answers `503` with the reason.
+
 ## What the mode cannot know
 
 This is the part that decides whether the document is useful or dangerous, so the agent writes it into the document itself rather than leaving it in this page:

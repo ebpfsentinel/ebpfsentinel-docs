@@ -383,6 +383,27 @@ rule in the file, and the agent refuses to start with it on when the kernel
 refuses those hooks, since a label saying `enforce` on a container started
 later would otherwise enforce nothing.
 
+### Containers on one bridge
+
+Docker lets every container on a bridge network reach every other one on any
+port. A learning window turns that into a written segmentation: open a window
+while the stack runs its ordinary traffic, then render it.
+
+```bash
+ebpfsentinel-agent learning start -d 3600
+# ... let the stack work ...
+ebpfsentinel-agent learning segmentation -f /etc/ebpfsentinel/bridges.yaml
+```
+
+Each container the window saw keeps Docker's embedded resolver at
+`127.0.0.11:53` (absent on the default `bridge` network, which has none), the
+bridge's gateway and the peers it reached, and is refused the rest of the
+bridge's subnet. A container the window never saw is left without a rule and
+named instead. Every rule is in `observe` mode, so loading the file refuses
+nothing until a rule is moved to `enforce`; the shape of the document and what
+it cannot know are on the [learning mode](../../features/learning-mode.md)
+page.
+
 ## Bind Address and Host Networking
 
 With `network_mode: host`, the container shares the host network stack.

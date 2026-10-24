@@ -700,6 +700,40 @@ those names in a comment the addresses it was built from. `skipped_edges`
 counts destinations no rule could be written for, because their workload
 cannot be named by a selector.
 
+#### GET /api/v1/learning/sessions/{id}/segmentation
+
+The rules that keep each container on the node's Docker bridge networks to the
+peers the window saw it reach: Docker's embedded resolver on user-defined
+networks, the bridge's gateway, each observed peer by address and port range,
+then a deny for the rest of the bridge's subnet. Rules take priorities from 100,
+ahead of the allow-list's, and every one comes out in `observe` mode.
+
+The bridges are read from the Docker socket at the request. Answers `404` when
+the window does not exist or learning mode is off, and `503` when
+`container.docker.enabled` is off or the socket did not answer.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/learning/sessions/learn-1760000000/segmentation
+```
+
+```json
+{
+  "session": {"id": "learn-1760000000", "status": "completed", "edges": 7},
+  "yaml": "# The containers on this node's bridges, kept to the peers they reached.\n...",
+  "bridges": 1,
+  "containers": 2,
+  "rules": 9,
+  "peer_rules": 1,
+  "unlearned": ["cron"],
+  "unnamed": []
+}
+```
+
+`unlearned` names the containers on a bridge the window never saw, which are
+given no rule rather than cut from every peer. `unnamed` names the containers
+seen under a name no rule can select them by.
+
 ### Connection Tracking
 
 #### GET /api/v1/conntrack/status
@@ -2299,6 +2333,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/learning/sessions/{id}` | Yes | One observation window |
 | POST | `/api/v1/learning/sessions/{id}/stop` | Yes (write) | Close an observation window |
 | GET | `/api/v1/learning/sessions/{id}/policy` | Yes | The allow-list a window describes |
+| GET | `/api/v1/learning/sessions/{id}/segmentation` | Yes | The bridge segmentation a window describes |
 | GET | `/api/v1/conntrack/status` | Yes | Conntrack status |
 | GET | `/api/v1/conntrack/connections` | Yes | List active connections |
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |
