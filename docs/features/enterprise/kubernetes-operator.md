@@ -348,7 +348,8 @@ node, so a pod starting or stopping changes no configuration Secret and rolls
 no agent. The agent's ServiceAccount needs `list` and `watch` on `pods`,
 `namespaces` and `services`, on `networkpolicies` in `networking.k8s.io` and
 on `endpointslices` in `discovery.k8s.io`, bound through a `ClusterRole` of
-your own, the same way the pod metadata enricher's read of `pods` is. See
+your own, the same way the pod metadata enricher's read of `pods` and
+`namespaces` is. See
 [Kubernetes NetworkPolicy](../network-policy.md) for the semantics and the
 counters.
 

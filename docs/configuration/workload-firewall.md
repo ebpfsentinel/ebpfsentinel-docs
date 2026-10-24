@@ -18,7 +18,7 @@ firewall:
         mode: enforce
 ```
 
-## The four matchers
+## The matchers
 
 | Field | Type | Matching | Example |
 |-------|------|----------|---------|
@@ -26,9 +26,12 @@ firewall:
 | `unit` | string | Exact systemd unit name, derived from the task's cgroup path | `nginx.service` |
 | `cgroup` | string | Absolute cgroup v2 path, matching that cgroup **and everything under it** | `/system.slice/nginx.service` |
 | `container` | string | Container name as the runtime gave it, a full container id, or an id prefix of at least 12 characters | `payments-api` |
+| `pods` | label selector | Labels of the pod the task runs in, as `match_labels` and `match_expressions` with the Kubernetes meaning | `match_labels: {app: api}` |
+| `namespaces` | label selector | Labels of that pod's namespace, in the same shape; a namespace is named by its name through `kubernetes.io/metadata.name` | `match_labels: {kubernetes.io/metadata.name: payments}` |
+| `service_account` | string | Exact name of the service account the pod runs as | `api` |
 | `mode` | string | `observe` (default) or `enforce` | `enforce` |
 
-A selector must name at least one of the four. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe` and `cgroup` must be absolute paths. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
+A selector must name at least one of the seven. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe` and `cgroup` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
 
 ### Three semantics worth knowing before writing one
 

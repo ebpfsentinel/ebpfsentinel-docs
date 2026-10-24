@@ -203,8 +203,9 @@ Looked up in this order:
 
 ### RBAC
 
-The agent needs `get`, `list`, `watch` on `pods` cluster-wide. Use a
-`ClusterRole` + `ClusterRoleBinding`:
+The agent needs `get`, `list`, `watch` on `pods` and `list`, `watch` on
+`namespaces`, cluster-wide: a workload firewall rule naming namespaces is
+matched against their labels. Use a `ClusterRole` + `ClusterRoleBinding`:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -215,6 +216,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -392,7 +396,7 @@ container:
 | `/proc` mount (read-only) | ✅ | ✅ | ✅ |
 | Docker socket mount | - | ✅ | - |
 | In-cluster service account | - | - | ✅ |
-| ClusterRole on `pods` get/list/watch | - | - | ✅ |
+| ClusterRole on `pods` get/list/watch and `namespaces` list/watch | - | - | ✅ |
 | Kernel version | any | any | any |
 
 See [least-privilege deployment](../operations/deployment/kubernetes.md)

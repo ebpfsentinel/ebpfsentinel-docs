@@ -60,8 +60,8 @@ own subcommands through `kubectl exec`.
 | `ConfigMap` holding `config.yaml` | always |
 | `Service`, headless `ClusterIP`, ports `http` 8080, `grpc` 50051, `metrics` 9090 | always |
 | `DaemonSet` | always |
-| `ClusterRole` + `ClusterRoleBinding` (`pods`: `get`, `list`, `watch`) | `container.kubernetes.enabled` |
-| The same `ClusterRole` widened with `list`, `watch` on `namespaces`, `services`, `networkpolicies` and `endpointslices` | `container.kubernetes.networkPolicy.mode` other than `off` |
+| `ClusterRole` + `ClusterRoleBinding` (`pods`: `get`, `list`, `watch`; `namespaces`: `list`, `watch`) | `container.kubernetes.enabled` |
+| The same `ClusterRole` widened with `list`, `watch` on `services`, `networkpolicies` and `endpointslices` | `container.kubernetes.networkPolicy.mode` other than `off` |
 | `ServiceMonitor` | `metrics.serviceMonitor.enabled` |
 | `PrometheusRule` | `metrics.prometheusRule.enabled` |
 | `PodDisruptionBudget` | `podDisruptionBudget.enabled` |
@@ -341,8 +341,9 @@ helm upgrade --install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentin
 With the enricher on, the chart:
 
 - renders `container.kubernetes` into the config;
-- creates a `ClusterRole` with `get`, `list` and `watch` on `pods` and binds it
-  to the ServiceAccount;
+- creates a `ClusterRole` with `get`, `list` and `watch` on `pods`, and `list`
+  and `watch` on `namespaces`, whose labels a workload rule naming namespaces is
+  matched against, and binds it to the ServiceAccount;
 - mounts the ServiceAccount token into the pod;
 - passes `EBPFSENTINEL_NODE_NAME` so the agent watches only the pods of its own
   node.
