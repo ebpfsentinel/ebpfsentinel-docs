@@ -17,6 +17,10 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
 | `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
 | `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
+| `GET` | `/api/v1/flows/reachability` | viewer | fleet-management | SBOMs held and workloads observed, with how many components each report reached. |
+| `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
+| `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
+| `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
 
 ### What authenticates what
 
@@ -24,7 +28,7 @@ Two different credentials are in play, and neither substitutes for the other.
 
 | Credential | Where it travels | Which routes require it |
 |------------|------------------|-------------------------|
-| The API credential (`Authorization: Bearer <token>` or `X-API-Key: <key>`) | HTTP header | All five, whenever `auth.enabled: true` |
+| The API credential (`Authorization: Bearer <token>` or `X-API-Key: <key>`) | HTTP header | All nine, whenever `auth.enabled: true` |
 | The agent token minted by registration | The `token` field of the heartbeat request body | `POST /api/v1/agent/heartbeat` only |
 
 With `auth.enabled: true` these endpoints require the API credential like every
@@ -38,10 +42,10 @@ named node. `agent_id` is not a credential and is never treated as one: it is
 returned by `GET /api/v1/agent/identity` and it appears in the log lines the
 fleet writes.
 
-The other three routes carry no per-agent proof, because none of them asserts an
+The other routes carry no per-agent proof, because none of them asserts an
 identity: `register` mints the first token and so cannot require one, while
-`identity`, `config/version` and `flows/graph` are reads of this agent's own
-state by whoever already holds the API credential.
+`identity`, `config/version`, `flows/graph` and the reachability routes act on
+this agent's own state for whoever already holds the API credential.
 
 ## Agent Registration
 
@@ -331,6 +335,90 @@ Nodes and edges are both sorted by bytes descending.
 An edge says how much and how often and never since when: the conntrack table
 it is folded from reports counters and a state and no moment a flow started or
 was last seen at, so the graph carries no instant at all.
+
+## SBOM Reachability
+
+An SBOM lists every package an image carries, and most of them never do
+anything on the network. The reachability report joins the SBOM of one workload
+with the outbound flows observed from that workload, so the components that
+correspond to observed activity are told apart from the ones that do not.
+
+The report is a **correlation**, and it says so in its own `limits` field: it
+shows that an executable the SBOM attributes to a component originated a flow,
+never that a package opened a socket. A library loaded into that executable is
+reached only through it, and the report cannot tell which library of the process
+made the call.
+
+### Uploading an SBOM
+
+```bash
+curl -X PUT -H "Authorization: Bearer $TOKEN" \
+  --data-binary @checkout.cdx.json \
+  "http://localhost:8444/api/v1/flows/reachability/sbom?workload=payments/checkout"
+```
+
+- **Formats**: CycloneDX JSON (`bomFormat: "CycloneDX"`) and SPDX JSON
+  (`spdxVersion: "SPDX-2.x"`), detected from the document. Anything else is a
+  `400`.
+- **Size**: at most 32 MiB and 50 000 components; components past the cap are
+  counted in `components_dropped` rather than kept.
+- **Workload name**: the name the rest of the agent gives the workload -
+  `namespace/controller` on Kubernetes, then the systemd unit, the image name or
+  the executable's file name. The overview lists the names flows were observed
+  under, so the right one can be read off it before uploading.
+- **Persistence**: each document is kept under `<fleet data_dir>/sbom/` (or
+  `/var/lib/ebpfsentinel/sbom/` without one), `0600` inside a `0700` directory,
+  and reloaded at start. A document the parser refuses on reload is logged and
+  left on disk.
+
+Uploading again replaces the previous document. `DELETE` forgets it.
+
+### How flows are observed
+
+Every 10 seconds the agent reads the connection table and keeps the TCP and UDP
+flows a local process originated, each with the workload and the executable path
+of that process. A flow this host accepted is left out, because its remote end
+is a client rather than a destination. A flow no local process could be found
+for is counted as `unattributed_flows` and never joined. The ledger is bounded:
+4 096 workloads, 256 executables per workload and 64 destinations per executable,
+with anything past a cap counted rather than kept.
+
+A flow shorter than the sampling interval can open and close between two reads,
+so a component reported `not_observed` was not seen, which is not the same as
+proven unreachable.
+
+### How a component is joined
+
+| Join | When | Confidence |
+|------|------|------------|
+| `file_path` | The SBOM lists a file of the component (CycloneDX `evidence.occurrences`, Syft `syft:location` properties, SPDX `hasFiles` or `CONTAINS`) at the path of an executable that originated a flow | `high` when the process identity was read from the kernel, `medium` otherwise |
+| `executable_name` | The component lists no file, and its name matches the executable's file name | `medium` when the identity was read, `low` otherwise |
+
+Executables that originated flows and match no component are listed under
+`unmatched_executables`: a binary the SBOM does not account for is itself worth
+reading.
+
+### Report fields
+
+| Field | Meaning |
+|-------|---------|
+| `components_total`, `components_with_files`, `components_reached` | How many components the SBOM holds, how many list a file, how many were joined to a flow |
+| `workload_observed`, `observed_since_ns` | Whether any flow was seen from this workload, and since when |
+| `components[]` | Per component: `status` (`reached` or `not_observed`), `join`, `confidence`, `identity`, the `executables` and `destinations` it was joined through, `last_seen_ns` |
+| `unmatched_executables[]` | Executables that originated flows and match no component |
+| `limits[]` | What the report cannot say, written into the answer itself |
+
+### In the dashboard
+
+The dashboard's **Package reachability** screen, shown when the licence carries
+`fleet-management`, lists every workload each agent observed beside the SBOM
+that agent holds for it, and counts the workloads no SBOM describes. Opening a
+workload shows its report with the reached components first, the executables no
+component names, and the report's `limits` printed as the agent wrote them. A
+member holding the right to push agent configuration can hand a CycloneDX or
+SPDX JSON file to one agent for one workload, or take it back; the document is
+proxied to that agent alone, because the flows it is joined with are that
+agent's.
 
 ## Configuration
 

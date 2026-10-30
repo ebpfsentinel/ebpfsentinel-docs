@@ -6,7 +6,9 @@
 
 AI/LLM Security scores connection events against AI provider destinations: it identifies unsanctioned AI service usage (Shadow AI), scans submitted payloads for sensitive data on its way to an AI provider, judges payload size and request rate against thresholds, and applies encrypted DNS policy. Every one of those produces an alert and a verdict; none of them touches the datapath. Read [What Reaches the Engine](#what-reaches-the-engine) before deploying it.
 
-Five sub-capabilities:
+Beside them, [Agent and MCP Traffic](#agent-and-mcp-traffic) reads the packet path itself: which workload reaches which model provider or MCP server, how often and in what shape, with allow or deny rules that cut a refused flow.
+
+Six sub-capabilities:
 
 | Capability | Description |
 |-----------|-------------|
@@ -15,14 +17,17 @@ Five sub-capabilities:
 | AI-aware DLP | Regex-based payload scanning for sensitive data sent to AI providers |
 | Exfiltration Detection | Per-request, aggregate, and burst rate thresholds |
 | Encrypted DNS Policy | Resolver allow/block lists for encrypted DNS (DoH/DoT/DoQ) |
+| Agent and MCP Traffic | Per-workload ledger of model-provider and MCP traffic, with rules and alerts |
 
 ## What Reaches the Engine
 
-The engine is not attached to the packet path. It scores connection events
-that are submitted to it: the only entry is
-`POST /api/v1/enterprise/ai-security/events`, and nothing on the packet path,
-the DLP path or the SIEM path feeds it. An agent with the feature licensed and
-configured, and nothing posting events, records no detection of any kind.
+The shadow AI, AI DLP, exfiltration and encrypted DNS engines are not
+attached to the packet path. They score connection events that are submitted
+to them: their only entry is `POST /api/v1/enterprise/ai-security/events`, and
+nothing on the packet path, the DLP path or the SIEM path feeds them. An agent with the feature licensed and
+configured, and nothing posting events, records no detection from those four.
+[Agent and MCP Traffic](#agent-and-mcp-traffic) is the exception, and the only
+part of this feature that reads the packet path and can cut a flow.
 
 That constraint decides what every mode below means. A mode named `block` -
 in the shadow AI policy, in an AI DLP pattern or in the encrypted DNS policy -
@@ -350,6 +355,148 @@ DLP scan runs only when `payload_sample` is present. Both `shadow_ai_action` and
 a match's `mode` are verdicts for the caller to enforce, not actions the agent
 took.
 
+## Agent and MCP Traffic
+
+The L7 inspection path already detects the protocol of each connection's
+first payload, parses the request and, where the socket tables are loaded,
+names the workload that opened the connection. This part of the feature is
+handed all three for every payload and keeps a ledger: one row per workload
+and per provider, saying how often that workload reached that provider and in
+what shape.
+
+### What Is Recognised
+
+- **A model provider over plaintext HTTP**: the request's `Host` matches the
+  [provider registry](#ai-provider-registry). The path is mapped onto a closed
+  set of request kinds (`chat`, `completion`, `embedding`, `image`, `audio`,
+  `model_list`, `other`) and then dropped.
+- **A model provider over TLS**: the server name in the client hello matches
+  the registry. The row counts handshakes, its kind is `encrypted`, and nothing
+  from inside the tunnel is seen.
+- **An MCP server on any host**: a request carrying an `Mcp-Session-Id` or
+  `MCP-Protocol-Version` header, a JSON `POST` to a path ending in `/mcp`, or a
+  `GET` asking for an event stream from a path ending in `/mcp` or `/sse`. MCP
+  over TLS is not recognised, because nothing in a handshake says MCP; a
+  registry entry for the server's name files it as a provider instead.
+
+Traffic that matches none of these is not filed at all.
+
+### What Is Recorded, and What Is Not
+
+| Recorded | Never recorded |
+|----------|----------------|
+| The workload key and how it was named | Prompt or response content |
+| The provider or MCP server, and the host it was reached at | Request paths, query strings and header values |
+| Request counts per method and request kind (`POST chat`) | API keys, tokens and cookies |
+| Bytes of each request's first captured segment | MCP tool names and arguments |
+| First and last time seen | Anything sent after the first captured segment |
+
+The byte figure is a floor on what was sent and never the transfer size: the
+L7 path sees the first segment of a request, not the stream. Reading what a
+prompt contains is the job of [DLP](dlp.md), which stays the only reader of
+payload content. The API states both lists in its own answer, under
+`recorded` and `not_recorded`, so a consumer of the ledger does not need this
+page to know what a row cannot say.
+
+### How a Workload Is Named
+
+The workload key is the one the RED meter uses: `namespace/controller` for a
+pod, else the systemd unit, the image name or the executable's name. Every row
+carries an `identity`:
+
+| Identity | Meaning |
+|----------|---------|
+| `read` | Read off the kernel's own handle on the socket or the process |
+| `correlated` | Matched on the five-tuple after the fact |
+| `unattributed` | No local process was found; the row is keyed `ip:<client address>` |
+
+A row keeps the strongest identity any of its observations carried. A transit
+flow has no local process and is always `unattributed`. Socket attribution
+needs the cgroup attribution programs loaded; without them every row is
+`correlated` or `unattributed`.
+
+### Rules and Alerts
+
+Rules are matched in order, first match wins, and `default_action` applies
+when none matches. `workload` is a workload key as the ledger shows it, or
+`*`. `provider` is a registry id, a provider name (case ignored), `mcp` for
+every MCP server, or `*`.
+
+Three findings raise an alert on the `ai-security` component, carrying the
+workload block and saying in its message how the workload was named:
+
+| Finding | Severity | When |
+|---------|----------|------|
+| Refused | High | A rule or the default denies this workload this provider |
+| New provider | Medium | A workload watched for at least `learning_secs` reaches a provider it had not reached |
+| Unusual volume | Medium | One row passes `max_requests_per_minute` or `max_bytes_per_minute`; raised once per minute |
+
+A refusal also cuts the connection's five-tuple through the datapath for
+`deny_flow_secs`, the same flow isolation the automated response engine uses.
+The request that revealed the flow has already left by the time it is parsed,
+so the refusal stops what follows on that connection rather than the first
+request; a new connection is refused again when its first request is seen.
+Where the datapath is not this agent's own, the refusal is an alert in block
+mode and nothing more.
+
+The ledger holds 4096 workload and provider pairs. Past that, new pairs are
+still judged and alerted on but not filed, and `refused_rows` counts them.
+
+### Configuration
+
+```yaml
+enterprise:
+  ai_security:
+    agent_traffic:
+      default_action: allow           # allow | deny
+      rules:
+        - workload: payments/checkout
+          provider: mcp
+          action: deny
+        - workload: "*"
+          provider: OpenAI
+          action: allow
+      alert_on_new_provider: true
+      learning_secs: 3600
+      max_requests_per_minute: 600
+      max_bytes_per_minute: 10485760
+      deny_flow_secs: 300
+```
+
+Every key is optional. With no block, every pair is allowed, new providers
+alert after an hour of learning, and no volume threshold applies.
+
+### API
+
+```
+GET /api/v1/enterprise/ai-security/agent-traffic
+GET /api/v1/enterprise/ai-security/agent-traffic/policy
+PUT /api/v1/enterprise/ai-security/agent-traffic/policy
+```
+
+```json
+{
+  "rows": [
+    {
+      "workload": "payments/checkout",
+      "identity": "read",
+      "provider_id": "builtin-1",
+      "provider_name": "OpenAI",
+      "host": "api.openai.com",
+      "transport": "model_api",
+      "first_seen_ns": 1767225600000000000,
+      "last_seen_ns": 1767229200000000000,
+      "requests": 412,
+      "observed_bytes": 381022,
+      "shapes": { "POST chat": 398, "GET model_list": 14 }
+    }
+  ],
+  "refused_rows": 0,
+  "recorded": ["..."],
+  "not_recorded": ["..."]
+}
+```
+
 ## Alerts & Status
 
 ```
@@ -424,6 +571,9 @@ Every path below is served on the Enterprise port. The role is the least-privile
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | viewer | ai-llm-security | Encrypted DNS policy decisions taken on submitted events. |
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | viewer | ai-llm-security | Current DoH and DoT handling policy. |
 | `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | operator | ai-llm-security | Replace the DoH and DoT handling policy. |
+| `GET` | `/api/v1/enterprise/ai-security/agent-traffic` | viewer | ai-llm-security | Which workload reached which model provider or MCP server. |
+| `GET` | `/api/v1/enterprise/ai-security/agent-traffic/policy` | viewer | ai-llm-security | Current agent traffic rules and thresholds. |
+| `PUT` | `/api/v1/enterprise/ai-security/agent-traffic/policy` | operator | ai-llm-security | Replace the agent traffic rules and thresholds. |
 
 ## Feature Gating
 

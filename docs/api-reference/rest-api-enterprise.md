@@ -163,14 +163,14 @@ not from the request.
 |---------|-----------|---------------|
 | [Always mounted](#always-mounted) | 3 | n/a |
 | [Advanced RBAC](#advanced-rbac) | 12 | [Advanced RBAC](../features/enterprise/advanced-rbac.md) |
-| [AI and LLM security](#ai-and-llm-security) | 17 | [AI and LLM security](../features/enterprise/ai-security.md) |
+| [AI and LLM security](#ai-and-llm-security) | 20 | [AI and LLM security](../features/enterprise/ai-security.md) |
 | [Air-gap](#air-gap) | 4 | [Air-gap](../features/enterprise/airgap.md) |
 | [Advanced analytics](#advanced-analytics) | 9 | [Advanced analytics](../features/enterprise/analytics.md) |
 | [Automated response](#automated-response) | 8 | [Automated response](../features/enterprise/automated-response.md) |
 | [Compliance reports](#compliance-reports) | 7 | [Compliance reports](../features/enterprise/compliance-reports.md) |
 | [Content channel](#content-channel) | 3 | [Content channel](../features/enterprise/content-channel.md) |
 | [Data loss prevention](#data-loss-prevention) | 8 | [Data loss prevention](../features/enterprise/dlp.md) |
-| [Fleet management](#fleet-management) | 5 | [Fleet management](../features/enterprise/fleet-management.md) |
+| [Fleet management](#fleet-management) | 9 | [Fleet management](../features/enterprise/fleet-management.md) |
 | [High availability](#high-availability) | 6 | [High availability](../features/enterprise/high-availability.md) |
 | [L7 alert enrichment](#l7-alert-enrichment) | 1 | [L7 alert enrichment](../features/enterprise/l7-alert-enrichment.md) |
 | [L7 deep inspection](#l7-deep-inspection) | 9 | [L7 deep inspection](../features/enterprise/l7-deep-inspection.md) |
@@ -254,6 +254,9 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/ai-security/agent-traffic` | viewer | `config:read` | ai-llm-security | Which workload reached which model provider or MCP server. |
+| `GET` | `/api/v1/enterprise/ai-security/agent-traffic/policy` | viewer | `config:read` | ai-llm-security | Current agent traffic rules and thresholds. |
+| `PUT` | `/api/v1/enterprise/ai-security/agent-traffic/policy` | operator | `config:write` | ai-llm-security | Replace the agent traffic rules and thresholds. |
 | `GET` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | viewer | `config:read` | ai-llm-security | List the prompt inspection patterns. |
 | `POST` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | operator | `config:write` | ai-llm-security | Add a prompt inspection pattern. |
 | `DELETE` | `/api/v1/enterprise/ai-security/ai-dlp/patterns/{id}` | operator | `config:write` | ai-llm-security | Remove a prompt inspection pattern. |
@@ -398,6 +401,10 @@ and for the request and response bodies.
 | `GET` | `/api/v1/agent/identity` | viewer | `config:read` | fleet-management | Full agent identity with capabilities. |
 | `POST` | `/api/v1/agent/register` | operator | `config:write` | fleet-management | Register agent, get UUIDv7 identity + token. |
 | `GET` | `/api/v1/flows/graph` | viewer | `config:read` | fleet-management | Network flow graph from conntrack data. |
+| `GET` | `/api/v1/flows/reachability` | viewer | `config:read` | fleet-management | SBOMs held per workload and workloads observed originating flows, with the unattributed flow count. |
+| `GET` | `/api/v1/flows/reachability/report` | viewer | `config:read` | fleet-management | One workload's SBOM joined with its outbound flows (`?workload=`); `404` when no SBOM is held. Correlation, with its limits in the answer. |
+| `PUT` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Keep a CycloneDX or SPDX JSON document (at most 32 MiB) as the SBOM of `?workload=`. |
+| `DELETE` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Forget the SBOM of `?workload=`. |
 
 ## High availability
 
