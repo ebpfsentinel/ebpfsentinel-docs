@@ -350,11 +350,13 @@ format and for what the agent does on an interval.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
-| `GET` | `/api/v1/content/status` | viewer | `config:read` | content-channel | The content in force: bundle version, each set's version, publication date, entry count and the version a rollback would return to, and how many fetches have failed in a row. |
+| `GET` | `/api/v1/content/status` | viewer | `config:read` | content-channel | The content in force: bundle version, each set's version, publication date, entry count, the version a rollback would return to and whether it is pinned, and how many fetches have failed in a row. |
 | `POST` | `/api/v1/content/import` | operator | `config:write` | content-channel | Verify a bundle in a local directory and put it in force (`{ bundle_dir, verify_only? }`). `400` refuses the bundle and changes nothing. |
-| `POST` | `/api/v1/content/rollback` | operator | `config:write` | content-channel | Put one set back to the version it replaced (`{ set }`). `400` if no earlier version of that set is kept. |
+| `POST` | `/api/v1/content/rollback` | operator | `config:write` | content-channel | Put one set back to the version it replaced (`{ set }`). `400` if no earlier version of that set is kept. A pinned set stays pinned at the version it went back to. |
+| `POST` | `/api/v1/content/pin` | operator | `config:write` | content-channel | Hold one set at the version in force so no bundle replaces it (`{ set }`). `400` if nothing of that set is applied. |
+| `POST` | `/api/v1/content/unpin` | operator | `config:write` | content-channel | Release a pinned set (`{ set }`). `400` if the set is not pinned. |
 
-None of the three fetches anything on request: the fetch is on the interval the
+None of these fetches anything on request: the fetch is on the interval the
 configuration sets, and `import` reads a directory this machine already holds.
 That is deliberate - it is what an air-gapped estate uses, and it is why no
 request body here takes a URL.

@@ -395,6 +395,13 @@ enterprise:
         interval_seconds: 1800
         max_indicators: 100000
         min_confidence: 30
+
+  # ── Sigma rules ─────────────────────────────────────────────────
+  sigma:
+    enabled: false
+    rules:
+      - /etc/ebpfsentinel/sigma
+    max_refused_share: 0.5
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -538,6 +545,24 @@ its bound reports `capped` after a marker file that was never persisted.
 covers what each indicator kind reaches, with
 [TAXII 2.1 collections](../integrations/taxii.md) and
 [MISP instances](../integrations/misp.md) for the other side of the wire.
+
+### Sigma rules
+
+The `sigma` block compiles Sigma rules over network connections into the
+agent's own IDS rules, and refuses every rule outside the subset by the field
+that stopped it.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `enabled` | bool | `false` | Whether to read any rule. Enabled with no path is refused at boot |
+| `rules` | list | empty | Rule files, or directories read for `.yml` and `.yaml` files at any depth in name order. At most 64 paths, 20000 files and 1 MiB per file |
+| `max_refused_share` | float | `0.5` | 0 to 1. The share of the rules read that may be refused; above it the import is refused, which stops the agent at boot and refuses a reload |
+
+The rule files are read again on every reload; the block itself is read at
+startup. It loads nothing without the `sigma-rules` licence feature.
+`ebpfsentinel-enterprise-agent sigma check` compiles the same files without
+starting the agent. [Sigma Rules](../features/enterprise/sigma-rules.md) lists
+every field the compiler takes and refuses.
 
 ### License
 

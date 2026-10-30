@@ -75,6 +75,7 @@ time it reads the key, and stands down when the window closes.
 | `network-forensics` | Event ring buffer, context freezes & flow timeline |
 | `automated-response` | Policy engine & SOAR webhook integration |
 | `kubernetes-operator` | The Kubernetes operator, which refuses to start without it |
+| `sigma-rules` | Sigma rules over network connections compiled into IDS rules |
 
 ## Keys bought from the portal
 

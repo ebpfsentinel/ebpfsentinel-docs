@@ -27,7 +27,7 @@ the channel measures is what was fetched and when.
 | DLP patterns | `dlp-patterns` | Regular expressions and validators for structured secrets and personal data |
 | JA4 fingerprints | `ja4-fingerprints` | Known client and server TLS fingerprints, with the software each one belongs to |
 | AI providers | `ai-providers` | Hostnames, API shapes and model names of AI services, for the AI security module |
-| ML models | `ml-models` | Trained detector weights for the machine learning module |
+| ML models | `ml-models` | The base anomaly model as an ONNX graph, with the model card that states what it was measured to detect. Explained in [ML Anomaly Detection](ml-detection.md#the-delivered-base-model) |
 | TLS offsets | `tls-offsets` | The send and receive offsets of stripped TLS builds, keyed by build id, each one proven on the exact image it names. Served with TLS intelligence, and explained in [Enterprise DLP](dlp.md#the-offset-catalogue) |
 
 A set the licence does not entitle is not served, and a set this build is too
@@ -50,7 +50,8 @@ ebpfsentinel-content-<bundle version>/
     ├── dlp-patterns/patterns.json
     ├── ja4-fingerprints/fingerprints.json
     ├── ai-providers/providers.json
-    ├── ml-models/<model>.bin
+    ├── ml-models/base-model.onnx
+    ├── ml-models/model-card.json
     └── tls-offsets/offsets.json
 ```
 
@@ -348,8 +349,26 @@ ids-rules: version 118 published 2026-10-18T22:14:00Z (1842 entries, rollback to
 dlp-patterns: version 64 published 2026-10-17T11:02:00Z (312 entries, rollback to 63)
 ja4-fingerprints: version 91 published 2026-10-18T22:14:00Z (8104 entries, rollback to 90)
 ai-providers: version 22 published 2026-10-11T08:40:00Z (48 entries, rollback to none kept)
-ml-models: version 7 published 2026-10-11T08:40:00Z (3 entries, rollback to 6)
+ml-models: version 7 published 2026-10-11T08:40:00Z (3 entries, rollback to 6, pinned)
 ```
+
+### Holding a Set Where It Is
+
+A rollback steps one set back once; the next bundle carrying a newer version of
+that set would put it forward again. To keep a set at the version in force while
+somebody looks at a newer one, pin it:
+
+```bash
+ebpfsentinel-enterprise-agent content pin --set ml-models
+ebpfsentinel-enterprise-agent content unpin --set ml-models
+```
+
+A pinned set is left alone by every bundle, fetched or imported, and the import
+report names it as skipped with the reason `pinned`; the other sets keep moving.
+A rollback of a pinned set moves the pin with it, so the set stays at the version
+it was rolled back to. `unpin` releases it, and the next bundle carrying a newer
+version applies as usual. Pinning a set that holds nothing is refused, because
+there is no version to hold.
 
 The same figures are served over the API at `GET /api/v1/content/status`, which
 is what a dashboard reads, and the portal shows the customer the other side of
@@ -401,24 +420,26 @@ feeds do.
 
 ## The API
 
-The three routes are mounted only where the configuration carries an enabled
-`content` block, and all three work on this machine's own content directory. None
+The routes are mounted only where the configuration carries an enabled
+`content` block, and all of them work on this machine's own content directory. None
 of them takes a URL: the address and the credential come from the `portal` block,
 and a route that accepted an address would be a way to hand an agent a bundle
 from somewhere nobody signed.
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/content/status` | viewer | The versions in force, with each set's publication date, entry count and rollback target, and the number of consecutive fetch failures. |
+| `GET` | `/api/v1/content/status` | viewer | The versions in force, with each set's publication date, entry count, rollback target and whether it is pinned, and the number of consecutive fetch failures. |
 | `POST` | `/api/v1/content/import` | operator | Verify a bundle in a local directory and put it in force. Takes `{ "bundle_dir": "...", "verify_only": false }`. |
-| `POST` | `/api/v1/content/rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. |
+| `POST` | `/api/v1/content/rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. A pinned set stays pinned, at the version it went back to. |
+| `POST` | `/api/v1/content/pin` | operator | Hold one set at the version in force until it is released. Takes `{ "set": "ml-models" }`. `400` if nothing of that set is applied. |
+| `POST` | `/api/v1/content/unpin` | operator | Release a pinned set. Takes `{ "set": "ml-models" }`. `400` if the set is not pinned. |
 
 A refused bundle answers `400` and changes nothing on the machine. A verified one
 answers `200` and says what became of each set, because a bundle is six
 decisions rather than one: sets that were applied, and sets left alone because
 this build is too old to read them or because what is in force is already as new.
 
-The same three are what the command line runs underneath, so an air-gapped
+The same routes are what the command line runs underneath, so an air-gapped
 estate that exposes no API still has every one of them.
 
 ## What the Portal Shows

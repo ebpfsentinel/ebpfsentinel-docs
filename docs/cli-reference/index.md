@@ -1499,7 +1499,7 @@ what an operator does on the machine, and two of them are what an air-gapped
 estate does instead of fetching.
 
 ```
-ebpfsentinel-enterprise-agent content <status|import|rollback>
+ebpfsentinel-enterprise-agent content <status|import|rollback|pin|unpin>
 ```
 
 ### content status
@@ -1547,8 +1547,68 @@ ebpfsentinel-enterprise-agent content rollback --set ids-rules
 
 Puts one set back to the version it replaced, without a redeploy and without
 touching the other four. There is one version kept per set, so a rollback is one
-step back rather than a history.
+step back rather than a history. A pinned set stays pinned, at the version it
+went back to.
+
+### content pin
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--set <KIND>` | Which set, as `content status` names it | Required |
+
+```bash
+ebpfsentinel-enterprise-agent content pin --set ml-models
+```
+
+Holds one set at the version in force: every bundle, fetched or imported, leaves
+it alone and reports it as skipped with the reason `pinned`. Refused when nothing
+of that set is applied.
+
+### content unpin
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--set <KIND>` | Which set, as `content status` names it | Required |
+
+```bash
+ebpfsentinel-enterprise-agent content unpin --set ml-models
+```
+
+Releases a pinned set, so the next bundle carrying a newer version applies.
+Refused when the set is not pinned.
 
 The whole round trip is walked in [Air-Gap Mode](../features/enterprise/airgap.md#license-activation-across-the-gap),
 and the signing half of it, which runs `ebpfsentinel-license` on a connected
 workstation, is documented in the [Enterprise License System](../features/enterprise/license.md).
+
+### sigma
+
+Compile Sigma rules exactly as the agent would, without starting it.
+
+```
+ebpfsentinel-enterprise-agent sigma check [PATH...]
+```
+
+### sigma check
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `<PATHS>` | Rule files or directories | The paths of `enterprise.sigma.rules` in the configuration |
+| `--json` | Print the totals and every source's refusals as JSON | Table |
+
+```bash
+ebpfsentinel-enterprise-agent sigma check /etc/ebpfsentinel/sigma
+```
+
+```
+REFUSED  /etc/ebpfsentinel/sigma/proc.yml #0  6f5c3a9e-0000-4000-8000-000000000002  Image: names the process, which the connection classifier does not see
+2 files, 2 rules: 1 compiled into 1 native rules, 1 refused
+       1  refused by Image
+```
+
+Every refused rule is listed with its file, its document number, its `id`, the
+field that stopped it and why. The command exits non-zero when a path cannot be
+read or when the share of refused rules is above `max_refused_share` (`0.5`
+when paths are given on the command line), which is exactly when the agent
+would refuse to start on them. [Sigma Rules](../features/enterprise/sigma-rules.md)
+lists every field the compiler takes and refuses.

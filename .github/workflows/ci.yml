@@ -121,6 +121,13 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:suricata-keywords
 
+      # The same claim for Sigma: which field and modifier compiles, which is
+      # accepted and which refuses the rule, read off the enterprise
+      # compiler's own list.
+      - name: Check the Sigma field table
+        working-directory: ebpfsentinel-docs
+        run: npm run check:sigma-fields
+
       # What an imported indicator reaches, and the one kind that reaches
       # nothing, is the claim this feature is sold on. The three tables are
       # generated off the enterprise tree, so a kind that gains or loses a

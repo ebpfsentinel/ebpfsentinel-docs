@@ -180,6 +180,19 @@ with the mean and variance maintained by the same EWMA accumulator used elsewher
 
 `GET /api/v1/enterprise/ml/status` reports both halves of that state as `model_warmed_up` and `model_sample_count`.
 
+### The Delivered Base Model
+
+A machine with no model of its own receives one through the [content channel](content-channel.md) - what that model is, what it was trained on and what it is not claimed to detect is on [The Base Anomaly Model](base-model.md) - as the `ml-models` set: an ONNX graph (`base-model.onnx`) and the model card that states what it was measured to detect (`model-card.json`). The agent looks at the content directory once a minute and takes the model in only when the set's version moved, so a fetched bundle, an imported one, a rollback and a pin all take effect without a restart.
+
+A delivered model is checked twice before it scores anything, and a model that fails either check never replaces the one running:
+
+1. **Against the signed set.** Both files must be listed in the set the bundle signed, with the digest it signed. The card must parse, and must name the one kind of model this agent runs.
+2. **On this machine.** The graph is loaded by the runtime, its own metadata must state the version and the kind the card states, and it is measured on the same held-out synthetic windows the card was produced from. A model above its false positive ceiling, or below its detection floor on a scenario it claims, is refused.
+
+A refused model is reported with the reason it failed, and the model that was running keeps running; the set's version is remembered, so the same refused model is not measured again on every pass. To stop a newer model arriving while one is being looked at, pin the set (`content pin --set ml-models`); to go back to the one before, roll it back.
+
+**A model configured on the host always wins.** A `model_path` in the configuration is the operator's choice, and a delivered model never replaces it: the delivered one is reported as `superseded` and left unused for as long as the configured file is the running model.
+
 ### Score Fusion
 
 Baseline, EWMA, CUSUM and the loaded model score every completed `FeatureVector`, and those four are fused:
@@ -544,6 +557,9 @@ enterprise:
   "model_engine": "onnx-runtime",
   "model_warmed_up": true,
   "model_sample_count": 3412,
+  "model_version": "4",
+  "model_source": "content",
+  "delivered_model": { "state": "in_force", "set_version": 7, "model_version": 4 },
   "anomaly_threshold": 2.0,
   "ewma_enabled": true,
   "ewma_warmed_up": true,
@@ -557,6 +573,17 @@ enterprise:
 `model_engine` names the inference engine holding the model: `onnx-runtime`
 while one is loaded, `none` when none is. `model_loaded` says a model is in
 memory; `model_warmed_up` says it is contributing to the fusion. A model loaded seconds ago reports `true` and `false` respectively, and scores nothing until `model_sample_count` reaches the configured `ewma_warmup_samples`.
+
+`model_version` is the version the running model's own metadata states, absent when none is loaded. `model_source` says where it came from: `configured` for a file named in the configuration, `content` for the model the content channel delivered, `none` with no model. `delivered_model` says what became of the delivered one, under `state`:
+
+| `state` | Meaning |
+|---------|---------|
+| `absent` | No `ml-models` set is applied on this machine. |
+| `in_force` | The delivered model passed both checks and is the running model. Carries `set_version` and `model_version`. |
+| `superseded` | A model configured on the host is running, so the delivered one is not used. Carries `set_version`. |
+| `refused` | The delivered model failed a check and the previous model keeps running. Carries `set_version`, `reason` and `detail`. |
+
+`reason` is one of `not_signed`, `digest_mismatch`, `unreadable`, `malformed_card`, `unsupported_model`, `card_mismatch`, `runtime` and `below_floor`; `detail` is the sentence a person reads.
 
 ### Streaming Algorithm Endpoints
 
