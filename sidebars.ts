@@ -92,6 +92,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/dlp',
             'features/enterprise/dashboard',
             'features/enterprise/cases',
+            'features/enterprise/hunting',
             'features/enterprise/kubernetes-operator',
             'features/enterprise/bare-metal-load-balancer',
             'features/enterprise/high-availability',
