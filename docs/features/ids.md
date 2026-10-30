@@ -87,6 +87,19 @@ rules:
         track_by: src_ip
 ```
 
+### Imported Suricata Rules
+
+Suricata rulesets listed under `ids.suricata` are compiled at load into
+ordinary detection rules, decided on the payload in userspace. A rule using a
+keyword the engine cannot evaluate - state kept across packets, an HTTP, DNS or
+TLS field, a reassembled stream - is refused rather than loaded with that part
+ignored, and each refusal names its keyword. A ruleset refusing more than the
+configured share fails the load. See
+[Configuration: IDS](../configuration/ids.md#suricata-rulesets) for the
+variables, the limits and what an imported rule costs per segment. [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md)
+walks a public ruleset through the check, with the keyword table the
+compiler works from.
+
 ## Configuration
 
 ```yaml
@@ -135,6 +148,12 @@ ebpfsentinel-agent ids rules
 # The same rules read as prevention rules
 ebpfsentinel-agent ips list
 
+# What the imported Suricata rulesets compiled to, and what they refused
+ebpfsentinel-agent ids suricata --refusals
+
+# Compile a Suricata ruleset locally, without an agent
+ebpfsentinel-agent ids suricata-check emerging-scan.rules --address-var HOME_NET=10.0.0.0/8
+
 # View alerts
 ebpfsentinel-agent alerts list --component ids --severity high --limit 50
 
@@ -148,6 +167,7 @@ ebpfsentinel-agent alerts mark-fp alert-001
 |--------|------|-------------|
 | GET | `/api/v1/ids/status` | IDS status and detection rule count |
 | GET | `/api/v1/ids/rules` | List detection rules |
+| GET | `/api/v1/ids/suricata/report` | What each imported Suricata ruleset compiled to |
 | GET | `/api/v1/ips/rules` | List prevention rules |
 | GET | `/api/v1/alerts` | List alerts (filter by `component=ids`) |
 | POST | `/api/v1/alerts/{id}/false-positive` | Mark alert as false positive |

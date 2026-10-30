@@ -113,6 +113,14 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:mitre-coverage
 
+      # Which Suricata keyword compiles, which is accepted and which refuses
+      # the rule is what an imported ruleset is judged by. The table is
+      # generated off the compiler's own list, so a keyword that changes
+      # support fails here rather than leaving a page promising a rule loads.
+      - name: Check the Suricata keyword table
+        working-directory: ebpfsentinel-docs
+        run: npm run check:suricata-keywords
+
       # What an imported indicator reaches, and the one kind that reaches
       # nothing, is the claim this feature is sold on. The three tables are
       # generated off the enterprise tree, so a kind that gains or loses a

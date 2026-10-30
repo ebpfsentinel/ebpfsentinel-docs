@@ -286,6 +286,7 @@ const sidebars: SidebarsConfig = {
         'examples/scenarios/pci-compliance',
         'examples/scenarios/threat-hunting',
         'examples/scenarios/kubernetes-ddos',
+        'examples/scenarios/suricata-migration',
       ],
     },
     'faq',

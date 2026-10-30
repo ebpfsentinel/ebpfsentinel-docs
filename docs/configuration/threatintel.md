@@ -187,6 +187,49 @@ threatintel:
       auth_header: "Authorization: Bearer misp-api-key"
 ```
 
+## CrowdSec
+
+`threatintel.crowdsec` connects the agent to a CrowdSec local API, in two directions that are switched on separately. Both are off by default.
+
+```yaml
+threatintel:
+  enabled: true
+  mode: block
+  crowdsec:
+    enabled: false                 # Read the bans in force (default: false)
+    lapi_url: "http://127.0.0.1:8080"
+    bouncer_key: "..."             # From `cscli bouncers add ebpfsentinel`
+    refresh_interval_secs: 60      # Seconds between reads, at least 60 (default: 60)
+    max_decisions: 100000          # Most bans loaded at once (default: 100000)
+    default_action: block          # Optional, "alert" or "block"; inherits `mode`
+    report:
+      enabled: false               # Write the agent's own blocks back (default: false)
+      machine_id: "ebpfsentinel"   # From `cscli machines add ebpfsentinel`
+      password: "..."
+      interval_secs: 60            # Seconds between reports, at least 10 (default: 60)
+      decision_duration: "4h"      # Optional: also ban the source for this long
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `false` | Read the decision list as a bouncer. Each ban on one address becomes an indicator in the `crowdsec` feed, matched in the kernel like any other |
+| `lapi_url` | `string` | - | Base address of the local API, `http://` or `https://`, without credentials. Unlike a feed it may be on the host or the local network; cloud metadata addresses are still refused |
+| `bouncer_key` | `string` | - | The bouncer's API key, sent as `X-Api-Key`. Masked as `***` wherever the configuration is shown |
+| `refresh_interval_secs` | `integer` | `60` | Seconds between reads of `GET /v1/decisions?type=ban`, at least 60 |
+| `max_decisions` | `integer` | `100000` | Most bans loaded. Counted into the IOC table capacity when `max_entries` is unset |
+| `default_action` | `string` | `mode` | `"alert"` or `"block"` for a banned address |
+| `report.enabled` | `bool` | `false` | Report the agent's own blocks to the local API as a machine |
+| `report.machine_id` | `string` | - | The machine registered for the agent |
+| `report.password` | `string` | - | Its password. Masked as `***` wherever the configuration is shown |
+| `report.interval_secs` | `integer` | `60` | Seconds between reports, at least 10 |
+| `report.decision_duration` | `string` | none | `4h`, `30m` or `1h30m`. When set, every reported source also carries a ban of that length, which the local API hands to every bouncer it serves. Absent, the report is recorded and bans nothing |
+
+**What is read.** Only bans on a single address: a decision of scope `Ip`, or a `Range` that is one address (`/32`, `/128`). A captcha, a throttle, a wider range, a country or an AS is left out and counted in the log line each read writes, because the kernel table holds addresses. An empty answer (`null`) empties the feed. The local API follows the same rules as a feed otherwise: no redirect is followed, the body is depth-limited, and the read keeps the previous set when it fails.
+
+**What is sent, and what is not.** With `report.enabled`, the agent sends, once per interval, one alert per blocked source and component: the source address, the scenario `ebpfsentinel/<component>` (`ebpfsentinel/ids`, `ebpfsentinel/firewall`, ...), how many times it was blocked and the first and last time. Nothing else leaves the host: no destination address or port, no rule, no payload, no hostname, no interface and no configuration. Only blocks qualify: an alert in `alert` mode, an alert marked as a false positive, a source on a private, loopback or link-local address, and a match on a threat-intelligence indicator (which may have come from CrowdSec in the first place) are never reported. At most 1,000 sources are held per interval; a report that fails is dropped rather than queued, and the next one carries whatever is still being blocked.
+
+A reload changes the address, key and limits of the reading half, provided the feed fetcher is already running (the agent started with at least one feed or with CrowdSec enabled); the refresh period and every reporting setting apply at the next agent start.
+
 ## Security Validation
 
 Feed fetching and parsing enforce several security constraints:

@@ -22,6 +22,8 @@
     "check:no-typographic-dash": "node scripts/check-no-typographic-dash.mjs",
     "generate:mitre-coverage": "node scripts/generate-mitre-coverage.mjs",
     "check:mitre-coverage": "node scripts/generate-mitre-coverage.mjs --check",
+    "generate:suricata-keywords": "node scripts/generate-suricata-keywords.mjs",
+    "check:suricata-keywords": "node scripts/generate-suricata-keywords.mjs --check",
     "generate:intel-objects": "node scripts/generate-intel-objects.mjs",
     "check:intel-objects": "node scripts/generate-intel-objects.mjs --check",
     "generate:cni-matrix": "node scripts/generate-cni-matrix.mjs",

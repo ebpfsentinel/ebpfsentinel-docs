@@ -24,6 +24,15 @@ ids:
         count: 5
         window_secs: 60               # Seconds
         track_by: src_ip              # src_ip, dst_ip, or both
+  suricata:                           # optional Suricata rulesets
+    rulesets:
+      - /etc/ebpfsentinel/suricata/emerging-scan.rules
+    vars:
+      addresses:
+        HOME_NET: "[10.0.0.0/8]"
+      ports:
+        HTTP_PORTS: "[80,8080]"
+    max_refused_share: 0.5            # refused share above which the load fails
 ```
 
 ## Fields
@@ -37,6 +46,7 @@ ids:
 | `sampling` | `Sampling` | - | Sampling configuration (see below) |
 | `inspect_egress` | `bool` | `false` | Also run the classifier on the egress hook. Enables cgroup/container attribution of locally-originated (e.g. container outbound) traffic, since on egress the originating socket is bound to the packet |
 | `rules` | `[Rule]` | `[]` | Detection rules |
+| `suricata` | `Suricata` | - | Suricata rulesets compiled into detection rules at load (see below) |
 
 ### Sampling
 
@@ -97,6 +107,69 @@ the bytes the classifier copies out of the packet. What that changes:
 
 Both `dst_port` and `src_port` are honoured, so a rule can fire on the reply
 leg of a conversation.
+
+### Suricata rulesets
+
+A Suricata ruleset is compiled when the configuration is loaded, one rule at a
+time. A rule whose every keyword the engine can evaluate on a captured TCP
+payload becomes one detection rule per port it names; any other rule is
+refused, and the refusal names the keyword that stopped it. Nothing is
+approximated: a rule either means here what it means in Suricata, or it does
+not load. What was refused is read with `ids suricata` or
+`GET /api/v1/ids/suricata/report`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `rulesets` | `[string]` | `[]` | Ruleset files, read in this order. At most 256, each at most 128 MiB |
+| `vars.addresses` | `map` | stock | Address variables by name without the `$`, laid over the ones Suricata ships in its own `suricata.yaml` |
+| `vars.ports` | `map` | stock | Port variables, the same way |
+| `max_refused_share` | `float` | `0.5` | The share of a ruleset's enabled rules that may be refused, from 0 to 1. A ruleset refusing more fails the load |
+
+What holds across the import:
+
+- **The stock variables apply unless replaced.** `HOME_NET` defaults to
+  `[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]` and `EXTERNAL_NET` to
+  `!$HOME_NET`, as in a fresh Suricata install. Set `HOME_NET` to your own
+  networks, or a rule written `$EXTERNAL_NET -> $HOME_NET` watches the wrong
+  direction.
+- **A sid is one rule across every ruleset.** A sid compiled from an earlier
+  file is refused in a later one rather than loaded twice.
+- **A commented-out rule is counted as disabled** and is not read.
+- **Imported rules take no kernel slot.** They are decided on the payload in
+  userspace, like any content rule, and the ports they name join the payload
+  capture set. That set is still bound by the 256-port limit, and imported
+  rules count against the 50,000 detection rules a configuration may hold.
+- **A failed import keeps the running configuration.** A file that cannot be
+  read, or a ruleset refusing more than `max_refused_share`, rejects the whole
+  configuration; on a reload the one already running stays in place.
+
+The default share is deliberately strict. A whole Emerging Threats Open
+corpus is mostly rules on HTTP, DNS and TLS fields and on flow state, which
+the engine does not evaluate, so it refuses about 99% of its rules and fails
+the load at `0.5`. Import the categories written on raw content, such as scan
+or exploit rulesets, and check one first without an agent:
+
+```bash
+ebpfsentinel-agent ids suricata-check emerging-scan.rules --address-var HOME_NET=10.0.0.0/8
+```
+
+Raising `max_refused_share` to load a whole corpus is allowed, and the report
+then says what share of it is not evaluated at all.
+
+#### What an imported rule costs
+
+Every imported rule on a port is tried against each segment captured on that
+port, so the cost grows with the number of rules sharing a port. Measured on
+one core, all rules on port 80 and none matching, which is the worst case:
+
+| Imported rules on the port | Time per segment | Segments per second per core |
+|----------------------------|------------------|------------------------------|
+| 100 | 2.8 us | about 350,000 |
+| 1,000 | 67 us | about 15,000 |
+| 5,000 | 556 us | about 1,800 |
+
+A few hundred rules per port is comfortable on a busy link; thousands on one
+port are not, which is another reason to import by category.
 
 ### Workload scope
 

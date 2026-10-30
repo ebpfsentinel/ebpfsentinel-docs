@@ -234,6 +234,12 @@ threatintel:
 
 See [Configuration: Threat Intelligence](../configuration/threatintel.md) for the full field reference.
 
+## CrowdSec
+
+The agent can stand in for a CrowdSec bouncer: with `threatintel.crowdsec.enabled`, the bans a CrowdSec local API holds are read every minute and loaded as indicators of the `crowdsec` feed, so a source banned by any CrowdSec machine on the network is dropped in the kernel on this host as well. Only bans on a single address are loaded; the rest is counted and logged.
+
+It can also write back, off unless `report.enabled` is set too: once per interval the agent tells the local API which public sources it blocked, by component, how often and when, and nothing more. With `decision_duration` set, those reports become bans that every other bouncer of that local API enforces. Matches on indicators are never reported, so a ban read from CrowdSec does not come back to it as a fresh signal. Every field and the full list of what is and is not sent are in [Threat Intelligence Configuration](../configuration/threatintel.md#crowdsec).
+
 ## Feed Security
 
 Feed ingestion enforces several hardening measures to prevent abuse:

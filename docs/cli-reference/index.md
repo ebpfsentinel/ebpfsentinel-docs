@@ -1079,7 +1079,21 @@ ebpfsentinel-agent ids status
 # List rules with severity, protocol, port and pattern
 ebpfsentinel-agent ids rules
 ebpfsentinel-agent ids rules -o json
+
+# What each imported Suricata ruleset compiled to, refusals counted by keyword
+ebpfsentinel-agent ids suricata
+# The same, with every refused rule listed
+ebpfsentinel-agent ids suricata --refusals
+
+# Compile a ruleset locally and report, without an agent
+ebpfsentinel-agent ids suricata-check emerging-scan.rules \
+  --address-var HOME_NET=10.0.0.0/8 --port-var HTTP_PORTS=8080 --refusals
 ```
+
+`ids suricata-check` reads the file, compiles it with the stock Suricata
+variables plus any `--address-var` or `--port-var` given (each repeatable, as
+`NAME=VALUE`), and prints the same report the agent would give, so a ruleset
+can be judged before it is added to `ids.suricata`.
 
 The JSON form carries two fields the table leaves out: the rate threshold a
 rule fires on, and the kernel slot it occupies when more rules compete for the

@@ -1128,6 +1128,46 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 A rule scoped to containers, pods or units carries a `workload` field holding
 its selector as one line; a rule that applies to every workload has none.
 
+#### GET /api/v1/ids/suricata/report
+
+What each Suricata ruleset under `ids.suricata` compiled to. The rules it
+compiled already appear in `GET /api/v1/ids/rules`; this is what was left out.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ids/suricata/report
+```
+
+```json
+{
+  "rulesets": [
+    {
+      "source": "/etc/ebpfsentinel/suricata/emerging-scan.rules",
+      "total": 412,
+      "compiled": 296,
+      "native_rules": 341,
+      "disabled": 37,
+      "refused_share": 0.281,
+      "refused_by_keyword": [{ "keyword": "flowbits", "count": 71 }],
+      "refused": [
+        { "sid": 2001219, "line": 88, "keyword": "flowbits", "reason": "State carried from one rule to another is not kept." }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `total` | Enabled rules in the file, compiled or not |
+| `compiled` | Rules compiled; `total - compiled` were refused |
+| `native_rules` | Detection rules they became, one per port a rule names |
+| `disabled` | Rules commented out in the file, not read |
+| `refused_share` | Refused over enabled, from 0 to 1 |
+| `refused_by_keyword` | Refusals counted by the keyword that caused them, most frequent first |
+| `refused` | Every refused rule; `sid` is absent when the rule was refused before its sid was read |
+
+An agent importing no ruleset answers `{"rulesets": []}`.
+
 ### IPS
 
 #### GET /api/v1/ips/rules
@@ -2577,6 +2617,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/firewall/workload/reach` | Yes | What one named workload is allowed to reach |
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
+| GET | `/api/v1/ids/suricata/report` | Yes | What the imported Suricata rulesets compiled to |
 | GET | `/api/v1/flows/export` | Yes | Flow export status, table counters and sink health |
 | GET | `/api/v1/services/graph` | Yes | Who called whom over the last 1 to 60 minutes, from L7 requests |
 | POST | `/api/v1/learning/sessions` | Yes (write) | Open an observation window |
