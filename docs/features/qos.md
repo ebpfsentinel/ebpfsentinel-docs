@@ -91,6 +91,24 @@ Delay is applied by Earliest Departure Time pacing: the program sets `skb->tstam
 - The interface needs the `fq` qdisc, which is what honours the departure timestamp. Without it the timestamp is set and ignored.
 - Departure times only exist on the way out, so `delay` has no effect on a pipe whose direction is `ingress`. Such a pipe still enforces its bandwidth and loss.
 
+### Per-Workload Shaping
+
+`qos.cgroup_shaping` holds the egress of a workload to a rate: a systemd unit, a cgroup subtree, a container or a set of pods, each matched cgroup on its own. The agent resolves every task it sees executing to its cgroup, picks the first rule whose workload matches, and writes the cgroup's rate into the kernel. On the way out, `tc-qos` reads the cgroup behind the packet, stamps it with a departure time `max(now, next)` and advances the cgroup's next departure by the packet's length at the rate. The `fq` qdisc then holds the packet until that time, so the workload is paced rather than dropped, and other traffic on the interface is not slowed by it. A packet whose departure would fall past the rule's horizon is dropped and counted, so a workload sending far above its rate does not grow an unbounded queue.
+
+**Condition: the interface's qdisc must honour a departure time.** That is `fq` as the root qdisc, or `mq` with `fq` under every queue. The agent reads each interface's qdiscs and enables the shaper only on interfaces that meet it; elsewhere the rule is reported as not applied rather than shaping nothing in silence. Answer for your own host with:
+
+```bash
+ebpfsentinel-agent qos shaping
+```
+
+which lists every interface with its root qdisc and whether shaping acts there, every rule, and every cgroup held to a rate with the rate it achieved over the last read interval. To make an interface eligible:
+
+```bash
+tc qdisc replace dev eth0 root fq
+```
+
+Per-workload shaping is egress only. Ingress traffic has already crossed the link and there is no departure time to set.
+
 ## Configuration
 
 ```yaml
@@ -144,6 +162,9 @@ See [QoS Configuration](../configuration/qos.md) for the full field reference.
 # View QoS status (enabled, pipe/queue/classifier counts)
 ebpfsentinel-agent qos status
 
+# Per-workload shaping: interfaces, rules, shaped cgroups and achieved rates
+ebpfsentinel-agent qos shaping
+
 # List all pipes
 ebpfsentinel-agent qos pipes
 
@@ -191,6 +212,7 @@ ebpfsentinel-agent --output json qos status
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/qos/status` | QoS status (enabled, pipe/queue/classifier counts) |
+| GET | `/api/v1/qos/shaping` | Per-workload shaping: rules, interfaces and whether they honour a departure time, cgroups held to a rate with their achieved rate |
 | GET | `/api/v1/qos/pipes` | List all pipes |
 | POST | `/api/v1/qos/pipes` | Create a pipe (requires `admin` role) |
 | DELETE | `/api/v1/qos/pipes/{id}` | Delete a pipe (requires `admin` role) |
@@ -213,7 +235,9 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | `ports` | `crates/ports/src/secondary/qos_map_port.rs` | eBPF map port the service syncs through |
 | `application` | `crates/application/src/qos_service_impl.rs` | App service (engine + eBPF map sync) |
 | `adapters` | `crates/adapters/src/ebpf/qos_map_manager.rs` | eBPF map adapter |
-| `agent` | `crates/agent/src/http/qos_handler.rs` | HTTP handler (10 endpoints) |
+| `agent` | `crates/agent/src/http/qos_handler.rs` | HTTP handler (11 endpoints) |
+| `application` | `crates/application/src/qos_cgroup_shaping_service.rs` | Per-workload shaping: cgroup resolution, qdisc check, counters and achieved rate |
+| `adapters` | `crates/adapters/src/ebpf/qos_cgroup_shaping.rs` | Per-workload shaping map adapter |
 | `infrastructure` | `crates/infrastructure/src/config/qos.rs` | Config parsing |
 
 ## eBPF Program
@@ -238,6 +262,11 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | `QOS_PIPE_STATE` | Array | 64 | Per-pipe token bucket (tokens, last_refill_ns), shared across CPUs |
 | `QOS_FLOW_STATE` | LruPerCpuHashMap | 65536 | Per-flow pacing state (last departure time) |
 | `QOS_METRICS` | PerCpuArray | 7 | Per-CPU shaping counters |
+| `QOS_EDT_INTERFACES` | HashMap | 256 | Interfaces whose qdisc honours a departure time, where per-workload shaping acts |
+| `QOS_CGROUP_LINKS` | HashMap | 4096 | Container link ifindex to cgroup id, for traffic that leaves through a host-side veth |
+| `QOS_CGROUP_SHAPES` | HashMap | 4096 | cgroup id to rate (picoseconds per byte) and horizon |
+| `QOS_CGROUP_EDT` | HashMap | 4096 | cgroup id to next departure time |
+| `QOS_CGROUP_COUNTERS` | PerCpuHashMap | 4096 | cgroup id to bytes, packets and horizon drops |
 | `EVENTS` | RingBuf | 1 MB | Kernel-to-userspace QoS events |
 | `INTERFACE_GROUPS` | HashMap | 64 | Interface group membership bitmask per ifindex |
 | `TENANT_VLAN_MAP` | HashMap | 1024 | VLAN ID → tenant ID resolution |
@@ -273,3 +302,9 @@ QoS exports no family of its own. Its counters are slots in the per-CPU
 
 Alongside them, `ebpfsentinel_rules_loaded{component="qos"}` is the loaded
 classifier count.
+
+Per-workload shaping has three families of its own, labelled by `rule_id`:
+
+- `ebpfsentinel_cgroup_shaping_bytes_total` - bytes sent by cgroups held to the rule
+- `ebpfsentinel_cgroup_shaping_dropped_horizon_total` - packets dropped because their departure fell past the horizon
+- `ebpfsentinel_cgroup_shaping_achieved_bps` - bits per second the rule's cgroups sent over the last read interval

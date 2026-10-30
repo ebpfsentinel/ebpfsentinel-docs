@@ -2178,6 +2178,39 @@ QoS status: enabled flag, pipe/queue/classifier counts.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/status
 ```
 
+#### GET /api/v1/qos/shaping
+
+Per-workload shaping: whether the loaded program carries the shaping tables (`supported`), whether a rule is in force on at least one interface (`active`), the configured rules, each attached interface with its root qdisc and whether it honours a departure time (`honoured`), and each cgroup held to a rate with its byte, packet and horizon-drop counters and the rate it achieved over the last read interval (`achieved_bps`, absent until two reads exist). Shaping acts only on interfaces where `honoured` is true: `fq` at the root, or `mq` with `fq` under every queue. Answers 404 when the agent runs without eBPF.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/qos/shaping
+```
+
+```json
+{
+  "supported": true,
+  "active": true,
+  "rules": [
+    { "id": "batch-jobs", "rate_bps": 50000000, "horizon_ms": 2000, "unit": "batch.service", "kubernetes": false }
+  ],
+  "interfaces": [
+    { "name": "eth0", "ifindex": 2, "root_qdisc": "fq", "honoured": true }
+  ],
+  "cgroups": [
+    {
+      "cgroup_id": 8812,
+      "rule_id": "batch-jobs",
+      "rate_bps": 50000000,
+      "cgroup": "/system.slice/batch.service",
+      "bytes": 912384000,
+      "packets": 624512,
+      "dropped_horizon": 0,
+      "achieved_bps": 49870000
+    }
+  ]
+}
+```
+
 #### GET /api/v1/qos/pipes
 
 List all QoS pipes.
@@ -2710,6 +2743,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |
 | GET | `/api/v1/dlp/scope` | Yes | Workloads the probes read plaintext from |
 | GET | `/api/v1/qos/status` | Yes | QoS status |
+| GET | `/api/v1/qos/shaping` | Yes | Per-workload shaping state and achieved rates |
 | GET | `/api/v1/qos/pipes` | Yes | List QoS pipes |
 | POST | `/api/v1/qos/pipes` | Yes (admin) | Create QoS pipe |
 | DELETE | `/api/v1/qos/pipes/{id}` | Yes (admin) | Delete QoS pipe |

@@ -31,6 +31,12 @@ qos:
         protocol: udp          # tcp, udp, icmp, icmpv6, or numeric
         dscp: 46               # DSCP value (0-63)
         vlan_id: null
+  cgroup_shaping:
+    - id: "batch-jobs"
+      workload:                # Which workloads; each matched cgroup on its own
+        unit: "batch.service"
+      rate: "50mbps"           # Egress rate each matched cgroup is held to
+      horizon_ms: 2000         # Furthest a packet may be scheduled ahead (1-60000)
 ```
 
 ## Fields
@@ -103,6 +109,26 @@ All fields in `match` are optional. Omitted fields match any value.
 | `vlan_id` | u16 | `null` | 802.1Q VLAN ID (0--4094). `null` matches any VLAN, `0` matches untagged traffic only |
 
 Addresses are matched exactly. A prefix shorter than `/32` and an IPv6 address are both rejected at load, with the reason, rather than being accepted and then shaping nothing. Shape IPv6 traffic by port, protocol or DSCP instead.
+
+### Per-Workload Shaping
+
+`cgroup_shaping` holds each cgroup a rule selects to an egress rate of its own, independent of pipes, queues and classifiers. At most 256 rules. The first rule in file order whose `workload` matches a cgroup is the one it is held to, so a narrow rule written above a wide one wins.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | required | Rule identifier, unique among `cgroup_shaping` rules |
+| `workload.unit` | string | `null` | systemd unit name, such as `nginx.service` |
+| `workload.cgroup` | string | `null` | Absolute cgroup v2 path, matching that cgroup and everything under it |
+| `workload.container` | string | `null` | Container id, an id prefix of at least twelve characters, or the runtime's name for it |
+| `workload.pods` | label selector | `null` | Labels of the pod, with the Kubernetes meaning |
+| `workload.namespaces` | label selector | `null` | Labels of the pod's namespace |
+| `workload.service_account` | string | `null` | Service account the pod runs as |
+| `rate` | string | required | Rate each matched cgroup is held to: `100mbps`, `1gbps`, `500kbps`, `8000bps`. At least `8kbps` |
+| `horizon_ms` | u32 | `2000` | How far ahead, in milliseconds, a packet may be scheduled before it is dropped instead. 1 to 60000 |
+
+`workload` must name at least one matcher. An executable path is refused, because a cgroup holds tasks of more than one executable and the rate belongs to the cgroup. The rate applies to each matched cgroup on its own, not to their sum: two replicas selected by one rule are each held to the rate.
+
+Shaping acts only on interfaces whose qdisc honours a departure time: `fq` as the root qdisc, or `mq` with `fq` under every queue. On any other interface the rule is reported as not applied and no packet is touched. `ebpfsentinel-agent qos shaping` shows, per interface, which of the two it is.
 
 ## Referential Integrity
 

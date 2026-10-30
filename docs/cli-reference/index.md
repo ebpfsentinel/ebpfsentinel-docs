@@ -732,6 +732,10 @@ QoS / traffic shaping: pipes, queues, and classifiers.
 # QoS status
 ebpfsentinel-agent qos status
 
+# Per-workload shaping: interfaces and whether their qdisc honours a
+# departure time, rules, cgroups held to a rate and the rate each achieved
+ebpfsentinel-agent qos shaping
+
 # List pipes, queues, classifiers
 ebpfsentinel-agent qos pipes
 ebpfsentinel-agent qos queues

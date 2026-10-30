@@ -230,6 +230,15 @@ slot in their kernel counter map, read on `ebpfsentinel_packets_total` under
 `"QOS_METRICS"`. Their loaded rule counts are on
 `ebpfsentinel_rules_loaded{component=...}`.
 
+Per-workload shaping is the exception, with families of its own keyed by the
+`qos.cgroup_shaping` rule:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_cgroup_shaping_bytes_total` | Counter | `rule_id` | Bytes sent by the cgroups held to the rule |
+| `ebpfsentinel_cgroup_shaping_dropped_horizon_total` | Counter | `rule_id` | Packets dropped because their departure time fell past the rule's horizon |
+| `ebpfsentinel_cgroup_shaping_achieved_bps` | Gauge | `rule_id` | Bits per second the rule's cgroups sent over the last read interval |
+
 ### Connection Tracking
 
 | Metric | Type | Labels | Description |
