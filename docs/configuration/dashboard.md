@@ -150,6 +150,38 @@ nothing else, as its own service account, so that account needs `get` and
 `patch` on exactly those. A GitOps tool reconciling the same resources must
 ignore `spec.image.tag` and `spec.image.canary`, or it reverts every step.
 
+### `clusters` (optional)
+
+The clusters whose operator reports to this dashboard, for an estate that
+runs one console over several clusters. Each cluster's operator posts what it
+runs every minute; the **Clusters** screen shows each tenant the clusters
+serving it, with the nodes ready against the nodes desired and the policies
+not ready, and names a cluster that stopped reporting rather than leaving it
+out. A report carries counts and resource names, never what a policy says.
+
+| Field | Type | Default | Validation |
+|---|---|---|---|
+| `stale_after_seconds` | u32 | `300` | `60..=86400`. A cluster silent this long is shown as stopped reporting. |
+| `reporters[].id` | string | (required) | Lowercase letters, digits and hyphens, at most 63, listed once. The cluster's name, and the path its operator posts to. |
+| `reporters[].tenants` | list | (required) | At least one, each an existing tenant. The tenants that see this cluster. |
+| `reporters[].token_sha256` | hex | (required) | The SHA-256 of the cluster's bearer token, 64 hex characters, never shared by two clusters. |
+
+Only the digest of a token is held, so the configuration file reveals no
+credential. Generate a token per cluster, keep it in a Secret in that
+cluster, and put its digest here:
+
+```bash
+TOKEN=$(openssl rand -hex 32)
+kubectl -n ebpfsentinel create secret generic console-token --from-literal=token="$TOKEN"
+printf %s "$TOKEN" | sha256sum | cut -d' ' -f1
+```
+
+A report is filed under the cluster the token belongs to: a cluster posting
+under another cluster's name, or with no token, is answered `401`. Reports are
+held in memory, so after a restart every cluster reads as never reported until
+its next report, a minute later at most. The operator side is
+[Reporting to a console](../features/enterprise/kubernetes-operator.md#reporting-to-a-console).
+
 ### `observability`
 
 | Field | Type | Default | Validation |
@@ -488,6 +520,88 @@ Two more Prometheus families track the proxy:
   separate counter for the partial-response case so dashboards can
   alert on per-tenant degradation without grepping `outcome`.
 
+## Queue across tenants
+
+An analyst who serves several tenants works one queue rather than switching
+tenant once per customer. The **Provider queue** screen reads the alerts and
+the cases of every tenant the session reaches, sorts the alerts worst first,
+and names the tenant on every row. It can be narrowed to one tenant, and a
+picked set of alerts is moved (acknowledged, investigating, resolved) in one
+gesture wherever each alert is held.
+
+Nothing is widened by it. The set of tenants is exactly what the
+[tenant scope](#proxy-fan-out) of the session reaches: a member reads the
+tenants they belong to, an `admin` reads every tenant and each such reach is
+recorded as an `auth.audit` event, as it is inside one tenant. A tenant named
+outside that set refuses the whole request with `403` before any agent is
+asked, so a filter can never quietly widen or narrow what was asked. A change
+travels tenant by tenant through the same path a change made inside one
+tenant takes: the same per-tenant token, the same author recorded on the
+agent that holds the alert.
+
+The routes sit outside `/api/v1/{tenant}/...`, so a tenant named `queue` is
+never shadowed by them.
+
+| Route | What it does |
+|---|---|
+| `GET /api/queue/alerts?tenants=a,b&limit=N` | The alerts of each tenant, every tenant reached when `tenants` is left out. Each tenant answers `{tenant, display_name, status, items, failed_agents}`, `status` being `ok`, `partial` when some of its agents did not answer, or `no_agents`; `items` holds each agent's page as the per-tenant alert list returns it. |
+| `POST /api/queue/alerts/triage` | One change applied to alerts across tenants: the triage change of the per-tenant route plus `alerts: [{tenant, id}]`. The answer is per tenant, `{tenant, updated, missing, error}`: `missing` lists the alerts no agent of that tenant holds any longer, and `error` says why nothing was changed on that tenant, where nothing was. |
+| `GET /api/queue/cases?tenants=a,b` | The cases of each tenant, `{tenant, display_name, cases, error}`. A tenant whose role does not include reading the dashboard is left out when none is named and refused when it is. |
+
+A change every agent refuses, or a body naming no alert, is a `400` and
+nothing is written. The case queue answers `503` when no
+[history store](#clickhouse-history-store) is configured, since that is where
+cases are kept. A tenant read
+in part is named on the screen with the agents that did not answer, so a
+short queue is never mistaken for a quiet one.
+
+## Policy templates
+
+A provider writes a configuration once and applies it to each tenant with
+that tenant's own values. A template is a YAML document over one or more
+configuration sections in which `{{name}}` marks a value every tenant gives
+for itself; a name is lowercase letters, digits and underscores, at most 64
+characters. Only a platform administrator writes, edits or deletes a
+template, and every edit names the revision it was read at, so two people
+editing one template cannot overwrite each other: the second is refused
+with `409`.
+
+Applying is never one write across tenants. For the tenant in scope, an
+operator holding the right to push agent configuration keeps the tenant's
+values, asks for the comparison and applies:
+
+- the comparison renders the template with the tenant's values and sets it
+  beside what one agent of that tenant holds for the same sections, the
+  same agent the rollout will use as its canary;
+- applying files an ordinary [configuration rollout](#a-rollout-across-a-restart)
+  in that tenant's own book, which a second operator approves before the
+  canary is written, exactly as a rollout proposed from a configuration
+  screen.
+
+Each template lists the tenants the session reaches and where each one
+stands: `unapplied`, `pending` while its rollout is open, `current` once the
+rollout applied the template's current revision, and `behind` once the
+template moved on after it. A tenant the session does not reach is never
+listed. Templates and values are kept in the [state store](#state-store), so
+they survive a restart where one is configured.
+
+| Route | What it does |
+|---|---|
+| `GET /api/policy-templates` | Every template, each with `tenants`: the tenants the session reaches that hold values for it, with `values`, `applied_revision`, `rollout`, `rollout_stage` and `standing`. |
+| `POST /api/policy-templates` | A new template, `{name, sections, yaml}`; platform administrator only. `400` for a placeholder that is not a name or a section list that is empty. |
+| `PUT /api/policy-templates/{id}` | An edit, `{name, sections, yaml, revision}`; platform administrator only. `409` when the revision moved. |
+| `DELETE /api/policy-templates/{id}` | Removes a template and every tenant's values; platform administrator only. |
+| `PUT /api/v1/{tenant}/policy-templates/{id}/values` | The tenant's values, `{values: {name: value}}`. Nothing is written to an agent. |
+| `GET /api/v1/{tenant}/policy-templates/{id}/preview?agent=` | `{revision, agent, rendered, current}`, `current` being null where the agent holds none of the sections. `400` while a value is missing. |
+| `POST /api/v1/{tenant}/policy-templates/{id}/apply` | `{reason, canary}` files the rollout and answers it with `201`. |
+
+The three tenant routes take their tenant through the same scope check as
+every other `/api/v1/{tenant}/...` route: a tenant outside the session's
+reach is `403`, values and apply need the right to push agent configuration,
+and the comparison needs the right to read the dashboard. Every write is an
+`auth.audit` event naming the template, and applying also records the
+rollout it filed.
+
 ## Hot-reload
 
 The dashboard reloads its config without dropping connections on either
@@ -535,6 +649,8 @@ Notable fields that **are** hot-reloadable:
   socket stays open.
 - `fleet_discovery.*`, `clickhouse.retention_days`, `i18n.*` apply on
   the next reload tick.
+- `clusters.*` applies to the next report and the next reading: a cluster
+  added is listed as never reported, a token rotated refuses the old one.
 
 A reload emits one structured log line per category that changed
 (tenants added / removed / modified, JWT key rotation, OIDC identity
@@ -750,11 +866,21 @@ The server exposes a single Axum router with the following route layout:
 | `GET /auth/callback` | none | OIDC code exchange → session JWT cookie. |
 | `POST /auth/logout` | session | Clear session, redirect to IdP end-session. |
 | `POST /auth/refresh` | session | Refresh session via IdP refresh token. |
+| `POST /api/clusters/{cluster}/report` | cluster bearer token | File one cluster's report: `operator_version`, `agents[]` of `{namespace, name, desired, ready}` (at most 1000) and `policies` `{total, not_ready}`; an unknown field is refused. 204; 401 when the token is missing or not this cluster's; 400 when a bound is broken. See [`clusters`](#clusters-optional). |
+| `GET /api/v1/{tenant}/clusters` | session | Every configured cluster serving the tenant, sorted by name, each `reporting`, `stale` or `never_reported` with its last report time and age, operator version, agent resources, nodes desired and ready, and policies total and not ready. |
 | `GET /api/v1/{tenant}/sessions` | session, `ManageSessions` | The operators holding a session on the tenant: subject, email, roles, sign-in and expiry times. 503 when the state store does not answer. |
 | `DELETE /api/v1/{tenant}/sessions/{sub}` | session, `ManageSessions` | Sign the operator out everywhere. 204; 404 when they hold no session on the tenant; 403 when the target is a platform administrator and the caller is not; 409 when the revocation list is full; 503 when the state store does not answer. |
 | `GET/POST/PUT/DELETE /api/v1/{tenant}/*` | session | Proxy fan-out to agents for the tenant. |
 | `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
 | `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
+| `GET /api/queue/alerts` | session | The alert queue across every tenant the session reaches, or those named in `tenants`. 403 for a tenant outside the scope. See [Queue across tenants](#queue-across-tenants). |
+| `POST /api/queue/alerts/triage` | session | One triage change to alerts across tenants, answered per tenant; each agent checks the role exactly as for a change made inside the tenant. 400 when the change is refused. |
+| `GET /api/queue/cases` | session | The cases of every tenant the session reaches. 503 without a history store. |
+| `GET /api/policy-templates` | session | Every policy template with the standing of each tenant the session reaches. See [Policy templates](#policy-templates). |
+| `POST /api/policy-templates`, `PUT`/`DELETE /api/policy-templates/{id}` | session, platform administrator | Write a template; 409 when an edit's revision moved. |
+| `PUT /api/v1/{tenant}/policy-templates/{id}/values` | session, push agent configuration | The tenant's values for a template. |
+| `GET /api/v1/{tenant}/policy-templates/{id}/preview` | session | The rendered template beside what one agent of the tenant holds. |
+| `POST /api/v1/{tenant}/policy-templates/{id}/apply` | session, push agent configuration | Files a configuration rollout in the tenant's book. |
 | `GET /api/v1/{tenant}/enterprise/forensics/captures/{id}/pcapng?agent={id}` | session, analyst or above | Packet capture download, streamed from the one agent that wrote it, never fanned out. 403 below analyst, 400 without `agent`. |
 | `GET /api/v1/{tenant}/cases` | session | The tenant's cases, one summary each. 503 without a history store. |
 | `POST /api/v1/{tenant}/cases` | session, analyst or above | Open a case over up to 100 alerts. 409 when one of them is already in another case. |

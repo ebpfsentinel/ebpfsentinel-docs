@@ -445,6 +445,47 @@ kubectl get firewallpolicy allow-api \
   -o jsonpath='{.status.conditions[?(@.type=="WorkloadsSelected")]}'
 ```
 
+### Namespaces a tenant holds
+
+A `TenantPolicy` names its namespaces one by one with `namespaces`, selects
+them by label with `namespaceSelector`, or both. Every 30 seconds the leader
+resolves each tenant's selector against the namespaces that exist and writes
+the result to `status.tenantNamespaces.mapped`, and the agents serve that
+list: a customer namespace created with the right labels is onboarded at the
+next reading, without a resource being edited.
+
+A namespace two tenants claim, whether by name or by label, is given to
+neither. It is listed under `status.tenantNamespaces.refused` on both, with
+the other claimant named as `namespace/name`, and the condition
+`NamespacesMapped` turns `False` with the reason `NamespaceCollision` until
+one of them lets go. `True` says every namespace the tenant claims is its own.
+Narrowed to a list of namespaces with `watchNamespaces`, the operator cannot
+read namespaces, so a tenant keeps the namespaces it names, the selector is
+left unresolved with a `reason`, and the condition is `Unknown`.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: TenantPolicy
+metadata:
+  name: acme
+  namespace: tenants
+spec:
+  target:
+    all: true
+  id: "1"
+  name: acme
+  namespaces:
+    - acme-legacy
+  namespaceSelector:
+    matchLabels:
+      ebpfsentinel.io/customer: acme
+```
+
+```sh
+kubectl get tenantpolicy -A
+kubectl get tenantpolicy acme -n tenants -o jsonpath='{.status.tenantNamespaces}'
+```
+
 ### Executables allowed to reach the network
 
 A `FirewallPolicy` may carry `networkExecutables`, the list of executables
@@ -689,6 +730,46 @@ deletes every resource of its kind, which is why it is a step of its own:
 ```bash
 kubectl get crd -o name | grep ebpfsentinel.io | xargs kubectl delete
 ```
+
+## Reporting to a console
+
+An estate running several clusters can follow them from one dashboard. Each
+cluster's operator posts, every minute and from the replica holding the
+lease, what that cluster runs: each `EbpfSentinelAgent` with its desired and
+ready nodes, how many policies there are and how many are not ready, and its
+own version. Nothing a policy says leaves the cluster. The operator pushes
+rather than being read, so the dashboard holds no credential for any
+cluster's API server and a cluster behind a firewall reaches it like any other
+HTTPS service.
+
+Each cluster has a token of its own, held in a Secret in the operator's
+namespace, and the dashboard files the report under the cluster that token
+belongs to, so one cluster can never report as another. The dashboard side,
+and how to generate the token and its digest, is
+[`clusters`](../../configuration/dashboard.md#clusters-optional).
+
+```yaml
+console:
+  url: https://dashboard.example.com
+  cluster: eu-west-1
+  tokenSecret:
+    name: console-token
+    key: token
+```
+
+| Value | Meaning |
+|---|---|
+| `console.url` | The dashboard's base URL. `https://` only; empty turns reporting off. |
+| `console.cluster` | This cluster's name on the dashboard: lowercase letters, digits and hyphens. |
+| `console.tokenSecret.name`, `.key` | The Secret holding this cluster's token, mounted read-only into the operator. |
+
+A URL that is not `https://`, a missing cluster name or a missing token
+refuses the chart, and the operator refuses to start, since a cluster that
+never reports would read on the dashboard as one never installed. A refused
+report is logged with its status, and a `401` means the token is not the one
+the dashboard holds for this cluster. A cluster silent for longer than the
+dashboard's `stale_after_seconds` is shown as stopped reporting, never dropped
+from the list.
 
 ## Reporting to the vendor portal
 
