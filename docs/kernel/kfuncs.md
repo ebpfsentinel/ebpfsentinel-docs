@@ -4,7 +4,7 @@ KFuncs (kernel functions) expose kernel functionality to eBPF programs that is n
 
 ## Loading
 
-aya 0.14 cannot relocate a kfunc call, so the agent loads programs that call kfuncs with its own loader (`crates/adapters/src/ebpf/kfunc_loader.rs` and `kfunc.rs`):
+aya 0.16 relocates a kfunc call only when the kfunc lives in vmlinux, and cannot point one at a kernel module's BTF, so the agent loads programs that call kfuncs with its own loader (`crates/adapters/src/ebpf/kfunc_loader.rs` and `kfunc.rs`):
 
 1. Every kfunc call site in the ELF is rewritten to a `BPF_PSEUDO_KFUNC_CALL`.
 2. Each kfunc name is resolved to its BTF id by walking the raw BTF of vmlinux and of the loaded kernel modules (module BTF is split BTF layered on vmlinux, which `aya-obj` does not parse).

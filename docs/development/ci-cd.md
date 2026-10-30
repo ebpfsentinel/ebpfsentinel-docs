@@ -62,7 +62,7 @@ Shared setup sequences extracted into `.github/actions/`:
 | Action | Used by | What it does |
 |--------|---------|-------------|
 | `setup-rust-build` | ci, integration, mutation | Rust toolchain + cache + system deps (protoc, libpcap) |
-| `install-bpf-linker` | ebpf, docker, integration, release | LLVM + bpf-linker for eBPF compilation |
+| `install-bpf-linker` | ebpf, docker, integration, release | LLVM 23 + bpf-linker 0.11.1 for eBPF compilation, both pinned to an exact version |
 | `install-bats` | integration | BATS test framework |
 | `stamp-version` | docker, release | Replace `0.0.0-dev` in Cargo.toml files |
 
