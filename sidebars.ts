@@ -73,6 +73,7 @@ const sidebars: SidebarsConfig = {
         'features/routing',
         'features/zones',
         'features/qos',
+        'features/bandwidth-fairness',
         'features/interface-groups',
         'features/aliases',
         'features/mitre-attack',

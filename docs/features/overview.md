@@ -62,6 +62,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Policy Routing](routing.md) | OSS | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Kernel + Userspace | Network zones with inter-zone policies |
 | [QoS / Traffic Shaping](qos.md) | OSS | TC ingress + egress | Pipe/queue/classifier hierarchy, per-pipe token bucket with ECN CE marking, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation |
+| [Bandwidth Fairness](bandwidth-fairness.md) | OSS | TC egress | Egress ceiling per cgroup, paced by departure time on `fq`, achieved rate measured; what is and is not guaranteed |
 | [IP/Port Aliases](aliases.md) | OSS | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
