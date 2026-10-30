@@ -57,6 +57,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [GeoIP Enforcement](geoip.md) | OSS | Userspace + Kernel (LPM) | IP-to-location enrichment + cross-domain country-aware enforcement (DDoS auto-block, IPS /24 injection, rate limit tiers, L7 country matching, IDS country sampling) |
 | [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | XDP, TC | VLAN filtering, QinQ double tagging, VLAN ID on every event |
 | [Connection Tracking](conntrack.md) | OSS | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
+| [Kernel Drop Reasons](kernel-drops.md) | OSS | Raw tracepoint | Every packet the kernel drops, counted by its reason and interface |
 | [NAT](nat.md) | OSS | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Kernel + Userspace | Network zones with inter-zone policies |
@@ -64,7 +65,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [IP/Port Aliases](aliases.md) | OSS | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
-| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 37 techniques mapped, filter by tactic/technique, coverage dashboard |
+| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 38 techniques mapped, filter by tactic/technique, coverage dashboard |
 | [JA4+ Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
 | [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Userspace | DoH/DoT passive detection with built-in resolvers |
 
@@ -73,7 +74,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (111 paths, 128 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (113 paths, 130 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -119,11 +120,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-two program directories: eighteen attached
-at a hook of their own, three reached only by tail call from one of those
-eighteen, and `xdp-pass`, which is peer-side test scaffolding rather than part
-of the datapath. The eighteen attached programs, the last six of which read a
-task rather than a packet, and of those six only the workload firewall, the
+`crates/ebpf-programs/` holds twenty-three program directories: nineteen
+attached at a hook of their own, three reached only by tail call from one of
+those nineteen, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The nineteen attached programs, of which the six after
+`uprobe-dlp` read a task rather than a packet and the last one
+reads the kernel's own drops, and of those six only the workload firewall, the
 executables list and the connection redirect decide a syscall and only the
 signal program acts on a process:
 
@@ -147,6 +149,7 @@ signal program acts on a process:
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
 | `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
 | `cgroup-connect-redirect` | cgroup socket hooks | Rewrites the destination of a selected cgroup's TCP connect to the enterprise TLS proxy and records where it was going, so the proxy can reach it; loaded only by the enterprise agent where a TLS redirect is configured |
+| `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -157,7 +160,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the twenty-first directory. It is a no-op XDP program attached to the
+`xdp-pass` is the twenty-third directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

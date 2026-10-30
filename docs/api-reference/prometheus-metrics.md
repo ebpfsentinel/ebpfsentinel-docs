@@ -251,6 +251,41 @@ silence. `ebpfsentinel_flows_dropped_total{reason="queue_full"}` rising means
 the sinks are slower than the flow table; raise `queue_depth`, raise `sampling`
 or fix the collector.
 
+### L7 Requests per Service
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_l7_requests_total` | Counter | `service`, `role`, `protocol`, `outcome` | Requests read from L7 payloads, by `ok`, `error` or `unanswered` |
+| `ebpfsentinel_l7_request_duration_seconds` | Histogram | `service`, `role`, `protocol` | Time from a request to its answer, answered requests only |
+
+`service` holds at most 256 names before folding into `other`. What counts as
+a request and a failure for each protocol, and how a service is named, is in
+[L7 Firewall](../features/l7-firewall.md#requests-errors-and-duration-per-service).
+
+### L7 Protocol on the Wrong Port
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_l7_port_promise_total` | Counter | `port`, `verdict` | Connections on a port that promises a protocol, judged `match`, `mismatch` or `unclassified` |
+| `ebpfsentinel_l7_port_promise_uncounted_total` | Counter | - | Connections left unjudged because the table of judged connections was full |
+
+`port` takes only the twenty ports with a promise, so the label stays bounded.
+What each port promises and when a connection is judged is in
+[L7 Firewall](../features/l7-firewall.md#a-protocol-on-the-wrong-port).
+
+### Kernel Drop Reasons
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_kernel_drops_total` | Counter | `reason`, `interface` | Packets the kernel dropped, by the reason it gave and the interface the packet was on |
+| `ebpfsentinel_kernel_drops_uncounted_total` | Counter | - | Kernel drops seen but not counted under a reason, because the table of pairs was full |
+
+`reason` is the kernel's own name for the reason without its
+`SKB_DROP_REASON_` prefix, and `interface` is the device name, `if<index>` or
+`none`, so both labels are bounded by the kernel's enumeration and the node's
+devices. What each reason means is on
+[Kernel Drop Reasons](../features/kernel-drops.md).
+
 ### Learning Mode
 
 | Metric | Type | Labels | Description |

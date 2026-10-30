@@ -516,6 +516,47 @@ Each entry of `probes`:
 | `brokered` | boolean | `BPF_LINK_CREATE` was issued by the warden (rootless posture) rather than by the agent itself |
 | `sticky` | boolean | The attachment survives a reconcile that finds no process mapping the inode, the cold-start system-library fallback |
 
+#### GET /api/v1/ebpf/drop-reasons
+
+Why the kernel dropped packets since the agent started counting, by the reason
+the kernel gave and the interface the packet was on, busiest first. See
+[Kernel Drop Reasons](../features/kernel-drops.md) for what is counted and what
+each reason means.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/drop-reasons
+```
+
+```json
+{
+  "counting": true,
+  "total": 1222,
+  "uncounted": 0,
+  "drops": [
+    {
+      "reason": "NO_SOCKET",
+      "interface": "eth0",
+      "packets": 1204,
+      "description": "Nothing listens on the destination port, or the socket closed before the packet arrived."
+    },
+    { "reason": "SUBSYS_MAC80211_UNUSABLE", "interface": "none", "packets": 18 }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `counting` | boolean | The tracepoint is attached and the counts are being read |
+| `reason` | string | Why nothing is counted, present only when `counting` is false |
+| `total` | integer | Drops counted under a reason and interface |
+| `uncounted` | integer | Drops seen but not counted because the table of pairs was full |
+| `last_error` | string | The last failed read of the counters, absent when the last one succeeded |
+| `drops` | array | One entry per reason and interface |
+
+`interface` is the device's name, `if<index>` when the packet kept only the
+index it arrived on, and `none` when it had neither. `description` is absent for
+a reason the agent does not describe; the count is still there.
+
 ### Firewall
 
 #### GET /api/v1/firewall/rules
@@ -1028,6 +1069,43 @@ Delete an L7 rule.
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
 ```
+
+#### GET /api/v1/services/graph
+
+Who called whom over the last minutes, read from the L7 requests this node
+parsed. `minutes` runs from 1 to 60 and defaults to 15. See
+[L7 Firewall](../features/l7-firewall.md#service-map) for how an edge is
+counted and bounded.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/services/graph?minutes=15"
+```
+
+```json
+{
+  "minutes": 15,
+  "dropped": 0,
+  "max_edges_per_minute": 4096,
+  "edges": [
+    {
+      "client": { "service": "shop/web", "address": "10.0.1.4" },
+      "server": { "address": "10.0.3.2" },
+      "server_port": 6379,
+      "protocol": "redis",
+      "observed_from": "client",
+      "requests": 4800,
+      "errors": 0,
+      "unanswered": 0,
+      "answered": 4800,
+      "duration_ns_sum": 1920000000
+    }
+  ]
+}
+```
+
+`service` is absent when the process at that end does not run on this node.
+`observed_from` is `server`, `client` or `transit`. `duration_ns_sum` divided by
+`answered` is the mean time to an answer.
 
 ### IDS
 
@@ -2500,6 +2578,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ids/status` | Yes | IDS status |
 | GET | `/api/v1/ids/rules` | Yes | List IDS rules |
 | GET | `/api/v1/flows/export` | Yes | Flow export status, table counters and sink health |
+| GET | `/api/v1/services/graph` | Yes | Who called whom over the last 1 to 60 minutes, from L7 requests |
 | POST | `/api/v1/learning/sessions` | Yes (write) | Open an observation window |
 | GET | `/api/v1/learning/sessions` | Yes | The observation windows this node holds |
 | GET | `/api/v1/learning/sessions/{id}` | Yes | One observation window |
@@ -2569,6 +2648,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
 | GET | `/api/v1/ebpf/coverage` | Yes | What the agent sees of each pod on this node |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
+| GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |

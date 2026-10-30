@@ -261,6 +261,27 @@ FLOW                                                          CONNS    BYTES    
 3 aggregated flow(s) from 43 connection(s).
 ```
 
+#### flows services
+
+Who called whom over the last minutes, read from the L7 requests the agent
+parsed: one row per client, server, port and protocol, with the side of the
+connection the agent saw it from.
+
+```bash
+ebpfsentinel-agent flows services          # last 15 minutes
+ebpfsentinel-agent flows services -m 60    # 1 to 60
+ebpfsentinel-agent flows services -o json
+```
+
+Example output:
+
+```
+last 15 min, 2 edges, 0 requests dropped by a full minute (bound 4096 edges)
+CLIENT                 SERVER                  PORT  PROTO  SEEN FROM  REQUESTS  ERRORS  UNANSWERED  MEAN MS
+shop/web (10.0.1.4)    shop/api (10.0.2.7)     8080  http   server         1200      14           0    16.00
+shop/api (10.0.2.7)    10.0.3.2                6379  redis  client         4800       0           0     0.40
+```
+
 #### flows export
 
 Flow record export status: the flow table's counters, the configured bounds and
@@ -1099,6 +1120,9 @@ ebpfsentinel-agent ebpf coverage
 
 # Can an LSM program attach on this host? No agent, no root, no configuration
 ebpfsentinel-agent ebpf host-check
+
+# Why the kernel dropped packets, by reason and interface
+ebpfsentinel-agent ebpf drops
 ```
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
@@ -1131,6 +1155,18 @@ interface already carrying somebody else's XDP program is called out as such.
 
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
+
+`ebpf drops` prints one row per reason and interface the kernel dropped
+packets for since the agent started counting, busiest first, with the reason in
+plain language when the agent describes it:
+
+```text
+REASON          INTERFACE  PACKETS  MEANING
+NO_SOCKET       eth0       1204     Nothing listens on the destination port, or the socket closed before the packet arrived.
+NOT_SPECIFIED   wlan0      17       Freed without a reason: the path that dropped it was not annotated.
+```
+
+What each reason means is on [Kernel Drop Reasons](../features/kernel-drops.md).
 
 `ebpf coverage` lists every pod on the node with its links and the traffic
 classes the agent does not observe, each with a reason code, the uncovered

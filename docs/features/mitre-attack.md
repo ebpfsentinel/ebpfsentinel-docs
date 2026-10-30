@@ -92,6 +92,7 @@ is the reading of what alerts actually mapped to.
 | L7 firewall | OSS | L7 deny on DNS | T1071.004 | DNS | command-and-control |
 | L7 firewall | OSS | L7 deny on SMB | T1021.002 | SMB/Windows Admin Shares | lateral-movement |
 | L7 firewall | OSS | L7 deny on other protocols | T1071 | Application Layer Protocol | command-and-control |
+| L7 firewall | OSS | Protocol spoken differs from the one the port promises | T1571 | Non-Standard Port | command-and-control |
 | DDoS | OSS | SYN flood detected | T1499.001 | OS Exhaustion Flood | impact |
 | DDoS | OSS | UDP amplification detected | T1498.002 | Reflection Amplification | impact |
 | DDoS | OSS | ICMP flood detected | T1498 | Network Denial of Service | impact |

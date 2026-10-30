@@ -151,6 +151,41 @@ for two separate risks:
 
 Loopback triggers neither. See [TLS](../configuration/tls.md).
 
+## Packets Go Missing
+
+Start from what the kernel says. Every packet the kernel throws away carries a
+reason, and the agent counts them by reason and interface:
+
+```bash
+ebpfsentinel-agent ebpf drops
+```
+
+Read the busiest rows first. The common ones point straight at a cause:
+
+| Reason | Look at |
+|--------|---------|
+| `NO_SOCKET` | Nothing listens on the port, or the service restarted. Check `ss -lntu` on the receiving host |
+| `NETFILTER_DROP` | An iptables or nftables rule, often a CNI's or a host firewall's. Not this agent's firewall, which drops in XDP before the stack sees the packet |
+| `TCP_CSUM`, `UDP_CSUM`, `IP_CSUM` | Corruption on the wire or checksum offload misbehaving. Try `ethtool -K <if> rx off` on a test host |
+| `SOCKET_RCVBUFF`, `PROTO_MEM` | The application reads too slowly or socket memory is exhausted. Raise `net.core.rmem_max` or fix the reader |
+| `CPU_BACKLOG`, `QDISC_DROP` | The host cannot keep up on receive or the egress queue is full |
+| `IP_RPFILTER` | Reverse-path filtering refused an asymmetric route. Check `net.ipv4.conf.*.rp_filter` |
+| `NEIGH_FAILED`, `NEIGH_QUEUEFULL` | The next hop's address never resolved |
+
+The full list, in plain language, is on
+[Kernel Drop Reasons](../features/kernel-drops.md#what-the-reasons-mean). The
+same counts are `ebpfsentinel_kernel_drops_total{reason, interface}`, so a
+dashboard can graph a reason starting to climb rather than finding it after the
+fact.
+
+A packet dropped by this agent's own XDP programs in native mode never reaches
+the kernel's stack and is not in these counts; in generic mode the kernel frees
+it as `XDP`, and a drop decided by a TC program shows as `TC_INGRESS` or
+`TC_EGRESS`. The agent's own counts of what it dropped are
+`ebpfsentinel_packets_total{interface="FIREWALL_METRICS",action="dropped"}` and
+its neighbours, described in the
+[metrics reference](../api-reference/prometheus-metrics.md#kernel-counter-maps).
+
 ## No Traffic Captured
 
 1. Verify the interface is correct and has traffic:
