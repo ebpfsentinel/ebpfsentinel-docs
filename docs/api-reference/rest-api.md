@@ -1451,6 +1451,7 @@ tell a real pid 0 from a failed lookup.
 | `namespace` | string | Namespace, on a Kubernetes node |
 | `service_account` | string | Service account of the pod, where the enricher read one |
 | `unit` | string | systemd unit, for a host process placed in one |
+| `ancestry` | object | The processes above this one, where the process table holds its parent: `ancestors` (parent first, at most eight, each with `pid`, `exe` where a path was read, `name`, `uid`, `start_ns` where the kernel read it and `exited`), `truncated` (the chain goes on past the eighth) and `incomplete` (it stops at an ancestor the table no longer holds rather than at the root) |
 
 `source` is the strength of the join and not a detail:
 
@@ -2477,10 +2478,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `attached` | boolean | Both tracepoints are attached and the table is being filled |
+| `attached` | boolean | The exec, fork and exit tracepoints are attached and the table is being filled |
 | `tracepoints` | array | The tracepoint names that attached, in attach order |
 | `reason` | string? | Why the table is off or empty, in one sentence. Absent when attached |
 | `command_line` | boolean | `true` when the agent is configured to read `/proc/<pid>/cmdline` |
+| `lineage` | boolean | `true` when the kernel reads each process's parent and start time itself, from the running kernel's BTF |
+| `lineage_reason` | string? | Why it does not, in one sentence. The parent then comes from `/proc` and the start times are absent |
 
 `stats`:
 
@@ -2492,14 +2495,20 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `replaced` | integer | Execs that overwrote an entry for a pid already held |
 | `evicted` | integer | Entries dropped because the table was full |
 | `purged` | integer | Entries removed by an exit, which is the normal path |
-| `missing_exit` | integer | Exits for a pid the table did not hold |
+| `missing_exit` | integer | Exits for a pid the table did not hold, or for an earlier process on a pid since reused |
+| `forks` | integer | Forks recorded since start, each a process that had not exec'd yet |
+| `ancestors` | integer | Exited processes kept because something they started still runs |
+| `ancestor_capacity` | integer | The most of those kept, a quarter of `capacity` |
+| `ancestors_evicted` | integer | Exited ancestors dropped at that bound. Non-zero means some chains end early |
 
 Each entry of `processes`:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `pid` | integer | The process id |
-| `parent_pid` | integer? | The parent, read from `/proc/<pid>/status`. Absent where the process was gone before it could be read |
+| `parent_pid` | integer? | The parent, read by the kernel at the exec or fork, or from `/proc/<pid>/status` where `lineage` is off. Absent where neither could read it |
+| `parent_start_ns` | integer? | When the parent started. With `parent_pid`, a name a reused pid cannot take |
+| `start_ns` | integer? | When this process started, which precedes `started_at_ns` for a process that forked before it exec'd |
 | `comm` | string | The kernel's 16-byte command name |
 | `identity` | object | `kind` is `path` or `unknown`, and `path` carries the executable path where there is one |
 | `command_line` | string? | The full command line, only when `process_table.capture_command_line` is on |
@@ -2507,7 +2516,7 @@ Each entry of `processes`:
 | `gid` | integer | Effective group id at exec |
 | `cgroup_id` | integer | The kernel cgroup id of the task |
 | `container` | object? | `id`, `runtime`, and `name` and `image` where the runtime answered. Absent for a host process |
-| `started_at_ns` | integer | Kernel monotonic time of the exec, in nanoseconds |
+| `started_at_ns` | integer | Kernel monotonic time of the exec, or of the fork for a process that has not exec'd, in nanoseconds |
 
 `identity.kind` is what makes the strength of the name explicit. A path is
 forgeable: a process can be started from a binary that has since been replaced
@@ -2516,7 +2525,14 @@ carries only `comm`, which is 16 bytes the task can set itself.
 
 #### GET /api/v1/processes/{pid}
 
-One process by pid. The body is one entry of the array above.
+One process by pid. The body is one entry of the array above, plus its
+ancestry:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ancestry.ancestors` | array | At most eight, parent first: `pid`, `start_ns`, `comm`, `identity`, `uid`, and `exited_at_ns` for an ancestor that has exited and is kept because this process descends from it |
+| `ancestry.incomplete` | boolean | The chain stops at an ancestor that was named and that the table no longer holds, rather than at the root |
+| `ancestry.truncated` | boolean | The chain goes on past the eighth ancestor, which is not shown |
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/processes/4242

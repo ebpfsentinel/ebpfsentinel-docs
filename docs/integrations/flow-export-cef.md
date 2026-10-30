@@ -53,6 +53,8 @@ agent and is asserted there rather than compared on a reader's screen.
 | `spid`, `sproc`, `filePath`, `suid` | The process id, the binary's name, its whole path and the owning user |
 | `cgroupId`, `containerId`, `containerImage` | The cgroup and container |
 | `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` | The Kubernetes and systemd identities |
+| `parentPid`, `workloadAncestry` | The parent's pid, and the chain of up to eight ancestors on one line, parent first, each as its pid and its executable or its kernel name in brackets, joined by ` < ` |
+| `workloadAncestryTruncated`, `workloadAncestryIncomplete` | `true` where the chain was cut at eight or stops at an ancestor the table no longer holds; absent otherwise |
 
 Everything a flow has and an alert does not is prefixed `flow`, because CEF has
 no key for a packet delta, a reverse direction, an end reason or a sampling

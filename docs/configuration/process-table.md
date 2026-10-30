@@ -1,9 +1,12 @@
 # Process Table Configuration
 
-The process table is the one place where a pid becomes a name. Two tracepoints
-fill it - `sched_process_exec` writes an entry when a program execs,
+The process table is the one place where a pid becomes a name. Three
+tracepoints fill it - `sched_process_fork` writes an entry when a process is
+created, `sched_process_exec` rewrites it when it runs a program,
 `sched_process_exit` removes it when the process ends - and userspace adds the
-parent, the container and, where the configuration allows it, the command line.
+container and, where the configuration allows it, the command line. The parent
+and both start times are read in the kernel at the fork or exec, before the
+parent has a chance to exit and hand its child to a reaper.
 
 Nothing here enforces anything. The table answers "what was pid 4242", and a
 flow or an alert that carries a pid can be read as a name instead of a number.
@@ -21,7 +24,7 @@ process_table:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | bool | `true` | Attach the exec and exit tracepoints and keep the table |
+| `enabled` | bool | `true` | Attach the fork, exec and exit tracepoints and keep the table |
 | `capacity` | usize | `8192` | Maximum number of live processes held, in entries |
 | `capture_command_line` | bool | `false` | Read `/proc/<pid>/cmdline` and keep the full command line on the entry |
 
@@ -48,6 +51,40 @@ Two counters say when that stops being exact, and both are in
   than `capacity` concurrent processes loses the name of its longest-lived
   processes first. That is the opposite of what an operator wants, which is why
   the bound is a configuration field rather than a constant.
+
+## An exited ancestor is kept while its descendants run
+
+The shell of a one-liner exits long before the binary it launched opens a
+socket, and the chain from that socket back to whatever started it is the one
+thing an operator wants named. So a process that exits while something it
+started is still known is not dropped: it moves to a second, smaller set, keyed
+by its pid and its start time because its pid may already belong to someone
+else, and it goes when its last descendant does.
+
+That set is bounded at a quarter of `capacity`. When it is full the ancestor
+that exited first is dropped and `ancestors_evicted` counts it; the descendants
+it leaves then show a chain that stops early, and
+`GET /api/v1/processes/{pid}` says so with `ancestry.incomplete` rather than
+presenting the shortened chain as the whole of it.
+
+A fork copies its parent's entry - executable, command line, container - since
+the child runs the parent's image until it execs, and no `/proc` read is made
+for it. Forks are counted in `forks`, apart from `recorded`, which still counts
+execs. A thread is not a process and creates no entry.
+
+An exit carries the start time of the process that ended. Where the table holds
+a later process on that pid, the late exit is counted in `missing_exit` and the
+live entry is left alone.
+
+## Where the kernel cannot read the parent
+
+Reading a parent and a start time in the kernel needs the offsets of four
+`task_struct` fields, taken from the running kernel's BTF at startup. A kernel
+whose BTF does not describe them keeps the table working on execs, forks and
+exits, takes the parent from `/proc` at exec as before, and reports
+`lineage: false` with the reason in `lineage_reason`. Without start times an
+exited ancestor is still kept, but a reused pid can then no longer be told
+apart from the process that held it before.
 
 ## What the command line costs
 
@@ -86,17 +123,18 @@ ebpfsentinel-agent ebpf kernel-features
 ```
 
 The `Process tracing` section of that output says whether the tracepoints
-attached, which ones took, whether the command line is being read, and the
+attached, which ones took, whether the kernel reads the lineage, whether the command line is being read, and the
 reason where nothing attached. The two process routes answer `503` with the
 same sentence rather than an empty list, because a node running no process is
 never true.
 
 ## Counters
 
-The exec and exit path exports per-CPU counters under
+The fork, exec and exit path exports per-CPU counters under
 `ebpfsentinel_packets_total{interface="PROCESS_METRICS"}`, one series per
-`action` label: `exec` and `exit` for the two tracepoints, `thread_exit` for an
-exit that was a thread rather than the process ending, and `events_dropped`
-where the ring buffer was full because userspace was not draining it fast
-enough. A non-zero `events_dropped` means the table is missing entries, and the
+`action` label: `exec`, `fork` and `exit` for the three tracepoints,
+`thread_fork` and `thread_exit` for a thread created or ended rather than a
+process, `lineage_unresolved` for an event whose parent or start time the
+kernel could not read, and `events_dropped` where the ring buffer was full
+because userspace was not draining it fast enough. A non-zero `events_dropped` means the table is missing entries, and the
 node is busier than the ring buffer was sized for.

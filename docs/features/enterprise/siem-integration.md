@@ -92,6 +92,8 @@ off every destination.
 | `orchestrator.type`, `orchestrator.resource.type`, `orchestrator.resource.name`, `orchestrator.namespace` | `kubernetes`, `pod`, the pod and its namespace, on a Kubernetes node |
 | `user.id` | The uid that opened the socket, as a string, which is what ECS asks for |
 | `ebpfsentinel.workload.cgroup`, `ebpfsentinel.workload.service_account`, `ebpfsentinel.workload.unit` | The cgroup v2 id, the pod's service account and the systemd unit. ECS has no attribute for any of the three |
+| `process.parent.pid`, `process.parent.executable`, `process.parent.name`, `process.parent.user.id` | The process that started this one, where the process table holds it |
+| `ebpfsentinel.workload.ancestry` | Up to eight ancestors on one line, parent first, since ECS names the parent and stops there; `ebpfsentinel.workload.ancestry_truncated` and `_incomplete` are written only when true |
 | `message` | Alert message |
 | `threat.indicator.type` | Threat type (if present) |
 | `threat.indicator.confidence` | Confidence (if present) |
@@ -125,9 +127,9 @@ nothing, and the kernel's swapper opens no connections.
 | Format | Where it lands |
 |---|---|
 | ECS | `process.*`, `container.*`, `orchestrator.*` and `user.id` where ECS has an attribute, `ebpfsentinel.workload.*` for the three it does not |
-| OCSF | `process` (file, name, pid, `process.user.uid`), `container` with its `image`, and one `resources[]` entry of type `pod`; the source word, cgroup, service account and systemd unit sit under `unmapped` |
-| CEF | `workloadSource`, `spid`, `sproc`, `filePath`, `suid`, then `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount` and `systemdUnit` as additional extensions, because the six `cs` slots are already spoken for |
-| LEEF | `workloadSource`, `processId`, `processName`, `executablePath`, `userId`, `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` |
+| OCSF | `process` (file, name, pid, `process.user.uid`), `container` with its `image`, and one `resources[]` entry of type `pod`; the source word, cgroup, service account and systemd unit sit under `unmapped`; the ancestors nest as `process.parent_process`, each holding its own, with the kernel start time and whether it has exited under `xattributes`, and `ancestry_truncated` or `ancestry_incomplete` under `unmapped` when true |
+| CEF | `workloadSource`, `spid`, `sproc`, `filePath`, `suid`, then `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount`, `systemdUnit`, `parentPid` and `workloadAncestry` as additional extensions, because the six `cs` slots are already spoken for |
+| LEEF | `workloadSource`, `processId`, `processName`, `executablePath`, `userId`, `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount`, `systemdUnit`, `parentPid`, `workloadAncestry` |
 | Splunk HEC | The `workload` object of the event, serialized whole under its own names |
 
 An alert that already named its own process keeps it: the block fills the

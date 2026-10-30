@@ -97,7 +97,7 @@ A single alert event streamed to the client.
 
 The process a flow belongs to, as the agent resolved it. Mirrors the HTTP workload block field for field, so a console reading one and a SIEM reading the other describe the same process in the same words. A field is empty or zero where the node could not add it: a process table that has not seen the exec gives a pid and nothing more.
 
-11 fields, in declaration order. The number is the wire tag and never changes.
+14 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
@@ -112,6 +112,24 @@ The process a flow belongs to, as the agent resolved it. Mirrors the HTTP worklo
 | 9 | `namespace` | `string` | Namespace, on a Kubernetes node. Empty if absent. |
 | 10 | `service_account` | `string` | Service account the pod runs as. Empty if absent. |
 | 11 | `unit` | `string` | systemd unit, for a host process placed in one. Empty if absent. |
+| 12 | `ancestors` | [`repeated WorkloadAncestor`](#workloadancestor) | The processes above this one, parent first, at most eight. Empty where the process table holds no parent for it. |
+| 13 | `ancestry_truncated` | `bool` | The chain goes on past the last ancestor listed. |
+| 14 | `ancestry_incomplete` | `bool` | The chain stops at an ancestor that was named and that the table does not hold, rather than at the root. |
+
+### WorkloadAncestor
+
+One process above the one behind a flow.
+
+6 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `pid` | `uint32` |  |
+| 2 | `exe` | `string` | The executable path, where the table read one. Empty if absent. |
+| 3 | `name` | `string` | The kernel's 16-byte command name. |
+| 4 | `uid` | `uint32` | The uid it execed as. |
+| 5 | `start_ns` | `uint64` | Kernel monotonic start time in nanoseconds, 0 where it was not read. |
+| 6 | `exited` | `bool` | It has exited and is kept because this process descends from it. |
 
 ### ContainerIdentity
 

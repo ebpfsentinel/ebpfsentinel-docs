@@ -220,6 +220,9 @@ The workload block, where the node resolved one:
 | `k8s.pod.name`, `k8s.namespace.name` | The pod and namespace |
 | `ebpfsentinel.workload.source` | How the join was made: `socket`, `flow` or `process` |
 | `ebpfsentinel.workload.uid`, `ebpfsentinel.workload.cgroup_id`, `ebpfsentinel.workload.unit`, `ebpfsentinel.workload.service_account` | The rest of the block |
+| `process.parent_pid` | The parent of that process, where the process table holds it |
+| `ebpfsentinel.workload.ancestry` | Up to eight ancestors on one line, parent first: each one's pid and executable, or its kernel name in brackets where no path was read, joined by ` < `, for example `900 /bin/sh < 120 [nginx]` |
+| `ebpfsentinel.workload.ancestry_truncated`, `ebpfsentinel.workload.ancestry_incomplete` | Written only when true: the chain goes on past the eighth ancestor, or it stops at one the table does not hold |
 
 **Absence is absence.** A field the node could not read has no attribute at
 all: no empty string and no zero. A transited flow carries no workload
@@ -323,6 +326,8 @@ asserted there rather than compared on a reader's screen.
 | `spid`, `sproc`, `filePath`, `suid` | The process id, the binary's name, its whole path and the owning user |
 | `cgroupId`, `containerId`, `containerImage` | The cgroup and container |
 | `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` | The Kubernetes and systemd identities |
+| `parentPid`, `workloadAncestry` | The parent's pid, and the chain of up to eight ancestors on one line, parent first |
+| `workloadAncestryTruncated`, `workloadAncestryIncomplete` | `true` where the chain was cut at eight or stops at an ancestor the table no longer holds; absent otherwise |
 
 Everything a flow has and an alert does not is prefixed `flow`, because CEF has
 no key for a packet delta, a reverse direction, an end reason or a sampling
