@@ -22,17 +22,18 @@ travel in. SOC analysts no longer need to correlate IP addresses back to
 workloads manually on the paths that do carry it - the workload identity
 travels with the alert.
 
-Container awareness is composed of four independent building blocks:
+Container awareness is composed of five independent building blocks:
 
 | Block | Edition | Purpose |
 |-------|---------|---------|
 | Container Resolver | OSS | cgroup → `ContainerInfo` (runtime + container id) |
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
+| Podman Enricher | OSS | Podman's Docker-compatible API, rootful and one runtime per rootless user (image, labels, status) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
 | Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS, wolfSSL, mbedTLS, s2n-tls, static OpenSSL or BoringSSL and Go `crypto/tls` are attached at the resolved offsets, and kTLS on the kernel's own send and receive symbols; Java JSSE and NSS are discovered and reported without being probed. Each workload carries a published verdict - read, or not read with the reason |
 
 Each block is opt-in: a bare-metal agent can stay lean, a Docker host
-turns on the Docker enricher, a Kubernetes DaemonSet turns on the K8s
+turns on the Docker enricher, a Podman host the Podman one, a Kubernetes DaemonSet turns on the K8s
 enricher (and automatically skips Docker).
 
 ## Environment Detection
@@ -43,6 +44,7 @@ The agent auto-detects its environment at startup:
 |--------|-------------|
 | `KUBERNETES_SERVICE_HOST` env var set | Kubernetes |
 | `/var/run/docker.sock` mount + enricher enabled | Docker host |
+| `container.podman.enabled` | Podman host, rootful and rootless |
 | Otherwise | Bare metal / VM |
 
 `container.kubernetes.enabled` and `container.docker.enabled` are
@@ -57,12 +59,19 @@ from the cgroup path, and extracts the canonical container id.
 
 ### Supported runtimes
 
-| Runtime | Cgroup signature |
-|---------|------------------|
-| Docker | `docker-<id>`, `/docker/<id>` |
-| containerd | `cri-containerd-<id>` |
-| CRI-O | `crio-<id>` |
-| Podman | `libpod-<id>` |
+This table is the list of runtimes the agent supports, and the one
+place it is written. The resolver gives every container its id and
+runtime from the cgroup path alone; the name, image and labels come
+from whichever enricher reaches that runtime.
+
+| Runtime | Cgroup signature | Id and runtime | Name, image, labels |
+|---------|------------------|:--------------:|---------------------|
+| Docker | `docker-<id>`, `/docker/<id>` | ✅ | Docker enricher |
+| containerd under Kubernetes | `cri-containerd-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
+| CRI-O under Kubernetes | `crio-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
+| Podman, rootful | `libpod-<id>` | ✅ | Podman enricher |
+| Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs) |
+| containerd or CRI-O outside Kubernetes | as above | ✅ | none: the id and the runtime only |
 
 Both cgroup v1 and v2 are supported. Unknown paths resolve to
 `ContainerInfo::Host` (host process, no container context).
@@ -159,6 +168,79 @@ stops writes to the socket file, not requests through it. The agent issues
 GETs only and runs as uid 65534, so the socket's group ownership decides what
 it may do. Removing the two lines and setting `container.docker.enabled: false`
 runs without it, at the cost named under graceful degradation.
+
+## Podman Enricher
+
+Podman serves the Docker Engine API on its own socket, so the Podman
+enricher speaks the same wire as the Docker one - the same event stream
+keeps the cache current and the same inspect fills a miss - and the
+alert carries the same `name`, `image` and `labels`. What differs is
+how many runtimes a node has. Rootful Podman is one daemonless runtime
+answering on `/run/podman/podman.sock`; every user running rootless
+containers is a runtime of their own, answering on
+`/run/user/<uid>/podman/podman.sock` and only while that user's
+`podman.socket` unit is enabled.
+
+The enricher reads the owner from the container's cgroup path: a
+rootless container lives under `user@<uid>.service`, a rootful one does
+not. Each owner's socket is reached the first time one of their
+containers is seen, its event stream is followed from then on, and a
+socket that is not there yet is asked again a minute later, so a user
+who logs in after the agent started is named from their next alert on.
+
+### What a rootless runtime costs
+
+A rootless socket is owned by its user and is mode `0600` inside a
+`0700` directory, so the agent reaches it only when it can read that
+path, and the runtime only answers while the user's `podman.socket` is
+listening. Neither condition is the agent's to fix, so neither is
+hidden: the first time a runtime cannot be reached the agent logs one
+warning naming the user, the socket and the reason, and
+`ebpfsentinel-agent status` lists every Podman runtime it has gone to
+with the same reason:
+
+```text
+  Containers /proc (host procfs), ids yes, docker off by configuration, podman on, kubernetes off, not in a cluster
+             podman root: named (/run/podman/podman.sock)
+             podman uid 1000: unnamed, no socket (podman.socket not enabled, or not mounted) (/run/user/1000/podman/podman.sock)
+```
+
+| Reach | Meaning | What to do |
+|-------|---------|------------|
+| `reachable` | The runtime answers; its containers are named | - |
+| `no_socket` | No socket at that path | `systemctl --user enable --now podman.socket` as that user, and mount `/run/user` when the agent runs in a container |
+| `refused` | The socket exists and refused the agent | Run the agent as root, or as the owning user |
+| `unavailable` | The socket accepted nothing in time | Check the user's `podman.socket` unit |
+| `rootless_off` | `container.podman.rootless` is false | Set it to true to name rootless containers |
+
+A container the enricher cannot name still carries its id, its runtime
+`podman` and its cgroup path from the resolver, so a rule scoped by
+cgroup or by container id keeps working; only a selector by name or
+image matches nothing for it.
+
+### Configuration
+
+```yaml
+container:
+  podman:
+    enabled: true                         # default: false
+    socket: /run/podman/podman.sock       # the rootful runtime
+    rootless: true                        # default: true
+    run_user_root: /run/user              # where each user's runtime directory lives
+    cache_size: 1024
+    cache_ttl_seconds: 300
+    timeout_ms: 2000
+```
+
+With `rootless: false` and no rootful socket there is nothing to name,
+so the agent turns the enricher off at startup with one warning, the
+way the Docker enricher does when its socket is missing. When the
+agent runs in a container, mount the sockets read-only:
+
+```bash
+podman run ... -v /run/podman/podman.sock:/run/podman/podman.sock:ro \
+               -v /run/user:/run/user:ro ...
+```
 
 ## Kubernetes Enricher
 
@@ -343,8 +425,8 @@ webhook payload and on the exporters that ship the alert whole.
 | `namespace` | Kubernetes enricher | Pod namespace |
 | `pod` | Kubernetes enricher | Pod name |
 | `container_name` | Kubernetes enricher | Container name inside the pod |
-| `name` | Docker enricher | Container name, leading `/` stripped |
-| `image` | Docker enricher | Image tag, for example `nginx:1.25` |
+| `name` | Docker or Podman enricher | Container name, leading `/` stripped |
+| `image` | Docker or Podman enricher | Image tag, for example `nginx:1.25` |
 
 On REST an unfilled field is absent rather than empty; on gRPC, where
 every field is a `string`, it is the empty string. The `pid` the
@@ -381,6 +463,14 @@ container:
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
+  podman:
+    enabled: false
+    socket: /run/podman/podman.sock
+    rootless: true
+    run_user_root: /run/user
+    cache_size: 1024
+    cache_ttl_seconds: 300
+    timeout_ms: 2000
   kubernetes:
     enabled: false
     node_name: ""               # auto-detect
@@ -389,15 +479,16 @@ container:
 
 ## Deployment Requirements
 
-| Requirement | Resolver | Docker | Kubernetes |
-|-------------|:--------:|:------:|:----------:|
-| `CAP_BPF` + `CAP_NET_ADMIN` (existing) | ✅ | ✅ | ✅ |
-| `CAP_SYS_PTRACE` (for `/proc` introspection) | ✅ | ✅ | ✅ |
-| `/proc` mount (read-only) | ✅ | ✅ | ✅ |
-| Docker socket mount | - | ✅ | - |
-| In-cluster service account | - | - | ✅ |
-| ClusterRole on `pods` get/list/watch and `namespaces` list/watch | - | - | ✅ |
-| Kernel version | any | any | any |
+| Requirement | Resolver | Docker | Podman | Kubernetes |
+|-------------|:--------:|:------:|:------:|:----------:|
+| `CAP_BPF` + `CAP_NET_ADMIN` (existing) | ✅ | ✅ | ✅ | ✅ |
+| `CAP_SYS_PTRACE` (for `/proc` introspection) | ✅ | ✅ | ✅ | ✅ |
+| `/proc` mount (read-only) | ✅ | ✅ | ✅ | ✅ |
+| Docker socket mount | - | ✅ | - | - |
+| Podman socket mount, and `/run/user` for rootless | - | - | ✅ | - |
+| In-cluster service account | - | - | - | ✅ |
+| ClusterRole on `pods` get/list/watch and `namespaces` list/watch | - | - | - | ✅ |
+| Kernel version | any | any | any | any |
 
 See [least-privilege deployment](../operations/deployment/kubernetes.md)
 for the complete Helm / manifest template.

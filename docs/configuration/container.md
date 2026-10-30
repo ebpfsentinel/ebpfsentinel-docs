@@ -1,6 +1,6 @@
 # Container Awareness Configuration
 
-Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Three independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
+Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Four independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
 
 ## Configuration
 
@@ -18,6 +18,14 @@ container:
     cache_ttl_seconds: 300
     timeout_ms: 2000
     label_policy: false
+  podman:
+    enabled: false
+    socket: /run/podman/podman.sock
+    rootless: true
+    run_user_root: /run/user
+    cache_size: 1024
+    cache_ttl_seconds: 300
+    timeout_ms: 2000
   kubernetes:
     enabled: false
     node_name: ""
@@ -84,6 +92,41 @@ and setting `docker.enabled: false` keeps the container id on every alert, from
 the resolver, and loses the name, the image and the labels. Either way the
 agent states the choice once at startup, including when the enricher is on and
 nothing answers at `docker.socket`.
+
+## Podman Enricher
+
+Attaches the same name, image and labels to a container Podman runs, over
+Podman's Docker-compatible API: the event stream and the inspect fallback
+behave as the Docker enricher's do. Rootful Podman answers on one socket;
+each user running rootless containers is a runtime of their own, on
+`<run_user_root>/<uid>/podman/podman.sock`, and the owner is read from the
+container's `user@<uid>.service` cgroup. Each socket is reached the first
+time one of its owner's containers is seen and asked again a minute later
+while it does not answer, so nothing has to be listed in advance.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `podman.enabled` | bool | `false` | Enable Podman metadata enrichment |
+| `podman.socket` | string | `/run/podman/podman.sock` | The rootful runtime's socket |
+| `podman.rootless` | bool | `true` | Also name rootless containers, through each user's own socket |
+| `podman.run_user_root` | string | `/run/user` | Directory holding each user's runtime directory; required when `rootless` is on |
+| `podman.cache_size` | usize | `1024` | Max cached container metadata entries, shared by every runtime |
+| `podman.cache_ttl_seconds` | u64 | `300` | Cache TTL in seconds |
+| `podman.timeout_ms` | u64 | `2000` | Podman API request timeout |
+
+The agent refuses to start with the enricher on and an empty `socket`, an
+empty `run_user_root` while `rootless` is on, or a zero `cache_size` or
+`timeout_ms`. With `rootless` off and no rootful socket it turns the
+enricher off at startup with one warning.
+
+A rootless socket is readable only by root or its owning user, and exists
+only while that user's `podman.socket` unit listens. An agent that cannot
+reach one logs it once, naming the user, the socket and the reason, and
+`ebpfsentinel-agent status` lists it with that reason; its containers keep
+their id and runtime from the resolver. The limits are spelled out on the
+[feature page](../features/container-awareness.md#what-a-rootless-runtime-costs).
+
+> Requires bind mounts when containerized: `-v /run/podman/podman.sock:/run/podman/podman.sock:ro`, and `-v /run/user:/run/user:ro` for rootless runtimes
 
 ## Kubernetes Enricher
 

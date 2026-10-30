@@ -148,7 +148,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
     "host_proc": true,
     "resolver": true,
     "docker": "on",
-    "kubernetes": "off_not_in_cluster"
+    "podman": "on",
+    "kubernetes": "off_not_in_cluster",
+    "podman_runtimes": [
+      { "uid": null, "socket": "/run/podman/podman.sock", "reach": "reachable" },
+      { "uid": 1000, "socket": "/run/user/1000/podman/podman.sock", "reach": "no_socket" }
+    ]
   },
   "config": {
     "document_sha256": "9f2c...e41a",
@@ -189,6 +194,21 @@ enricher ended up.
 | `off_by_configuration` | Turned off in the configuration |
 | `off_not_built` | This build does not carry the enricher |
 | `starting` | The agent has not finished building its enrichers yet |
+
+`podman_runtimes` lists every Podman runtime the agent has gone to since it
+started: `uid` is null for the rootful one and the owning user for a rootless
+one, and `reach` says whether its containers are named.
+
+| `reach` | Meaning |
+|---------|---------|
+| `reachable` | The runtime answers; its containers carry their name, image and labels |
+| `no_socket` | No socket at that path: the user's `podman.socket` is not enabled, or the path is not mounted |
+| `refused` | The socket refused the agent, which reads it only as root or as the owning user |
+| `unavailable` | The socket accepted nothing in time |
+| `rootless_off` | A rootless container was seen with `container.podman.rootless` off |
+
+The list is empty until a Podman container is first seen, and with the
+enricher off.
 
 The same values back the container rows of the
 [deployment matrix](../features/deployment-matrix.md#what-the-node-itself-reports),

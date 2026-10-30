@@ -48,6 +48,7 @@ relative to the agent repository unless they start with `../`.
 | **DLP** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/ebpf-programs/uprobe-dlp`, `crates/adapters/src/ebpf/dlp_attach.rs` |
 | **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/adapters/src/container/proc_resolver.rs`, `cgroupfs_resolver.rs` |
 | **Docker Enricher** (OSS) | :warning: | :white_check_mark: | :warning: | :x: | `crates/adapters/src/container/docker_events.rs`, `docker_enricher.rs` |
+| **Podman Enricher** (OSS) | :warning: | :warning: | :x: | :x: | `crates/adapters/src/container/podman_enricher.rs` |
 | **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | `crates/adapters/src/container/k8s_enricher.rs` |
 | **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
 | **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: | `crates/application/src/routing_service_impl.rs`, brokered by `crates/warden/src/net_ops.rs` |
@@ -58,7 +59,7 @@ relative to the agent repository unless they start with `../`.
 
 :white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = needs the node's `/proc` mounted read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), which the shipped Compose file and the Helm chart both do. **Not** `pid: host` or `hostPID: true`: the uprobe is created against a path and an offset with pid 0, and the resolver reads a path.
 
-Three rows are qualified rather than ticked, and the qualification is the
+Four cells are qualified rather than ticked, and the qualification is the
 point:
 
 - **Docker Enricher, bare metal** - the enricher is not Kubernetes-only and not
@@ -69,6 +70,13 @@ point:
 - **Docker Enricher, DaemonSet** - the Helm chart mounts no Docker socket, and
   a node running containerd or CRI-O has none to mount. The resolver still
   names the container id; name, image and labels are what is missing.
+- **Podman Enricher, bare metal and container** - rootful Podman is reached
+  on `/run/podman/podman.sock` once its `podman.socket` unit listens. Every
+  rootless user is a runtime of their own, named only while that user's
+  socket is enabled and readable by the agent, which takes root or the owning
+  user and, from a container, a `/run/user` mount. A runtime the agent cannot
+  reach is reported by name, never guessed; see
+  [what a rootless runtime costs](container-awareness.md#what-a-rootless-runtime-costs).
 - **Container Resolver** - it reads `/proc/<pid>/cgroup` and the cgroup
   hierarchy, so a containerised agent needs both the `/host/proc` mount and
   `/sys/fs/cgroup` read-only, which is what the Compose file and the chart
@@ -76,7 +84,7 @@ point:
 
 ### What the node itself reports
 
-The three container rows above are the ones a customer can check against the
+The four container rows above are the ones a customer can check against the
 running agent rather than against this page. `GET /api/v1/agent/status` carries
 a `container_coverage` object, and `ebpfsentinel-agent status` prints it as one
 line:
@@ -88,7 +96,9 @@ line:
     "host_proc": true,
     "resolver": true,
     "docker": "on",
-    "kubernetes": "off_not_in_cluster"
+    "podman": "off_by_configuration",
+    "kubernetes": "off_not_in_cluster",
+    "podman_runtimes": []
   }
 }
 ```
@@ -98,6 +108,7 @@ line:
 | `proc_root`, `host_proc` | The `\*\*` footnote: the node's procfs is mounted, so DLP and the resolver see every process rather than the agent's own |
 | `resolver` | **Container Resolver** |
 | `docker` | **Docker Enricher** - `on`, `off_no_socket`, `off_by_configuration` |
+| `podman`, `podman_runtimes` | **Podman Enricher** - `on`, `off_no_socket`, `off_by_configuration`, and each runtime it has gone to with whether it answers |
 | `kubernetes` | **Kubernetes Enricher** - `on`, `off_not_in_cluster`, `off_unavailable`, `off_by_configuration`, `off_not_built` |
 
 `starting` means the agent has not finished building its enrichers yet. A

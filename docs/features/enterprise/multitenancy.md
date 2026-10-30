@@ -63,7 +63,7 @@ A container is attributed to a tenant by:
 1. **Explicit claim** - the label named by `tenant_label` (default `ebpfsentinel.io/tenant`), whose value is matched against the tenant id first, then the tenant name. A claim naming an unknown tenant is logged and leaves the container unattributed rather than falling through.
 2. **Kubernetes namespace** - when no claim label is present, `io.kubernetes.pod.namespace` is matched against the tenant's `namespaces` list, so a tenant that already declares namespaces gets container attribution without extra labels.
 
-Labels are read over whichever runtime API answers on the node: the Docker Engine API, which also serves Podman's compatible socket, and the CRI runtime API that containerd and CRI-O serve. A node running both resolves through both. Nothing selects a runtime by configuration - the agent dials every socket it was given and uses the ones that answer - so a node is resolved by what is mounted into the agent rather than by what the agent was told it is.
+Labels are read over whichever runtime API answers on the node: the Docker Engine API, which Docker serves and which Podman serves on its own sockets, and the CRI runtime API that containerd and CRI-O serve. Podman is accounted as `podman` in the report rather than as Docker: a container a service started is asked of the system socket, `container.podman.socket`, and a container a user started without a daemon of that user's socket under `container.podman.run_user_root`, which exists only while that user is logged in or has lingering enabled. Podman is asked only where `container.podman.enabled` is set, the same switch that names its containers in alerts; on a node where it is not, a Podman container is named under `unresolved_runtimes` rather than counted against Docker. A node running both resolves through both. Nothing selects a runtime by configuration - the agent dials every socket it was given and uses the ones that answer - so a node is resolved by what is mounted into the agent rather than by what the agent was told it is.
 
 On the CRI side the kubelet puts the pod's own labels on the sandbox and only the `io.kubernetes.*` labels on the container, so the agent merges the sandbox's labels underneath the container's own: a tenant claim written on the pod is found, and a claim written on the container wins over the pod's. `io.kubernetes.pod.namespace` is taken from the container's labels, or from the sandbox metadata when the container carries none.
 
@@ -141,7 +141,9 @@ rather than something the configuration promised:
 
 `unresolved_runtimes` names the runtimes seen on the node that no socket
 answers for - a `crio` entry here with `socket_present: false` is a missing
-`/run/crio` mount, not an unsupported runtime - whatever `state` says: a node
+`/run/crio` mount, not an unsupported runtime, and a `podman` entry is either
+Podman not enabled in the agent's container settings or a rootless container
+whose owner's socket is not there - whatever `state` says: a node
 whose containerd socket answers still falls back for the containers of a
 runtime it cannot reach. The
 route is admin-only, like the rest of `/api/v1/tenants`, and the dashboard's
@@ -514,7 +516,7 @@ All fields are optional:
 - `name` defaults to `id` if omitted
 - `interfaces`, `subnets`, `vlans`, `namespaces` default to empty
 - `quotas` fields use defaults when omitted
-- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and the Docker socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings
+- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and the Docker socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings, and Podman's sockets from `container.podman` when that block is enabled
 - `cri_sockets` defaults to the containerd and CRI-O defaults above; a socket that is not there is reported once at startup with the path that was looked at, so the list costs nothing on a node running neither. Mount the parent directory read-only (`/run/containerd`, `/run/crio`) - the chart's `daemonset.criSockets` does it per runtime
 - `cri_timeout_ms` defaults to `2000` and bounds each runtime call, so a runtime that stops answering costs a pass rather than the watcher
 
