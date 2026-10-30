@@ -99,6 +99,11 @@ version moves the agent and the warden together. The DaemonSet rolls with
 with `helm rollback ebpfsentinel -n ebpfsentinel`. See
 [Kubernetes deployment](deployment/kubernetes.md).
 
+Under the operator, the dashboard can move an agent resource from one release
+to the next through a canary node, a watch window and a second operator, and
+put it back the same way. That runbook is
+[Rolling an upgrade out](upgrade-rollout.md).
+
 A rollout replaces every pod. What the agent kept under
 `/var/lib/ebpfsentinel` is on a node directory by default and carries over;
 with `daemonset.state.ephemeral=true` the redb stores and captures start empty

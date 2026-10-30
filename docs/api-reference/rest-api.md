@@ -149,9 +149,30 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
     "resolver": true,
     "docker": "on",
     "kubernetes": "off_not_in_cluster"
+  },
+  "config": {
+    "document_sha256": "9f2c...e41a",
+    "loaded_at": 1793000000,
+    "runtime_writes": 1,
+    "last_runtime_write": {
+      "method": "POST",
+      "path": "/api/v1/firewall/rules",
+      "at": 1793000420
+    }
   }
 }
 ```
+
+`config` says which configuration document the agent runs and what changed
+its policy since. `document_sha256` is the SHA-256 of the document's bytes as
+last loaded, null before the first load, so whoever wrote the document can
+compare it with the digest of what they wrote. `runtime_writes` counts the
+policy writes the API accepted outside that document since the process
+started, with the last one beside it; triage, a feed refresh, a reload, a
+capture and other writes that change no policy the document owns are not
+counted. A reload does not reset the count and a restart does. The operator
+reads this block to report drift, see
+[Rolling an upgrade out](../operations/upgrade-rollout.md#what-drift-means).
 
 `container_coverage` is a verdict rather than a copy of the configuration: it
 reports the procfs the agent actually reads, whether that procfs is the node's

@@ -64,7 +64,15 @@ rollout is the whole of how a policy lands.
 Every policy resource carries a `Ready` condition, saying whether every agent
 it selects runs it, and a `Conflicted` condition naming each value an agent
 dropped in favour of another resource's. An agent resource carries the
-same two, about its rollout and about the policies it folded in.
+same two, about its rollout and about the policies it folded in, and a
+`ConfigDrift` condition saying whether every agent runs the configuration
+document the operator rendered: `False` when all do, `True` when one runs
+another document or had its policy changed through its own API, `Unknown`
+when an agent did not say. Each node's answer is under
+`status.agentStatuses[].config`, as `state` (`InSync`, `Drifted` or
+`Unknown`) and a one-sentence `reason`. What each case means and what to do
+about it is in
+[Rolling an upgrade out](../../operations/upgrade-rollout.md#what-drift-means).
 
 Beside the conditions, the operator files Kubernetes events on the resource
 itself, where `kubectl describe` already looks. A condition says where the
@@ -82,11 +90,36 @@ carried before the pass, so a restart or a new leader does not repeat them.
 | `Released` | Normal | an agent resource being deleted had its DaemonSet removed and is free to go |
 | `ReconcileFailed` | Warning | a pass failed and will be retried; repeats fold into one event series |
 | `NotLicensed` | Warning | an enterprise kind the licence does not carry |
+| `Drifted` | Warning | an agent resource's `ConfigDrift` condition turned `True`; the note names the nodes and why |
 
 ```bash
 kubectl describe firewallpolicy edge-baseline
 kubectl get events --field-selector involvedObject.name=edge-baseline
 ```
+
+### Running a second tag on some nodes
+
+`spec.image.canary` on an agent resource pins another tag to named nodes,
+ahead of `spec.image.tag` or behind it:
+
+```yaml
+spec:
+  image:
+    tag: "1.3.0"
+    canary:
+      tag: "1.4.0"
+      nodes: [edge-01]
+```
+
+The operator runs those nodes from a DaemonSet of their own,
+`<name>-agent-canary`, with the same pod template and the canary's tag, and
+keeps them off the main DaemonSet. A node named that the agent is not
+scheduled on runs nothing more than it did; a canary with no node or no tag is
+no canary, and the canary DaemonSet is removed. Each node's
+`status.agentStatuses[]` entry carries the `version` its agent reports, so the
+two tracks can be read side by side. This is the field the dashboard writes
+when it rolls a release out; see
+[Rolling an upgrade out](../../operations/upgrade-rollout.md).
 
 ### What each node agent sees of its pods
 

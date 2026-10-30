@@ -130,6 +130,26 @@ that state lives in the process's memory. See [State store](#state-store).
 | `max_connections` | u32 | `8` | `1..=64`, per replica. |
 | `connect_timeout_seconds` | u64 | `10` | `1..=120`. How long startup waits for the database before refusing. |
 
+### `upgrades` (optional)
+
+Moving the operator's agent resources from one release to the next, through a
+canary node, a watch window and a second operator. When omitted, the
+**Upgrades** screen says so and every upgrade route answers `404`. The
+runbook is [Rolling an upgrade out](../operations/upgrade-rollout.md).
+
+| Field | Type | Default | Validation |
+|---|---|---|---|
+| `release_index` | path | (required) | Non-empty. The release index the release repository publishes; re-read on every request, so a new release appears without a restart. |
+| `component` | string | `ebpfsentinel` | `ebpfsentinel` or `ebpfsentinel-enterprise`. The component whose version in the chosen release is the image tag written. |
+| `watch_minutes` | u32 | `15` | `1..=1440`. The window each step is watched for when the proposal names none. |
+| `api_server` | string | in-cluster address | Must be `https://`. Read at startup only. Absent, the pod's service account and `https://kubernetes.default.svc` are used. |
+| `resources[]` | list | (required) | At least one. Each `{tenant, namespace, name}` is an `EbpfSentinelAgent` the tenant's operators may upgrade; the tenant must exist, the namespace and name are Kubernetes object names, and a resource is listed once. |
+
+The dashboard reads and patches `spec.image` of the listed resources and
+nothing else, as its own service account, so that account needs `get` and
+`patch` on exactly those. A GitOps tool reconciling the same resources must
+ignore `spec.image.tag` and `spec.image.canary`, or it reverts every step.
+
 ### `observability`
 
 | Field | Type | Default | Validation |
@@ -497,6 +517,7 @@ warning and is ignored - restart the process to take effect.
 | `observability.log_format` | The tracing subscriber is built once. |
 | `observability.metrics_path` | The metrics route is mounted at startup. |
 | `state_store.*` | The connection pool is opened and migrated once, before anything is served. |
+| `upgrades.api_server` | The Kubernetes client, and the service account token it carries, are built once. |
 
 Notable fields that **are** hot-reloadable:
 

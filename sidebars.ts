@@ -231,6 +231,7 @@ const sidebars: SidebarsConfig = {
         'operations/troubleshooting',
         'operations/performance-tuning',
         'operations/upgrading',
+        'operations/upgrade-rollout',
         'operations/compatibility',
         'operations/policy-replay',
         'operations/entity-investigation',
