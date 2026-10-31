@@ -29,9 +29,11 @@ firewall:
 | `pods` | label selector | Labels of the pod the task runs in, as `match_labels` and `match_expressions` with the Kubernetes meaning | `match_labels: {app: api}` |
 | `namespaces` | label selector | Labels of that pod's namespace, in the same shape; a namespace is named by its name through `kubernetes.io/metadata.name` | `match_labels: {kubernetes.io/metadata.name: payments}` |
 | `service_account` | string | Exact name of the service account the pod runs as | `api` |
+| `parent` | string | Absolute path of the executable the task's direct parent runs | `/usr/bin/cron` |
+| `ancestor` | string | Absolute path of an executable any process above the task runs, the parent included | `/usr/sbin/nginx` |
 | `mode` | string | `observe` (default) or `enforce` | `enforce` |
 
-A selector must name at least one of the seven. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe` and `cgroup` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
+A selector must name at least one of the nine, and never both `parent` and `ancestor`. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe`, `cgroup`, `parent` and `ancestor` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
 
 ### Three semantics worth knowing before writing one
 
@@ -99,6 +101,37 @@ matching pod is scheduled or relabelled. Under the operator, a rule matching
 no running pod anywhere is reported on the policy rather than left to be
 found by the traffic it never stopped.
 
+### Selecting by what a task was started under
+
+`parent` and `ancestor` name a process by where it came from rather than by what it is: the `curl` a CI runner starts, the shell a web server spawns, anything a scheduler launches.
+
+```yaml
+firewall:
+  rules:
+    - id: nothing-under-nginx-dials-out
+      action: deny
+      workload:
+        ancestor: /usr/sbin/nginx
+        mode: enforce
+    - id: cron-jobs-reach-the-backup-host-only
+      action: deny
+      dst_port: 443
+      workload:
+        parent: /usr/sbin/cron
+        exe: /usr/bin/curl
+        mode: enforce
+```
+
+The first rule refuses every connection made by any process below `nginx`, however deep: `curl` started by a shell started by `nginx` is under `nginx`, while `nginx` itself is not. The second is an AND like every other selector: `curl`, whose direct parent is `cron`.
+
+- **Decided at the call, on the live chain.** The kernel walks the calling task's parents when it calls `connect()`, `sendmsg()` or `bind()`, up to 16 levels, and compares the executable each one runs with the path in the rule. Nothing is recorded per task beforehand, so a process started before the rule was loaded is judged like any other.
+- **Recognised by the file, not by the name.** The path is resolved to its file when the policy loads, and each later execution of that path records the file it actually ran, so a package upgrade replacing the binary is still recognised. A path that does not exist when the policy loads is named in a warning, and the rule matches nothing until the file is executed.
+- **Name the file, never a link to it.** A process runs as the path the kernel reports, which is never a link: `/usr/bin/python3` runs as `/usr/bin/python3.12`, and on a merged `/usr` `/bin/bash` runs as `/usr/bin/bash`. A path reaching its file through a link is named in a warning with the file it reaches and matches nothing, as an `exe` naming a link does; `readlink -f` gives the path to write.
+- **A parent that exits hands its children to init.** The kernel re-parents an orphan to the nearest subreaper or to PID 1, so a daemon that double-forks and lets its intermediate process exit leaves no trace of who started it. A lineage rule is about the chain as it stands at the call.
+- **A chain deeper than 16 is cut, never guessed.** The walk stops at the bound and counts `lineage_truncated`; an ancestor above it is not seen, so a rule naming it does not apply.
+- **The walk needs the kernel's type information.** Where the agent cannot read the offsets of the task structure from BTF, it says so at startup and no lineage rule applies to anything, rather than every lineage rule applying to everything.
+- **Only the firewall's address rules take a lineage.** A link, a cgroup and a learning window belong to a cgroup rather than to one task, so an IDS rule's `workload`, a QoS selector and a learning scope refuse `parent` and `ancestor`, and so does a rule carrying `fqdn`, whose answers are credited to a cgroup too.
+
 ### Matchers a workload rule may not carry
 
 There is no packet at the socket layer, so ten matchers are refused at load time with the reason on the line that has to be edited: `src_ip` (and `src_alias`), `src_port` (and `src_port_alias`), `vlan_id`, `src_mac`, `dst_mac`, `state`, `flags`, `icmp_type` and `icmp_code`, `dscp_match` and `dscp_mark`, and `interfaces`. The kernel has chosen neither a source address, a source port nor a route when `connect()` is called, and there is no frame to read a tag, an address or a flag from. The `reject` action is refused for the same reason: there is no packet to answer with a reset, so a workload rule either allows or denies, and a denied task gets `EPERM` from its own syscall like any other error.
@@ -158,7 +191,7 @@ CNAME chains are followed for up to eight hops.
 
 **Wildcards.** `*.example.com` matches `api.example.com` and nothing deeper. One leftmost label is the only wildcard that can be decided precisely from the name a workload asked for, so every other shape is refused at load time, with the reason, on the line that names it: `*`, `api.*.example.com`, `*example.com` and a wildcard directly under a top-level domain such as `*.com`.
 
-**What a rule by name requires.** A rule carrying `fqdn` must `allow`. It cannot also carry `dst_ip` or `dst_alias`, and its selector cannot be `exe`, because an answer is credited to the cgroup whose socket received it and a cgroup can run several executables. The workload also needs a rule letting it reach its resolver on port 53, as in the first rule above, or its queries are refused before they are asked.
+**What a rule by name requires.** A rule carrying `fqdn` must `allow`. It cannot also carry `dst_ip` or `dst_alias`, and its selector cannot be `exe`, `parent` or `ancestor`, because an answer is credited to the cgroup whose socket received it and a cgroup can run several executables. The workload also needs a rule letting it reach its resolver on port 53, as in the first rule above, or its queries are refused before they are asked.
 
 ### What a rule by name does not see
 
@@ -315,7 +348,7 @@ Counters are published under `ebpfsentinel_packets_total{interface="EXEC_NET_MET
 
 ## What it costs and what it reports
 
-Counters are published under `ebpfsentinel_packets_total{interface="WORKLOAD_METRICS"}`, one slot per hook plus `allowed`, `refused`, `would_refuse`, `unresolved`, `no_rule`, `event_lost` and `dns_lost`, the last being DNS packets the kernel could not hand to the agent. Each denial also increments `ebpfsentinel_workload_denials_total{rule_id, mode}` and raises an alert naming the rule, the workload and the destination. `unresolved` is the task that executed and connected before the policy learned what it was; it is counted rather than hidden.
+Counters are published under `ebpfsentinel_packets_total{interface="WORKLOAD_METRICS"}`, one slot per hook plus `allowed`, `refused`, `would_refuse`, `unresolved`, `no_rule`, `event_lost`, `dns_lost` and `lineage_truncated`, `dns_lost` being DNS packets the kernel could not hand to the agent and `lineage_truncated` a chain of parents longer than the walk reads. Each denial also increments `ebpfsentinel_workload_denials_total{rule_id, mode}` and raises an alert naming the rule, the workload and the destination. `unresolved` is the task that executed and connected before the policy learned what it was; it is counted rather than hidden.
 
 To see what a given workload may reach, ask the agent rather than reading the document:
 

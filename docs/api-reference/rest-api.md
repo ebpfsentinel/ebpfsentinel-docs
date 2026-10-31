@@ -602,7 +602,7 @@ a reason the agent does not describe; the count is still there.
 
 #### GET /api/v1/firewall/rules
 
-List all firewall rules. A workload rule carries a `workload` block naming its matchers (`exe`, `unit`, `cgroup`, `container`, `kubernetes: true` when it selects pods, namespaces or a service account, and `fqdn`) and its `mode`, `observe` or `enforce`.
+List all firewall rules. A workload rule carries a `workload` block naming its matchers (`exe`, `unit`, `cgroup`, `container`, `kubernetes: true` when it selects pods, namespaces or a service account, `parent` or `ancestor` when it is decided on the processes the task was started under, and `fqdn`) and its `mode`, `observe` or `enforce`.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/rules

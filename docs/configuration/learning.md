@@ -47,7 +47,7 @@ A window watches one of three things:
 
 - **the whole node** - every flow that can be attributed to a workload,
 - **one cgroup v2 subtree**, by absolute path, which is how a single systemd slice or a single pod is watched,
-- **a set of workloads**, named the way a firewall rule names them: by executable, unit, cgroup or container.
+- **a set of workloads**, named the way a firewall rule names them: by executable, unit, cgroup or container. A `parent` or an `ancestor` is refused: a flow is attributed to a cgroup, which holds tasks started under more than one process.
 
 ## Restarts
 

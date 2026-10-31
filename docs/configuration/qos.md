@@ -126,7 +126,7 @@ Addresses are matched exactly. A prefix shorter than `/32` and an IPv6 address a
 | `rate` | string | required | Rate each matched cgroup is held to: `100mbps`, `1gbps`, `500kbps`, `8000bps`. At least `8kbps` |
 | `horizon_ms` | u32 | `2000` | How far ahead, in milliseconds, a packet may be scheduled before it is dropped instead. 1 to 60000 |
 
-`workload` must name at least one matcher. An executable path is refused, because a cgroup holds tasks of more than one executable and the rate belongs to the cgroup. The rate applies to each matched cgroup on its own, not to their sum: two replicas selected by one rule are each held to the rate.
+`workload` must name at least one matcher. An executable path is refused, because a cgroup holds tasks of more than one executable and the rate belongs to the cgroup, and so are `parent` and `ancestor`, for the same reason. The rate applies to each matched cgroup on its own, not to their sum: two replicas selected by one rule are each held to the rate.
 
 Shaping acts only on interfaces whose qdisc honours a departure time: `fq` as the root qdisc, or `mq` with `fq` under every queue. On any other interface the rule is reported as not applied and no packet is touched. `ebpfsentinel-agent qos shaping` shows, per interface, which of the two it is.
 

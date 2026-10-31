@@ -198,6 +198,8 @@ does not do:
 - **No content pattern.** A rule carrying a `pattern` is decided in userspace,
   on bytes copied out of the packet, where the link it crossed is no longer
   known. The agent refuses a `workload` on a content rule.
+- **No parent or ancestor.** A link belongs to a cgroup rather than to one
+  task, so there is no chain of parents to walk. The agent refuses them.
 - **On Kubernetes, select pods.** The link belongs to the pod sandbox, not to
   any one of its containers, so a `container` selector matches the sandbox.
   Name the pods by label instead.
