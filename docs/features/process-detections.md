@@ -33,6 +33,19 @@ Each process is reported once per detection for as long as it lives. A pid the k
 - **A name is not proof.** An interpreter is recognised by its executable's file name or path, and a binary copied under another name is not one. The fileless detection does not depend on a name.
 - **A server whose children legitimately connect out** needs those children listed in `expected`, or every call it makes is a server-descendant alert. A PHP application calling `curl` is the usual case.
 
+## Reading the tree in the dashboard
+
+An alert that names a process opens on its process tree, drawn under the attribution panel, and the page of a workload draws the trees its alerts sit in. A tree is rooted at the highest ancestor below init and every process of the chain is a line under its parent, so a shell spawned by a web server reads as a branch of that server rather than as a lone process.
+
+Each connection is a leaf under the process that holds it, and the two kinds are kept apart:
+
+- **Raised** - a connection an alert named, drawn in the alert's severity and linked to that alert. Every other alert of the same host under the same root is drawn in the same tree, so two shells under one worker read as one incident.
+- **Expected** - a connection the host's connection table holds and no alert named, drawn muted beside the raised ones. A process holding more than a dozen shows the first twelve and counts the rest.
+
+A branch with nothing raised below it is closed, because the tree answers which branch did something its siblings did not. An ancestor that has exited is still drawn and marked so, since the chain was captured while it lived, and a chain cut short by the depth limit or by an unreadable `/proc` entry is said under the tree rather than drawn as if it were whole.
+
+The connections are read from the host that raised the alert. Where that host refuses its connection table, the raised branch is still drawn and the panel says the rest could not be read. A workload running on many nodes draws the four hosts with the newest alerts and counts the others. A tree exists only where something raised: a workload no alert names has a timeline and no tree.
+
 ## Stopping the process
 
 With `kill_process: true` the agent stops each process an alert names, through the same in-kernel signal an [IPS](./ips.md) rule asks for, with the same protected commands. It is refused at load unless `response.kill_process.enabled` is set, so a configuration never reads as a containment that does not happen. It is off by default: the lists that decide what is a shell and what is a server are the operator's, and a kill on a list somebody else wrote is the operator's decision.
