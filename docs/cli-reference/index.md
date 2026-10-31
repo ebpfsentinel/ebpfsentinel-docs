@@ -1174,6 +1174,12 @@ separately: a program can sit in the kernel and still reach no wire, which the
 refused-attach table names along with the interface and the reason. An
 interface already carrying somebody else's XDP program is called out as such.
 
+When `firewall.dns_clients` is on, the workload firewall block of
+`ebpf kernel-features` adds the rule on the DNS ports: its mode, the ports, the
+resolvers, the number of clients, and one `Not seen:` line for each thing the
+rule does not decide - DNS over HTTPS, a query handed to a proxy, a resolver on
+another port and what a listed resolver forwards.
+
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
 

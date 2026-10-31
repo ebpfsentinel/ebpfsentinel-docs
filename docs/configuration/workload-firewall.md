@@ -336,6 +336,8 @@ The [learning mode](../features/learning-mode.md) needs no special case: a resol
 
 ### What the DNS rule does not see
 
+The agent says the same four things wherever it reports the block: `ebpfsentinel-agent ebpf kernel-features` prints them under the workload firewall, and [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md#get-apiv1ebpfkernel-features) carries them as `workload_firewall.dns_rule.not_covered`.
+
 - **DNS over HTTPS is HTTPS.** A query sent to a DoH endpoint on port 443 is a TLS connection like any other, and nothing on the port tells it apart. The block does not cover it, and a process allowed to reach the internet on 443 can resolve through it. A workload rule naming that process's destinations, or the [executable allow-list](#executables-allowed-to-reach-the-network), is what narrows it.
 - **A resolver reached through a proxy is the proxy's traffic.** A query carried by an HTTP or SOCKS proxy leaves the process as a connection to the proxy, on the proxy's port, and is decided as that.
 - **A resolver on a port other than 53 or 853** is not DNS to this block.

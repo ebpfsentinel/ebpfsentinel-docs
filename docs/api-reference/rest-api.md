@@ -341,6 +341,29 @@ reason where nothing did, plus the hooks that took. They are read from the
 attach itself, because a kernel offering a program type can still refuse the
 attach.
 
+`workload_firewall` carries `dns_rule` while
+[`firewall.dns_clients`](../configuration/workload-firewall.md#processes-allowed-to-resolve)
+is on, and `null` otherwise: the mode, the ports the rule is decided on (53 and
+853), the resolvers as CIDRs, how many workloads may resolve anywhere, and
+`not_covered`, one sentence for each thing a rule on those ports does not
+decide. It is published in the same answer as what the rule allows, so a policy
+on two ports never reads as a policy on DNS as a whole:
+
+```json
+"dns_rule": {
+  "mode": "observe",
+  "ports": [53, 853],
+  "resolvers": ["127.0.0.53/32", "10.96.0.10/32"],
+  "clients": 1,
+  "not_covered": [
+    "DNS over HTTPS is HTTPS on port 443, decided by the rules on that port and not by this block",
+    "a query handed to a proxy leaves the node as the proxy's own connection, so this block decides the proxy and not the process that asked it",
+    "a resolver listening on a port other than 53 or 853 is not recognised as one",
+    "a listed resolver forwards whatever names it is asked, so what goes out through it is decided by the resolver and not by this block"
+  ]
+}
+```
+
 A fifth, `quarantine`, carries no attach of its own: it rides the workload
 firewall's hooks, so what it reports is whether the capability is armed on this
 node rather than whether anything attached.
