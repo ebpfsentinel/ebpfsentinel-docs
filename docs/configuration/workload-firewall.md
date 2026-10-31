@@ -300,6 +300,47 @@ A whole pod, every container in it, is a cgroup rule against the pod slice:
 
 A cgroup matcher includes everything under the path, so the pod slice covers each container's own scope without naming them.
 
+## Processes allowed to resolve
+
+A tunnel over DNS needs a process that speaks DNS to the network itself. On most hosts only one or two do: the local stub resolver, the cluster's DNS server, perhaps a monitoring probe. Every other process asks one of them. `firewall.dns_clients` writes that down as policy: the listed clients may send DNS anywhere, every process may send it to the listed resolvers, and any other DNS a process sends is refused, or counted while the block observes.
+
+```yaml
+firewall:
+  dns_clients:
+    enabled: true
+    mode: observe                 # observe | enforce, default observe
+    priority: 1                   # the allowances; the refusal takes the next priority
+    resolvers:
+      - 127.0.0.53                # systemd-resolved's stub
+      - 10.96.0.10                # the cluster DNS Service
+    clients:
+      - exe: /usr/lib/systemd/systemd-resolved
+      - pods:
+          match_labels:
+            k8s-app: kube-dns
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `enabled` | `false` | Expand the block into workload rules. |
+| `mode` | `observe` | `observe` counts what would be refused, `enforce` refuses it. One mode for the whole block. |
+| `priority` | `1` | Priority of the allowances, at least 1. The refusal sits at `priority + 1`, so an operator rule at a priority between the two is never reached: give your own DNS rules a lower number. |
+| `resolvers` | `[]` | Addresses or networks every process may send DNS to. |
+| `clients` | `[]` | Workloads that may send DNS anywhere, written like a rule's `workload` block without `mode` and `fqdn`. |
+
+DNS here is what the port says: 53 over UDP and TCP, and 853, which is DNS over TLS on TCP and DNS over QUIC on UDP. The block is not a mechanism of its own. It is expanded into ordinary workload rules decided in the same `connect()` and `sendmsg()` hooks, listed beside your own rules under ids starting with `dns-clients-` (an operator rule may not take one), and counted against the 64-rule ceiling: two rules per resolver, two per client, two for the agent and two for the refusal. The agent itself is always allowed, by its own executable, because it resolves its feeds and endpoints and a block written without it in mind would otherwise cut it off on the first switch to `enforce`.
+
+A block naming neither a resolver nor a client is refused at load, since in `enforce` it would leave nothing on the host able to resolve but the agent.
+
+The [learning mode](../features/learning-mode.md) needs no special case: a resolver a workload asked during the window is one of its learned destinations, written as an allow on port 53 before the workload's closing deny, like any other.
+
+### What the DNS rule does not see
+
+- **DNS over HTTPS is HTTPS.** A query sent to a DoH endpoint on port 443 is a TLS connection like any other, and nothing on the port tells it apart. The block does not cover it, and a process allowed to reach the internet on 443 can resolve through it. A workload rule naming that process's destinations, or the [executable allow-list](#executables-allowed-to-reach-the-network), is what narrows it.
+- **A resolver reached through a proxy is the proxy's traffic.** A query carried by an HTTP or SOCKS proxy leaves the process as a connection to the proxy, on the proxy's port, and is decided as that.
+- **A resolver on a port other than 53 or 853** is not DNS to this block.
+- **A listed resolver forwards for everybody.** Allowing every process to reach the stub resolver is what keeps the host working, and a tunnel encoded in names still travels through it. The block narrows who speaks DNS to the network; the Enterprise [DNS entropy detection](enterprise.md) is what reads the names.
+
 ## Executables allowed to reach the network
 
 A workload rule is decided against what the agent learned about a task from `/proc`, which leaves a window: a process that executes and connects before the agent has read it carries no identity yet, and is counted under `unresolved`. An allow-list cannot live with that window, because the window is exactly where something unexpected starts. `firewall.network_executables` closes it by moving the decision into the kernel, at the `socket_create` and `socket_connect` security module hooks, where the executable is read from the task making the call.
