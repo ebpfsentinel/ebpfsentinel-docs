@@ -414,6 +414,16 @@ Detects command-and-control beaconing channels by identifying repetitive payload
 
 ---
 
+## Reset Scan Baseline
+
+The open-source agent raises the `tcp-reset-scan` alert when a source draws
+more resets from closed ports in one window than a fixed line. With this
+licence, each source learns its own usual rate instead, and the line it is
+held to is that rate plus four standard deviations, never below ten resets.
+A new source is held to the rate of every source on the node, a window
+above a source's line is not learnt from, and at most 4096 sources are
+followed. See the [TCP health page](../tcp-health.md#reset-scan-alert).
+
 ## Rule Suggestion
 
 When anomalies are detected, the `RuleSuggester` proposes IDS/IPS rules based on the top contributing features:

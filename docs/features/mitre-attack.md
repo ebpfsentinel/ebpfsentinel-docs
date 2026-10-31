@@ -124,6 +124,7 @@ is the reading of what alerts actually mapped to.
 | Process detections | OSS | Shell or interpreter on a socket, or dialling out under a server | T1059 | Command and Scripting Interpreter | execution |
 | Process detections | OSS | Process with no file on disk holding a connection | T1620 | Reflective Code Loading | defense-evasion |
 | Process detections | OSS | Unexpected descendant of a server connecting out | T1190 | Exploit Public-Facing Application | initial-access |
+| TCP health | OSS | Resets drawn from closed ports above the line | T1046 | Network Service Scanning | discovery |
 | ML anomaly detection | Enterprise | ML: traffic volume drift (packet/byte rate) | T1498.001 | Direct Network Flood | impact |
 | ML anomaly detection | Enterprise | ML: protocol ratio drift (TCP/UDP/ICMP) | T1572 | Protocol Tunneling | command-and-control |
 | ML anomaly detection | Enterprise | ML: port entropy spike | T1046 | Network Service Scanning | discovery |

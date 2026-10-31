@@ -43,6 +43,37 @@ local workload and no service port. It is counted under the service
 `no_listener` with one edge per scanning source, so a scan reads as many
 `no_listener` resets rather than disappearing into a busy service.
 
+## Reset Scan Alert
+
+A source that draws resets from many closed ports is probing them. Each
+reading, the agent sums the resets every source drew over a sliding window
+(sixty seconds by default) and raises an alert when the sum crosses the line,
+with the rule `tcp-reset-scan` under the component `tcp_health` and the
+MITRE ATT&CK technique T1046, Network Service Discovery:
+
+- a reset sent where no socket listens counts for the address that sent the
+  probe, so a scan from anywhere against this node is seen;
+- a connect from this node that was answered with a reset counts for this
+  node, and the alert names the workload whose socket was refused, so a pod
+  sweeping its neighbours is seen too.
+
+A source is alerted on once per window however long it keeps going, and the
+agent follows at most 4096 sources, letting the one seen longest ago go
+first. The severity is `high` when the sum is ten times the line, `medium`
+otherwise.
+
+The open-source agent holds every source to the same fixed line,
+`reset_scan.resets`. With an Enterprise licence for detection, each source
+learns its own usual rate instead, as an exponentially weighted mean and
+variance of what it drew per window, and its line is that mean plus four
+standard deviations, never below ten. A monitoring probe that walks a few
+closed ports every minute then stops raising the same alert, and a source
+that usually draws nothing is alerted on well below the fixed line. A source
+too new to have a baseline is held to the rate of every source on the node,
+and until that has warmed up, to the fixed line. A window above a learnt
+line is not learnt from, so a scan that lasts does not become the source's
+normal; the alert's message gives the baseline it was judged against.
+
 ## Reading It
 
 The counters are Prometheus series (see the
@@ -121,6 +152,10 @@ the reason in the agent's log.
 tcp_health:
   enabled: true
   poll_interval_secs: 10
+  reset_scan:
+    enabled: true
+    window_secs: 60
+    resets: 100
 ```
 
 See the [configuration reference](../configuration/tcp-health.md).

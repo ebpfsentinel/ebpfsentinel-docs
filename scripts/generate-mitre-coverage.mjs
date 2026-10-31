@@ -51,6 +51,7 @@ const COMPONENTS = new Map([
   ['dlp', { label: 'DLP', edition: 'OSS' }],
   ['dns', { label: 'DNS intelligence', edition: 'OSS' }],
   ['process', { label: 'Process detections', edition: 'OSS' }],
+  ['tcp_health', { label: 'TCP health', edition: 'OSS' }],
   ['ml-anomaly', { label: 'ML anomaly detection', edition: 'Enterprise' }],
   ['ai-security', { label: 'AI security', edition: 'Enterprise' }],
   ['tls-intelligence', { label: 'TLS intelligence', edition: 'Enterprise' }],
