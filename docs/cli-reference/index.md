@@ -1180,6 +1180,9 @@ ebpfsentinel-agent ebpf drops
 
 # The packet sockets open on this node, their holder and filter
 ebpfsentinel-agent ebpf raw-sockets
+
+# The eBPF programs on the network path that the agent did not load
+ebpfsentinel-agent ebpf foreign-programs
 ```
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
@@ -1241,6 +1244,18 @@ PID   EXECUTABLE         POD  KIND  PROTOCOL  INTERFACE  NETNS  FILTER
 ```
 
 What each column means is on [Packet Sockets](../features/raw-sockets.md).
+
+`ebpf foreign-programs` prints one row per eBPF program on the network path
+that the agent did not load, with where it runs and the processes holding it,
+and ends with how many of the agent's own it set apart:
+
+```text
+PROG  NAME             TYPE       PLACE                                  HELD BY
+812   cil_from_netdev  sched_cls  tcx_ingress on eth0                    1312 (kube-system/cilium-x7k2p)
+904   cil_from_contai  sched_cls  netkit_peer on #14 (another namespace) 1312 (kube-system/cilium-x7k2p)
+```
+
+What each place means is on [Foreign eBPF Programs](../features/foreign-programs.md).
 
 `ebpf coverage` lists every pod on the node with its links and the traffic
 classes the agent does not observe, each with a reason code, the uncovered

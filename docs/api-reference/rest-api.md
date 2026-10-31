@@ -621,6 +621,60 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 index it arrived on, and `none` when it had neither. `description` is absent for
 a reason the agent does not describe; the count is still there.
 
+#### GET /api/v1/ebpf/foreign-programs
+
+The eBPF programs on the network path that the agent did not load, as of the
+last reading, where each one runs and which processes hold it. See
+[Foreign eBPF Programs](../features/foreign-programs.md) for what is read and
+what is not seen.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/foreign-programs
+```
+
+```json
+{
+  "reading": true,
+  "source": "warden",
+  "scanned_at_ns": 1761900000000000000,
+  "own_programs": 14,
+  "programs": [
+    {
+      "prog_id": 812,
+      "prog_type": "sched_cls",
+      "name": "cil_from_netdev",
+      "tag": "0a1b2c3d4e5f6071",
+      "hook": "tcx_ingress",
+      "place": "tcx_ingress on eth0",
+      "link_id": 14,
+      "ifindex": 2,
+      "interface": "eth0",
+      "created_by_uid": 0,
+      "holders": [
+        { "pid": 1312, "executable": "/usr/bin/cilium-agent", "pod": "kube-system/cilium-x7k2p" }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The inventory is being read |
+| `source` | string | `warden` or `local`, absent when the inventory is off |
+| `scanned_at_ns` | integer | When the last reading was made, nanoseconds since the epoch, `0` before the first |
+| `last_error` | string | Why the last reading failed, absent when it succeeded; the programs are then those of the reading before |
+| `own_programs` | integer | How many programs on the network path are the agent's own |
+| `programs` | array | One entry per program the agent did not load |
+
+`hook` is one of `xdp`, `tc_ingress`, `tc_egress`, `tcx_ingress`, `tcx_egress`,
+`netkit_primary`, `netkit_peer`, `cgroup`, `netfilter`, `netns` or `unplaced`.
+`interface` is present only when the host's interface of that index carries the
+program; an `ifindex` without it belongs to another network namespace.
+`cgroup_id` and `detail` say where a cgroup, netfilter or namespace program
+sits. `holders` is empty when only a pin or an attachment keeps the program
+alive.
+
 #### GET /api/v1/ebpf/raw-sockets
 
 The packet sockets open on the node as of the last reading, who holds each one
@@ -2913,6 +2967,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/coverage` | Yes | What the agent sees of each pod on this node |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
+| GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
