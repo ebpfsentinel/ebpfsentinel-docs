@@ -1371,6 +1371,14 @@ ebpfsentinel-agent tls handshakes
 ebpfsentinel-agent tls handshakes -n 20
 ```
 
+How each edge between workloads is encrypted: per client, server and port, the
+connections over a post-quantum group, a classical exchange, a version below
+TLS 1.2, or in clear text with the protocol named.
+
+```bash
+ebpfsentinel-agent tls posture
+```
+
 ### aliases
 
 External alias lists: address sets a firewall rule names instead of repeating

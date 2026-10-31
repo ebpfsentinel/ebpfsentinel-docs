@@ -2920,6 +2920,38 @@ Response:
 | `handshakes[].certificate.state` | string | `read`, `not_observable` (TLS 1.3) or `not_captured` |
 | `handshakes[].certificate.not_before`, `not_after` | integer | Validity window in seconds since the epoch, present only when `state` is `read` |
 
+#### GET /api/v1/tls/posture
+
+The cryptographic posture of each edge between two workloads since the agent
+started: how many connections ran over a post-quantum group, a classical
+exchange, a version below TLS 1.2, or in clear text, with the clear-text
+protocols named. See [Network Cryptography](../features/network-cryptography.md#each-edges-posture).
+Answers `404` with `SERVICE_NOT_AVAILABLE` while the L7 dispatcher is not
+running.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  https://localhost:8443/api/v1/tls/posture
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `totals` | object | The node's connections, every edge summed, in the shape of the counts below |
+| `evicted_edges` | integer | Edges dropped, least recently seen first, to make room for new ones |
+| `edges[].client`, `server` | object | `service` when the end runs on this node, and `address` |
+| `edges[].server_port` | integer | The port the server answered on |
+| `edges[].first_seen_ns`, `last_seen_ns` | integer | When the first and the last connection were counted, in nanoseconds since the epoch |
+| `connections` | integer | Every connection counted |
+| `post_quantum`, `classical`, `legacy_tls` | integer | Connections by what their handshake negotiated |
+| `clear_text` | integer | Connections whose requests were read in clear text |
+| `clear_text_protocols` | object | Clear-text connections by protocol: `http`, `ldap`, `smtp`, `redis`, `postgres` |
+| `shares.post_quantum`, `classical`, `legacy_tls`, `clear_text` | number | Each class's share of `connections`, from 0 to 1 |
+
+Edges are listed with the most connections first, and the counts sit beside
+the edge's own fields.
+
 ### Metrics
 
 #### GET /metrics
@@ -3075,6 +3107,7 @@ keeps working without holding the agent's key.
 | DELETE | `/api/v1/captures/{id}` | Yes (admin) | Stop a running capture |
 | GET | `/api/v1/tls/status` | Yes | Negotiated TLS key-exchange group for this connection |
 | GET | `/api/v1/tls/handshakes` | Yes | What recent TLS handshakes on the node negotiated |
+| GET | `/api/v1/tls/posture` | Yes | The cryptographic posture of each edge between workloads |
 
 ## Enterprise Endpoints
 

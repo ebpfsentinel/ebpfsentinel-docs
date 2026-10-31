@@ -62,6 +62,63 @@ the capture still gives it as long as the leaf's validity fits.
   bytes captured, reported without a group and as `unknown` rather than
   guessed.
 
+## Each Edge's Posture
+
+Each connection is also counted once on the edge it belongs to: its client,
+its server and the server's port, each end named as the service the agent
+resolved it to when its process runs on this node, and by its address
+otherwise, the same way the [service map](l7-firewall.md#service-map) names them. A
+connection counts as one of four things:
+
+| Class | Counted when |
+|-------|--------------|
+| `post_quantum` | Its handshake settled on a post-quantum or hybrid group |
+| `classical` | Its handshake settled on a classical exchange, or the group was not captured |
+| `legacy_tls` | Its handshake was below TLS 1.2 |
+| `clear_text` | A request was read in clear text, with the protocol named |
+
+The clear-text protocols named are `http`, `ldap`, `smtp`, `redis` and
+`postgres`, which are the ones whose requests can be told apart from a
+connection about to upgrade:
+
+- An SMTP connection counts at its first command that moves mail or
+  credentials (`MAIL`, `RCPT`, `DATA`, `AUTH` and the like). The greeting,
+  `EHLO` and `STARTTLS` carry nothing, and once `STARTTLS` succeeds no command
+  is readable, so the connection counts by its handshake instead.
+- A PostgreSQL connection counts at its `StartupMessage` or its first query.
+  An `SSLRequest` is not counted: when the server accepts it, the handshake
+  that follows is what counts, and when it refuses, the `StartupMessage` sent
+  in clear is.
+- An LDAP connection counts at its first bind, search, modify, add, delete,
+  rename or compare. A `StartTLS` extended request is not counted.
+- Any HTTP request and any Redis command count.
+
+A connection counts once however many requests it carries, and is
+remembered for two minutes after its last counted payload. The counts run
+from the agent's start; the table keeps 4096 edges and drops the one seen
+least recently to make room, saying how many it dropped.
+
+```bash
+ebpfsentinel-agent tls posture
+```
+
+```
+Network Cryptography
+  Connections:   412
+  Post-quantum:  96 (23%)
+  Classical:     281 (68%)
+  Legacy TLS:    3 (1%)
+  Clear text:    32 (8%) http 20, ldap 12
+
+CLIENT                    SERVER                     PORT  CONNS  POST-QUANTUM  CLASSICAL  LEGACY TLS  CLEAR TEXT
+shop/web (10.0.4.12)      shop/api (10.0.7.3)         443    301      96 (32%)  205 (68%)      0 (0%)  0 (0%)
+shop/api (10.0.7.3)       10.0.9.20                  8443     76        0 (0%)  76 (100%)      0 (0%)  0 (0%)
+shop/web (10.0.4.12)      10.0.9.44                   389     12        0 (0%)     0 (0%)      0 (0%)  12 (100%) ldap 12
+```
+
+The same reading is served by `GET /api/v1/tls/posture`, described in the
+[REST API reference](../api-reference/rest-api.md#get-apiv1tlsposture).
+
 ## Reading It
 
 ```bash
