@@ -188,6 +188,7 @@ cgroup is the one of the local socket that sent the packet.
 | `pods` | `LabelSelector` | Kubernetes pod labels (`matchLabels`, `matchExpressions`) |
 | `namespaces` | `LabelSelector` | Kubernetes namespace labels, combined with `pods` |
 | `service_account` | `string` | A Kubernetes service account |
+| `guest` | `string` | A virtual machine, by the name or the identifier its hypervisor gives it (see [Guests](#guests)) |
 
 Every field set must match, and at least one must be set. What a scoped rule
 does not do:
@@ -224,6 +225,38 @@ ids:
 
 `GET /api/v1/ids/rules` returns the selector of a scoped rule in its
 `workload` field, as one line.
+
+#### Guests
+
+A virtual machine is the one workload with no cgroup on the host: it runs its
+own kernel, and what the host sees of it is the tap or macvtap device its
+traffic crosses. `guest` names it by what its hypervisor calls it, the Proxmox
+VM name or VMID, the libvirt domain name or UUID, and the rule is decided on
+that device by the same classifier, keyed on the device instead of a cgroup.
+The hypervisor's own process holding the device is not the workload: what
+crosses a tap is the guest's traffic.
+
+- **Named alone.** A guest's processes, units and containers are inside its
+  own kernel, so `guest` beside any other field is refused.
+- **Named or not covered.** A device no hypervisor record names matches no
+  `guest` rule, never a placeholder. The names are read again every five
+  seconds, so a guest defined after its device, or renamed, is covered from
+  the next read.
+- **Network only.** The agent inspects the guest's packets and nothing else:
+  process attribution and data loss prevention need an agent inside the guest.
+  `GET /api/v1/ebpf/guests` says so for every guest, in its `protection` field.
+
+```yaml
+ids:
+  rules:
+    - id: rdp-from-web-01
+      severity: high
+      protocol: tcp
+      dst_port: 3389
+      description: "RDP leaving the web-01 virtual machine"
+      workload:
+        guest: web-01
+```
 
 ### Threshold
 

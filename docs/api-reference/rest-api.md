@@ -594,10 +594,14 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
   "guests": [
     {"interface": "tap101i0", "ifindex": 14, "kind": "tap", "attached": true,
      "guest": {"name": "web-01", "id": "101", "source": "proxmox",
-               "tags": ["prod", "eu-west"]}},
+               "tags": ["prod", "eu-west"]},
+     "protection": {"covered": ["network"], "not_covered": ["process", "dlp"],
+                    "reason": "network only: the guest runs its own kernel, ..."}},
     {"interface": "vnet9", "ifindex": 17, "kind": "tap", "attached": true,
      "unnamed": "no_record",
-     "reason": "no libvirt domain and no Proxmox virtual machine names this device; it may belong to a hypervisor the agent does not read"}
+     "reason": "no libvirt domain and no Proxmox virtual machine names this device; it may belong to a hypervisor the agent does not read",
+     "protection": {"covered": ["network"], "not_covered": ["process", "dlp"],
+                    "reason": "network only: the guest runs its own kernel, ..."}}
   ]
 }
 ```
@@ -611,6 +615,14 @@ the VMID or the domain's UUID. The `unnamed` codes are stable:
 | `no_record` | No libvirt domain and no Proxmox virtual machine names this device. |
 | `record_without_name` | The Proxmox configuration for this VMID carries no `name`. |
 | `record_unreadable` | A record that could name the device could not be read. |
+
+`protection` says what the agent protects of the guest from the host, and why
+no more: `covered` is `["network"]` once every program of the chain is on the
+device and empty before, and `not_covered` always lists `process` and `dlp`,
+plus `network` while the device is not attached. A guest runs its own kernel,
+so its processes, sockets and TLS sessions are inside it, and the host sees
+only the packets on its device; an [IDS rule](../configuration/ids.md#guests)
+naming the guest is decided there.
 
 The list comes from the link watcher, which runs once a TC program is loaded
 and not under the `pod` profile; otherwise the route answers `404` with

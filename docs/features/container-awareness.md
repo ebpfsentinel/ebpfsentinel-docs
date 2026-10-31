@@ -310,6 +310,13 @@ names is listed unnamed with a reason code (`no_source`, `no_record`,
 name. A `tun` device, which carries IP packets for a VPN rather than a
 guest's frames, is not a guest.
 
+An IDS rule names a guest with `workload: { guest: web-01 }`, by the name or
+the identifier its hypervisor gives it, and is decided on the guest's device
+(see [IDS workload scope](../configuration/ids.md#guests)). The protection is
+the network only, and the guest list says so for each guest: the guest runs
+its own kernel, so its processes, sockets and TLS sessions are inside it, and
+process attribution and data loss prevention need an agent inside the guest.
+
 ```bash
 ebpfsentinel-agent ebpf guests
 ```
@@ -317,11 +324,12 @@ ebpfsentinel-agent ebpf guests
 ```text
 Guests on this host: 2 named, 1 unnamed
 
-INTERFACE  KIND  ATTACHED  GUEST               ID                                    SOURCE   TAGS
-tap101i0   tap   yes       web-01              101                                   proxmox  prod,eu-west
-vnet3      tap   yes       db                  6f1c1a8e-0a7b-4d3c-9b8e-2f9d1e7c4a55  libvirt  -
-vnet9      tap   yes       unnamed: no_record  -                                     -        -
+INTERFACE  KIND  ATTACHED  GUEST               ID                                    SOURCE   TAGS          PROTECTED
+tap101i0   tap   yes       web-01              101                                   proxmox  prod,eu-west  network
+vnet3      tap   yes       db                  6f1c1a8e-0a7b-4d3c-9b8e-2f9d1e7c4a55  libvirt  -             network
+vnet9      tap   yes       unnamed: no_record  -                                     -        -             network
   vnet9: no libvirt domain and no Proxmox virtual machine names this device; it may belong to a hypervisor the agent does not read
+  Protection: network only: the guest runs its own kernel, so its processes, sockets and TLS sessions are inside it and the host sees only the packets on its device; process attribution and data loss prevention need an agent inside the guest
 ```
 
 ```yaml

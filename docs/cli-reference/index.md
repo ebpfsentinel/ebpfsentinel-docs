@@ -1271,7 +1271,9 @@ for the codes.
 
 `ebpf guests` lists each tap or macvtap device on the host with the virtual
 machine its hypervisor names for it, from Proxmox or libvirt, and the reason
-a device stays unnamed. See
+a device stays unnamed. The `PROTECTED` column reads `network` once the chain
+is on the device and `none` before, and the line under the table says why a
+guest is protected on the network only. See
 [`GET /api/v1/ebpf/guests`](../api-reference/rest-api.md#get-apiv1ebpfguests)
 for the codes and
 [Guest Naming](../configuration/container.md#guest-naming) for the sources.
