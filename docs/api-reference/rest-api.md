@@ -2885,6 +2885,41 @@ Response:
 | `negotiated_group` | string \| null | Negotiated TLS 1.3 key-exchange named group (for example `X25519MLKEM768`, `X25519`, `secp256r1`), `null` when the request did not arrive over TLS |
 | `post_quantum` | boolean | `true` when the negotiated group is the post-quantum hybrid (`X25519MLKEM768`) |
 
+#### GET /api/v1/tls/handshakes
+
+What the TLS handshakes seen on the node negotiated, newest first: the
+version, the cipher suite, the key exchange group and, in TLS 1.2, the server
+certificate's validity. See [Network Cryptography](../features/network-cryptography.md).
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  "https://localhost:8443/api/v1/tls/handshakes?limit=50"
+```
+
+Query parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | `100` | Most handshakes to return, at most the log's capacity |
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `recording` | boolean | Whether this agent reads TLS handshakes |
+| `capacity` | integer | How many handshakes the log keeps before dropping the oldest |
+| `handshakes[].client`, `client_port` | string, integer | The side that opened the connection |
+| `handshakes[].server`, `server_port` | string, integer | The side that answered it |
+| `handshakes[].observed_at_ns` | integer | When the server's flight was read, in nanoseconds since the epoch |
+| `handshakes[].version` | integer | Negotiated version as the wire carries it (`772` is TLS 1.3, `771` TLS 1.2) |
+| `handshakes[].version_name` | string | Its name, absent for a value the agent does not name |
+| `handshakes[].cipher`, `cipher_name` | integer, string | Selected cipher suite and its IANA name |
+| `handshakes[].group`, `group_name` | integer, string | Selected key exchange group and its IANA name, absent when the exchange has none or it was not captured |
+| `handshakes[].key_exchange` | string | `post_quantum_hybrid`, `post_quantum`, `classical`, `rsa_key_transport` or `unknown` |
+| `handshakes[].posture` | string | `post_quantum`, `classical` or `legacy_tls` (below TLS 1.2) |
+| `handshakes[].certificate.state` | string | `read`, `not_observable` (TLS 1.3) or `not_captured` |
+| `handshakes[].certificate.not_before`, `not_after` | integer | Validity window in seconds since the epoch, present only when `state` is `read` |
+
 ### Metrics
 
 #### GET /metrics
@@ -3039,6 +3074,7 @@ keeps working without holding the agent's key.
 | POST | `/api/v1/captures/manual` | Yes (admin) | Start a manual packet capture |
 | DELETE | `/api/v1/captures/{id}` | Yes (admin) | Stop a running capture |
 | GET | `/api/v1/tls/status` | Yes | Negotiated TLS key-exchange group for this connection |
+| GET | `/api/v1/tls/handshakes` | Yes | What recent TLS handshakes on the node negotiated |
 
 ## Enterprise Endpoints
 

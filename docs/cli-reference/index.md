@@ -1362,6 +1362,15 @@ that was negotiated, and whether that group is post-quantum.
 ebpfsentinel-agent tls status
 ```
 
+What the TLS handshakes seen on the node negotiated, newest first: version,
+group, cipher suite, posture and, in TLS 1.2, how far the server certificate is
+from expiry. See [Network Cryptography](../features/network-cryptography.md).
+
+```bash
+ebpfsentinel-agent tls handshakes
+ebpfsentinel-agent tls handshakes -n 20
+```
+
 ### aliases
 
 External alias lists: address sets a firewall rule names instead of repeating

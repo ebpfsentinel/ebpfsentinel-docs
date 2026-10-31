@@ -83,6 +83,7 @@ const sidebars: SidebarsConfig = {
         'features/mitre-attack',
         'features/ja4-fingerprinting',
         'features/pq-tls',
+        'features/network-cryptography',
         'features/capture',
         'features/response',
         'features/operational-essentials',
