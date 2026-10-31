@@ -748,6 +748,51 @@ Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
 `filter_instructions` when a filter is attached, `absent` when none is, and
 `unknown` when the kernel withheld the answer.
 
+### Exposure
+
+#### GET /api/v1/exposure/listeners
+
+The sockets the node accepts traffic on, each with the workload that bound it,
+every address first. See [Listening Sockets](../features/listening-sockets.md)
+for how the table is filled and what it does not see.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/exposure/listeners
+```
+
+```json
+{
+  "reading": true,
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 6379,
+      "protocol": "tcp",
+      "scope": "all_addresses",
+      "sockets": 1,
+      "pid": 2210,
+      "uid": 999,
+      "executable": "/usr/bin/redis-server",
+      "container": "redis",
+      "pod": "cache/redis-0",
+      "bound_at_boot_ns": 1834000000000
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The socket hooks are attached; `false` means the listeners are unknown, not absent |
+| `listeners` | array | One entry per address, port, protocol and process |
+
+Each listener carries `address`, `port`, `protocol` (`tcp` or `udp`), `scope`
+(`all_addresses`, `address` or `loopback`), `sockets` (more than one for a
+server spread over `SO_REUSEPORT`), the `pid` that bound it and
+`bound_at_boot_ns`, the earliest bind in nanoseconds since boot, and where they
+resolved `uid`, `executable`, `container`, `pod` as `namespace/name` and the
+systemd `unit`.
+
 ### Firewall
 
 #### GET /api/v1/firewall/rules
@@ -3063,6 +3108,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
+| GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, and the workload that bound each |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |

@@ -76,7 +76,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (120 paths, 137 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (121 paths, 138 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -87,7 +87,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
 <!-- feature-count: cli-subcommands -->
-| CLI (41 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
+| CLI (42 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
 ### Enterprise
@@ -145,7 +145,7 @@ signal program acts on a process:
 | `tc-qos` | TC ingress + egress | Per-pipe token bucket bandwidth limiting with ECN CE marking, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |
-| `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, and joins it to the five-tuple once the connection is established |
+| `cgroup-attribution` | cgroup socket hooks | Records the task behind a socket, joins it to the five-tuple once the connection is established, and keeps the table of bound and listening sockets |
 | `tracepoint-process` | raw tracepoint | Reports every exec and every exit, so userspace can say what a pid is |
 | `cgroup-workload-firewall` | cgroup socket hooks | Decides a firewall rule naming a binary, a unit, a cgroup path or a container in the task own connect, sendmsg and bind, and refuses a quarantined cgroup before any rule is read |
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |

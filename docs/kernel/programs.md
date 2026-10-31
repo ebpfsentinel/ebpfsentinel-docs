@@ -452,18 +452,19 @@ This is the only program that reads application data. The two below it read neit
 
 **Hook:** [cgroup sock_addr, cgroup sock and sock_ops](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) | **Path:** `crates/ebpf-programs/cgroup-attribution/`
 
-Seven programs in one object, attached to the cgroup the agent is given, answering the one question a packet cannot: which task opened this socket.
+Eight programs in one object, attached to the cgroup the agent is given, answering the one question a packet cannot: which task opened this socket.
 
 - `attribution_connect4` / `attribution_connect6` fire when a task asks for a connection, before the SYN exists.
-- `attribution_post_bind4` / `attribution_post_bind6` fire when a task takes a local address, which is how a server's listening socket is named.
+- `attribution_post_bind4` / `attribution_post_bind6` fire when a task takes a local address, which is how a server's listening socket is named, and record the address, port and protocol it took in `LISTENING_SOCKETS`.
+- `attribution_sock_release` fires when a socket is closed and takes it out of `LISTENING_SOCKETS`, so that table holds what is bound now.
 - `attribution_sendmsg4` / `attribution_sendmsg6` fire on every datagram sent through an unconnected socket. DNS is the traffic this product parses most and almost none of it calls `connect()`, so leaving the datagram path out would make the identity partial exactly where it matters.
-- `attribution_sockops` runs on the established connection and is the only hook that knows both ends at once, so it is the one that writes the five-tuple index.
+- `attribution_sockops` runs on the established connection and is the only hook that knows both ends at once, so it is the one that writes the five-tuple index. It also marks a bound TCP socket as listening when `listen()` is called on it, and removes one that connected out instead.
 
-What is written: `SOCKET_IDENTITY` (socket cookie to `SocketIdentity`: pid, tgid, uid, gid, cgroup id, the hook that recorded it and a boot-time stamp), `SOCKET_FLOW` (`FlowIdentityKey` to the same identity, for a reader holding addresses and ports rather than a cookie, such as a row of the kernel's conntrack table) and `DLP_TASK_SOCKET`, shared by name with `uprobe-dlp` so a plaintext write can be given its destination. All three are LRU: a node that opens more sockets than the table holds evicts its coldest entries instead of refusing the newest, and the capacities are a configuration the loader applies at map creation.
+What is written: `SOCKET_IDENTITY` (socket cookie to `SocketIdentity`: pid, tgid, uid, gid, cgroup id, the hook that recorded it and a boot-time stamp), `SOCKET_FLOW` (`FlowIdentityKey` to the same identity, for a reader holding addresses and ports rather than a cookie, such as a row of the kernel's conntrack table) `LISTENING_SOCKETS` (socket cookie to `ListeningSocket`: the same identity plus the bound address, port and whether it listens) and `DLP_TASK_SOCKET`, shared by name with `uprobe-dlp` so a plaintext write can be given its destination. All four are LRU: a node that opens more sockets than the table holds evicts its coldest entries instead of refusing the newest, and the capacities are a configuration the loader applies at map creation.
 
-Identities carry `ATTRIBUTION_IDENTITY_TTL_NS` and `ATTRIBUTION_METRICS` holds per-CPU counters per hook, plus `no_cookie` and `insert_failed`, which is how an operator sees which of the seven is doing the work on a node.
+Identities carry `ATTRIBUTION_IDENTITY_TTL_NS` and `ATTRIBUTION_METRICS` holds per-CPU counters per hook, plus `no_cookie`, `insert_failed`, `listener` and `listener_gone`, which is how an operator sees which hook is doing the work on a node. Identities in `LISTENING_SOCKETS` carry no time to live: a listener stays as long as its socket, and the close is what removes it.
 
-Nothing here enforces anything: every program returns allow unconditionally. A kernel that refuses the `sock_ops` join - the one hook of the object allowed to be absent on its own - keeps the other six, reports the kernel's own error through `/api/v1/ebpf/kernel-features`, and the flows it would have named fall back to five-tuple matching.
+Nothing here enforces anything: every program returns allow unconditionally. A kernel that refuses the `sock_ops` join - the one hook of the object allowed to be absent on its own - keeps the other seven, reports the kernel's own error through `/api/v1/ebpf/kernel-features`, and the flows it would have named fall back to five-tuple matching.
 
 ### cgroup-workload-firewall
 

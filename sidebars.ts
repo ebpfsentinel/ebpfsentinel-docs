@@ -71,6 +71,7 @@ const sidebars: SidebarsConfig = {
         'features/conntrack',
         'features/kernel-drops',
         'features/raw-sockets',
+        'features/listening-sockets',
         'features/foreign-programs',
         'features/packet-trace',
         'features/nat',

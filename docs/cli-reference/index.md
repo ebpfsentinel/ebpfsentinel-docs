@@ -1280,6 +1280,28 @@ between a workload that can open nothing new and one that is actually off the
 network; the default window and the number of protected cgroups are printed
 only where it is armed.
 
+### exposure
+
+```bash
+# The sockets this node accepts traffic on, and who bound them
+ebpfsentinel-agent exposure listeners
+```
+
+`exposure listeners` prints one row per address, port and process the node
+accepts traffic on, sockets bound on every address first, with the executable,
+pod and systemd unit of the process that bound it:
+
+```text
+PROTO  ADDRESS    PORT  SCOPE          PID   EXECUTABLE             POD            UNIT
+tcp    0.0.0.0    6379  all_addresses  2210  /usr/bin/redis-server  cache/redis-0  -
+udp    0.0.0.0    53    all_addresses  612   /usr/lib/systemd/systemd-resolved  -  systemd-resolved.service
+tcp    127.0.0.1  5432  loopback       901   /usr/lib/postgresql/16/bin/postgres  -  postgresql.service
+```
+
+A socket bound before the agent's socket hooks attached is not listed until it
+binds again. What each column means is on
+[Listening Sockets](../features/listening-sockets.md).
+
 ### config
 
 The running configuration, writing one section of it, and reloading it from
