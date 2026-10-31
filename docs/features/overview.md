@@ -59,6 +59,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [VLAN 802.1Q / 802.1ad](vlan.md) | OSS | XDP, TC | VLAN filtering, QinQ double tagging, VLAN ID on every event |
 | [Connection Tracking](conntrack.md) | OSS | TC classifier | TCP/UDP/ICMP state machine, bidirectional tracking |
 | [Kernel Drop Reasons](kernel-drops.md) | OSS | Raw tracepoint | Every packet the kernel drops, counted by its reason and interface |
+| [TCP Health Per Edge](tcp-health.md) | OSS | Raw tracepoint | Retransmissions, resets and failed connections, counted per pair of services |
 | [NAT](nat.md) | OSS | TC ingress/egress | DNAT/SNAT, NPTv6 (RFC 6296), hairpin NAT, port mapping, checksum offload |
 | [Policy Routing](routing.md) | OSS | XDP | Multi-gateway, weighted selection, health-aware failover |
 | [Zone Segmentation](zones.md) | OSS | Kernel + Userspace | Network zones with inter-zone policies |
@@ -122,12 +123,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-four program directories: twenty
+`crates/ebpf-programs/` holds twenty-five program directories: twenty-one
 attached at a hook of their own, three reached only by tail call from one of
-those twenty, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty attached programs, of which the six after
-`uprobe-dlp` read a task rather than a packet, the next one
-reads the kernel's own drops and the last one guards the agent's own maps and links, and of those six only the workload firewall, the
+those twenty-one, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-one attached programs, of which the six after
+`uprobe-dlp` read a task rather than a packet, the next two
+read the kernel's own drops and the health of its TCP connections, and the last one guards the agent's own maps and links, and of those six only the workload firewall, the
 executables list and the connection redirect decide a syscall and only the
 signal program acts on a process:
 
@@ -152,6 +153,7 @@ signal program acts on a process:
 | `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
 | `cgroup-connect-redirect` | cgroup socket hooks | Rewrites the destination of a selected cgroup's TCP connect to the enterprise TLS proxy and records where it was going, so the proxy can reach it; loaded only by the enterprise agent where a TLS redirect is configured |
 | `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
+| `tracepoint-tcp-health` | raw tracepoint | Counts retransmissions, resets and connections opened, failed and closed, per edge between two services |
 | `lsm-bpf-guard` | BPF LSM | Refuses a writable descriptor to one of the agent's maps and a descriptor to one of its links, so another process cannot rewrite or detach them; read-only descriptors are let through |
 
 The three tail-called programs are attached to no hook of their own. Each is

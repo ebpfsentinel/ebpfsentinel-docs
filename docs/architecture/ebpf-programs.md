@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 24 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-three form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 25 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-four form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -27,6 +27,7 @@ eBPFsentinel includes 24 eBPF kernel programs, all written in Rust using the [Ay
 | `cgroup-attribution` | cgroup sock_addr / sock / sock_ops | `crates/ebpf-programs/cgroup-attribution/` | The task behind a socket, recorded against the socket cookie and the five-tuple |
 | `cgroup-workload-firewall` | cgroup sock_addr | `crates/ebpf-programs/cgroup-workload-firewall/` | Firewall rules that name a workload, decided in `connect()`, `sendmsg()` and `bind()` |
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
+| `tracepoint-tcp-health` | raw tracepoint | `crates/ebpf-programs/tracepoint-tcp-health/` | Retransmissions, resets and connection outcomes counted per edge between two services |
 | `tracepoint-signal` | raw tracepoint | `crates/ebpf-programs/tracepoint-signal/` | Signals an armed thread group at its next system call, refusing the protected ones (loaded only where the capability is on) |
 | `lsm-exec-network` | BPF LSM | `crates/ebpf-programs/lsm-exec-network/` | Refuses an internet socket to an executable outside the configured list, at `socket_create` and `socket_connect` (loaded only where the list is on and the BPF LSM is active) |
 | `lsm-bpf-guard` | BPF LSM | `crates/ebpf-programs/lsm-bpf-guard/` | Refuses every task but the agent and its warden a writable descriptor to the agent's maps and any descriptor to its links, at `bpf_map` and `bpf` (loaded wherever the BPF LSM is active) |
@@ -344,6 +345,12 @@ Packet normalization running after XDP processing:
 - Two raw tracepoints, `sched_process_exec` and `sched_process_exit`, each returning zero unconditionally
 - Puts only the calling task's own numbers on the ring - pid, tgid, uid, gid, cgroup id, `comm` - because the executable path, the command line and the parent live in `task_struct` and `linux_binprm`, and reading them here would pin the object to one kernel's field offsets. The exec record is the invitation for userspace to read `/proc/<pid>`, the exit record the order to forget
 - Its own RingBuf rather than a share of the packet ring: a process event is rare, must not be dropped behind a flood of packets, and an exec read a second late is an alert naming a pid instead of a binary
+
+## TCP Health (tracepoint-tcp-health)
+
+- Four raw tracepoints, `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`, none of which runs on a segment delivered in order
+- Counts only, in a per-CPU hash keyed by the edge; userspace names both ends from the listening sockets and the workload table, and turns the counts into Prometheus counters
+- Field offsets come from BTF through a config map written before attach, so the object carries no kernel's layout
 
 ## Kernel Requirements
 

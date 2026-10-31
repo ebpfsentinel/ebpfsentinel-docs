@@ -295,6 +295,23 @@ What each port promises and when a connection is judged is in
 devices. What each reason means is on
 [Kernel Drop Reasons](../features/kernel-drops.md).
 
+### TCP Health
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_tcp_retransmits_total` | Counter | `service`, `peer`, `role` | Segments retransmitted on an edge |
+| `ebpfsentinel_tcp_resets_total` | Counter | `service`, `peer`, `role`, `direction` | Resets sent or received on an edge |
+| `ebpfsentinel_tcp_connections_total` | Counter | `service`, `peer`, `role`, `outcome` | Connections opened, failed before being established, or closed after it |
+| `ebpfsentinel_tcp_health_uncounted_total` | Counter | - | TCP events seen but not counted under an edge: the table was full, the layout was not written yet, or a socket field could not be read |
+
+`service` is the workload holding the local socket, `no_listener` for a reset
+sent where no socket exists, or `unattributed`; `peer` is the workload at the
+other end when it runs on the same node and `off_node` otherwise. Both share a
+cap of 256 names, beyond which a name is counted as `other`. `role` is
+`client` or `server`, `direction` is `sent` or `received`, and `outcome` is
+`opened`, `failed` or `closed`. What each one means is on
+[TCP Health Per Edge](../features/tcp-health.md).
+
 ### Learning Mode
 
 | Metric | Type | Labels | Description |

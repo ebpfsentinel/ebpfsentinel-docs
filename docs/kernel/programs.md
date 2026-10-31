@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 24 eBPF kernel programs (the
+Detailed documentation for each of the 25 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -513,6 +513,14 @@ Two programs, `process_exec` on `sched_process_exec` and `process_exit` on `sche
 `ProcessEvent` carries the calling task's own numbers and nothing else: pid, tgid, uid, gid, cgroup id, `comm`, the event kind and a boot-time stamp. The executable path, the command line, the parent and the container come from `/proc` in userspace on the strength of these notifications, because they live in `task_struct` and `linux_binprm` and reading them in the kernel would pin the object to one kernel's field offsets.
 
 `PROCESS_EVENTS` is a RingBuf of its own rather than a share of the packet ring, for two reasons: a process event is rare and must not be dropped behind a flood of packets, and the table reading it wants to be woken at once, since an exec read a second late is an alert naming a pid instead of a binary. `PROCESS_METRICS` counts exec, exit, thread exit and dropped. Both programs return zero unconditionally; a raw tracepoint has no verdict to give.
+
+### tracepoint-tcp-health
+
+**Hook:** [raw tracepoint](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_RAW_TRACEPOINT/) | **Path:** `crates/ebpf-programs/tracepoint-tcp-health/`
+
+Four programs on the TCP stack's own tracepoints: `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`. Each adds one to a per-CPU counter in `TCP_EDGES`, keyed by the two addresses, the service port (the lower of the two ports), which end is local and the cgroup of the local socket. A reset sent where no socket exists is keyed with port zero, so a scan is counted apart from the services it probes.
+
+The `sock` and `sock_common` field offsets are read from the running kernel's BTF by userspace and written into `TCP_HEALTH_CONFIG` before the tracepoints attach, so the object is not compiled against one kernel's layout; an event arriving before that write is counted as `unconfigured`. `TCP_EDGES` is a plain hash of 8192 entries rather than an LRU, because an eviction would make a counter go backwards. `TCP_HEALTH_METRICS` counts `counted`, `keys_full`, `unconfigured` and `unreadable`. Nothing goes on a ring: the agent reads the counters on an interval. See [TCP Health Per Edge](../features/tcp-health.md).
 
 ### tracepoint-signal
 
