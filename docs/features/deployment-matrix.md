@@ -16,6 +16,7 @@ This page documents which features are fully supported, partially supported, or 
 | **Container** | Two containers with `network_mode: host`: the `warden` broker holds the host capabilities, the agent runs as uid 65534 with `cap_drop: [ALL]` (see `docker-compose.yml`) | Host (shared) | Container. The shipped compose file sets no `pid: host`; both containers read the node's processes through the read-only `/proc:/host/proc:ro` mount (`EBPFSENTINEL_HOST_PROC`) |
 | **Kubernetes DaemonSet** | One pod per node with `hostNetwork: true`; the warden is a native sidecar (init container with `restartPolicy: Always`) holding the capabilities, the agent container runs as uid 65534 with every capability dropped | Host (shared) | Pod. `daemonset.hostPID` defaults to `false`; the node's processes are read through the same `/host/proc` mount |
 | **Sidecar** | Agent runs alongside an application in the same pod | Pod (isolated) | Pod (isolated) |
+| **Hypervisor guest** | A Proxmox, libvirt or KubeVirt virtual machine with no agent inside, protected by the agent of the host it runs on, on the guest's tap or macvtap device | The guest's own kernel, out of the agent's reach; its traffic is seen on the host side of its device | The guest's own kernel, out of reach |
 
 In both the Container and DaemonSet modes the agent holds **no host
 capability**. It unshares its own user namespace, has the warden delegate a
@@ -32,38 +33,38 @@ reader can check the claim rather than believe it (see
 [How this matrix is maintained](#how-this-matrix-is-maintained)). Paths are
 relative to the agent repository unless they start with `../`.
 
-| Feature | Bare Metal / VM | Container | K8s DaemonSet | Sidecar | Proven by |
-|---------|:-:|:-:|:-:|:-:|---|
-| **Stateful Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-firewall` |
-| **NAT** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-nat-ingress`, `tc-nat-egress` |
-| **Conntrack** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-conntrack` |
-| **Rate Limiting** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-ratelimit` |
-| **DDoS Mitigation** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-ratelimit-syncookie` |
-| **L4 Load Balancer** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/xdp-loadbalancer` |
-| **Packet Scrubbing** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | `crates/ebpf-programs/tc-scrub` |
-| **IDS/IPS** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-ids` |
-| **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-threatintel` |
-| **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-dns` |
-| **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | `crates/ebpf-programs/tc-ids` (`L7_PORTS`) |
-| **DLP** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/ebpf-programs/uprobe-dlp`, `crates/adapters/src/ebpf/dlp_attach.rs` |
-| **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/adapters/src/container/proc_resolver.rs`, `cgroupfs_resolver.rs` |
-| **Docker Enricher** (OSS) | :warning: | :white_check_mark: | :warning: | :x: | `crates/adapters/src/container/docker_events.rs`, `docker_enricher.rs` |
-| **Podman Enricher** (OSS) | :warning: | :warning: | :x: | :x: | `crates/adapters/src/container/podman_enricher.rs` |
-| **LXC Enricher** (OSS) | :white_check_mark: | :warning: | :x: | :x: | `crates/adapters/src/container/lxc_enricher.rs` |
-| **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | `crates/adapters/src/container/k8s_enricher.rs` |
-| **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
-| **Process table and ancestry** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `crates/ebpf-programs/tracepoint-process`, `crates/application/src/process_table_service.rs` |
-| **Process detections** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `crates/application/src/process_detection_service.rs` |
-| **Process tree in the console** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `../ebpfsentinel-dashboard/web/src/app/contexts/alerting/domain/process-tree.domain.ts` |
-| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: | `crates/application/src/routing_service_impl.rs`, brokered by `crates/warden/src/net_ops.rs` |
-| **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/application/src/alert_pipeline.rs` |
-| **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/adapters/src/metrics.rs` |
-| **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/http/router.rs`, `crates/adapters/src/grpc/` |
-| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/cli.rs` |
+| Feature | Bare Metal / VM | Container | K8s DaemonSet | Sidecar | Hypervisor guest | Proven by |
+|---------|:-:|:-:|:-:|:-:|:-:|---|
+| **Stateful Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :warning: | `crates/ebpf-programs/xdp-firewall` |
+| **NAT** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :white_check_mark: | `crates/ebpf-programs/tc-nat-ingress`, `tc-nat-egress` |
+| **Conntrack** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :white_check_mark: | `crates/ebpf-programs/tc-conntrack` |
+| **Rate Limiting** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :warning: | `crates/ebpf-programs/xdp-ratelimit` |
+| **DDoS Mitigation** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :warning: | `crates/ebpf-programs/xdp-ratelimit-syncookie` |
+| **L4 Load Balancer** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :warning: | `crates/ebpf-programs/xdp-loadbalancer` |
+| **Packet Scrubbing** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | :white_check_mark: | `crates/ebpf-programs/tc-scrub` |
+| **IDS/IPS** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | :white_check_mark: | `crates/ebpf-programs/tc-ids` |
+| **Threat Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | :white_check_mark: | `crates/ebpf-programs/tc-threatintel` |
+| **DNS Intelligence** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | :white_check_mark: | `crates/ebpf-programs/tc-dns` |
+| **L7 Firewall** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :warning: | :white_check_mark: | `crates/ebpf-programs/tc-ids` (`L7_PORTS`) |
+| **DLP** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | :x: | `crates/ebpf-programs/uprobe-dlp`, `crates/adapters/src/ebpf/dlp_attach.rs` |
+| **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | :x: | `crates/adapters/src/container/proc_resolver.rs`, `cgroupfs_resolver.rs` |
+| **Docker Enricher** (OSS) | :warning: | :white_check_mark: | :warning: | :x: | :x: | `crates/adapters/src/container/docker_events.rs`, `docker_enricher.rs` |
+| **Podman Enricher** (OSS) | :warning: | :warning: | :x: | :x: | :x: | `crates/adapters/src/container/podman_enricher.rs` |
+| **LXC Enricher** (OSS) | :white_check_mark: | :warning: | :x: | :x: | :x: | `crates/adapters/src/container/lxc_enricher.rs` |
+| **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | :x: | `crates/adapters/src/container/k8s_enricher.rs` |
+| **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | :x: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
+| **Process table and ancestry** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | :x: | `crates/ebpf-programs/tracepoint-process`, `crates/application/src/process_table_service.rs` |
+| **Process detections** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | :x: | `crates/application/src/process_detection_service.rs` |
+| **Process tree in the console** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | :x: | `../ebpfsentinel-dashboard/web/src/app/contexts/alerting/domain/process-tree.domain.ts` |
+| **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: | :warning: | `crates/application/src/routing_service_impl.rs`, brokered by `crates/warden/src/net_ops.rs` |
+| **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/application/src/alert_pipeline.rs` |
+| **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/adapters/src/metrics.rs` |
+| **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/http/router.rs`, `crates/adapters/src/grpc/` |
+| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/cli.rs` |
 
 :white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = needs the node's `/proc` mounted read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), which the shipped Compose file and the Helm chart both do. **Not** `pid: host` or `hostPID: true`: the uprobe is created against a path and an offset with pid 0, and the resolver reads a path.
 
-Four cells are qualified rather than ticked, and the qualification is the
+Several cells are qualified rather than ticked, and the qualification is the
 point:
 
 - **Docker Enricher, bare metal** - the enricher is not Kubernetes-only and not
@@ -85,6 +86,24 @@ point:
   `/etc/pve/lxc`, an Incus instance from the daemon's socket, and a
   containerised agent sees neither without the mount. A plain LXC container
   is named from its cgroup and needs nothing.
+- **Hypervisor guest** - a guest runs its own kernel, so nothing that reads
+  processes, sockets or TLS libraries can see inside it: DLP, the process rows
+  and every enricher are crossed, and an agent installed in the guest is what
+  brings them. What the host agent has is the guest's tap or macvtap device,
+  which the link watcher attaches to the moment the hypervisor creates it
+  (`crates/adapters/src/ebpf/link_watcher.rs`), and the TC chain it puts there
+  (`crates/agent/src/startup.rs`): IDS/IPS, threat intelligence, DNS, L7,
+  conntrack, NAT and scrubbing run on every frame the guest sends or receives,
+  and an IDS rule naming the guest with `workload.guest` is decided on that
+  device alone ([guest-scoped rules](../configuration/ids.md#guests)). The XDP rows are
+  qualified because XDP stays on the host's own interfaces: traffic reaching a
+  guest through one of them is filtered there, traffic between two guests on
+  one bridge never crosses it, and no XDP rule can name a guest. Multi-WAN
+  steers only what the host itself routes, so a guest bridged straight onto
+  the uplink is out of it. Integration suites 74 and 75 hold both halves: 74
+  on taps and status files it writes itself, 75 on a libvirt network and two
+  QEMU guests, where the guest a blocking rule names never receives its DHCP
+  lease and its neighbour on the same bridge does.
 - **Container Resolver** - it reads `/proc/<pid>/cgroup` and the cgroup
   hierarchy, so a containerised agent needs both the `/host/proc` mount and
   `/sys/fs/cgroup` read-only, which is what the Compose file and the chart
