@@ -191,6 +191,15 @@ hypervisor keeps for it.
 - **libvirt**: the agent reads the status file libvirt keeps for each running
   domain under `libvirt_dir` and finds the device among the domain's
   interfaces, taking the domain's name and UUID.
+- **KubeVirt**: a KubeVirt guest's tap is inside its `virt-launcher` pod,
+  so the device on the node is the pod's own link. A pod labelled
+  `kubevirt.io: virt-launcher` makes that link a guest, named
+  `<namespace>/<vm>` from its `vm.kubevirt.io/name` label (or
+  `kubevirt.io/domain` when the instance belongs to no `VirtualMachine`),
+  with the instance's UID from `kubevirt.io/created-by` as its identifier.
+  This needs nothing here: the pods come from the
+  [Kubernetes enricher](../features/container-awareness.md#kubernetes-enricher)
+  and are read again every five seconds.
 - **Neither**: the device is listed unnamed, with the reason, and never
   given a placeholder name.
 

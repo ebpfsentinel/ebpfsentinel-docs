@@ -577,8 +577,9 @@ Why each gap exists and what lifts it is on
 
 The virtual machines whose tap or macvtap devices are on this host, each
 named from the record its hypervisor keeps: the Proxmox configuration file of
-a `tap<vmid>i<n>` device, or the status file of the libvirt domain listing
-the device among its interfaces. The records are read when the route is
+a `tap<vmid>i<n>` device, the status file of the libvirt domain listing
+the device among its interfaces, or the labels of the KubeVirt `virt-launcher`
+pod the link leads into. The records are read when the route is
 asked, never cached. A device no record names carries an `unnamed` code and a
 `reason` sentence instead of a `guest`, and is never given a placeholder
 name. A `tun` device is not a guest and is not listed.
@@ -606,14 +607,16 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 }
 ```
 
-`kind` is `tap` or `macvtap`; `source` is `proxmox` or `libvirt`, and `id` is
-the VMID or the domain's UUID. The `unnamed` codes are stable:
+`kind` is `tap` or `macvtap`, or `veth` for a KubeVirt launcher pod's link;
+`source` is `proxmox`, `libvirt` or `kubevirt`, and `id` is the VMID, the
+domain's UUID or the KubeVirt instance's UID. A KubeVirt guest's `name` is
+`<namespace>/<vm>`. The `unnamed` codes are stable:
 
 | Code | Meaning |
 |------|---------|
 | `no_source` | Both `container.guests` directories are empty in the configuration. |
 | `no_record` | No libvirt domain and no Proxmox virtual machine names this device. |
-| `record_without_name` | The Proxmox configuration for this VMID carries no `name`. |
+| `record_without_name` | The Proxmox configuration for this VMID carries no `name`, or the KubeVirt launcher pod carries neither `vm.kubevirt.io/name` nor `kubevirt.io/domain`. |
 | `record_unreadable` | A record that could name the device could not be read. |
 
 `protection` says what the agent protects of the guest from the host, and why

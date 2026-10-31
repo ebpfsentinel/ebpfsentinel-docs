@@ -302,6 +302,15 @@ container's veth, and names the guest from the record its hypervisor keeps:
 |------------|--------|--------|--------|------|--------|
 | Proxmox VE | `tap<vmid>i<n>` | `/etc/pve/qemu-server/<vmid>.conf` | `name` | VMID | `tags` |
 | libvirt (KVM, QEMU) | any tap or macvtap a domain lists | `/run/libvirt/qemu/<domain>.xml` | domain name | UUID | - |
+| KubeVirt | the `virt-launcher` pod's link on the node | the pod's labels, from the Kubernetes enricher | `<namespace>/<vm>` | instance UID | - |
+
+A KubeVirt guest runs inside a pod, so the cluster names it through that pod
+and the hypervisor view through the virtual machine. Both reach the one
+device: a rule selecting the launcher pod with `pods:` or `namespaces:` and a
+rule naming the guest with `guest: prod/db` are both decided on the pod's
+link, under the guest's key. Unlike a Proxmox or libvirt tap, whose owner is
+the emulator and lends the guest none of its rules, the launcher pod is the
+guest's own name in the cluster.
 
 The device, not a cgroup, is a guest's key: the guest runs its own kernel,
 so no process of it is in the host's process table. A device no record

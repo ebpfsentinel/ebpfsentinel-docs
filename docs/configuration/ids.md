@@ -231,10 +231,14 @@ ids:
 A virtual machine is the one workload with no cgroup on the host: it runs its
 own kernel, and what the host sees of it is the tap or macvtap device its
 traffic crosses. `guest` names it by what its hypervisor calls it, the Proxmox
-VM name or VMID, the libvirt domain name or UUID, and the rule is decided on
+VM name or VMID, the libvirt domain name or UUID, the KubeVirt
+`<namespace>/<vm>` or instance UID, and the rule is decided on
 that device by the same classifier, keyed on the device instead of a cgroup.
 The hypervisor's own process holding the device is not the workload: what
-crosses a tap is the guest's traffic.
+crosses a tap is the guest's traffic. A KubeVirt guest is the exception: its
+device is the link into its `virt-launcher` pod, the pod is how the cluster
+names the virtual machine, and a rule selecting that pod stays on the guest's
+device beside the rules naming the guest.
 
 - **Named alone.** A guest's processes, units and containers are inside its
   own kernel, so `guest` beside any other field is refused.

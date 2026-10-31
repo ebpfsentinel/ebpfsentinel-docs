@@ -1172,7 +1172,7 @@ ebpfsentinel-agent ebpf kernel-features
 # What the agent sees of each pod on this node, uncovered first
 ebpfsentinel-agent ebpf coverage
 
-# The virtual machines whose tap or macvtap devices are on this host
+# The virtual machines whose devices are on this host: taps, macvtaps, KubeVirt launcher links
 ebpfsentinel-agent ebpf guests
 
 # Can an LSM program attach on this host? No agent, no root, no configuration
@@ -1269,8 +1269,9 @@ Kubernetes enricher; see
 [`GET /api/v1/ebpf/coverage`](../api-reference/rest-api.md#get-apiv1ebpfcoverage)
 for the codes.
 
-`ebpf guests` lists each tap or macvtap device on the host with the virtual
-machine its hypervisor names for it, from Proxmox or libvirt, and the reason
+`ebpf guests` lists each tap or macvtap device on the host, and each link
+into a KubeVirt launcher pod, with the virtual machine its hypervisor names
+for it, from Proxmox, libvirt or KubeVirt, and the reason
 a device stays unnamed. The `PROTECTED` column reads `network` once the chain
 is on the device and `none` before, and the line under the table says why a
 guest is protected on the network only. See
