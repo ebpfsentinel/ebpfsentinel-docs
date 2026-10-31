@@ -29,6 +29,7 @@ Permissions are scoped to 17 individual security domains:
 | `ratelimit` | Rate limiting |
 | `threatintel` | Threat intelligence |
 | `loadbalancer` | Load balancer |
+| `trace` | Packet trace through the loaded programs |
 
 ## Permission Hierarchy
 

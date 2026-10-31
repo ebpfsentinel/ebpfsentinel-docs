@@ -476,6 +476,39 @@ ebpfsentinel-agent firewall reach --unit backup.service
 ebpfsentinel-agent --output json firewall reach --exe /usr/bin/curl
 ```
 
+### trace
+
+What the loaded programs decide for one packet: each stage the packet crosses,
+in hook order, with its verdict, the rule that decided and where the packet
+stopped. Sends nothing on the wire and changes no state. See
+[Packet Trace](../features/packet-trace.md).
+
+```bash
+# Why is HTTPS from this address dropped
+ebpfsentinel-agent trace 10.0.0.2 --src 203.0.113.9 --dport 443
+
+# A pod as the source, on the egress path
+ebpfsentinel-agent trace 198.51.100.7 --workload shop/api-7d9f --dport 5432 --direction egress
+
+# ICMP takes no port
+ebpfsentinel-agent --output json trace 10.0.0.2 --src 10.0.0.1 --proto icmp
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `<dst>` | - | Destination address, IPv4 or IPv6 |
+| `--dport` | `0` | Destination port, required for `tcp` and `udp` |
+| `--src` | - | Source address; leave out when `--workload` names the source |
+| `--sport` | ephemeral | Source port |
+| `--proto` | `tcp` | `tcp`, `udp` or `icmp` |
+| `--direction` | `ingress` | `ingress` or `egress` |
+| `--workload` | - | A pod as `namespace/name`, whose address becomes the source |
+
+A verdict that depends on state the crafted packet does not carry, an
+established connection or a rate already spent, is printed with the state it
+depends on, since another packet of the same five-tuple may be decided
+otherwise.
+
 ### l7
 
 Manage L7 firewall rules.

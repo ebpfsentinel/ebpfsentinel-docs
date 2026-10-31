@@ -70,6 +70,7 @@ const sidebars: SidebarsConfig = {
         'features/vlan',
         'features/conntrack',
         'features/kernel-drops',
+        'features/packet-trace',
         'features/nat',
         'features/routing',
         'features/zones',

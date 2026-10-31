@@ -1106,6 +1106,67 @@ would break; `still_refused` is refused by the policies in force already. An
 egress row's `peer` is the address the pod connected to, a Service address
 included; an ingress row's is the source the pod was reached from.
 
+### Packet Trace
+
+#### POST /api/v1/trace
+
+What the loaded programs decide for one packet. A packet is crafted from the
+five-tuple and run through the programs of one direction in the order their
+hooks run them, with no interface and no traffic: every program reads its maps
+and skips its writes, so a trace changes no state. See
+[Packet Trace](../features/packet-trace.md).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `src_ip` | string | No | Source address; left out when `workload` names the source |
+| `dst_ip` | string | Yes | Destination address, IPv4 or IPv6 |
+| `src_port` | integer | No | Source port; zero or absent picks an ephemeral port. Ignored for ICMP |
+| `dst_port` | integer | No | Destination port, required for TCP and UDP |
+| `protocol` | string | Yes | `tcp`, `udp` or `icmp` |
+| `direction` | string | No | `ingress` (default) or `egress` |
+| `workload` | string | No | A pod as `namespace/name`, whose address becomes the source |
+
+```bash
+curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"src_ip": "203.0.113.9", "dst_ip": "10.0.0.2", "dst_port": 443, "protocol": "tcp"}' \
+  http://localhost:8080/api/v1/trace
+```
+
+```json
+{
+  "src_ip": "203.0.113.9",
+  "dst_ip": "10.0.0.2",
+  "src_port": 40000,
+  "dst_port": 443,
+  "protocol": "tcp",
+  "direction": "ingress",
+  "stages": [
+    {"stage": "rate_limit", "hook": "xdp", "verdict": "pass", "reason": "default", "rule_id": null, "rule": null, "detail": null},
+    {"stage": "firewall", "hook": "xdp", "verdict": "drop", "reason": "rule", "rule_id": 3, "rule": "deny-https", "detail": null}
+  ],
+  "stopped_at": "firewall",
+  "verdict": "drop",
+  "state_dependent": [],
+  "not_loaded": ["tc_qos_ingress"]
+}
+```
+
+Each stage carries its `hook` (`xdp`, `tc_ingress` or `tc_egress`), its
+`verdict` (`pass`, `log`, `drop`, `reject`, `bounce`, `redirect`, `abort` or
+`other`) and its `reason` (`default`, `rule`, `established`, `rate`, `list`,
+`malformed`, `disabled`, `rewrite` or `unrecorded`). `stopped_at` is absent
+when the packet went through, and `verdict` is then `pass`.
+`state_dependent` lists the stages whose verdict holds for this packet now and
+not for every packet of the five-tuple, each with the state it depends on in
+`depends_on`. `not_loaded` lists the programs of this direction the node has
+not loaded, which the trace could not ask.
+
+Answers `400` with `INVALID_TRACE` when the request does not describe one
+packet or the workload has no address, `404` with `SERVICE_NOT_AVAILABLE` when
+no eBPF program is loaded on the node, and `503` when the kernel refused to
+run the programs.
+
 ### L7 Firewall
 
 #### GET /api/v1/firewall/l7-rules
@@ -2745,6 +2806,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/conntrack/events` | Yes | SSE stream of conntrack events |
 | POST | `/api/v1/conntrack/flush` | Yes (admin) | Flush connection table |
 | POST | `/api/v1/netpol/replay` | Yes (write) | What proposed NetworkPolicy manifests would have refused |
+| POST | `/api/v1/trace` | Yes (write) | What the loaded programs decide for one crafted packet |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
 | POST | `/api/v1/firewall/l7-rules` | Yes | Create L7 rule |
 | DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes | Delete L7 rule |
