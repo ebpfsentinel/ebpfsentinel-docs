@@ -80,6 +80,10 @@ narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
 - the DLP **`/proc` scan** for processes linking `libssl` (reading another
   process's `/proc/<pid>/root` needs `CAP_SYS_PTRACE`), and the DLP **uprobe
   `BPF_LINK_CREATE`** on the agent's program fd (`CAP_BPF` + `CAP_PERFMON`).
+- the **executable behind a pid** (`/proc/<pid>/exe`), which names the binary
+  in process identities and DLP alerts. The link is guarded by a ptrace access
+  check the agent fails against every process outside its own user namespace,
+  so the warden answers with a path, a device and an inode, and nothing else.
 
 `--uid` is the only uid served, checked via `SO_PEERCRED`: on bare-metal the
 agent runs as root and maps namespace-0 to real root, so it presents `0`; in a
@@ -103,6 +107,7 @@ the capabilities in the init network namespace:
 | Gratuitous ARP on VIP takeover | warden `AF_PACKET` | warden (`CAP_NET_RAW`) |
 | DLP target discovery (`libssl` in other processes and containers) | warden `/proc` scan | warden (`CAP_SYS_PTRACE`) |
 | DLP uprobe attach | warden `BPF_LINK_CREATE` on the agent's program fd | warden (`CAP_BPF` + `CAP_PERFMON`) |
+| Executable behind a process (process identity, DLP alert) | warden reads `/proc/<pid>/exe` | warden (init user namespace) |
 
 Because the warden runs in the init network namespace, the host-netns operations
 that a userns agent cannot perform (conntrack teardown, route programming,

@@ -294,7 +294,7 @@ Every map is pinned by its name under `/sys/fs/bpf/ebpfsentinel/`. When a progra
 | `SYNCOOKIE_CTX`, `DDOS_METRICS` | per-CPU, 1 entry / counters | xdp-ratelimit, xdp-ratelimit-syncookie | SYN cookie context and shared DDoS counters |
 | Tenant maps | see [Limits](limits.md) | every program resolving a tenant | VLAN, ifindex and subnet to tenant |
 
-Ring buffers and the `DEVMAP` are never shared: each program object gets its own. uprobe-dlp pins under a directory of its own, `/sys/fs/bpf/ebpfsentinel-dlp/`. Both directories are wiped at startup, because a pin left by a previous run cannot be inspected, and removed again when the agent shuts down or an HA node deactivates.
+Ring buffers and the `DEVMAP` are never shared: each program object gets its own. uprobe-dlp pins under a directory of its own, `/sys/fs/bpf/ebpfsentinel-dlp/`, and cgroup-attribution pins beside it, because `DLP_TASK_SOCKET` is the one map the two share: the socket attribution writes the connection the kernel established for a thread, and the TLS probe reads it to name the destination of the plaintext. Both directories are wiped at startup, because a pin left by a previous run cannot be inspected, and removed again when the agent shuts down or an HA node deactivates.
 
 Connection tracking uses **kernel netfilter** directly via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs - no userspace shadow tables. The `CT_NF_CONN_OFFSETS` map holds runtime-resolved `nf_conn` field offsets for `status` and `mark`, which the agent reads at startup from `/sys/kernel/btf/vmlinux` with its own BTF parser, so BPF programs can read `nf_conn->status` via `bpf_probe_read_kernel`.
 
