@@ -65,4 +65,5 @@ seen.
 
 - REST: [`GET /api/v1/ebpf/raw-sockets`](../api-reference/rest-api.md#get-apiv1ebpfraw-sockets)
 - CLI: `ebpfsentinel-agent ebpf raw-sockets`
+- Dashboard: the node panel, read as described in [Who Else Reads the Network on a Node](../operations/node-observers.md)
 - Configuration: [`network_inventory`](../configuration/network-inventory.md)

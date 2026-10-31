@@ -240,6 +240,7 @@ const sidebars: SidebarsConfig = {
         'operations/compatibility',
         'operations/policy-replay',
         'operations/entity-investigation',
+        'operations/node-observers',
         'operations/response-rollout',
         'operations/dashboard-accessibility',
       ],

@@ -158,4 +158,5 @@ else is seen.
 
 - REST: [`GET /api/v1/ebpf/foreign-programs`](../api-reference/rest-api.md#get-apiv1ebpfforeign-programs)
 - CLI: `ebpfsentinel-agent ebpf foreign-programs`
+- Dashboard: the node panel, read as described in [Who Else Reads the Network on a Node](../operations/node-observers.md)
 - Configuration: [`network_inventory`](../configuration/network-inventory.md)
