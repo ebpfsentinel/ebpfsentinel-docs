@@ -302,6 +302,7 @@ devices. What each reason means is on
 | `ebpfsentinel_tcp_retransmits_total` | Counter | `service`, `peer`, `role` | Segments retransmitted on an edge |
 | `ebpfsentinel_tcp_resets_total` | Counter | `service`, `peer`, `role`, `direction` | Resets sent or received on an edge |
 | `ebpfsentinel_tcp_connections_total` | Counter | `service`, `peer`, `role`, `outcome` | Connections opened, failed before being established, or closed after it |
+| `ebpfsentinel_tcp_rtt_seconds` | Histogram | `service`, `peer`, `role` | Smoothed round-trip time sampled when a connection is established and when it leaves that state; sixteen buckets doubling from 64 microseconds |
 | `ebpfsentinel_tcp_health_uncounted_total` | Counter | - | TCP events seen but not counted under an edge: the table was full, the layout was not written yet, or a socket field could not be read |
 
 `service` is the workload holding the local socket, `no_listener` for a reset

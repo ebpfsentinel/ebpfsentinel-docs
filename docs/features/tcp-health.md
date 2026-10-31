@@ -29,6 +29,15 @@ connection. "Retransmissions went up" becomes "`shop/api` retransmits to
      `off_node` otherwise. The agent on the other node counts the same
      connection under its own names.
 
+When a connection reaches the established state and again when it leaves it,
+the same `inet_sock_set_state` program also reads the round-trip time the
+kernel smoothed for that socket and adds it to a histogram of the edge, in a
+table shared by every CPU. That is two samples per connection taken at
+moments the stack already marks, and none per segment: a long connection
+contributes its round trip at the start and at the end rather than a stream
+of them, which is enough to tell a slow path from a fast one and costs
+nothing on the data path.
+
 A reset sent where no socket exists, which is what a port scan draws, has no
 local workload and no service port. It is counted under the service
 `no_listener` with one edge per scanning source, so a scan reads as many
@@ -53,6 +62,15 @@ ebpfsentinel_tcp_connections_total{service="shop/api",peer="off_node",role="serv
   `failed` for one torn down before it did, and `closed` for one that ended
   after it did.
 
+Round-trip times are a histogram per edge, in seconds, with sixteen buckets
+doubling from 64 microseconds; the last one is open and holds everything
+past about one second:
+
+```text
+ebpfsentinel_tcp_rtt_seconds_bucket{le="0.001024",service="shop/api",peer="shop/postgres",role="client"} 58
+ebpfsentinel_tcp_rtt_seconds_count{service="shop/api",peer="shop/postgres",role="client"} 76
+```
+
 Two queries worth keeping:
 
 ```promql
@@ -62,11 +80,23 @@ topk(10, sum by (service, peer) (rate(ebpfsentinel_tcp_retransmits_total[5m])))
 # Share of connects that fail, per service
 sum by (service) (rate(ebpfsentinel_tcp_connections_total{outcome="failed"}[5m]))
   / sum by (service) (rate(ebpfsentinel_tcp_connections_total{outcome=~"opened|failed"}[5m]))
+
+# 99th percentile round trip per edge
+histogram_quantile(0.99, sum by (service, peer, le) (rate(ebpfsentinel_tcp_rtt_seconds_bucket[5m])))
 ```
+
+The same samples ride the [service graph](l7-firewall.md#service-map):
+each edge read from a connection's end carries a `round_trip` histogram of the
+last minutes, matched on the two addresses, the service port and the side, and
+`flows services` prints its 50th and 99th percentiles. A transit edge carries
+none, since a node the connection only crosses holds no socket for it. A
+quantile is read as the bound of the bucket it falls in, so it errs high by at
+most one bucket.
 
 ## Bounds
 
-The kernel keeps at most 8192 edges. An event on an edge the table has no
+The kernel keeps at most 8192 edges, and as many round-trip histograms. An
+event on an edge the table has no
 room for, an event that arrived before the agent wrote the kernel layout, and
 an event on a socket whose fields could not be read are each counted in
 `ebpfsentinel_tcp_health_uncounted_total`, never folded into another edge.
@@ -80,7 +110,7 @@ of 256 names as the L7 request meter, and a name beyond it is counted under
 ## Requirements
 
 The tracepoints are in every kernel the agent supports. The agent reads the
-`sock`, `sock_common`, `sk_buff` and cgroup field offsets from
+`sock`, `sock_common`, `tcp_sock`, `sk_buff` and cgroup field offsets from
 `/sys/kernel/btf/vmlinux`, so a kernel without BTF loads nothing, and the
 `ebpf_program_status{program="tracepoint-tcp-health"}` gauge reads `0` with
 the reason in the agent's log.

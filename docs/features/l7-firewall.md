@@ -465,6 +465,8 @@ client side, which wins over a transit node, so a call is never counted twice;
 server and client readings from two different agents of the same rank add up.
 An address that exactly one agent named as a service is drawn as that service.
 Every edge shows its rate per minute, its failure ratio (errors and unanswered
-requests over requests) and its mean time, and an edge failing more than 5 % of
+requests over requests), its mean time and, when the kept side sampled
+[TCP round trips](tcp-health.md#reading-it), their 50th and 99th percentiles,
+and an edge failing more than 5 % of
 its requests is drawn as failing. Agents that gave no graph are named above the
 canvas, with the requests the agents dropped.

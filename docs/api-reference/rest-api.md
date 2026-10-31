@@ -1411,7 +1411,13 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v
       "errors": 0,
       "unanswered": 0,
       "answered": 4800,
-      "duration_ns_sum": 1920000000
+      "duration_ns_sum": 1920000000,
+      "round_trip": {
+        "buckets": [0, 0, 2, 18, 40, 12, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        "first_bound_us": 64,
+        "sum_us": 36400,
+        "count": 76
+      }
     }
   ]
 }
@@ -1419,7 +1425,11 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v
 
 `service` is absent when the process at that end does not run on this node.
 `observed_from` is `server`, `client` or `transit`. `duration_ns_sum` divided by
-`answered` is the mean time to an answer.
+`answered` is the mean time to an answer. `round_trip` is present when the
+observed side's kernel sampled TCP round trips for that pair of addresses and
+port over the window: bucket `i` holds the samples at or under
+`first_bound_us << i` microseconds, and the last bucket everything beyond.
+A transit edge never carries one.
 
 ### IDS
 
