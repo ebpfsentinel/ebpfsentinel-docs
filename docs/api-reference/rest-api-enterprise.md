@@ -167,7 +167,7 @@ not from the request.
 | [Air-gap](#air-gap) | 4 | [Air-gap](../features/enterprise/airgap.md) |
 | [Advanced analytics](#advanced-analytics) | 9 | [Advanced analytics](../features/enterprise/analytics.md) |
 | [Automated response](#automated-response) | 8 | [Automated response](../features/enterprise/automated-response.md) |
-| [Compliance reports](#compliance-reports) | 7 | [Compliance reports](../features/enterprise/compliance-reports.md) |
+| [Compliance reports](#compliance-reports) | 9 | [Compliance reports](../features/enterprise/compliance-reports.md) |
 | [Content channel](#content-channel) | 3 | [Content channel](../features/enterprise/content-channel.md) |
 | [Data loss prevention](#data-loss-prevention) | 8 | [Data loss prevention](../features/enterprise/dlp.md) |
 | [Fleet management](#fleet-management) | 9 | [Fleet management](../features/enterprise/fleet-management.md) |
@@ -342,6 +342,8 @@ and for the request and response bodies.
 | `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | `config:read` | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
 | `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | `config:read` | compliance-reports | Export as structured text. |
 | `POST` | `/api/v1/compliance/segmentation/validate` | operator | `config:write` | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
+| `GET` | `/api/v1/compliance/crypto/report` | viewer | `config:read` | compliance-reports | The network's cryptography as a migration report: edges most urgent first, every algorithm negotiated. |
+| `GET` | `/api/v1/compliance/crypto/cbom` | viewer | `config:read` | compliance-reports | The same reading as a CycloneDX 1.6 cryptography bill of materials. |
 
 ## Content channel
 

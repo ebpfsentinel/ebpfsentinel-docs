@@ -2908,6 +2908,55 @@
         ]
       }
     },
+    "/api/v1/ebpf/foreign-programs": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "`GET /api/v1/ebpf/foreign-programs` - who else has a program on the\nnetwork path.",
+        "operationId": "get_foreign_programs",
+        "responses": {
+          "200": {
+            "description": "eBPF programs on the network path that the agent did not load, where they run and who holds them",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkProgramsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/ebpf/kernel-features": {
       "get": {
         "tags": [
@@ -2922,6 +2971,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/KernelFeaturesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ebpf/raw-sockets": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "`GET /api/v1/ebpf/raw-sockets` - who else reads the node's traffic.",
+        "operationId": "get_raw_sockets",
+        "responses": {
+          "200": {
+            "description": "Packet sockets open on the node, their holder and their filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawSocketsResponse"
                 }
               }
             }
@@ -7974,6 +8072,129 @@
         ]
       }
     },
+    "/api/v1/tls/handshakes": {
+      "get": {
+        "tags": [
+          "TLS"
+        ],
+        "summary": "`GET /api/v1/tls/handshakes` - what the TLS handshakes seen on the node\nnegotiated: version, cipher suite, key exchange group and, in TLS 1.2,\nthe certificate's validity.",
+        "operationId": "tls_handshakes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Most handshakes to return, newest first (default 100, at most the\nlog's capacity).",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent TLS handshakes, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TlsHandshakesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tls/posture": {
+      "get": {
+        "tags": [
+          "TLS"
+        ],
+        "summary": "`GET /api/v1/tls/posture` - the cryptographic posture of each edge\nbetween two workloads: how many connections ran over a post-quantum\ngroup, a classical exchange, a TLS version below 1.2, or in clear text,\nwith the clear-text protocols named.",
+        "operationId": "tls_posture",
+        "responses": {
+          "200": {
+            "description": "Each edge's posture since the agent started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TlsPostureResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The L7 dispatcher is not running on this node",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/api/v1/tls/status": {
       "get": {
         "tags": [
@@ -8004,6 +8225,96 @@
           },
           "403": {
             "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/api/v1/trace": {
+      "post": {
+        "tags": [
+          "Trace"
+        ],
+        "summary": "`POST /api/v1/trace` - what the loaded programs decide for one packet.",
+        "description": "A packet is crafted from the five-tuple and run through the programs in\nthe order the hooks run them, with no interface and no traffic. Every\nprogram reads its maps and skips its writes, so a trace changes no state.\nA verdict that depends on state the crafted packet does not carry, an\nestablished connection or a rate already spent, is reported as such.",
+        "operationId": "trace_packet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraceRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Each stage the packet crossed and where it stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not describe one packet, or the workload has no address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No eBPF program is loaded on this node",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The kernel refused to run the programs",
             "content": {
               "application/json": {
                 "schema": {
@@ -9494,6 +9805,35 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "CertificateBody": {
+        "type": "object",
+        "description": "What the server's certificate shows from the wire.",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "not_after": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "End of validity, in seconds since the epoch, when read."
+          },
+          "not_before": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Start of validity, in seconds since the epoch, when read."
+          },
+          "state": {
+            "type": "string",
+            "description": "`not_observable` in TLS 1.3, where the certificate is encrypted;\n`not_captured` in TLS 1.2 when it was not in the bytes read, which is\nalso what a resumed session gives; `read` when the window below is the\nleaf certificate's."
           }
         }
       },
@@ -12167,7 +12507,8 @@
           "process_signal",
           "quarantine",
           "bpf_lsm",
-          "network_executables"
+          "network_executables",
+          "self_protection"
         ],
         "properties": {
           "attribution": {
@@ -12224,6 +12565,10 @@
               "string",
               "null"
             ]
+          },
+          "self_protection": {
+            "$ref": "#/components/schemas/SelfProtectionReport",
+            "description": "Whether the kernel refuses every other task a writable descriptor to\nthe agent's maps and a descriptor to its links. A node without the\nBPF LSM says it is unprotected and why, rather than saying nothing."
           },
           "workload_firewall": {
             "$ref": "#/components/schemas/WorkloadFirewallReport",
@@ -13355,6 +13700,60 @@
         ],
         "description": "The addresses and ports a translation rewrites to.\n\nTagged with the same word `nat_type` carries, since a reader deciding what\na rule does reads the two together."
       },
+      "NegotiatedSuiteBody": {
+        "type": "object",
+        "description": "One suite TLS connections on an edge negotiated, and how many did.",
+        "required": [
+          "version",
+          "cipher",
+          "connections"
+        ],
+        "properties": {
+          "cipher": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "cipher_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connections": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "group": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Absent when the exchange has none or it was not in the bytes read.",
+            "minimum": 0
+          },
+          "group_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version as the wire carries it (`772` is TLS 1.3).",
+            "minimum": 0
+          },
+          "version_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "NetpolRefusedFlow": {
         "type": "object",
         "required": [
@@ -13506,6 +13905,160 @@
           }
         }
       },
+      "NetworkProgramBody": {
+        "type": "object",
+        "description": "One eBPF program on the network path that the agent did not load.",
+        "required": [
+          "prog_id",
+          "prog_type",
+          "name",
+          "tag",
+          "hook",
+          "place",
+          "holders"
+        ],
+        "properties": {
+          "cgroup_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The cgroup a cgroup link sits on, by id.",
+            "minimum": 0
+          },
+          "created_by_uid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The uid that loaded it.",
+            "minimum": 0
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cgroup attach point, the netfilter hook, or the namespace hook."
+          },
+          "holders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgramHolderBody"
+            },
+            "description": "The processes holding it. Empty when only a pin or an attachment\nkeeps it alive."
+          },
+          "hook": {
+            "type": "string",
+            "description": "`xdp`, `tc_ingress`, `tc_egress`, `tcx_ingress`, `tcx_egress`,\n`netkit_primary`, `netkit_peer`, `cgroup`, `netfilter`, `netns`, or\n`unplaced` for a program of a network type found on none of them."
+          },
+          "ifindex": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The interface index the attachment names.",
+            "minimum": 0
+          },
+          "interface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The host interface carrying it. Absent with an index set, the index\nbelongs to another network namespace."
+          },
+          "link_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The link attaching it, absent for a legacy attachment.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "description": "The name its loader gave it, at most fifteen bytes."
+          },
+          "place": {
+            "type": "string",
+            "description": "Where it runs, as a person reads it."
+          },
+          "position": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Where it runs among the programs on the same hook of the same host\ninterface, the first being `0`, for `tc_*`, `tcx_*` and `netkit_*`.",
+            "minimum": 0
+          },
+          "prog_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "prog_type": {
+            "type": "string",
+            "description": "The program type, as the kernel names it."
+          },
+          "tag": {
+            "type": "string",
+            "description": "The hash of its instructions, in hex."
+          }
+        }
+      },
+      "NetworkProgramsResponse": {
+        "type": "object",
+        "description": "The eBPF programs on this node's network path, the agent's own set apart.",
+        "required": [
+          "reading",
+          "scanned_at_ns",
+          "own_programs",
+          "programs"
+        ],
+        "properties": {
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the last reading failed. The programs are then those of the\nreading before."
+          },
+          "own_programs": {
+            "type": "integer",
+            "description": "How many programs on the network path are the agent's own.",
+            "minimum": 0
+          },
+          "programs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkProgramBody"
+            },
+            "description": "Every other program on the network path."
+          },
+          "reading": {
+            "type": "boolean",
+            "description": "Whether the inventory is being read."
+          },
+          "scanned_at_ns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the last reading was made, in nanoseconds since the epoch, `0`\nbefore the first.",
+            "minimum": 0
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the readings come from: `warden` or `local`. Absent when the\ninventory is off."
+          }
+        }
+      },
       "NptV6RuleResponse": {
         "type": "object",
         "description": "Response DTO for an `NPTv6` prefix translation rule.",
@@ -13638,6 +14191,152 @@
             "format": "int32",
             "description": "The user whose runtime this is, absent for root's.",
             "minimum": 0
+          }
+        }
+      },
+      "PostureCountsBody": {
+        "type": "object",
+        "description": "Connections counted on an edge, or over the node, by posture.",
+        "required": [
+          "connections",
+          "post_quantum",
+          "classical",
+          "legacy_tls",
+          "clear_text",
+          "clear_text_protocols",
+          "shares"
+        ],
+        "properties": {
+          "classical": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TLS 1.2 or 1.3 over a classical exchange.",
+            "minimum": 0
+          },
+          "clear_text": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Requests read in clear text, whatever the protocol.",
+            "minimum": 0
+          },
+          "clear_text_protocols": {
+            "type": "object",
+            "description": "The clear-text connections by protocol: `http`, `ldap`, `smtp`,\n`redis` or `postgres`. A protocol with none is absent.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "connections": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every connection counted.",
+            "minimum": 0
+          },
+          "legacy_tls": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Below TLS 1.2.",
+            "minimum": 0
+          },
+          "post_quantum": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TLS 1.2 or 1.3 over a post-quantum or hybrid group.",
+            "minimum": 0
+          },
+          "shares": {
+            "$ref": "#/components/schemas/PostureSharesBody",
+            "description": "Each class's share of `connections`, from 0 to 1."
+          }
+        }
+      },
+      "PostureEdgeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PostureCountsBody"
+          },
+          {
+            "type": "object",
+            "required": [
+              "client",
+              "server",
+              "server_port",
+              "suites",
+              "unlisted_suites",
+              "first_seen_ns",
+              "last_seen_ns"
+            ],
+            "properties": {
+              "client": {
+                "$ref": "#/components/schemas/ServiceEndBody"
+              },
+              "first_seen_ns": {
+                "type": "integer",
+                "format": "int64",
+                "description": "When the first and the last connection were counted, in nanoseconds\nsince the epoch.",
+                "minimum": 0
+              },
+              "last_seen_ns": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "server": {
+                "$ref": "#/components/schemas/ServiceEndBody"
+              },
+              "server_port": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "suites": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NegotiatedSuiteBody"
+                },
+                "description": "The suites its TLS connections negotiated, most connections first."
+              },
+              "unlisted_suites": {
+                "type": "integer",
+                "format": "int64",
+                "description": "TLS connections whose suite came after the edge listed sixteen.",
+                "minimum": 0
+              }
+            }
+          }
+        ],
+        "description": "One edge between two workloads, on one server port."
+      },
+      "PostureSharesBody": {
+        "type": "object",
+        "description": "Each posture's share of the connections counted.",
+        "required": [
+          "post_quantum",
+          "classical",
+          "legacy_tls",
+          "clear_text"
+        ],
+        "properties": {
+          "classical": {
+            "type": "number",
+            "format": "double"
+          },
+          "clear_text": {
+            "type": "number",
+            "format": "double"
+          },
+          "legacy_tls": {
+            "type": "number",
+            "format": "double"
+          },
+          "post_quantum": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -14088,6 +14787,41 @@
               "type": "string"
             },
             "description": "The tracepoints that did attach, in attach order."
+          }
+        }
+      },
+      "ProgramHolderBody": {
+        "type": "object",
+        "description": "One process holding a program or the link attaching it.",
+        "required": [
+          "pid"
+        ],
+        "properties": {
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The container it runs in, where it runs in one."
+          },
+          "executable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its executable, where it resolved."
+          },
+          "pid": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "pod": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The pod it runs in, as `namespace/name`, where it runs in one."
           }
         }
       },
@@ -14576,6 +15310,140 @@
           },
           "src_ip": {
             "type": "string"
+          }
+        }
+      },
+      "RawSocketBody": {
+        "type": "object",
+        "description": "One packet socket open on the node.",
+        "required": [
+          "inode",
+          "kind",
+          "protocol",
+          "interface",
+          "uid",
+          "netns",
+          "host_netns",
+          "filter"
+        ],
+        "properties": {
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The container holding it, where it runs in one."
+          },
+          "executable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "That process's executable, where it resolved."
+          },
+          "filter": {
+            "type": "string",
+            "description": "`absent` when no filter is attached, `classic` when one is, and\n`unknown` when the kernel withheld the answer."
+          },
+          "filter_instructions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The length of the attached classic filter, in instructions.",
+            "minimum": 0
+          },
+          "host_netns": {
+            "type": "boolean",
+            "description": "Whether that namespace is the host's."
+          },
+          "inode": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The socket's inode, unique within its network namespace.",
+            "minimum": 0
+          },
+          "interface": {
+            "type": "string",
+            "description": "The interface it is bound to, `any` when it is bound to none."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`raw` when the holder sees link-layer headers, `dgram` when the\nkernel strips them."
+          },
+          "netns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The network namespace it lives in, as an inode number.",
+            "minimum": 0
+          },
+          "pid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "A process holding it, absent when none could be found.",
+            "minimum": 0
+          },
+          "pod": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The pod holding it, as `namespace/name`, where it runs in one."
+          },
+          "protocol": {
+            "type": "string",
+            "description": "The protocol the socket receives, `all` for every one."
+          },
+          "uid": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The user that opened it.",
+            "minimum": 0
+          }
+        }
+      },
+      "RawSocketsResponse": {
+        "type": "object",
+        "description": "The packet sockets on this node.",
+        "required": [
+          "reading",
+          "scanned_at_ns",
+          "sockets"
+        ],
+        "properties": {
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the last reading failed. The sockets are then those of the\nreading before."
+          },
+          "reading": {
+            "type": "boolean",
+            "description": "Whether the inventory is being read."
+          },
+          "scanned_at_ns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the last reading was made, in nanoseconds since the epoch, `0`\nbefore the first.",
+            "minimum": 0
+          },
+          "sockets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RawSocketBody"
+            }
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the readings come from: `warden` or `local`. Absent when the\ninventory is off."
           }
         }
       },
@@ -15180,6 +16048,44 @@
         ],
         "description": "What the window is asked to watch."
       },
+      "SelfProtectionReport": {
+        "type": "object",
+        "description": "Whether the agent's own maps and links are guarded on this host.",
+        "required": [
+          "protected",
+          "maps",
+          "links",
+          "tasks"
+        ],
+        "properties": {
+          "links": {
+            "type": "integer",
+            "description": "How many of the agent's links no other task may open.",
+            "minimum": 0
+          },
+          "maps": {
+            "type": "integer",
+            "description": "How many of the agent's maps no other task may open for writing.",
+            "minimum": 0
+          },
+          "protected": {
+            "type": "boolean",
+            "description": "Both hooks are attached and the agent's objects are in the sets."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the node is unprotected, in one sentence."
+          },
+          "tasks": {
+            "type": "integer",
+            "description": "How many thread groups are allowed past the guard: the agent, and\nthe warden when the agent runs rootless.",
+            "minimum": 0
+          }
+        }
+      },
       "ServiceEdgeBody": {
         "type": "object",
         "description": "Who called whom over the window, and how it went.",
@@ -15599,6 +16505,154 @@
           }
         }
       },
+      "TlsHandshakeBody": {
+        "type": "object",
+        "description": "One TLS handshake seen on the node.",
+        "required": [
+          "client",
+          "client_port",
+          "server",
+          "server_port",
+          "observed_at_ns",
+          "version",
+          "cipher",
+          "key_exchange",
+          "posture",
+          "certificate"
+        ],
+        "properties": {
+          "certificate": {
+            "$ref": "#/components/schemas/CertificateBody"
+          },
+          "cipher": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The selected cipher suite's code point.",
+            "minimum": 0
+          },
+          "cipher_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its IANA name, absent for a suite this agent does not name."
+          },
+          "client": {
+            "type": "string"
+          },
+          "client_port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "group": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The selected key exchange group's code point, absent when the\nexchange has none or it was not in the bytes read.",
+            "minimum": 0
+          },
+          "group_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its IANA name, absent for a group this agent does not name."
+          },
+          "key_exchange": {
+            "type": "string",
+            "description": "`post_quantum_hybrid`, `post_quantum`, `classical`,\n`rsa_key_transport` or `unknown`."
+          },
+          "observed_at_ns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the server's flight was read, in nanoseconds since the epoch.",
+            "minimum": 0
+          },
+          "posture": {
+            "type": "string",
+            "description": "`post_quantum`, `classical` or `legacy_tls` (below TLS 1.2)."
+          },
+          "server": {
+            "type": "string"
+          },
+          "server_port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The negotiated version as the wire carries it (`772` is TLS 1.3).",
+            "minimum": 0
+          },
+          "version_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its name, absent for a value this agent does not name."
+          }
+        }
+      },
+      "TlsHandshakesResponse": {
+        "type": "object",
+        "description": "The handshakes the log holds.",
+        "required": [
+          "recording",
+          "capacity",
+          "handshakes"
+        ],
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "description": "How many handshakes the log keeps before dropping the oldest.",
+            "minimum": 0
+          },
+          "handshakes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TlsHandshakeBody"
+            },
+            "description": "Newest first."
+          },
+          "recording": {
+            "type": "boolean",
+            "description": "Whether this agent reads TLS handshakes at all."
+          }
+        }
+      },
+      "TlsPostureResponse": {
+        "type": "object",
+        "description": "The cryptographic posture of each edge since the agent started.",
+        "required": [
+          "totals",
+          "evicted_edges",
+          "edges"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostureEdgeBody"
+            },
+            "description": "Most connections first."
+          },
+          "evicted_edges": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Edges dropped, least recently seen first, to make room for new ones.",
+            "minimum": 0
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PostureCountsBody",
+            "description": "The node's connections, every edge summed."
+          }
+        }
+      },
       "TlsStatusResponse": {
         "type": "object",
         "description": "Per-connection TLS status, surfaced so operators can confirm the\nnegotiated key-exchange group (e.g. verify a post-quantum hybrid\nhandshake) on a live connection.",
@@ -15638,6 +16692,194 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "TraceRequestBody": {
+        "type": "object",
+        "required": [
+          "dst_ip",
+          "protocol"
+        ],
+        "properties": {
+          "direction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`ingress` (default) or `egress`."
+          },
+          "dst_ip": {
+            "type": "string",
+            "description": "Destination address, IPv4 or IPv6."
+          },
+          "dst_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Destination port, required for TCP and UDP.",
+            "minimum": 0
+          },
+          "protocol": {
+            "type": "string",
+            "description": "`tcp`, `udp` or `icmp`."
+          },
+          "src_ip": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source address. Left out when `workload` names the source."
+          },
+          "src_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Source port; zero or absent picks an ephemeral port. Ignored for ICMP.",
+            "minimum": 0
+          },
+          "workload": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A pod as `namespace/name`, whose address becomes the source."
+          }
+        }
+      },
+      "TraceResponse": {
+        "type": "object",
+        "required": [
+          "src_ip",
+          "dst_ip",
+          "src_port",
+          "dst_port",
+          "protocol",
+          "direction",
+          "stages",
+          "verdict",
+          "state_dependent",
+          "not_loaded"
+        ],
+        "properties": {
+          "direction": {
+            "type": "string"
+          },
+          "dst_ip": {
+            "type": "string"
+          },
+          "dst_port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "not_loaded": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Programs of this direction that are not loaded, so the trace could\nnot ask them."
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "src_ip": {
+            "type": "string",
+            "description": "The source address the packet was crafted from."
+          },
+          "src_port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStage"
+            },
+            "description": "Each stage the packet crossed, in the order it crossed them."
+          },
+          "state_dependent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStateDependence"
+            },
+            "description": "Verdicts that hold for this packet now and not for every packet of\nthe five-tuple."
+          },
+          "stopped_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stage the packet stopped at, absent when it went through."
+          },
+          "verdict": {
+            "type": "string",
+            "description": "The verdict at that stage, or `pass` when the packet went through."
+          }
+        }
+      },
+      "TraceStage": {
+        "type": "object",
+        "required": [
+          "stage",
+          "hook",
+          "verdict",
+          "reason"
+        ],
+        "properties": {
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the stage adds in its own terms."
+          },
+          "hook": {
+            "type": "string",
+            "description": "`xdp`, `tc_ingress` or `tc_egress`."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the stage decided: `default`, `rule`, `established`, `rate`,\n`list`, `malformed`, `disabled`, `rewrite` or `unrecorded`."
+          },
+          "rule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's name, where the agent could name it."
+          },
+          "rule_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The rule identifier as the stage numbers its rules.",
+            "minimum": 0
+          },
+          "stage": {
+            "type": "string",
+            "description": "The stage, as `firewall`, `rate_limit`, `ids`, `nat_egress`..."
+          },
+          "verdict": {
+            "type": "string",
+            "description": "`pass`, `log`, `drop`, `reject`, `bounce`, `redirect`, `abort` or `other`."
+          }
+        }
+      },
+      "TraceStateDependence": {
+        "type": "object",
+        "required": [
+          "stage",
+          "depends_on"
+        ],
+        "properties": {
+          "depends_on": {
+            "type": "string",
+            "description": "The state the verdict depends on, in a sentence."
+          },
+          "stage": {
+            "type": "string"
           }
         }
       },
@@ -16318,6 +17560,10 @@
     {
       "name": "NetworkPolicy",
       "description": "What proposed Kubernetes NetworkPolicy would refuse, replayed against tracked connections"
+    },
+    {
+      "name": "Trace",
+      "description": "What the loaded programs decide for one crafted packet, stage by stage, without changing any state"
     },
     {
       "name": "IDS",

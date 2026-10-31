@@ -116,6 +116,12 @@ shop/api (10.0.7.3)       10.0.9.20                  8443     76        0 (0%)  
 shop/web (10.0.4.12)      10.0.9.44                   389     12        0 (0%)     0 (0%)      0 (0%)  12 (100%) ldap 12
 ```
 
+Each edge also keeps the suites its connections negotiated: the version, the
+cipher suite and the key exchange group, with a count for each. It keeps
+sixteen per edge, and a connection whose suite does not fit is counted under
+`unlisted_suites` rather than dropped. The enterprise agent turns these into a
+[migration report and a CycloneDX bill of materials](enterprise/compliance-reports.md#network-cryptography-inventory).
+
 The same reading is served by `GET /api/v1/tls/posture`, described in the
 [REST API reference](../api-reference/rest-api.md#get-apiv1tlsposture).
 

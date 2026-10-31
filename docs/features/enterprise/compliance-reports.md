@@ -388,6 +388,8 @@ enterprise:
 | `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | compliance-reports | Export as structured text. |
 | `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
 | `POST` | `/api/v1/compliance/segmentation/validate` | operator | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
+| `GET` | `/api/v1/compliance/crypto/report` | viewer | compliance-reports | The network's cryptography as a migration report (see [below](#network-cryptography-inventory)). |
+| `GET` | `/api/v1/compliance/crypto/cbom` | viewer | compliance-reports | The same reading as a CycloneDX 1.6 cryptography bill of materials. |
 
 ### Error Responses
 
@@ -397,6 +399,46 @@ enterprise:
 | 400 | Invalid time range (start ≥ end) or invalid UUID |
 | 404 | Report not found |
 | 500 | Generation failure, or a PDF the renderer could not produce |
+
+## Network Cryptography Inventory
+
+The agent counts what every connection it reads negotiated: the TLS version,
+the cipher suite and the key exchange group, or the clear-text protocol when
+there was no handshake (see [Network Cryptography](../network-cryptography.md)).
+Two routes turn that reading into something an auditor or a migration plan can
+take, both computed from the agent's counts at the moment of the request and
+both covering the time since the agent started.
+
+`GET /api/v1/compliance/crypto/report` lists each edge (client, server and the
+server's port) with the priority its connections give it, most urgent first:
+
+| Priority | When |
+|----------|------|
+| `clear_text` | At least one connection carried its request in clear text |
+| `legacy_tls` | At least one connection negotiated a version below TLS 1.2 |
+| `classical` | At least one connection exchanged its keys classically only |
+| `post_quantum_ready` | Every connection exchanged its keys with a post-quantum or hybrid scheme |
+
+Beside the edges it lists every algorithm negotiated, each version, cipher
+suite and key exchange group with its code, its name, its connection count
+and, for a group, its standing against a quantum adversary (`resistant`,
+`hybrid`, `vulnerable` or `unknown`) and its NIST security category where it
+has one. `unlisted_suites` counts connections whose suite fell outside the
+sixteen each edge keeps, so a total is never larger than what was counted.
+
+`GET /api/v1/compliance/crypto/cbom` serves the same reading as a
+[CycloneDX 1.6](https://cyclonedx.org/capabilities/cbom/) document, media type
+`application/vnd.cyclonedx+json; version=1.6`. A component is an algorithm,
+never an edge: one `protocol` asset per TLS version listing the cipher suites
+negotiated under it and the groups each one used, and one `algorithm` asset per
+key exchange group with its primitive (`kem` or `key-agree`) and NIST quantum
+security level. Connections read in clear negotiated nothing and are counted on
+the document's metadata properties rather than listed as components. The
+serial number is derived from the document's content, so the same reading
+always gives the same serial number and the same SHA-256.
+
+The dashboard records this document on a case as evidence by reference, its
+serial number and digest, and lists it in the case's evidence pack.
 
 ## Feature Gating
 

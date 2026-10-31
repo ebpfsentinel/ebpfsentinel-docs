@@ -2948,6 +2948,8 @@ Response:
 | `clear_text` | integer | Connections whose requests were read in clear text |
 | `clear_text_protocols` | object | Clear-text connections by protocol: `http`, `ldap`, `smtp`, `redis`, `postgres` |
 | `shares.post_quantum`, `classical`, `legacy_tls`, `clear_text` | number | Each class's share of `connections`, from 0 to 1 |
+| `edges[].suites[]` | array | What the edge's connections negotiated, most connections first: `version` and `version_name`, `cipher` and `cipher_name`, `group` and `group_name` when the exchange carried one, and `connections` |
+| `edges[].unlisted_suites` | integer | Connections whose suite fell outside the sixteen an edge keeps |
 
 Edges are listed with the most connections first, and the counts sit beside
 the edge's own fields.

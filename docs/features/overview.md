@@ -76,7 +76,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (115 paths, 132 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (120 paths, 137 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -87,7 +87,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
 <!-- feature-count: cli-subcommands -->
-| CLI (40 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
+| CLI (41 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
 ### Enterprise
@@ -122,12 +122,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-three program directories: nineteen
+`crates/ebpf-programs/` holds twenty-four program directories: twenty
 attached at a hook of their own, three reached only by tail call from one of
-those nineteen, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The nineteen attached programs, of which the six after
-`uprobe-dlp` read a task rather than a packet and the last one
-reads the kernel's own drops, and of those six only the workload firewall, the
+those twenty, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty attached programs, of which the six after
+`uprobe-dlp` read a task rather than a packet, the next one
+reads the kernel's own drops and the last one guards the agent's own maps and links, and of those six only the workload firewall, the
 executables list and the connection redirect decide a syscall and only the
 signal program acts on a process:
 
@@ -152,6 +152,7 @@ signal program acts on a process:
 | `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
 | `cgroup-connect-redirect` | cgroup socket hooks | Rewrites the destination of a selected cgroup's TCP connect to the enterprise TLS proxy and records where it was going, so the proxy can reach it; loaded only by the enterprise agent where a TLS redirect is configured |
 | `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
+| `lsm-bpf-guard` | BPF LSM | Refuses a writable descriptor to one of the agent's maps and a descriptor to one of its links, so another process cannot rewrite or detach them; read-only descriptors are let through |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -162,7 +163,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the twenty-third directory. It is a no-op XDP program attached to the
+`xdp-pass` is the twenty-fourth directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

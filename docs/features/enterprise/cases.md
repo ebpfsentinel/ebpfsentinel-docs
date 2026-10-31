@@ -60,6 +60,15 @@ position in the capture chain and its chain tag, so the file downloaded later
 can be checked against what the case recorded. Collection reads; it starts no
 capture. See [Network forensics](network-forensics.md).
 
+Each agent behind the case is also asked for its network cryptography bill of
+materials, the CycloneDX document described in
+[Compliance reports](compliance-reports.md#network-cryptography-inventory).
+It describes the agent's network rather than one alert, so it is recorded once
+per agent with its serial number, its SHA-256, how many cryptographic assets it
+lists and how many connections it counts, and never the document itself. An
+agent without the `compliance-reports` feature answers nothing and the case
+records nothing for it.
+
 ## Evidence pack
 
 The evidence pack reads one case against the two deadlines an incident
@@ -73,8 +82,9 @@ For each mark the pack lists the alerts observed, the acts recorded on the
 case and the evidence attached before it. Beside the marks it lists the
 assets involved (agents, workloads, addresses), the flows the alerts name with
 when each was first and last seen, every act with who did it, and every freeze
-and capture with its digest and chain position. Each line names the record it
-was read from, `alert:`, `case_event:`, `freeze:` or `capture:`, so any figure
+and capture with its digest and chain position, and every bill of materials
+with its digest. Each line names the record it was read from, `alert:`,
+`case_event:`, `freeze:`, `capture:` or `cbom:`, so any figure
 can be traced back to the alert or the log row behind it.
 
 What the case does not hold is listed under gaps rather than left for the
