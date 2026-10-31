@@ -3,7 +3,8 @@
 The network inventory lists the packet sockets open on the node, who holds
 them and what filter is attached to them, and raises an alert for each one
 that appears. It also lists the eBPF programs on the network path that the
-agent did not load. What each reads and what it cannot see is on
+agent did not load, and raises an alert when one is put ahead of the agent's
+or the agent's own is replaced or detached. What each reads and what it cannot see is on
 [Packet Sockets](../features/raw-sockets.md) and
 [Foreign eBPF Programs](../features/foreign-programs.md).
 

@@ -649,6 +649,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "link_id": 14,
       "ifindex": 2,
       "interface": "eth0",
+      "position": 0,
       "created_by_uid": 0,
       "holders": [
         { "pid": 1312, "executable": "/usr/bin/cilium-agent", "pod": "kube-system/cilium-x7k2p" }
@@ -671,8 +672,10 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 `netkit_primary`, `netkit_peer`, `cgroup`, `netfilter`, `netns` or `unplaced`.
 `interface` is present only when the host's interface of that index carries the
 program; an `ifindex` without it belongs to another network namespace.
-`cgroup_id` and `detail` say where a cgroup, netfilter or namespace program
-sits. `holders` is empty when only a pin or an attachment keeps the program
+`position` is where the program runs among those on the same hook of the same
+host interface, the first being `0`, for the `tc_*`, `tcx_*` and `netkit_*`
+hooks. `cgroup_id` and `detail` say where a cgroup, netfilter or namespace
+program sits. `holders` is empty when only a pin or an attachment keeps the program
 alive.
 
 #### GET /api/v1/ebpf/raw-sockets
