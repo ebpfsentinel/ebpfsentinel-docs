@@ -461,6 +461,28 @@ reach the network:
 attached, `reason` says why: off in the configuration, the BPF LSM not active
 on the host, or the load or attach that failed.
 
+`self_protection` says whether another process can take the agent's programs
+off the path:
+
+```json
+{
+  "self_protection": {
+    "protected": true,
+    "maps": 312,
+    "links": 41,
+    "tasks": 2,
+    "reason": null
+  }
+}
+```
+
+`protected` is `true` once both hooks are attached and the agent's own maps and
+links are in the sets; `tasks` counts the thread groups let through, the agent
+and its warden when it runs rootless. A node without the BPF LSM answers
+`protected: false` with the reason, rather than nothing. What the guard covers
+and what it does not is on
+[Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects).
+
 #### GET /api/v1/ebpf/coverage
 
 What the agent sees of each pod scheduled on its node, computed from the links

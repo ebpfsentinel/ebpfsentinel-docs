@@ -52,7 +52,7 @@ Restricting which executables may reach the network is decided at a Linux securi
 ebpfsentinel-agent ebpf host-check
 ```
 
-It prints whether the BPF LSM is active and, when it is not, the exact `lsm=` value that keeps the modules already running and adds `bpf`. A running agent reports the same answer in the `bpf_lsm` block of `/api/v1/ebpf/kernel-features`. It is what [Executables allowed to reach the network](../configuration/workload-firewall.md#executables-allowed-to-reach-the-network) needs; everything else the agent does works without it.
+It prints whether the BPF LSM is active and, when it is not, the exact `lsm=` value that keeps the modules already running and adds `bpf`. A running agent reports the same answer in the `bpf_lsm` block of `/api/v1/ebpf/kernel-features`. It is what [Executables allowed to reach the network](../configuration/workload-firewall.md#executables-allowed-to-reach-the-network) needs, and what keeps another process from detaching the agent's programs or writing its maps ([Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects)); everything else the agent does works without it.
 
 ## Feature-to-Kernel-Version Matrix
 

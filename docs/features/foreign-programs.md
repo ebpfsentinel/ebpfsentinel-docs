@@ -104,6 +104,46 @@ nothing.
   what it holds; a program of its own that it no longer holds would read as
   foreign.
 
+## The Agent's Own Objects
+
+Seeing a program put ahead of the agent's is after the fact. Where the BPF LSM
+is active, the kernel also refuses the two moves that take the agent off the
+path from the side: no task but the agent, and its warden when it runs rootless,
+can open one of the agent's links, which detaching it or replacing the program
+behind it needs, or open one of the agent's maps for writing, which rewriting a
+rule, a set or a configuration slot needs. A map opened read-only is let
+through.
+
+The guard needs nothing configured. It loads after every other program, reads
+the ids of the maps and links the agent holds from its own descriptors, and
+refuses nothing until both are written. Whether it is in force is the
+`self_protection` block of
+[`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md#get-apiv1ebpfkernel-features)
+and of `ebpfsentinel-agent ebpf kernel-features`; a node without the BPF LSM
+says it is unprotected and why. Refusals are counted on
+`ebpfsentinel_packets_total{interface="BPF_GUARD_METRICS"}` under `checked`,
+`refused_map` and `refused_link`. The BPF LSM is a boot parameter rather than a kernel version;
+[The BPF LSM](../kernel/requirements.md#the-bpf-lsm-a-boot-parameter-not-a-version)
+says how to tell and how to turn it on.
+
+What it does not cover:
+
+- **Legacy `tc` filters.** A `cls_bpf` classifier is removed through netlink
+  without ever opening the program, so the guard does not see it. The agent's
+  own `tc` programs sit on TCX links where the kernel has them; where it falls
+  back to legacy `tc`, a deletion is seen by the inventory above, not refused.
+- **Stopping the agent.** A process allowed to kill the agent removes every
+  link with it. That is the supervisor's and the restart's to answer, and the
+  agent going quiet is visible from the outside.
+- **Tools that open by id for writing.** `bpftool map show` and `bpftool map
+  dump` by id open the map for reading and writing by default and are refused
+  on an agent map; the refusal is counted like any other.
+- **A descriptor obtained before the guard was armed**, or on a map the agent
+  no longer holds. The sets name what the agent holds now, read again every
+  30 seconds.
+- **The kernel itself.** A module loaded into the kernel, or a process with
+  write access to kernel memory, is past any hook.
+
 ## Legitimate Holders
 
 Programs on the network path are common on a Kubernetes node. Cilium attaches
