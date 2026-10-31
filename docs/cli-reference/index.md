@@ -1177,6 +1177,9 @@ ebpfsentinel-agent ebpf host-check
 
 # Why the kernel dropped packets, by reason and interface
 ebpfsentinel-agent ebpf drops
+
+# The packet sockets open on this node, their holder and filter
+ebpfsentinel-agent ebpf raw-sockets
 ```
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
@@ -1227,6 +1230,17 @@ NOT_SPECIFIED   wlan0      17       Freed without a reason: the path that droppe
 ```
 
 What each reason means is on [Kernel Drop Reasons](../features/kernel-drops.md).
+
+`ebpf raw-sockets` prints one row per packet socket open on the node, with the
+process holding it, its pod where it runs in one, the network namespace (`host`
+for the host's) and the filter attached to it:
+
+```text
+PID   EXECUTABLE         POD  KIND  PROTOCOL  INTERFACE  NETNS  FILTER
+1834  /usr/sbin/tcpdump  -    raw   all       any        host   classic (12 insns)
+```
+
+What each column means is on [Packet Sockets](../features/raw-sockets.md).
 
 `ebpf coverage` lists every pod on the node with its links and the traffic
 classes the agent does not observe, each with a reason code, the uncovered

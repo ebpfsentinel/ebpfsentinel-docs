@@ -621,6 +621,54 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 index it arrived on, and `none` when it had neither. `description` is absent for
 a reason the agent does not describe; the count is still there.
 
+#### GET /api/v1/ebpf/raw-sockets
+
+The packet sockets open on the node as of the last reading, who holds each one
+and what filter is attached to it. See [Packet Sockets](../features/raw-sockets.md)
+for what is read and what is not seen.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/raw-sockets
+```
+
+```json
+{
+  "reading": true,
+  "source": "local",
+  "scanned_at_ns": 1761900000000000000,
+  "sockets": [
+    {
+      "inode": 48213,
+      "kind": "raw",
+      "protocol": "all",
+      "interface": "any",
+      "uid": 0,
+      "netns": 4026531840,
+      "host_netns": true,
+      "pid": 1834,
+      "executable": "/usr/sbin/tcpdump",
+      "filter": "classic",
+      "filter_instructions": 12
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The inventory is being read |
+| `source` | string | `warden` or `local`, absent when the inventory is off |
+| `scanned_at_ns` | integer | When the last reading was made, nanoseconds since the epoch, `0` before the first |
+| `last_error` | string | Why the last reading failed, absent when it succeeded; the sockets are then those of the reading before |
+| `sockets` | array | One entry per packet socket |
+
+Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
+`protocol` (`all` for every one), `interface` (`any` when bound to none), `uid`,
+`netns` and `host_netns`, and where they resolved `pid`, `executable`,
+`container` and `pod` as `namespace/name`. `filter` is `classic` with
+`filter_instructions` when a filter is attached, `absent` when none is, and
+`unknown` when the kernel withheld the answer.
+
 ### Firewall
 
 #### GET /api/v1/firewall/rules
@@ -2865,6 +2913,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/coverage` | Yes | What the agent sees of each pod on this node |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
+| GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |
