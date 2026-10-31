@@ -1283,19 +1283,21 @@ only where it is armed.
 ### exposure
 
 ```bash
-# The sockets this node accepts traffic on, and who bound them
+# The sockets this node accepts traffic on, who bound them, who may reach them
 ebpfsentinel-agent exposure listeners
 ```
 
 `exposure listeners` prints one row per address, port and process the node
-accepts traffic on, sockets bound on every address first, with the executable,
-pod and systemd unit of the process that bound it:
+accepts traffic on, sockets bound on every address first, with its class, the
+sources the packet firewall lets through (`any`, `none` or the list), the TCP
+connections accepted on it, and the executable, pod and systemd unit of the
+process that bound it:
 
 ```text
-PROTO  ADDRESS    PORT  SCOPE          PID   EXECUTABLE             POD            UNIT
-tcp    0.0.0.0    6379  all_addresses  2210  /usr/bin/redis-server  cache/redis-0  -
-udp    0.0.0.0    53    all_addresses  612   /usr/lib/systemd/systemd-resolved  -  systemd-resolved.service
-tcp    127.0.0.1  5432  loopback       901   /usr/lib/postgresql/16/bin/postgres  -  postgresql.service
+PROTO  ADDRESS    PORT  SCOPE          CLASS               ALLOWED     ACCEPTED  PID   EXECUTABLE             POD            UNIT
+tcp    0.0.0.0    6379  all_addresses  exposed_unused      10.0.0.0/8  0         2210  /usr/bin/redis-server  cache/redis-0  -
+udp    0.0.0.0    53    all_addresses  exposed_unmeasured  any         -         612   /usr/lib/systemd/systemd-resolved  -  systemd-resolved.service
+tcp    127.0.0.1  5432  loopback       loopback_only       none        12        901   /usr/lib/postgresql/16/bin/postgres  -  postgresql.service
 ```
 
 A socket bound before the agent's socket hooks attached is not listed until it

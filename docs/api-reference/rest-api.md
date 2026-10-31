@@ -753,6 +753,7 @@ Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
 #### GET /api/v1/exposure/listeners
 
 The sockets the node accepts traffic on, each with the workload that bound it,
+the sources the packet firewall lets through and the connections accepted,
 every address first. See [Listening Sockets](../features/listening-sockets.md)
 for how the table is filled and what it does not see.
 
@@ -775,7 +776,13 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "executable": "/usr/bin/redis-server",
       "container": "redis",
       "pod": "cache/redis-0",
-      "bound_at_boot_ns": 1834000000000
+      "bound_at_boot_ns": 1834000000000,
+      "class": "exposed_unused",
+      "reachable": true,
+      "allowed_from": ["10.0.0.0/8"],
+      "decided_by": "rule",
+      "rule": "drop-rest (deny)",
+      "accepted": 0
     }
   ]
 }
@@ -792,6 +799,16 @@ server spread over `SO_REUSEPORT`), the `pid` that bound it and
 `bound_at_boot_ns`, the earliest bind in nanoseconds since boot, and where they
 resolved `uid`, `executable`, `container`, `pod` as `namespace/name` and the
 systemd `unit`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `class` | string | `exposed_used`, `exposed_unused`, `exposed_unmeasured`, `closed_by_policy` or `loopback_only` |
+| `reachable` | boolean | The packet firewall lets traffic from off the node through to it |
+| `allowed_from` | array | The sources let through when only some are; absent means every source when `reachable` |
+| `decided_by` | string | `rule`, `default_policy`, `firewall_not_enforcing` (disabled or alert mode) or `loopback` |
+| `rule` | string | The deciding rule and its action, when `decided_by` is `rule` |
+| `accepted` | integer | TCP connections accepted since the hooks attached; absent for UDP |
+| `last_accepted_boot_ns` | integer | The last of them, in nanoseconds since boot |
 
 ### Firewall
 
@@ -3108,7 +3125,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
-| GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, and the workload that bound each |
+| GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |

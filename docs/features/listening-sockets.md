@@ -9,7 +9,10 @@ there.
 
 The agent keeps one row per socket the node accepts traffic on, with the
 process that bound it and the workload that process belongs to, and lists them
-widest exposure first.
+widest exposure first. Each row is then read against the two other halves of an
+exposure: which sources the packet firewall lets through to it, and whether
+anybody connected. A socket open to every address that nobody has used since
+the agent started is the one to close first.
 
 ## How It Works
 
@@ -41,6 +44,43 @@ every address comes first. A server that spreads its accept over
 `SO_REUSEPORT` holds several sockets on one address and port; they are one row,
 with the number of sockets and the earliest bind.
 
+## Allowed and Observed
+
+**Allowed** is read from the packet firewall's rules as they are loaded, by
+priority, for the listener's protocol, port and address. The first rule that
+decides every packet bound for the socket - no source, MAC, alias, connection
+state, flag, ICMP, DSCP, VLAN, schedule, group, tenant or interface narrowing -
+settles it: `allow` and `log` let traffic through, `deny` and `reject` close
+it. A narrower `allow` before that point opens the socket to its sources, which
+are listed. A narrower `deny` is not read as closing anything, because some
+traffic may still pass it. With no deciding rule the default policy settles it.
+A firewall that is disabled or in alert mode closes nothing. A deny on one
+address does not close a socket bound on every address, since the others still
+reach it. Every doubt resolves to open: the reading may say a socket is exposed
+when a rule it cannot reason about closes it, never the reverse. Workload rules
+decide at `connect()` and `bind()` rather than on the packet, and are not read
+here.
+
+**Observed** is a count the socket hooks keep in the kernel: every TCP
+handshake the node completes as the server is counted against the local address
+and port it arrived on, with the time of the last one. A socket bound on every
+address takes the count of every address on its port. UDP has no handshake, so
+a UDP socket carries no count rather than a zero.
+
+| Class | Meaning |
+|-------|---------|
+| `exposed_used` | Reachable, and connections were accepted on it |
+| `exposed_unused` | Reachable, and no connection since the hooks attached |
+| `exposed_unmeasured` | Reachable UDP: what reaches it is not counted |
+| `closed_by_policy` | The packet firewall lets nothing off the node through |
+| `loopback_only` | Bound on loopback, reached from the namespace itself |
+
+A row closed by policy may still show accepted connections: they were taken
+before the rule was loaded, or came over loopback, which the packet firewall
+does not see. The count starts when the hooks attach and is held in a table of
+fixed size, so on a node with more listening addresses than it holds the
+coldest are evicted and read as unused.
+
 ## What It Does Not See
 
 - **Sockets bound before the hooks attached.** The table is filled by the
@@ -51,9 +91,9 @@ with the number of sockets and the earliest bind.
   `reading: false`: the node's listeners are unknown, which is not the same as
   having none. Why the attach failed is in
   [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md#get-apiv1ebpfkernel-features).
-- **Whether anything reaches the socket.** A row says that the node accepts
-  traffic on that address and port. Whether a firewall rule in front of it
-  closes it, or whether any traffic arrived, is a different reading.
+- **Filtering outside the agent.** A cloud security group, a network policy
+  of the cluster's network plugin or an nftables rule in front of the node is
+  not read: the class says what this agent's firewall lets through.
 - **Protocols other than TCP and UDP**, such as SCTP or a raw socket. Packet
   sockets are listed on [Packet Sockets](raw-sockets.md).
 
