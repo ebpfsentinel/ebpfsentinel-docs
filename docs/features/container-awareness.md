@@ -22,7 +22,7 @@ travel in. SOC analysts no longer need to correlate IP addresses back to
 workloads manually on the paths that do carry it - the workload identity
 travels with the alert.
 
-Container awareness is composed of six independent building blocks:
+Container awareness is composed of seven independent building blocks:
 
 | Block | Edition | Purpose |
 |-------|---------|---------|
@@ -30,6 +30,7 @@ Container awareness is composed of six independent building blocks:
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
 | Podman Enricher | OSS | Podman's Docker-compatible API, rootful and one runtime per rootless user (image, labels, status) |
 | LXC Enricher | OSS | Proxmox CT configuration files and the Incus API (name, image, labels) |
+| Guest Naming | OSS | Proxmox VM configuration files and libvirt domain status files, for each tap or macvtap device (name, id, tags) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
 | Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS, wolfSSL, mbedTLS, s2n-tls, static OpenSSL or BoringSSL and Go `crypto/tls` are attached at the resolved offsets, and kTLS on the kernel's own send and receive symbols; Java JSSE and NSS are discovered and reported without being probed. Each workload carries a published verdict - read, or not read with the reason |
 
@@ -291,6 +292,45 @@ firewall:
         mode: enforce
 ```
 
+## Hypervisor Guests
+
+A virtual machine's traffic crosses the host on its tap or macvtap device,
+so the link watcher attaches the agent's chain there as it does on a
+container's veth, and names the guest from the record its hypervisor keeps:
+
+| Hypervisor | Device | Source | `name` | `id` | `tags` |
+|------------|--------|--------|--------|------|--------|
+| Proxmox VE | `tap<vmid>i<n>` | `/etc/pve/qemu-server/<vmid>.conf` | `name` | VMID | `tags` |
+| libvirt (KVM, QEMU) | any tap or macvtap a domain lists | `/run/libvirt/qemu/<domain>.xml` | domain name | UUID | - |
+
+The device, not a cgroup, is a guest's key: the guest runs its own kernel,
+so no process of it is in the host's process table. A device no record
+names is listed unnamed with a reason code (`no_source`, `no_record`,
+`record_without_name` or `record_unreadable`) and never given a placeholder
+name. A `tun` device, which carries IP packets for a VPN rather than a
+guest's frames, is not a guest.
+
+```bash
+ebpfsentinel-agent ebpf guests
+```
+
+```text
+Guests on this host: 2 named, 1 unnamed
+
+INTERFACE  KIND  ATTACHED  GUEST               ID                                    SOURCE   TAGS
+tap101i0   tap   yes       web-01              101                                   proxmox  prod,eu-west
+vnet3      tap   yes       db                  6f1c1a8e-0a7b-4d3c-9b8e-2f9d1e7c4a55  libvirt  -
+vnet9      tap   yes       unnamed: no_record  -                                     -        -
+  vnet9: no libvirt domain and no Proxmox virtual machine names this device; it may belong to a hypervisor the agent does not read
+```
+
+```yaml
+container:
+  guests:
+    proxmox_dir: /etc/pve/qemu-server   # empty skips Proxmox
+    libvirt_dir: /run/libvirt/qemu      # empty skips libvirt
+```
+
 ## Kubernetes Enricher
 
 The Kubernetes enricher runs a `kube-rs` reflector on the `Pod`
@@ -527,6 +567,9 @@ container:
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
+  guests:
+    proxmox_dir: /etc/pve/qemu-server
+    libvirt_dir: /run/libvirt/qemu
   kubernetes:
     enabled: false
     node_name: ""               # auto-detect

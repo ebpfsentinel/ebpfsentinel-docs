@@ -573,6 +573,50 @@ here. Without the enricher there is no pod to judge and the route answers
 Why each gap exists and what lifts it is on
 [what a node agent sees](../architecture/node-agent-visibility.md).
 
+#### GET /api/v1/ebpf/guests
+
+The virtual machines whose tap or macvtap devices are on this host, each
+named from the record its hypervisor keeps: the Proxmox configuration file of
+a `tap<vmid>i<n>` device, or the status file of the libvirt domain listing
+the device among its interfaces. The records are read when the route is
+asked, never cached. A device no record names carries an `unnamed` code and a
+`reason` sentence instead of a `guest`, and is never given a placeholder
+name. A `tun` device is not a guest and is not listed.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/guests
+```
+
+```json
+{
+  "named": 1,
+  "unnamed": 1,
+  "guests": [
+    {"interface": "tap101i0", "ifindex": 14, "kind": "tap", "attached": true,
+     "guest": {"name": "web-01", "id": "101", "source": "proxmox",
+               "tags": ["prod", "eu-west"]}},
+    {"interface": "vnet9", "ifindex": 17, "kind": "tap", "attached": true,
+     "unnamed": "no_record",
+     "reason": "no libvirt domain and no Proxmox virtual machine names this device; it may belong to a hypervisor the agent does not read"}
+  ]
+}
+```
+
+`kind` is `tap` or `macvtap`; `source` is `proxmox` or `libvirt`, and `id` is
+the VMID or the domain's UUID. The `unnamed` codes are stable:
+
+| Code | Meaning |
+|------|---------|
+| `no_source` | Both `container.guests` directories are empty in the configuration. |
+| `no_record` | No libvirt domain and no Proxmox virtual machine names this device. |
+| `record_without_name` | The Proxmox configuration for this VMID carries no `name`. |
+| `record_unreadable` | A record that could name the device could not be read. |
+
+The list comes from the link watcher, which runs once a TC program is loaded
+and not under the `pod` profile; otherwise the route answers `404` with
+`SERVICE_NOT_AVAILABLE`. See
+[Container Awareness Configuration](../configuration/container.md#guest-naming).
+
 #### GET /api/v1/ebpf/uprobes
 
 The DLP uprobe set the agent currently holds links for. An empty `probes` list is a real answer, and always the same one: no TLS payload is being read. It covers a DLP module that is not loaded, a library scan that resolved nothing, and a datapath that has been detached.
@@ -3132,6 +3176,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/status` | Yes | eBPF program status |
 | GET | `/api/v1/ebpf/kernel-features` | Yes | Probed kernel helper support |
 | GET | `/api/v1/ebpf/coverage` | Yes | What the agent sees of each pod on this node |
+| GET | `/api/v1/ebpf/guests` | Yes | The virtual machines whose tap or macvtap devices are on this host |
 | GET | `/api/v1/ebpf/uprobes` | Yes | Attached DLP uprobes with resolved offsets |
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |

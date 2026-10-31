@@ -1172,6 +1172,9 @@ ebpfsentinel-agent ebpf kernel-features
 # What the agent sees of each pod on this node, uncovered first
 ebpfsentinel-agent ebpf coverage
 
+# The virtual machines whose tap or macvtap devices are on this host
+ebpfsentinel-agent ebpf guests
+
 # Can an LSM program attach on this host? No agent, no root, no configuration
 ebpfsentinel-agent ebpf host-check
 
@@ -1265,6 +1268,13 @@ beyond loopback on this node, and marks those pods with `*`. It needs the
 Kubernetes enricher; see
 [`GET /api/v1/ebpf/coverage`](../api-reference/rest-api.md#get-apiv1ebpfcoverage)
 for the codes.
+
+`ebpf guests` lists each tap or macvtap device on the host with the virtual
+machine its hypervisor names for it, from Proxmox or libvirt, and the reason
+a device stays unnamed. See
+[`GET /api/v1/ebpf/guests`](../api-reference/rest-api.md#get-apiv1ebpfguests)
+for the codes and
+[Guest Naming](../configuration/container.md#guest-naming) for the sources.
 
 It also prints a `Stopping a process` block: whether that capability is armed
 on this node and, where it is, the signal a kill would send, how long the

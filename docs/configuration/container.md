@@ -1,6 +1,6 @@
 # Container Awareness Configuration
 
-Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Five independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
+Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Six independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
 
 ## Configuration
 
@@ -33,6 +33,9 @@ container:
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
+  guests:
+    proxmox_dir: /etc/pve/qemu-server
+    libvirt_dir: /run/libvirt/qemu
   kubernetes:
     enabled: false
     node_name: ""
@@ -173,6 +176,37 @@ The agent refuses to start with a zero `cache_size` or `timeout_ms`.
 
 The Incus socket, like the Docker one, is the daemon's API: the agent issues
 GETs only, and the socket's ownership decides what it may do.
+
+## Guest Naming
+
+Names the virtual machine behind each tap or macvtap device the link
+watcher finds on the host. A guest carries its own kernel, so nothing in the
+host's process table or cgroup tree is the guest's: the device is the only
+place the agent meets its traffic, and the name comes from the record the
+hypervisor keeps for it.
+
+- **Proxmox VE**: a guest's tap is `tap<vmid>i<n>`. The agent reads
+  `<proxmox_dir>/<vmid>.conf` and takes its `name` and its `tags`; snapshot
+  sections are ignored, so the name is the current one.
+- **libvirt**: the agent reads the status file libvirt keeps for each running
+  domain under `libvirt_dir` and finds the device among the domain's
+  interfaces, taking the domain's name and UUID.
+- **Neither**: the device is listed unnamed, with the reason, and never
+  given a placeholder name.
+
+The records are read each time the guest list is asked for, never cached,
+because libvirt writes a domain's status file after it made the device.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `guests.proxmox_dir` | string | `/etc/pve/qemu-server` | Directory holding the Proxmox VM configuration files; empty skips Proxmox |
+| `guests.libvirt_dir` | string | `/run/libvirt/qemu` | Directory holding libvirt's running-domain status files; empty skips libvirt |
+
+> Requires bind mounts when containerized: `-v /etc/pve/qemu-server:/etc/pve/qemu-server:ro` on a Proxmox node, `-v /run/libvirt/qemu:/run/libvirt/qemu:ro` on a libvirt host
+
+The list is read with
+[`ebpfsentinel-agent ebpf guests`](../cli-reference/index.md#ebpf) or
+[`GET /api/v1/ebpf/guests`](../api-reference/rest-api.md#get-apiv1ebpfguests).
 
 ## Kubernetes Enricher
 
