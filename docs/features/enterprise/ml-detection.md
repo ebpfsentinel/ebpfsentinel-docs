@@ -378,6 +378,17 @@ Statistical detection of Domain Generation Algorithm (DGA) domains and DNS tunne
 
 **Allowlist:** built-in patterns for CDNs and cloud providers (`*.cdn.cloudflare.net`, `*.amazonaws.com`, etc.). Configurable via API.
 
+**Every captured query is scored, and a verdict is an alert.** The DNS capture hands each outgoing query to the scorer, and a name flagged as a tunnel or a generated domain raises an alert with the component `dns`:
+
+| Rule id | Raised when | Severity | ATT&CK |
+|---|---|---|---|
+| `dns-entropy-tunnelling` | the name carries a subdomain long and random enough to carry data | high | T1071.004 DNS |
+| `dns-entropy-dga` | the name looks generated and is not a tunnel | medium | T1568 Dynamic Resolution |
+
+A name that is both is one tunnelling alert. An allowlisted name raises nothing, and a response is never scored.
+
+The alert carries the flow of the query and the full workload block with its ancestry, resolved from the socket that sent it, so it names the process that asked rather than only the resolver it asked. A query relayed by the node's stub resolver is attributed to the resolver, since the resolver's socket is the one that sent it; a query sent straight to the network is attributed to the process that sent it. Where the agent cannot read the node's processes, the alert still carries the flow and the container, and no workload.
+
 ---
 
 ## TLS Fingerprint Clustering
