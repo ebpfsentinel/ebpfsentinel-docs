@@ -178,7 +178,7 @@ eBPFsentinel v0.1.0 -- up 3h 12m 05s -- 24 rules loaded
 
   Programs  12/12 loaded    xdp-firewall ✓  xdp-ratelimit ✓  tc-ids ✓  tc-dns ✓
 
-  Containers /host/proc (host procfs), ids yes, docker on, podman on, kubernetes off, not in a cluster
+  Containers /host/proc (host procfs), ids yes, docker on, podman on, lxc on, kubernetes off, not in a cluster
              podman uid 1000: unnamed, no socket (podman.socket not enabled, or not mounted) (/run/user/1000/podman/podman.sock)
 
   Conntrack  1,247 active connections

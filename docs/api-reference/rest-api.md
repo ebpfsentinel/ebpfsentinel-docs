@@ -149,6 +149,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
     "resolver": true,
     "docker": "on",
     "podman": "on",
+    "lxc": "on",
     "kubernetes": "off_not_in_cluster",
     "podman_runtimes": [
       { "uid": null, "socket": "/run/podman/podman.sock", "reach": "reachable" },

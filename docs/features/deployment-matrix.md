@@ -49,6 +49,7 @@ relative to the agent repository unless they start with `../`.
 | **Container Resolver** (OSS) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `crates/adapters/src/container/proc_resolver.rs`, `cgroupfs_resolver.rs` |
 | **Docker Enricher** (OSS) | :warning: | :white_check_mark: | :warning: | :x: | `crates/adapters/src/container/docker_events.rs`, `docker_enricher.rs` |
 | **Podman Enricher** (OSS) | :warning: | :warning: | :x: | :x: | `crates/adapters/src/container/podman_enricher.rs` |
+| **LXC Enricher** (OSS) | :white_check_mark: | :warning: | :x: | :x: | `crates/adapters/src/container/lxc_enricher.rs` |
 | **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | `crates/adapters/src/container/k8s_enricher.rs` |
 | **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
 | **Process table and ancestry** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `crates/ebpf-programs/tracepoint-process`, `crates/application/src/process_table_service.rs` |
@@ -80,6 +81,10 @@ point:
   user and, from a container, a `/run/user` mount. A runtime the agent cannot
   reach is reported by name, never guessed; see
   [what a rootless runtime costs](container-awareness.md#what-a-rootless-runtime-costs).
+- **LXC Enricher, container** - a Proxmox CT is named from
+  `/etc/pve/lxc`, an Incus instance from the daemon's socket, and a
+  containerised agent sees neither without the mount. A plain LXC container
+  is named from its cgroup and needs nothing.
 - **Container Resolver** - it reads `/proc/<pid>/cgroup` and the cgroup
   hierarchy, so a containerised agent needs both the `/host/proc` mount and
   `/sys/fs/cgroup` read-only, which is what the Compose file and the chart
@@ -87,7 +92,7 @@ point:
 
 ### What the node itself reports
 
-The four container rows above are the ones a customer can check against the
+The five container rows above are the ones a customer can check against the
 running agent rather than against this page. `GET /api/v1/agent/status` carries
 a `container_coverage` object, and `ebpfsentinel-agent status` prints it as one
 line:
@@ -100,6 +105,7 @@ line:
     "resolver": true,
     "docker": "on",
     "podman": "off_by_configuration",
+    "lxc": "on",
     "kubernetes": "off_not_in_cluster",
     "podman_runtimes": []
   }
@@ -112,6 +118,7 @@ line:
 | `resolver` | **Container Resolver** |
 | `docker` | **Docker Enricher** - `on`, `off_no_socket`, `off_by_configuration` |
 | `podman`, `podman_runtimes` | **Podman Enricher** - `on`, `off_no_socket`, `off_by_configuration`, and each runtime it has gone to with whether it answers |
+| `lxc` | **LXC Enricher** - `on`, `off_by_configuration` |
 | `kubernetes` | **Kubernetes Enricher** - `on`, `off_not_in_cluster`, `off_unavailable`, `off_by_configuration`, `off_not_built` |
 
 `starting` means the agent has not finished building its enrichers yet. A

@@ -1,6 +1,6 @@
 # Container Awareness Configuration
 
-Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Four independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
+Container awareness enriches alerts and events with workload identity (pod name, namespace, container ID, labels). Five independent components can be enabled separately. See [Container Awareness](../features/container-awareness.md) for the feature overview.
 
 ## Configuration
 
@@ -23,6 +23,13 @@ container:
     socket: /run/podman/podman.sock
     rootless: true
     run_user_root: /run/user
+    cache_size: 1024
+    cache_ttl_seconds: 300
+    timeout_ms: 2000
+  lxc:
+    enabled: true
+    proxmox_dir: /etc/pve/lxc
+    incus_socket: /var/lib/incus/unix.socket
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
@@ -127,6 +134,45 @@ their id and runtime from the resolver. The limits are spelled out on the
 [feature page](../features/container-awareness.md#what-a-rootless-runtime-costs).
 
 > Requires bind mounts when containerized: `-v /run/podman/podman.sock:/run/podman/podman.sock:ro`, and `-v /run/user:/run/user:ro` for rootless runtimes
+
+## LXC Enricher
+
+Names an LXC container: a Proxmox CT, an Incus or LXD instance, or one
+started with the LXC tools themselves. An LXC container is a cgroup like any
+other, so the resolver gives it runtime `lxc` and its name, read from the
+cgroup path (`lxc.payload.<name>`, or `lxc/<name>` on Proxmox and on older
+LXC), and every rule scoped by container name applies to it unchanged. The
+enricher then adds what the host knows about it:
+
+- **Proxmox**: a CT is named by its number. The enricher reads
+  `<proxmox_dir>/<vmid>.conf` and takes the `hostname` as the container's
+  name, the `ostype` as its image and each of its `tags` as a
+  `proxmox.tag` label, beside `proxmox.vmid`. Snapshot sections are
+  ignored, so the name is the current one.
+- **Incus**: the enricher asks the daemon on `incus_socket` for the instance,
+  in its project (`<project>_<name>` in the cgroup), and takes each `user.<key>`
+  configuration key as a label named `<key>`, its image description as its image and its
+  project as the `incus.project` label.
+- **Neither**: the container keeps the name its cgroup gives it.
+
+The enricher is on by default because it costs nothing on a host with no LXC
+container: a path that does not exist is a source that is not there.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `lxc.enabled` | bool | `true` | Enable LXC metadata enrichment |
+| `lxc.proxmox_dir` | string | `/etc/pve/lxc` | Directory holding the Proxmox CT configuration files; empty skips Proxmox |
+| `lxc.incus_socket` | string | `/var/lib/incus/unix.socket` | The Incus daemon's socket; empty skips Incus |
+| `lxc.cache_size` | usize | `1024` | Max cached container metadata entries |
+| `lxc.cache_ttl_seconds` | u64 | `300` | Cache TTL in seconds |
+| `lxc.timeout_ms` | u64 | `2000` | Incus API request timeout |
+
+The agent refuses to start with a zero `cache_size` or `timeout_ms`.
+
+> Requires bind mounts when containerized: `-v /etc/pve/lxc:/etc/pve/lxc:ro` on a Proxmox node, `-v /var/lib/incus/unix.socket:/var/lib/incus/unix.socket:ro` on an Incus host
+
+The Incus socket, like the Docker one, is the daemon's API: the agent issues
+GETs only, and the socket's ownership decides what it may do.
 
 ## Kubernetes Enricher
 

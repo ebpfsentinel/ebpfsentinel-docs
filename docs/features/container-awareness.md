@@ -22,18 +22,20 @@ travel in. SOC analysts no longer need to correlate IP addresses back to
 workloads manually on the paths that do carry it - the workload identity
 travels with the alert.
 
-Container awareness is composed of five independent building blocks:
+Container awareness is composed of six independent building blocks:
 
 | Block | Edition | Purpose |
 |-------|---------|---------|
 | Container Resolver | OSS | cgroup → `ContainerInfo` (runtime + container id) |
 | Docker Enricher | OSS | Docker Engine API (image, labels, status) |
 | Podman Enricher | OSS | Podman's Docker-compatible API, rootful and one runtime per rootless user (image, labels, status) |
+| LXC Enricher | OSS | Proxmox CT configuration files and the Incus API (name, image, labels) |
 | Kubernetes Enricher | OSS | kube-rs pod watcher (pod, namespace, SA, owner) |
 | Extended TLS Hooking | Enterprise | Discovers Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS - background `/proc` scanner, 6 Prometheus metrics, `/api/v1/enterprise/tls-probes/*` admin API. GnuTLS, wolfSSL, mbedTLS, s2n-tls, static OpenSSL or BoringSSL and Go `crypto/tls` are attached at the resolved offsets, and kTLS on the kernel's own send and receive symbols; Java JSSE and NSS are discovered and reported without being probed. Each workload carries a published verdict - read, or not read with the reason |
 
 Each block is opt-in: a bare-metal agent can stay lean, a Docker host
-turns on the Docker enricher, a Podman host the Podman one, a Kubernetes DaemonSet turns on the K8s
+turns on the Docker enricher, a Podman host the Podman one, a Proxmox or
+Incus host keeps the LXC one it starts with, a Kubernetes DaemonSet turns on the K8s
 enricher (and automatically skips Docker).
 
 ## Environment Detection
@@ -72,6 +74,15 @@ from whichever enricher reaches that runtime.
 | Podman, rootful | `libpod-<id>` | ✅ | Podman enricher |
 | Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs) |
 | containerd or CRI-O outside Kubernetes | as above | ✅ | none: the id and the runtime only |
+| LXC, Incus, LXD | `lxc.payload.<name>` | ✅ | LXC enricher, from the Incus API; the name is the cgroup's |
+| Proxmox CT, older LXC | `lxc/<vmid>`, `lxc/<name>` | ✅ | LXC enricher, from the CT's configuration file |
+
+The id of an LXC container is its name, since LXC numbers nothing else,
+and an Incus instance outside the default project is `<project>_<name>`.
+The monitor process LXC keeps beside each container lives in
+`lxc.monitor.<name>` and stays a host process. A runtime started inside a
+system container, Docker in a Proxmox CT for example, names the inner
+container: the innermost runtime is the one that owns the task.
 
 Both cgroup v1 and v2 are supported. Unknown paths resolve to
 `ContainerInfo::Host` (host process, no container context).
@@ -200,7 +211,7 @@ warning naming the user, the socket and the reason, and
 with the same reason:
 
 ```text
-  Containers /proc (host procfs), ids yes, docker off by configuration, podman on, kubernetes off, not in a cluster
+  Containers /proc (host procfs), ids yes, docker off by configuration, podman on, lxc on, kubernetes off, not in a cluster
              podman root: named (/run/podman/podman.sock)
              podman uid 1000: unnamed, no socket (podman.socket not enabled, or not mounted) (/run/user/1000/podman/podman.sock)
 ```
@@ -240,6 +251,44 @@ agent runs in a container, mount the sockets read-only:
 ```bash
 podman run ... -v /run/podman/podman.sock:/run/podman/podman.sock:ro \
                -v /run/user:/run/user:ro ...
+```
+
+## LXC Enricher
+
+Proxmox VE, Incus and LXD all run system containers on LXC, and an LXC
+container is a cgroup, so it is a container like the others: the resolver
+names it from its cgroup path, a workload rule naming it by name applies,
+and an alert from it carries runtime `lxc`. The enricher fills in what the
+host knows beyond the name:
+
+| Host | Source | `name` | `image` | Labels |
+|------|--------|--------|---------|--------|
+| Proxmox VE | `/etc/pve/lxc/<vmid>.conf` | `hostname` | `ostype` | `proxmox.vmid`, one `proxmox.tag` per tag |
+| Incus | `GET /1.0/instances/<name>` on the daemon socket | instance name | image description | each `user.<key>` as `<key>`, `incus.project` |
+| Plain LXC | the cgroup path | container name | - | - |
+
+A Proxmox CT is named by its number in the cgroup and by its hostname in
+the enricher, so a rule may use either: `container: "4101"` and
+`container: ct-web` name the same CT.
+
+```yaml
+container:
+  lxc:
+    enabled: true                              # default: true
+    proxmox_dir: /etc/pve/lxc                  # empty skips Proxmox
+    incus_socket: /var/lib/incus/unix.socket   # empty skips Incus
+```
+
+```yaml
+firewall:
+  rules:
+    - id: ct-web-no-smtp
+      action: deny
+      protocol: tcp
+      dst_port: 25
+      workload:
+        container: ct-web
+        mode: enforce
 ```
 
 ## Kubernetes Enricher
@@ -419,14 +468,14 @@ webhook payload and on the exporters that ship the alert whole.
 | Field | Filled by | Meaning |
 |-------|-----------|---------|
 | `kind` | always | Always the string `container`: a host-namespace process carries no `container` object at all, so the field never says `host` |
-| `runtime` | resolver | `docker`, `containerd`, `crio`, `podman` or `unknown` |
+| `runtime` | resolver | `docker`, `containerd`, `crio`, `podman`, `lxc` or `unknown` |
 | `id` | resolver | Canonical container id |
 | `cgroup_path` | resolver | The cgroup path the resolver matched |
 | `namespace` | Kubernetes enricher | Pod namespace |
 | `pod` | Kubernetes enricher | Pod name |
 | `container_name` | Kubernetes enricher | Container name inside the pod |
-| `name` | Docker or Podman enricher | Container name, leading `/` stripped |
-| `image` | Docker or Podman enricher | Image tag, for example `nginx:1.25` |
+| `name` | Docker, Podman or LXC enricher | Container name, leading `/` stripped |
+| `image` | Docker, Podman or LXC enricher | Image tag, for example `nginx:1.25`; the OS type of a Proxmox CT |
 
 On REST an unfilled field is absent rather than empty; on gRPC, where
 every field is a `string`, it is the empty string. The `pid` the
@@ -471,6 +520,13 @@ container:
     cache_size: 1024
     cache_ttl_seconds: 300
     timeout_ms: 2000
+  lxc:
+    enabled: true
+    proxmox_dir: /etc/pve/lxc
+    incus_socket: /var/lib/incus/unix.socket
+    cache_size: 1024
+    cache_ttl_seconds: 300
+    timeout_ms: 2000
   kubernetes:
     enabled: false
     node_name: ""               # auto-detect
@@ -479,16 +535,17 @@ container:
 
 ## Deployment Requirements
 
-| Requirement | Resolver | Docker | Podman | Kubernetes |
-|-------------|:--------:|:------:|:------:|:----------:|
-| `CAP_BPF` + `CAP_NET_ADMIN` (existing) | ✅ | ✅ | ✅ | ✅ |
-| `CAP_SYS_PTRACE` (for `/proc` introspection) | ✅ | ✅ | ✅ | ✅ |
-| `/proc` mount (read-only) | ✅ | ✅ | ✅ | ✅ |
-| Docker socket mount | - | ✅ | - | - |
-| Podman socket mount, and `/run/user` for rootless | - | - | ✅ | - |
-| In-cluster service account | - | - | - | ✅ |
-| ClusterRole on `pods` get/list/watch and `namespaces` list/watch | - | - | - | ✅ |
-| Kernel version | any | any | any | any |
+| Requirement | Resolver | Docker | Podman | LXC | Kubernetes |
+|-------------|:--------:|:------:|:------:|:---:|:----------:|
+| `CAP_BPF` + `CAP_NET_ADMIN` (existing) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `CAP_SYS_PTRACE` (for `/proc` introspection) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `/proc` mount (read-only) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Docker socket mount | - | ✅ | - | - | - |
+| Podman socket mount, and `/run/user` for rootless | - | - | ✅ | - | - |
+| `/etc/pve/lxc` on Proxmox, the Incus socket on Incus | - | - | - | ✅ | - |
+| In-cluster service account | - | - | - | - | ✅ |
+| ClusterRole on `pods` get/list/watch and `namespaces` list/watch | - | - | - | - | ✅ |
+| Kernel version | any | any | any | any | any |
 
 See [least-privilege deployment](../operations/deployment/kubernetes.md)
 for the complete Helm / manifest template.

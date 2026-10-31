@@ -139,7 +139,7 @@ Container and Kubernetes provenance for an alert, resolved from the originating 
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
-| 1 | `runtime` | `string` | Detected runtime (docker, containerd, crio, podman, unknown). |
+| 1 | `runtime` | `string` | Detected runtime (docker, containerd, crio, podman, lxc, unknown). |
 | 2 | `id` | `string` | Container ID. |
 | 3 | `cgroup_path` | `string` | cgroup path the resolver matched. |
 | 4 | `namespace` | `string` | Kubernetes namespace (empty unless a k8s enricher attached metadata). |

@@ -124,7 +124,7 @@ When the container resolver is enabled (see
 [Container Awareness](container-awareness.md)), every DLP alert is
 automatically enriched with the workload that produced the leak:
 
-- `container` - runtime (`docker`/`containerd`/`crio`/`podman`) and
+- `container` - runtime (`docker`/`containerd`/`crio`/`podman`/`lxc`) and
   canonical container id resolved from the event's `cgroup_id`
 - `container_metadata` - Docker image + labels (Docker enricher) or
   pod name, namespace, labels, service account, and owner reference
