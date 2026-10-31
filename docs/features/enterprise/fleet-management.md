@@ -21,6 +21,7 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
 | `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
 | `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
+| `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
 
 ### What authenticates what
 
@@ -398,13 +399,37 @@ Executables that originated flows and match no component are listed under
 `unmatched_executables`: a binary the SBOM does not account for is itself worth
 reading.
 
+### What a component listens on
+
+The same report says which components take traffic in, not only which ones
+send it out. Each component carries `listens_on`: every socket an executable
+joined to it listens on, read from the node's
+[listening socket inventory](../listening-sockets.md) and joined by the same
+rule as the flows, so a file the SBOM lists at the path of a listening
+executable ties that socket to the component. Each entry carries the
+`address`, the `port`, the `protocol` and its `exposure` class -
+`exposed_used`, `exposed_unused`, `exposed_unmeasured`, `closed_by_policy` or
+`loopback_only` - as the inventory classed it against the firewall and the
+connections accepted.
+
+A component with an `exposed_unused` socket ships a listener the firewall lets
+the network reach and nobody has used since the hooks attached: the package
+with that executable is surface without a purpose, which is usually the first
+one to take out of the image. The list is empty when the socket hooks are not
+attached, because the inventory then knows nothing, and it names only the
+sockets bound since they attached.
+
+The agent serves the inventory itself at `GET /api/v1/exposure/listeners`, in
+the same body as the open source agent, so one query answers in the same words
+whichever edition a node runs.
+
 ### Report fields
 
 | Field | Meaning |
 |-------|---------|
 | `components_total`, `components_with_files`, `components_reached` | How many components the SBOM holds, how many list a file, how many were joined to a flow |
 | `workload_observed`, `observed_since_ns` | Whether any flow was seen from this workload, and since when |
-| `components[]` | Per component: `status` (`reached` or `not_observed`), `join`, `confidence`, `identity`, the `executables` and `destinations` it was joined through, `last_seen_ns` |
+| `components[]` | Per component: `status` (`reached` or `not_observed`), `join`, `confidence`, `identity`, the `executables` and `destinations` it was joined through, `last_seen_ns`, and `listens_on` |
 | `unmatched_executables[]` | Executables that originated flows and match no component |
 | `limits[]` | What the report cannot say, written into the answer itself |
 
@@ -418,7 +443,21 @@ component names, and the report's `limits` printed as the agent wrote them. A
 member holding the right to push agent configuration can hand a CycloneDX or
 SPDX JSON file to one agent for one workload, or take it back; the document is
 proxied to that agent alone, because the flows it is joined with are that
-agent's.
+agent's. Each reached component lists the sockets it listens on beside the
+destinations it reached, with their exposure class.
+
+The **Exposure** screen, under the same licence feature, reads the inventory of
+every agent in scope: one row per listening socket with its node, its workload,
+its class, what decided whether the network reaches it and how many connections
+it accepted, the reachable sockets nobody used listed first, and the nodes whose
+socket hooks are not attached named rather than counted as closed. Below it, the
+changes since a date the reader picks: what opened, what closed and what changed
+class, node by node, between the first day kept on or after that date and the
+latest. The dashboard server reads every agent once an hour and keeps one
+reading a day per node for 456 days in its history store, so the comparison
+needs that store; without it the screen says so. A node read on only one of the
+two days is named as not compared rather than shown as having opened or closed
+everything.
 
 ## Configuration
 

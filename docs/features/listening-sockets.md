@@ -102,3 +102,7 @@ coldest are evicted and read as unused.
 - REST: [`GET /api/v1/exposure/listeners`](../api-reference/rest-api.md#get-apiv1exposurelisteners)
 - CLI: `ebpfsentinel-agent exposure listeners`
 - Configuration: the socket attribution hooks, [`attribution`](../configuration/attribution.md)
+- Enterprise: the same inventory is served by the enterprise agent, joined to
+  each workload's SBOM, and read across the fleet on the dashboard's
+  **Exposure** screen, which also compares the estate with any day of the last
+  456 - see [Fleet management](enterprise/fleet-management.md#what-a-component-listens-on)

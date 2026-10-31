@@ -407,6 +407,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/flows/reachability/report` | viewer | `config:read` | fleet-management | One workload's SBOM joined with its outbound flows (`?workload=`); `404` when no SBOM is held. Correlation, with its limits in the answer. |
 | `PUT` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Keep a CycloneDX or SPDX JSON document (at most 32 MiB) as the SBOM of `?workload=`. |
 | `DELETE` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Forget the SBOM of `?workload=`. |
+| `GET` | `/api/v1/exposure/listeners` | viewer | `config:read` | fleet-management | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did; the same body as the open source agent. |
 
 ## High availability
 

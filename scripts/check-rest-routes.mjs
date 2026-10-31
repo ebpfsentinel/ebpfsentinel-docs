@@ -48,6 +48,7 @@ const FEATURE_DOCS = [
   ['/api/v1/enterprise/tls-probes', 'dlp.md'],
   ['/api/v1/agent', 'fleet-management.md'],
   ['/api/v1/flows', 'fleet-management.md'],
+  ['/api/v1/exposure', 'fleet-management.md'],
   ['/api/v1/ha', 'high-availability.md'],
   ['/api/v1/enterprise/l7/enriched-alerts', 'l7-alert-enrichment.md'],
   ['/api/v1/enterprise/l7/policy', 'l7-per-protocol-policies.md'],
