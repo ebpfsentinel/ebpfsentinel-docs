@@ -39,6 +39,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 |---------|---------|-------------------|-------------|
 | [Firewall](firewall.md) | OSS | XDP | L3/L4 stateful filtering, LPM trie CIDR, TCP flags, ICMP type/code, MAC, DSCP, aliases, conntrack, NAT, zones, scheduling, scrub, policy routing |
 | [Learning Mode](learning-mode.md) | OSS | Userspace | A declared window reads what each workload dialled, rendered back as workload firewall rules in observe mode, with prefix collapsing stated in the output |
+| [Process Detections](process-detections.md) | OSS | Userspace | A reverse shell, a binary with no file on disk and a server's unexpected descendant, each read off the process tree where it holds a connection |
 | [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, payload shipped to the userspace L7 engine |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
 | [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
@@ -66,7 +67,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [IP/Port Aliases](aliases.md) | OSS | Userspace | Named address/port groups, external URL content |
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
-| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 38 techniques mapped, filter by tactic/technique, coverage dashboard |
+| [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 40 techniques mapped, filter by tactic/technique, coverage dashboard |
 | [JA4+ Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
 | [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Userspace | DoH/DoT passive detection with built-in resolvers |
 

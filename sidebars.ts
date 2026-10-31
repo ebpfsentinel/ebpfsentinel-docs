@@ -52,6 +52,7 @@ const sidebars: SidebarsConfig = {
         'features/overview',
         'features/firewall',
         'features/learning-mode',
+        'features/process-detections',
         'features/ids',
         'features/ips',
         'features/dlp',

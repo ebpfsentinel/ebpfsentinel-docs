@@ -32,6 +32,45 @@ process_table:
 too small to describe a node of any size; above the ceiling it is a memory
 decision that belongs in a deployment review rather than in a default.
 
+## Detections
+
+The table also carries three detections that read it where a process touches
+the network. What each one looks for and what it cannot see is on
+[Process detections](../features/process-detections.md); the settings are here.
+
+```yaml
+process_table:
+  detections:
+    enabled: true
+    interval_secs: 10
+    kinds:
+      reverse_shell: true
+      fileless: true
+      server_descendant: true
+    interpreters: [sh, bash, dash, zsh, ksh, ash, busybox, "python*", "perl*", "ruby*", php, "php[0-9]*", node, "lua*"]
+    servers: [nginx, apache2, httpd, "php-fpm*", lighttpd, caddy, uwsgi]
+    expected: []
+    kill_process: false
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `detections.enabled` | bool | `true` | Sample the connection and process tables and run the detections. Needs `process_table.enabled` |
+| `detections.interval_secs` | u64 | `10` | Seconds between two samples. Accepted between `1` and `3600` |
+| `detections.kinds.reverse_shell` | bool | `true` | A shell or interpreter whose standard input or output is an internet socket, or that connects out from under a server |
+| `detections.kinds.fileless` | bool | `true` | A process holding a connection whose binary was deleted after it started, or never had a file (`memfd`) |
+| `detections.kinds.server_descendant` | bool | `true` | A process a server started that connects out and is not in `expected` |
+| `detections.interpreters` | list of string | see above | The shells and interpreters a reverse shell is made of |
+| `detections.servers` | list of string | see above | The servers whose descendants are expected to answer rather than dial out |
+| `detections.expected` | list of string | `[]` | Programs a server is expected to start and that may connect out, such as the client a PHP application calls |
+| `detections.kill_process` | bool | `false` | Stop each process an alert names. Refused at load unless `response.kill_process.enabled` is set |
+
+An entry in the three lists is matched against the executable's file name, or
+against its full path when the entry contains a `/`. A trailing `*` matches any
+suffix and `[0-9]` matches one digit; a `*` anywhere else, or an empty entry,
+is refused at load. Setting `interpreters`, `servers` or `expected` replaces
+the default list rather than adding to it.
+
 ## An entry is removed, not aged out
 
 An exit purges the entry for that pid. The table therefore holds the processes

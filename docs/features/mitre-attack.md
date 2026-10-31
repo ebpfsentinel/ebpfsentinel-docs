@@ -121,6 +121,9 @@ is the reading of what alerts actually mapped to.
 | DLP | OSS | DLP match: credentials | T1048.003 | Exfiltration Over Unencrypted Non-C2 Protocol | exfiltration |
 | DNS intelligence | OSS | DNS blocklist match or encrypted DNS detection | T1071.004 | DNS | command-and-control |
 | DNS intelligence | OSS | DNS reputation auto-block | T1568 | Dynamic Resolution | command-and-control |
+| Process detections | OSS | Shell or interpreter on a socket, or dialling out under a server | T1059 | Command and Scripting Interpreter | execution |
+| Process detections | OSS | Process with no file on disk holding a connection | T1620 | Reflective Code Loading | defense-evasion |
+| Process detections | OSS | Unexpected descendant of a server connecting out | T1190 | Exploit Public-Facing Application | initial-access |
 | ML anomaly detection | Enterprise | ML: traffic volume drift (packet/byte rate) | T1498.001 | Direct Network Flood | impact |
 | ML anomaly detection | Enterprise | ML: protocol ratio drift (TCP/UDP/ICMP) | T1572 | Protocol Tunneling | command-and-control |
 | ML anomaly detection | Enterprise | ML: port entropy spike | T1046 | Network Service Scanning | discovery |
