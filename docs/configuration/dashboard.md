@@ -701,6 +701,10 @@ The migration creates nine tables (prefixed with `table_prefix`):
   (ReplacingMergeTree, the newest sample of the day wins), kept 456 days by
   the table's own TTL rather than by `retention_days`. See
   [Compliance Reports](../features/enterprise/compliance-reports.md#posture-over-time).
+- `crypto_points` - one cryptography reading per tenant, workload and day,
+  the estate on an empty workload (ReplacingMergeTree, the newest sample of
+  the day wins), kept 456 days by the table's own TTL like the posture. See
+  [Compliance Reports](../features/enterprise/compliance-reports.md#over-time).
 - `summary_schedules` - one executive summary schedule per tenant
   (ReplacingMergeTree, the newest edit wins).
 - `summaries` - every executive summary issued, as it was issued, kept 456
@@ -907,6 +911,7 @@ The server exposes a single Axum router with the following route layout:
 | `DELETE /api/v1/{tenant}/hunts/saved/{hunt_id}` | session, analyst or above | Remove a saved hunt. 404 outside the tenant. |
 | `GET /api/v1/{tenant}/entities/{kind}/{value}` | session | Everything that touched one `host` (agent identifier), `address`, `workload` (`namespace/pod`, percent-encoded) or `domain` between `from` (default a day before `to`) and `to` (default now), at most 30 days apart: alerts, flows, DNS, TLS fingerprints, policy decisions and configuration changes, newest first, `limit` events per page (1 to 1000, default 200) and `next_to` for the page after. Each section says whether it was read from the history store or live from the agents, which agents did not answer or held more than one reading walks, or why it could not be read (`history_store_disabled`, `history_store_failed`); without a history store the alerts are still read from the agents. 400 for a value, range or limit refused; 404 for an unknown kind. |
 | `GET /api/v1/{tenant}/posture/trend` | session | Every day of the `days` window ending today (7 to 456, default 90), per framework: the score read that day or none where no report was read, then each change between two read days with the controls that improved and regressed and the rollouts written in between. 400 for a window refused; 503 with `{"reason":"history_store_disabled"}` without a history store. |
+| `GET /api/v1/{tenant}/crypto/trend` | session | Every day of the `days` window ending today (7 to 456, default 90), for the estate and for each of the 50 busiest workloads: the connections the tenant's agents counted since they started and how many were post-quantum, classical, legacy TLS or clear text, or none where no agent answered that day; `omitted_workloads` counts the rest. 400 for a window refused; 503 with `{"reason":"history_store_disabled"}` without a history store. |
 | `GET /api/v1/{tenant}/summaries/schedule` | session | The tenant's executive summary schedule (enabled, `interval_days`, recipients, sections), when the next one is due, and whether a mail relay is configured. 503 without a history store. |
 | `PUT /api/v1/{tenant}/summaries/schedule` | session, tenant admin or above | Write the schedule: an interval of 7, 30 or 90 days, at least one of `posture`, `alerts`, `cases` and `gaps`, at most 20 recipient addresses. 400 with the reason when refused. |
 | `GET /api/v1/{tenant}/summaries` | session | The 50 newest summaries issued for the tenant, newest first. |

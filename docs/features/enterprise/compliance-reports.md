@@ -440,6 +440,38 @@ always gives the same serial number and the same SHA-256.
 The dashboard records this document on a case as evidence by reference, its
 serial number and digest, and lists it in the case's evidence pack.
 
+### Over Time
+
+The dashboard reads every agent's cryptography report once an hour and keeps
+one point a day, the last reading of the day, for the whole estate and for
+each workload, so a migration to post-quantum key exchange is seen
+progressing rather than asserted. It is drawn on the compliance screen under
+**Cryptography over time**: the estate's post-quantum share as a line across
+the window, then the busiest workloads, each with its own line and any share
+of connections still on a TLS version before 1.2 or in clear.
+
+- **Shares, not volumes**: the agent's counts run since it started, so a
+  point is read as the share of connections that were post-quantum,
+  classical, legacy TLS or clear text, never as the traffic of that day. A
+  restarted agent starts its counts again, which moves the shares toward
+  what it has seen since.
+- **Workloads**: a workload is one end of an edge, named by its service where
+  the agent resolved one and by its address otherwise, and a connection
+  counts for both of its ends. A connection between two hosts that both run
+  an agent is counted by each. At most 50 workloads are listed, busiest
+  first; the answer says how many more the window holds.
+- **Missing days stay missing**: a day on which no agent answered is returned
+  with no counts and the line breaks there. An agent that does not serve the
+  report contributes nothing and is not counted as a failure.
+- **Retention**: points are kept 456 days, like the posture readings.
+- **Without a history store** nothing is retained and the route answers 503
+  with `{"reason":"history_store_disabled"}`; each agent's own report still
+  answers for the present.
+
+The trend is served by the dashboard at
+`/api/v1/{tenant}/crypto/trend?days=N`, where `N` is between 7 and 456
+(default 90); see [Dashboard configuration](../../configuration/dashboard.md#route-surface).
+
 ## Feature Gating
 
 Compliance Reports requires a valid license with the `compliance-reports`
