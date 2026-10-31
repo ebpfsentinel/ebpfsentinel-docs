@@ -46,6 +46,8 @@ A branch with nothing raised below it is closed, because the tree answers which 
 
 The connections are read from the host that raised the alert. Where that host refuses its connection table, the raised branch is still drawn and the panel says the rest could not be read. A workload running on many nodes draws the four hosts with the newest alerts and counts the others. A tree exists only where something raised: a workload no alert names has a timeline and no tree.
 
+How complete a tree is depends on whether the agent can read the node's processes: complete on a host and wherever `/host/proc` is mounted, partial without it, absent under the pod profile. The [deployment matrix](deployment-matrix.md#process-table-and-the-process-tree) states it per platform.
+
 ## Stopping the process
 
 With `kill_process: true` the agent stops each process an alert names, through the same in-kernel signal an [IPS](./ips.md) rule asks for, with the same protected commands. It is refused at load unless `response.kill_process.enabled` is set, so a configuration never reads as a containment that does not happen. It is off by default: the lists that decide what is a shell and what is a server are the operator's, and a kill on a list somebody else wrote is the operator's decision.

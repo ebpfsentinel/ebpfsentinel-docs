@@ -26,9 +26,12 @@ flow the node forwarded on behalf of somebody else has no local process, and
 the row then says so in words rather than staying blank: there is nothing to
 pivot to, and the address on each end is the only lead.
 
-What the alert does **not** carry is the parent process. The workload is the
-process that held the socket; the chain that started it lives in the agent's
-process tree and is not copied into every alert.
+The workload is the process that held the socket, and it carries the chain
+that started it: up to eight ancestors, parent first, exited ones included,
+with a word where the chain is cut or stops at a process the agent never saw.
+On an Enterprise console the alert opens on that chain drawn as a tree, with
+the host's connections as leaves; how complete the chain is on each platform
+is on the [deployment matrix](../features/deployment-matrix.md#process-table-and-the-process-tree).
 
 ## 2. The workload page reads as a timeline
 

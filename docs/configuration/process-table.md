@@ -115,6 +115,13 @@ An exit carries the start time of the process that ended. Where the table holds
 a later process on that pid, the late exit is counted in `missing_exit` and the
 live entry is left alone.
 
+## How complete the chain is per platform
+
+The kernel reports every process on the node; naming it needs the node's
+procfs, which a container reads through the `/host/proc` mount. Where the chain
+is complete, partial or absent - host, Docker, Kubernetes and the pod profile -
+is on the [deployment matrix](../features/deployment-matrix.md#process-table-and-the-process-tree).
+
 ## Where the kernel cannot read the parent
 
 Reading a parent and a start time in the kernel needs the offsets of four

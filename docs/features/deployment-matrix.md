@@ -51,6 +51,9 @@ relative to the agent repository unless they start with `../`.
 | **Podman Enricher** (OSS) | :warning: | :warning: | :x: | :x: | `crates/adapters/src/container/podman_enricher.rs` |
 | **Kubernetes Enricher** (OSS) | :x: | :x: | :white_check_mark: | :warning: | `crates/adapters/src/container/k8s_enricher.rs` |
 | **Extended TLS DLP** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :warning: | `../ebpfsentinel-enterprise/crates/enterprise-adapters/src/proc_tls_scanner.rs` |
+| **Process table and ancestry** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `crates/ebpf-programs/tracepoint-process`, `crates/application/src/process_table_service.rs` |
+| **Process detections** | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `crates/application/src/process_detection_service.rs` |
+| **Process tree in the console** (Enterprise) | :white_check_mark: | :white_check_mark:\*\* | :white_check_mark:\*\* | :x: | `../ebpfsentinel-dashboard/web/src/app/contexts/alerting/domain/process-tree.domain.ts` |
 | **Multi-WAN Routing** | :white_check_mark: | :white_check_mark: | :white_check_mark:\* | :x: | `crates/application/src/routing_service_impl.rs`, brokered by `crates/warden/src/net_ops.rs` |
 | **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/application/src/alert_pipeline.rs` |
 | **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/adapters/src/metrics.rs` |
@@ -267,6 +270,41 @@ spec:
 > `daemonset.hostPID` stays `false`. Both containers run with `Unconfined`
 > AppArmor and seccomp profiles, which the user-namespace unshare and the
 > bpffs delegation need.
+
+### Process table and the process tree
+
+The tracepoints that fill the process table fire for every process on the
+kernel, whatever namespace the agent runs in, and the parent of each process is
+read in the kernel at the fork or exec. What a deployment mode changes is
+whether userspace can then name what the kernel reported: the executable, the
+container and the pod are read from the node's procfs, which is `/proc` on the
+host and the `/host/proc` mount in a container. The chain behind a connection,
+and the tree the console draws from it, is therefore as complete as that read.
+
+| Mode | The tree is | What it holds |
+|------|-------------|---------------|
+| **Bare metal / VM** | Complete | Every process, its executable, its systemd unit and its chain of ancestors |
+| **Container** (`/proc` mounted at `/host/proc`) | Complete | The same, every container of the host named by the resolver and the Docker or Podman enricher. This is what `docker-compose.yml` ships |
+| **Container** (no `/host/proc` mount) | Partial | Every pid and its parent, but the processes outside the agent's container carry their kernel name rather than an executable, and no container |
+| **K8s DaemonSet** (`/host/proc` mounted) | Complete | The same, each process named with its pod, namespace and owner. This is what the Helm chart ships, with `daemonset.hostPID` left `false` |
+| **K8s DaemonSet** (no `/host/proc` mount) | Partial | As for a container without the mount |
+| **Sidecar** (`profile: pod`) | None | The pod profile does not load the process table; a configuration enabling it there is refused at startup. The node agent of that node draws the pod's processes |
+
+Three limits hold in every mode, and each is said on the chain rather than left
+for a reader to infer:
+
+- **A process that started before the agent has no entry.** A chain reaching it
+  stops there and is marked incomplete (`ancestry.incomplete`), so the tree of a
+  daemon started at boot begins at that daemon until it is restarted.
+- **A chain longer than eight is cut** and marked truncated
+  (`ancestry.truncated`); the console says so above the tree.
+- **A kernel whose BTF does not describe the parent fields** keeps the table on
+  `/proc` alone and reports `lineage: false`; the chain is still drawn, but a
+  reused pid can no longer be told apart from the process that held it before.
+
+The process table and its detections are OSS. Drawing the tree in the console,
+from an alert or a workload page with each connection as a leaf, is
+Enterprise; see [Process detections](process-detections.md#reading-the-tree-in-the-dashboard).
 
 ### Multi-WAN Routing
 
