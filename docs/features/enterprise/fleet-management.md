@@ -26,6 +26,7 @@ Gated by the `FleetManagement` license feature.
 | `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
 | `GET` | `/api/v1/flows/reachability/scanner-reports` | viewer | fleet-management | The scanner reports held, each counted against the packages installed now. |
 | `GET` | `/api/v1/flows/reachability/scanner-reports/report?name=` | viewer | fleet-management | One scanner report, each finding joined with the installed package it names or the reason it is not. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports/evidence?name=` | viewer | fleet-management | The evidence pack of one scanner report, digested and chained into the custody log. |
 | `PUT` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Keep a CycloneDX, SPDX, Trivy, Grype or Harbor JSON report under a name. |
 | `DELETE` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Forget a scanner report. |
 | `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
@@ -747,6 +748,35 @@ The first reading after an upload or a restart is the baseline and records
 nothing; uploading a report under the same name starts over. At most 4,096
 changes are kept per report, and `changes_let_go` counts the older ones let
 go.
+
+#### The evidence pack
+
+`GET /api/v1/flows/reachability/scanner-reports/evidence?name=` answers what
+an auditor is handed for vulnerability management: PCI DSS 4.0 6.3 and 11.3,
+NIS2 article 21(2)(e), DORA article 8 and ISO/IEC 27001:2022 A.8.8, each
+named with what the pack shows towards it and what it does not. The pack
+holds two statements and never mixes them:
+
+- `asserted` is what the customer's scanner said, as it said it: the format,
+  the tool and the subject the report names, when it was uploaded, the
+  SHA-256 of the file as uploaded (so the auditor matches the file they hold
+  with the one ranked), how many findings it listed and how many records were
+  not read. The agent checked none of it.
+- `observed` is what the agent read on this host: when the packages were
+  read, the count per standing, each joined finding in its order with its
+  reasons and its six facts (each `yes`, `no` or `not_read`, with the reason
+  in words), and each finding the host does not account for with why.
+
+The agent does not scan. 11.3 says so in the pack itself: the periodic scans
+are the external scanner's, and what the agent adds is which of its findings
+run, listen and are reachable. `evidence_sha256` is SHA-256 over the pack's
+compact JSON with `evidence_sha256` and `custody` left out, computed the way
+a compliance report's is (see
+[Evidence digest and custody](compliance-reports.md#evidence-digest-and-custody)).
+When the forensics custody log is kept, every pack handed out is chained into
+it as a `report` entry named `scanner-evidence:<name>`, and `custody` gives
+the entry's position and tag; without the log, or when the entry could not
+be written, the pack carries no `custody` rather than an invented one.
 
 ### In the dashboard
 

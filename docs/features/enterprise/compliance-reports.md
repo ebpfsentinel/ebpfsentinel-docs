@@ -193,6 +193,7 @@ agent when the report is generated:
 | High availability | HA peers and whether the datapath is active |
 | Report schedule | Whether compliance reports run on a schedule |
 | File integrity | The file watch: how many paths it follows and how many file baselines it keeps (met with at least one watched path) |
+| Package inventory | Whether the host's packages were read and how many reports of the customer's own scanner are held and joined with them (met with a reading and at least one report); unread where scanner reports are not imported, that is without `fleet-management`. PCI DSS 6.3 and 11.3, NIS2 Art. 21(2)(e) and DORA Art. 8 rest on it, and stay `Partial`: finding the vulnerabilities is the scanner's and patching them is the organisation's. See [the evidence pack](fleet-management.md#the-evidence-pack) |
 
 Each fact is met, unmet or unread, and the control's status follows:
 
