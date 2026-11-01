@@ -131,6 +131,28 @@ packages against an advisory feed is the work of the scanner already reading
 the distribution's own backports, and this route gives it the part of the
 inventory that is running and reachable.
 
+### Why there is no vulnerability database
+
+The agent ships no vulnerability database and matches no package version
+against an advisory feed, in this edition or in the Enterprise one. Debian,
+Ubuntu, Red Hat and Alpine backport a security fix into the version they
+already ship without moving the upstream version number, so a package still
+reporting upstream `3.0.11` may carry the fix for an advisory the upstream
+project closed in `3.0.13`. Comparing an upstream feed such as OSV with the version `dpkg`
+reports is therefore wrong in both directions: it flags packages the
+distribution has patched, and it misses fixes the distribution only states in
+its own tracker. Doing it properly means reading the four distributions'
+security trackers, in four formats, refreshed every day and shipped as signed
+content, which is the whole of what a scanner is.
+
+The scanner you already run does that work, often for free. What it cannot
+know is what this page answers: which of those packages are mapped by a live
+process, listen, took traffic and can be reached. The Enterprise edition joins
+the two, ranking your scanner's own findings by these facts (see
+[Fleet Management](enterprise/fleet-management.md#importing-your-scanners-report)).
+A request for us to own the vulnerability pipeline instead is answered no, for
+this reason: it would be a scanner quietly worse than the one already in place.
+
 ## Roots
 
 Every process on the node has a filesystem root, and the roots are told apart

@@ -627,6 +627,16 @@ The agent holds no vulnerability database and fetches no feed. What it reads is
 the report your own scanner already wrote, and it answers which of those
 findings name a package this host has installed.
 
+This is deliberate and permanent. Distributions backport security fixes
+without moving the upstream version, so matching an advisory feed against
+installed versions is wrong in both directions unless the four distribution
+trackers are read, refreshed daily and shipped as signed content, which is a
+scanner's whole job. Your scanner already does it; what this edition adds is
+which of its findings the host shows a way to. A request for the product to
+hold its own vulnerability database is declined for that reason, and the
+reasoning is written out in
+[Installed Packages](../installed-packages.md#why-there-is-no-vulnerability-database).
+
 ```bash
 trivy image --format json -o app.trivy.json registry.example/app:1.4
 curl -X PUT -H "Authorization: Bearer $TOKEN" \
