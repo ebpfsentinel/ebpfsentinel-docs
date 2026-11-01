@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 26 eBPF kernel programs (the
+Detailed documentation for each of the 27 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -532,6 +532,14 @@ Two programs, `process_exec` on `sched_process_exec` and `process_exit` on `sche
 Four programs on the TCP stack's own tracepoints: `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`. Each adds one to a per-CPU counter in `TCP_EDGES`, keyed by the two addresses, the service port (the lower of the two ports), which end is local and the cgroup of the local socket. A reset sent where no socket exists is keyed with port zero, so a scan is counted apart from the services it probes. When `inet_sock_set_state` moves a socket into or out of the established state, it also reads `tcp_sock.srtt_us` and adds the smoothed round trip to the edge's histogram in `TCP_RTT`, a hash shared by every CPU and updated with atomic adds, since one value per CPU would multiply sixteen buckets by the CPU count for two samples a connection.
 
 The `sock`, `sock_common` and `tcp_sock` field offsets are read from the running kernel's BTF by userspace and written into `TCP_HEALTH_CONFIG` before the tracepoints attach, so the object is not compiled against one kernel's layout; an event arriving before that write is counted as `unconfigured`. `TCP_EDGES` is a plain hash of 8192 entries rather than an LRU, because an eviction would make a counter go backwards. `TCP_HEALTH_METRICS` counts `counted`, `keys_full`, `unconfigured` and `unreadable`. Nothing goes on a ring: the agent reads the counters on an interval. See [TCP Health Per Edge](../features/tcp-health.md).
+
+### uprobe-crypto
+
+**Hook:** [uprobe](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_KPROBE/) | **Path:** `crates/ebpf-programs/uprobe-crypto/`
+
+One program, `crypto_call`, attached at the symmetric encryption entry point of each crypto library a process maps: `EVP_EncryptUpdate` in `libcrypto`, `gcry_cipher_encrypt` in `libgcrypt`, and `crypto_secretstream_xchacha20poly1305_push` and `crypto_aead_xchacha20poly1305_ietf_encrypt` in `libsodium`. Userspace finds the libraries in `/proc/<pid>/maps`, opens each through the process's own root so a container's copy is the one probed, and attaches once per inode; the host's library directories are probed at start so the first call of a process started later is counted.
+
+The program adds one to `CRYPTO_CALLS`, a per-CPU LRU hash of 16384 entries keyed by thread group, and reads no argument: the key, the buffer and its length stay where they are. An evicted entry comes back counting from one, which userspace reads as a fresh count rather than a counter that went backwards. Nothing goes on a ring: the agent reads the map every second and hands each process's new calls to the [mass encryption](../features/mass-encryption.md#encryption-calls) engine. The program returns zero unconditionally.
 
 ### tracepoint-signal
 

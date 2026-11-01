@@ -123,12 +123,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-six program directories: twenty-two
+`crates/ebpf-programs/` holds twenty-seven program directories: twenty-three
 attached at a hook of their own, three reached only by tail call from one of
-those twenty-two, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty-two attached programs, of which the seven after
+those twenty-three, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-three attached programs, of which the seven after
 `uprobe-dlp` read a task rather than a packet, the next two
-read the kernel's own drops and the health of its TCP connections, and the last one guards the agent's own maps and links, and of those seven only the workload firewall, the
+read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, and the last one counts the calls a process makes into the system crypto library; of the seven after `uprobe-dlp` only the workload firewall, the
 executables list, the connection redirect and the cluster address resolution act on a syscall and only the
 signal program acts on a process:
 
@@ -156,6 +156,7 @@ signal program acts on a process:
 | `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
 | `tracepoint-tcp-health` | raw tracepoint | Counts retransmissions, resets and connections opened, failed and closed, per edge between two services |
 | `lsm-bpf-guard` | BPF LSM | Refuses a writable descriptor to one of the agent's maps and a descriptor to one of its links, so another process cannot rewrite or detach them; read-only descriptors are let through |
+| `uprobe-crypto` | uprobe | Counts calls into the encryption entry point of the system crypto libraries per process, for the mass encryption engine; reads no argument, key or buffer |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:
@@ -166,7 +167,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the twenty-sixth directory. It is a no-op XDP program attached to the
+`xdp-pass` is the twenty-seventh directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 

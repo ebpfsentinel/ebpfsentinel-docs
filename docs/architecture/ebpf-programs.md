@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 26 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-five form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 27 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-six form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -24,6 +24,7 @@ eBPFsentinel includes 26 eBPF kernel programs, all written in Rust using the [Ay
 | `tc-dns` | TC classifier | `crates/ebpf-programs/tc-dns/` | DNS capture |
 | `tc-qos` | TC egress + ingress | `crates/ebpf-programs/tc-qos/` | QoS / traffic shaping (`tc_qos` on egress, `tc_qos_ingress` on ingress) |
 | `uprobe-dlp` | uprobe | `crates/ebpf-programs/uprobe-dlp/` | SSL/TLS DLP |
+| `uprobe-crypto` | uprobe | `crates/ebpf-programs/uprobe-crypto/` | Calls into the system crypto libraries, counted per process |
 | `cgroup-attribution` | cgroup sock_addr / sock / sock_ops | `crates/ebpf-programs/cgroup-attribution/` | The task behind a socket, recorded against the socket cookie and the five-tuple |
 | `cgroup-workload-firewall` | cgroup sock_addr | `crates/ebpf-programs/cgroup-workload-firewall/` | Firewall rules that name a workload, decided in `connect()`, `sendmsg()` and `bind()` |
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
@@ -352,6 +353,12 @@ Packet normalization running after XDP processing:
 - Four raw tracepoints, `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`, none of which runs on a segment delivered in order
 - Counts only, in a per-CPU hash keyed by the edge; userspace names both ends from the listening sockets and the workload table, and turns the counts into Prometheus counters
 - Field offsets come from BTF through a config map written before attach, so the object carries no kernel's layout
+
+## Crypto Calls (uprobe-crypto)
+
+- One uprobe on the symmetric encryption entry point of `libcrypto`, `libgcrypt` and `libsodium`, attached once per library inode found in a running process's maps or the host's library directories
+- Counts calls per thread group in a per-CPU LRU hash and reads no argument, so no key and no buffer can leave the kernel through it
+- Read every second by the mass encryption engine, which raises the `crypto_rate` signal only where the calls keep pace with files rewritten by the same run
 
 ## Kernel Requirements
 

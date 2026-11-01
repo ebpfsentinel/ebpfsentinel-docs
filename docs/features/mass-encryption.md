@@ -41,15 +41,15 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `backup_destroyed`, `canary_touched`, `distinct_rewrites`,
-`entropy_rise`, `header_mismatch`, `mass_rename`, `replace_sequence` and
-`ransom_note`. Every other signal in
-the table is named in each verdict as not read by this agent, so a verdict
-never reads as the whole of the engine when part of it is absent, and a signal
-this host cannot read removes the combinations that need it rather than the
-verdict.
+This agent reads every signal in the table: `backup_destroyed`,
+`canary_touched`, `crypto_rate`, `distinct_rewrites`, `entropy_rise`,
+`header_mismatch`, `mass_rename`, `replace_sequence` and `ransom_note`. A
+signal this host cannot read is named in each verdict with the reason, so a
+verdict never reads as the whole of the engine when part of it is absent, and
+a signal this host cannot read removes the combinations that need it rather
+than the verdict.
 
-All but `backup_destroyed` come from the [file watch](../configuration/file-watch.md) and need
+All but `backup_destroyed` and `crypto_rate` come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
 `backup_destroyed` is read from the command lines the process table captures,
@@ -214,6 +214,41 @@ What a canary does not see: it is created by the watch's holder with mode
 only is refused by the kernel before the open, and nothing is reported; a run
 that encrypts a file reads it first, and that read is reported. A run that
 skips files by name or by size can skip a canary too.
+
+### Encryption calls
+
+A run that encrypts files through the system's crypto library calls its
+encryption entry point once or more for every file it writes. The agent puts
+one uprobe on each of these symbols, in every copy of the library that a
+running process maps or that the host keeps in its library directories:
+
+| Library | Entry point |
+|---------|-------------|
+| `libcrypto` (OpenSSL) | `EVP_EncryptUpdate` |
+| `libgcrypt` | `gcry_cipher_encrypt` |
+| `libsodium` | `crypto_secretstream_xchacha20poly1305_push`, `crypto_aead_xchacha20poly1305_ietf_encrypt` |
+
+The probe counts calls per process and reads nothing else: no argument, no
+key, no buffer. That is structural, the program holding a counter and no
+pointer to read through. Each second the agent hands every process's new calls
+to its run, and the signal is raised when a run makes 200 calls and rewrites 20
+files in the watched paths within a minute. Calls with no files beside them are
+a TLS server or a backup tool encrypting a stream, and raise nothing; files
+with no calls beside them are the other signals' business.
+
+The count is by process and not by connection, so a program that serves TLS
+and also rewrites files is counted on both. TLS goes through `libssl`, which
+calls `EVP_EncryptUpdate` too, which is why the rewrites are what makes the
+signal and the calls alone never do.
+
+What this does not see: a binary that carries its own cipher, statically
+linked or written in a language that brings its own (Go, most Rust), calls
+none of these symbols. Such a run reaches a verdict on the other signals or
+not at all; this one is strong rather than decisive for that reason. A library
+in a container started after the agent is probed within thirty seconds of the
+first process that maps it. The program is `uprobe-crypto`; with it absent,
+or with no library found to probe, every verdict names `crypto_rate` as
+unavailable and says why.
 
 ### Backups destroyed
 
