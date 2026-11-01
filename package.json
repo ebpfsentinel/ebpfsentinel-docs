@@ -21,6 +21,7 @@
     "check:grpc-reference": "node scripts/generate-grpc-reference.mjs --check",
     "check:no-typographic-dash": "node scripts/check-no-typographic-dash.mjs",
     "check:no-waf-claim": "node scripts/check-no-waf-claim.mjs",
+    "check:kernel-matrices": "node scripts/check-kernel-matrices.mjs",
     "generate:mitre-coverage": "node scripts/generate-mitre-coverage.mjs",
     "check:mitre-coverage": "node scripts/generate-mitre-coverage.mjs --check",
     "generate:suricata-keywords": "node scripts/generate-suricata-keywords.mjs",

@@ -172,6 +172,11 @@ jobs:
       - name: Check that no page calls the agent a WAF
         run: npm run check:no-waf-claim
 
+      # The distribution and node image matrices are written on two pages, and
+      # a verdict edited on one alone tells a reader two different things.
+      - name: Check that both kernel matrices agree
+        run: npm run check:kernel-matrices
+
       - run: npm ci
 
       - run: npm run typecheck

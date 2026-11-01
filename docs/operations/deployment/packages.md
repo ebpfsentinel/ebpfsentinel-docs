@@ -12,7 +12,7 @@ manifest pins, for amd64 and arm64, and published in the release beside the
 tarballs, covered by the same signed `ebpfsentinel-SHA256SUMS`. Nothing here is
 served from anywhere else.
 
-Requirements are the same as every other deployment: kernel 6.9 or later, BTF at
+Requirements are the same as every other deployment: kernel 6.12 or later, BTF at
 `/sys/kernel/btf/vmlinux`, systemd. The `preinst` script checks the first two and
 refuses the install rather than leaving a unit that can never start.
 
@@ -247,7 +247,7 @@ What the module does beyond writing that file:
   `/usr/local/lib/ebpfsentinel` nor `/usr/lib/ebpfsentinel` exists on NixOS;
 - creates `/var/lib/ebpfsentinel` and its `data`, `captures` and `auth`
   subdirectories through `systemd.tmpfiles.rules`, `auth` at `0700`;
-- asserts the 6.9 kernel floor at evaluation time, so a host on an older kernel
+- asserts the 6.12 kernel floor at evaluation time, so a host on an older kernel
   fails to build rather than failing to load its programs at three in the
   morning.
 
@@ -260,7 +260,7 @@ deleted by hand, like every other piece of state on a NixOS host.
 | Symptom | Cause |
 |---------|-------|
 | `NO_PUBKEY` or `repomd.xml.asc` rejected | The key was not imported, or was imported into the wrong keyring. Re-run the key step; on apt the key must be the one `signed-by=` names |
-| `kernel 6.x is below the 6.9 floor` from `preinst` | The host cannot run the agent at all. [Check compatibility](../compatibility.md) before forcing anything |
+| `kernel 6.12 or newer is required, this host runs ...` from `preinst` | The host cannot run the agent at all. [Check compatibility](../compatibility.md) before forcing anything |
 | Both units installed, nothing running | By design. Nothing is enabled or started by the package |
 | `BPF token unavailable - running in API-only mode` | The agent started before the warden. Enable both units; the agent unit waits for the socket but will not create it |
 | An upgrade did not change the configuration | Also by design. dpkg kept yours, rpm wrote `config.yaml.rpmnew` beside it |

@@ -58,7 +58,7 @@ navigation beside it. What every screen holds, and which roles open it, is in
   was retired still counts, because its history is what your agents were
   measured against. This is how an organisation created by mistake, for
   instance by signing up before accepting an invitation, is removed.
-- The enterprise [prerequisites](prerequisites.md): a kernel of 6.9 or later with
+- The enterprise [prerequisites](prerequisites.md): a kernel of 6.12 or later with
   BTF, on every node you mean to protect.
 
 ## 1. Choose a tier

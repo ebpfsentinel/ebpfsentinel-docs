@@ -101,7 +101,7 @@ eBPF programs are verified by the kernel verifier before loading:
 - **No arbitrary kernel memory access** - only approved helper functions
 - **Type safety** - BTF provides type information for CO-RE (Compile Once, Run Everywhere)
 
-eBPF loads **exclusively** through a BPF token (kernel 6.9+) - there is no
+eBPF loads **exclusively** through a BPF token - there is no
 capability-based loading path. The agent unshares a user namespace of its own
 and asks the privileged **warden** to apply the `delegate_*` options to a bpffs
 it prepared, which is the one step that needs `CAP_SYS_ADMIN` in the initial

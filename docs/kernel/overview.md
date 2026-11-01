@@ -118,8 +118,8 @@ Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both
 
 ## Kernel Requirements
 
-- **Linux 6.9+** with `CONFIG_DEBUG_INFO_BTF=y`
+- **Linux 6.12+** with `CONFIG_DEBUG_INFO_BTF=y`
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
-- **A BPF token** for loading (kernel 6.9+); the agent holds no `CAP_BPF`. `CAP_NET_ADMIN` is still needed for the host-network operations the warden brokers
+- **A BPF token** for loading; the agent holds no `CAP_BPF`. `CAP_NET_ADMIN` is still needed for the host-network operations the warden brokers
 
-The 6.9 minimum is set by BPF token delegation and the kfunc surface; `bpf_dynptr` and BPF filesystem map pinning arrived well below it. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.
+The 6.12 minimum is the kernel the managed node images converge on; BPF token delegation (6.9), the kfunc surface, `bpf_dynptr` and BPF filesystem map pinning all arrived below it. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.

@@ -37,7 +37,7 @@ in that release's `SHA256SUMS`. The same lab is `demo/` in a checkout of the
 agent repository, where `sudo ./demo.sh up --local` runs it against an agent
 built from your working tree instead of the published image.
 
-The host needs Linux 6.9 or later with BTF (`/sys/kernel/btf/vmlinux`),
+The host needs Linux 6.12 or later with BTF (`/sys/kernel/btf/vmlinux`),
 Docker with the compose plugin, and on Ubuntu 24.04 and later unprivileged
 user namespaces allowed for the session:
 

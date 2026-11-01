@@ -2,34 +2,38 @@
 
 ## Platform
 
-**Linux only.** Requires kernel **6.9+** with BTF support.
+**Linux only.** Requires kernel **6.12+** with BTF support.
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
-The 6.9 floor is set by the BPF token: **`BPF_TOKEN_CREATE` +
-`BPF_F_TOKEN_FD`** (kernel 6.9) is how the agent loads its programs
-without holding `CAP_BPF` or `CAP_SYS_ADMIN` itself. The newest kfuncs the
-programs call arrived earlier (6.8), so they do not move the floor.
+The 6.12 floor is the kernel the managed node images converge on (GKE Container-Optimized OS, EKS Amazon Linux 2023, Ubuntu's HWE line). Everything the agent needs is older:
+**`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) is how the agent loads
+its programs without holding `CAP_BPF` or `CAP_SYS_ADMIN` itself, and the
+kfuncs the programs call arrived by 6.8. The 6.12 file kfuncs exist on every
+supported kernel but load only in a sleepable context behind the BPF LSM, so
+they are probed rather than assumed.
 
 ## Distributions
 
 What matters is the running kernel, not the release: any distribution booting
-6.9 or later with BTF (`/sys/kernel/btf/vmlinux`) works.
+6.12 or later with BTF (`/sys/kernel/btf/vmlinux`) works.
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 13 | Yes | Ships 6.12 |
-| Debian 12 | No | Ships 6.1 - use a backports kernel 6.9+ or upgrade |
-| Ubuntu 24.04.2+ | Yes | With the HWE kernel (`linux-generic-hwe-24.04`, 6.11 or later) |
-| Ubuntu 24.04 (GA kernel) | No | Ships 6.8 - move to the HWE kernel |
-| RHEL 10 / Rocky 10 | Yes | Ships 6.12 |
-| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.9+ |
+| Debian 13+ | Yes | Ships 6.12 |
+| Debian 12 | No | Ships 6.1 - use a backports kernel 6.12+ or upgrade to Debian 13 |
+| Ubuntu 24.04.3+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.14 or later |
+| Ubuntu 24.04.2 (HWE) | No | Its HWE kernel is 6.11 - update to the current HWE kernel |
+| Ubuntu 24.04 (GA) | No | Ships 6.8 - move to the HWE kernel |
+| Ubuntu 22.04 | No | The HWE kernel stops at 6.8 |
+| RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
+| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.12+ |
 | Alpine 3.21+ | Yes | `linux-lts` is 6.12 |
 | Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
 | Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
 | Arch Linux | Yes | Rolling |
-| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.9 |
-| Talos Linux 1.9+ | Yes | Ships 6.12 |
+| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.12 |
+| Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
 
 ## Managed Node Images
 
@@ -81,7 +85,7 @@ unprivileged user namespaces enabled. See the
 
 ## Kernel Feature Matrix
 
-All features require kernel **6.9+**. Here is when each eBPF feature the agent relies on became available:
+All features require kernel **6.12+**, the agent's floor. Here is when each eBPF feature the agent relies on became available:
 
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|

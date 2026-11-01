@@ -23,7 +23,7 @@ confirm afterwards that every node is reporting, is walked in
 
 ## Prerequisites
 
-- Linux kernel **6.9+** with BTF (`/sys/kernel/btf/vmlinux`).
+- Linux kernel **6.12+** with BTF (`/sys/kernel/btf/vmlinux`).
 - Unprivileged user namespaces enabled. On kernels that gate them behind AppArmor
   (`kernel.apparmor_restrict_unprivileged_userns=1`, the Ubuntu 24.04+ default)
   the agent (uid 65534) cannot self-unshare a userns. This is a **host-level**

@@ -354,7 +354,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel **6.9+** with BTF. The 6.9 floor is set by BPF token delegation; the newest kfuncs the programs call (`bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`) arrived in 6.8. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel **6.12+** with BTF, the kernel the managed node images converge on. BPF token delegation (6.9) and the newest kfuncs the programs call (`bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, 6.8) are older than the floor. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 

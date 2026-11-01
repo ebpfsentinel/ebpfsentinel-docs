@@ -9,7 +9,7 @@ A bare-metal install is two processes under systemd:
 | `ebpfsentinel-warden` | `/usr/local/bin/warden` | Privileged broker: delegates a bpffs to the agent once at startup, then performs the host-namespace operations the agent cannot (conntrack, routes, ARP, the pcap socket pool) |
 | `ebpfsentinel` | `/usr/local/bin/ebpfsentinel-agent` | The agent: unshares its own user namespace, loads its eBPF through a BPF token, serves the API |
 
-Requirements: kernel 6.9 or later (the agent refuses to start below it), BTF at `/sys/kernel/btf/vmlinux`, unprivileged user namespaces enabled. `libpcap` is optional and only needed for manual packet capture.
+Requirements: kernel 6.12 or later (the agent refuses to start below it), BTF at `/sys/kernel/btf/vmlinux`, unprivileged user namespaces enabled. `libpcap` is optional and only needed for manual packet capture.
 
 On a host with a package manager, install the [native package](packages.md)
 instead of anything on this page: it is the same two units, installed under

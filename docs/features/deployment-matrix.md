@@ -153,7 +153,7 @@ These programs attach to **host network interfaces** (e.g., `eth0`). They requir
 - **Bare metal / Container / DaemonSet**: the agent sees the host's physical interfaces and can filter all traffic at wire speed across all listed NICs.
 - **Sidecar**: the agent only sees the pod's virtual interface (`eth0` inside the pod network namespace). It cannot protect the host or other pods, and its scope is limited to the pod's own traffic.
 
-**Requirements**: kernel 6.9+ with a BPF token (the only loading path; the agent creates it in its own user namespace on a bpffs the warden delegates, and holds no host capability); `network_mode: host` (container), `hostNetwork: true` (Kubernetes).
+**Requirements**: kernel 6.12+ with a BPF token (the only loading path; the agent creates it in its own user namespace on a bpffs the warden delegates, and holds no host capability); `network_mode: host` (container), `hostNetwork: true` (Kubernetes).
 
 ### Node traffic or container-to-container traffic
 
@@ -368,7 +368,7 @@ See the full reference at [Container Awareness](container-awareness.md).
 
 ## Loading mode: BPF token (default)
 
-The agent requires **kernel 6.9+** and loads eBPF **exclusively** through
+The agent requires **kernel 6.12+** and loads eBPF **exclusively** through
 [**BPF token delegation**](../operations/deployment/bpf-token.md) - there
 is no capability-based loading path. The agent unshares its own user
 namespace, the warden (which holds `CAP_SYS_ADMIN`) mounts a bpffs with the

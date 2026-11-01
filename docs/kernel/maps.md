@@ -203,12 +203,12 @@ Every packet program applies 75% backpressure: when the buffer exceeds 75% utili
 
 ### Arena maps - not used
 
-`BPF_MAP_TYPE_ARENA` (kernel 6.9+) was evaluated for zero-copy event
+`BPF_MAP_TYPE_ARENA` (present on every supported kernel) was evaluated for zero-copy event
 delivery but is **not used**. All programs emit events through `RingBuf`
 exclusively. The arena alloc kfunc returns an untyped scalar on the Rust
 `bpfel` target (the verifier rejects writes through it) and is
 sleepable-only (unavailable in XDP/TC hooks). See
-[KFuncs: Arena maps](kfuncs.md#arena-maps-kernel-69---evaluated-not-used).
+[KFuncs: Arena maps](kfuncs.md#arena-maps---evaluated-not-used).
 
 ### Config Maps
 

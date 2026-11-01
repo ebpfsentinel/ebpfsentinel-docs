@@ -10,7 +10,7 @@ Every artifact comes from one place, the
 and each is signed and listed in that release's `ebpfsentinel-SHA256SUMS`. No
 step here asks you to clone a repository in order to run something.
 
-Before anything: kernel 6.9 or later with BTF at `/sys/kernel/btf/vmlinux`. See
+Before anything: kernel 6.12 or later with BTF at `/sys/kernel/btf/vmlinux`. See
 [Prerequisites](prerequisites.md), and [Compatibility](../operations/compatibility.md)
 for the distributions that qualify today.
 
@@ -104,7 +104,7 @@ given the release version and its hashes. The worked example is in
 A deployment is two containers built from two images: the privileged **warden**
 broker and the rootless **agent**. The agent drops every capability, unshares its
 own user namespace, has the warden delegate a bpffs over a shared socket and
-loads its eBPF through a BPF token (kernel 6.9+).
+loads its eBPF through a BPF token.
 
 ```bash
 docker compose up -d       # docker-compose.yml wires both services and the shared socket volume

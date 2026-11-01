@@ -4,17 +4,19 @@
 
 ### Linux Kernel
 
-eBPFsentinel requires **Linux kernel 6.9+** with BTF (BPF Type Format) support.
+eBPFsentinel requires **Linux kernel 6.12+** with BTF (BPF Type Format) support.
 
-The 6.9 floor is driven by:
+The 6.12 floor is the kernel the managed node images converge on (GKE Container-Optimized OS, EKS Amazon Linux 2023, Ubuntu's HWE line). Everything the agent needs from the kernel is older than it:
 
-- **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`) - container-aware least-privilege mode
+- **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`, 6.9) - container-aware least-privilege mode
 - Kfuncs `bpf_task_get_cgroup1` (6.8), `bpf_xdp_metadata_rx_vlan_tag` (6.8), `bpf_xdp_get_xfrm_state` (6.8), `bpf_iter_css_task` (6.7)
+
+What the floor buys is that the 6.12 file kfuncs exist, not that they load: they need a sleepable context behind the BPF LSM, so the agent probes them at startup and falls back to userspace where they are refused.
 
 Verify your system:
 
 ```bash
-# Kernel version - must be >= 6.9
+# Kernel version - must be >= 6.12
 uname -r
 
 # BTF support - this file must exist
@@ -68,17 +70,18 @@ shipped AppArmor profile is loaded. See the
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
 | Debian 13+ | Yes | Ships 6.12 |
-| Debian 12 | No | Ships 6.1 - use a backports kernel 6.9+ or upgrade to Debian 13 |
-| Ubuntu 24.04.2+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.11 or later |
+| Debian 12 | No | Ships 6.1 - use a backports kernel 6.12+ or upgrade to Debian 13 |
+| Ubuntu 24.04.3+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.14 or later |
+| Ubuntu 24.04.2 (HWE) | No | Its HWE kernel is 6.11 - update to the current HWE kernel |
 | Ubuntu 24.04 (GA) | No | Ships 6.8 - move to the HWE kernel |
 | Ubuntu 22.04 | No | The HWE kernel stops at 6.8 |
 | RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
-| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.9+ |
+| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.12+ |
 | Alpine 3.21+ | Yes | `linux-lts` is 6.12 |
 | Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
 | Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
 | Arch Linux | Yes | Rolling |
-| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.9 |
+| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.12 |
 | Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
 
 ### Managed Node Images

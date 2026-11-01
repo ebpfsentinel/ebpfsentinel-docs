@@ -1,6 +1,6 @@
 # Docker Deployment
 
-> Kernel 6.9+ only. eBPF loads **exclusively** through a BPF token, and there is
+> Kernel 6.12+ only. eBPF loads **exclusively** through a BPF token, and there is
 > **no capability-based fallback**. A deployment is always two containers: the
 > privileged **warden** broker and the rootless **agent**. The agent drops every
 > capability, self-unshares a user namespace, has the warden delegate a bpffs

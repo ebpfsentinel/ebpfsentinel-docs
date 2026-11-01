@@ -62,7 +62,7 @@ In the rootless posture the agent has dropped the capability the attach needs an
 
 ## Minimum kernel
 
-Kernel 6.9, the agent's floor, carries every hook this section attaches. Nothing above the floor is required, and nothing here is probed for a version: what matters is whether the attach succeeded on this host, which is what `kernel-features` answers.
+Kernel 6.12, the agent's floor, carries every hook this section attaches. Nothing above the floor is required, and nothing here is probed for a version: what matters is whether the attach succeeded on this host, which is what `kernel-features` answers.
 
 ## Counters
 

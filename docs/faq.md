@@ -12,13 +12,13 @@ GNU Affero General Public License v3.0 (AGPL-3.0). All features documented as OS
 
 ### Does it work on macOS / Windows?
 
-No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.9+). It is Linux-only.
+No. eBPFsentinel requires the Linux eBPF subsystem (kernel 6.12+). It is Linux-only.
 
 ## Installation & Requirements
 
 ### What kernel version do I need?
 
-Linux kernel **6.9 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist). BPF token delegation requires 6.9+.
+Linux kernel **6.12 or later** with BTF support (`/sys/kernel/btf/vmlinux` must exist), the kernel the managed node images converge on. BPF token delegation, which arrived in 6.9, is older than the floor.
 
 ### Does it require kernel modules?
 
@@ -30,7 +30,7 @@ Yes. x86_64 is the primary platform; aarch64/ARM64 is cross-tested.
 
 ### What capabilities does it need?
 
-eBPF loads **exclusively** through a BPF token (kernel 6.9+), and there is no `CAP_BPF`/`setcap` loading path. A deployment is two processes: the **warden** broker holds the host capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`, plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP uprobe), and the **agent** runs with none: it unshares a user namespace, has the warden delegate a bpffs, and loads its programs through the token. Unprivileged user namespaces must be enabled on the host. In Docker the agent runs as uid 65534 with `cap_drop: [ALL]`; `docker compose up -d` wires both containers. See the [BPF token guide](operations/deployment/bpf-token.md).
+eBPF loads **exclusively** through a BPF token, and there is no `CAP_BPF`/`setcap` loading path. A deployment is two processes: the **warden** broker holds the host capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`, plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP uprobe), and the **agent** runs with none: it unshares a user namespace, has the warden delegate a bpffs, and loads its programs through the token. Unprivileged user namespaces must be enabled on the host. In Docker the agent runs as uid 65534 with `cap_drop: [ALL]`; `docker compose up -d` wires both containers. See the [BPF token guide](operations/deployment/bpf-token.md).
 
 ## Performance
 

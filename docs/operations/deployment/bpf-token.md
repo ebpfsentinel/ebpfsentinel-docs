@@ -1,7 +1,7 @@
 # BPF token delegation
 
 > **The only loading path.** eBPFsentinel loads eBPF **exclusively** through a
-> BPF token (kernel 6.9+); the agent never loads programs with `CAP_BPF`, and
+> BPF token; the agent never loads programs with `CAP_BPF`, and
 > there is no capability-based fallback. The deployment is two components: a
 > small privileged **warden** broker and the **rootless agent**. The agent
 > self-unshares a user namespace, has the warden delegate a bpffs over a shared

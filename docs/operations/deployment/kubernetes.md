@@ -1,6 +1,6 @@
 # Kubernetes Deployment
 
-> DaemonSet mode supports all features. The agent requires kernel 6.9+
+> DaemonSet mode supports all features. The agent requires kernel 6.12+
 > and loads eBPF **exclusively** through a **BPF token** - there is no
 > capability-based fallback. See the [BPF token guide](bpf-token.md) and the
 > [deployment compatibility matrix](../../features/deployment-matrix.md).
@@ -190,8 +190,8 @@ nothing.
 
 | Kernel | Supported path | Notes |
 |--------|----------------|-------|
-| < 6.9 | **Not supported** | The agent requires 6.9+ (BPF token delegation and the kfunc surface) |
-| 6.9+ | BPF token (only path) | The warden holds the host capabilities; the agent holds none |
+| < 6.12 | **Not supported** | The agent requires 6.12+, the kernel the managed node images converge on |
+| 6.12+ | BPF token (only path) | The warden holds the host capabilities; the agent holds none |
 
 If the token cannot be created (user namespaces disabled, the warden absent,
 the AppArmor gate above), the agent logs

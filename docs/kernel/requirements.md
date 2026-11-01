@@ -4,16 +4,16 @@
 
 | Requirement | Value |
 |-------------|-------|
-| Linux kernel | **6.9+** |
+| Linux kernel | **6.12+** |
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Privileges | The privileged warden (a container, a sidecar or a systemd unit) delegates a BPF filesystem; the agent unshares a user namespace, creates the BPF token itself and holds no capability. Unprivileged user namespaces must be enabled. No `CAP_BPF`/`setcap` path. |
 
-The 6.9 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The minimum is set by BPF token delegation (`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`, 6.9); the newest kfuncs the programs call (see [KFuncs](kfuncs.md)) arrived in 6.8 and do not move it.
+The 6.12 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The floor is the kernel the managed node images converge on (GKE Container-Optimized OS, EKS Amazon Linux 2023, Ubuntu's HWE line); BPF token delegation (`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`, 6.9) and the kfuncs the programs call (see [KFuncs](kfuncs.md)) are older than it. The floor guarantees that the 6.12 file kfuncs exist, never that they load: each is probed, and refused ones fall back to userspace.
 
 Verify on your system:
 
 ```bash
-uname -r                       # Must be >= 6.9
+uname -r                       # Must be >= 6.12
 ls /sys/kernel/btf/vmlinux     # Must exist
 ```
 
@@ -42,7 +42,7 @@ Read it as follows.
 - **`probed: false` is the expected answer on the standard deployment.** The probe issues a plain program load, which needs `CAP_BPF`; the agent loads through a BPF token and holds no capabilities, so it cannot probe. `load_mode` is printed alongside precisely so this asymmetry is visible rather than inferred. To get a full reading, run the agent once with `CAP_BPF` on a representative host.
 - Helpers only. KFuncs, map types and program types have no equivalent probe; for those the matrix below and the BTF check remain the source of truth.
 
-The probe does not move the floor, and cannot: the newest helper in the matrix below arrived in 6.0, well under 6.9. What sets the floor is BPF token delegation, which the probe does not cover. Measured on a 7.0 kernel with `CAP_BPF`, every helper/program-type pair the agent needs is supported and `missing_required` is empty.
+The probe does not move the floor, and cannot: the newest helper in the matrix below arrived in 6.0, well under 6.12. What sets the floor is where the managed node images converge, which no probe answers. Measured on a 7.0 kernel with `CAP_BPF`, every helper/program-type pair the agent needs is supported and `missing_required` is empty.
 
 ## The BPF LSM: a boot parameter, not a version
 
@@ -139,7 +139,7 @@ No cgroup, RCU, iterator or cast kfunc is called: container attribution uses the
 | `CONFIG_DEBUG_INFO_BTF` | 5.2+ | Type information embedded in vmlinux |
 | BPF filesystem pinning | 5.8+ | `/sys/fs/bpf/` map sharing across programs |
 | `kprobe_multi` link (`BPF_TRACE_KPROBE_MULTI`) | 5.18+ | Kernel TLS probes of `uprobe-dlp` on `tls_sw_sendmsg`/`tls_sw_recvmsg` |
-| BPF token delegation | 6.9+ | Sandboxed BPF object loading from unprivileged user namespaces |
+| BPF token delegation | 6.9+ (below the 6.12 floor) | Sandboxed BPF object loading from unprivileged user namespaces |
 | Netkit device + `BPF_NETKIT_PRIMARY` attach | 6.7+ | Native TC-program attach to netkit interfaces via `BPF_LINK_CREATE` (Cilium 1.16+ pod networking); standard interfaces fall back to TC clsact |
 
 ## How the Programs Use the Kernel
@@ -193,7 +193,7 @@ Naming the process behind a flow is done by four program types that sit outside 
 | `sock_ops` | `BPF_CGROUP_SOCK_OPS` | 4.13+ | The socket cookie is never joined to the established connection, so conntrack entries and tc alerts fall back to a five-tuple correlation and the workload is reported as `flow` rather than `socket` |
 | `raw_tracepoint` | `sched_process_exec`, `sched_process_exit` | 4.17+ | No process table is kept, so a pid resolves to no executable, container, image or unit and the block carries the pid alone |
 
-Every hook is well under the agent's 6.9 floor, so a refusal is a host decision rather than a kernel version: a cgroup v1 hierarchy, a container with no access to the host's cgroup root, a locked-down `bpf()` or a tracepoint the kernel was built without. The attach is all-or-nothing per object, with one exception stated below - a partial set of socket hooks is reported as not attached, because half the hooks would make an absent workload mean two different things.
+Every hook is well under the agent's 6.12 floor, so a refusal is a host decision rather than a kernel version: a cgroup v1 hierarchy, a container with no access to the host's cgroup root, a locked-down `bpf()` or a tracepoint the kernel was built without. The attach is all-or-nothing per object, with one exception stated below - a partial set of socket hooks is reported as not attached, because half the hooks would make an absent workload mean two different things.
 
 The exception is the `sock_ops` join, which is the one hook of the object that may be absent on its own. It is also the only program here calling `bpf_get_socket_cookie` from a `sock_ops` context, and a kernel is allowed to take every other hook and refuse that one helper to that one program type. Rather than lose every hook to that, the agent loads the join as optional: the six socket hooks attach, `Socket attribution` reports `attached` with six hooks and a reason carrying the kernel's own error, and an established flow is matched to its socket by five-tuple, so the workload arrives with `flow` as its source rather than `socket`. Every socket is still named. The reason is in the `ebpf kernel-features` output and in `/api/v1/ebpf/kernel-features`, so a host that pays this fallback says so rather than looking identical to one that does not.
 
@@ -226,17 +226,18 @@ Events are fixed-size records; a program that carries a payload reserves a small
 
 ## Distribution Compatibility
 
-What matters is the running kernel, not the release: any distribution booting 6.9 or later with BTF works. Older LTS distributions need a backport, HWE or mainline kernel channel.
+What matters is the running kernel, not the release: any distribution booting 6.12 or later with BTF works. Older LTS distributions need a backport, HWE or mainline kernel channel.
 
 | Distribution | Stock Kernel | Supported |
 |-------------|--------------|-----------|
 | Debian 13 (Trixie) | 6.12 | Yes |
-| Debian 12 (Bookworm) | 6.1 | No - use a backports kernel 6.9+ or upgrade |
-| Ubuntu 24.04.2+ | HWE 6.11+ | Yes, with `linux-generic-hwe-24.04` |
+| Debian 12 (Bookworm) | 6.1 | No - use a backports kernel 6.12+ or upgrade |
+| Ubuntu 24.04.3+ | HWE 6.14+ | Yes, with `linux-generic-hwe-24.04` |
+| Ubuntu 24.04.2 | HWE 6.11 | No - update to the current HWE kernel |
 | Ubuntu 24.04 (GA kernel) | 6.8 | No - move to the HWE kernel |
 | Ubuntu 22.04 LTS | 5.15 (HWE 6.8) | No |
 | RHEL 10 / Rocky 10 | 6.12 | Yes |
-| RHEL / Rocky 9.x | 5.14 | No - requires ELRepo `kernel-ml` 6.9+ |
+| RHEL / Rocky 9.x | 5.14 | No - requires ELRepo `kernel-ml` 6.12+ |
 | Fedora 41+ | Current stable | Yes |
 | Arch Linux | Rolling | Yes |
 | Alpine 3.21+ | `linux-lts` 6.12 | Yes |
@@ -251,7 +252,7 @@ What matters is the running kernel, not the release: any distribution booting 6.
 ## Verifying Kernel Support
 
 ```bash
-# Check kernel version (must be >= 6.9)
+# Check kernel version (must be >= 6.12)
 uname -r
 
 # Check BTF support

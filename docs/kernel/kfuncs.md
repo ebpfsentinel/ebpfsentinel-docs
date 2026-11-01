@@ -14,7 +14,7 @@ Opening a module's BTF fd needs `CAP_SYS_ADMIN`, which a BPF token does not gran
 
 ## Status
 
-The kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.9** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=9` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel.
+The datapath kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.12** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=12` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel.
 
 The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.rs`. The safe wrappers keep the verifier's `KF_ACQUIRE` / `KF_RELEASE` pairing through two patterns:
 
@@ -87,10 +87,10 @@ Safe wrappers: `skb_packet_size` (tc-ids) and `xdp_frame_size` (xdp-firewall) re
 
 Safe wrappers: `skb_get_fou_encap` (tc-ids), `skb_set_fou_encap` (tc-nat-egress). Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
 
-### Arena maps (kernel 6.9) - evaluated, not used
+### Arena maps - evaluated, not used
 
 The `bpf_arena_alloc_pages` / `bpf_arena_free_pages` kfuncs and
-`BPF_MAP_TYPE_ARENA` exist on kernel 6.9+, but eBPFsentinel does **not**
+`BPF_MAP_TYPE_ARENA` exist on every supported kernel (they arrived in 6.9), but eBPFsentinel does **not**
 use them. Every program delivers events through `RingBuf` exclusively.
 
 An arena map would give BPF and userspace a shared mmap'd region for
@@ -116,4 +116,4 @@ cargo fmt
 cargo test --lib
 ```
 
-At runtime the agent verifies the kernel version meets the 6.9 floor before loading any BPF program. See [Kernel Compatibility](requirements.md) for distribution support.
+At runtime the agent verifies the kernel version meets the 6.12 floor before loading any BPF program. See [Kernel Compatibility](requirements.md) for distribution support.
