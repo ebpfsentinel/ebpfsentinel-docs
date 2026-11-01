@@ -1,8 +1,17 @@
-# L7 Deep Content Inspection
+# Application Attack Detection
 
 > **Edition: Enterprise** | **License Feature: `advanced-dlp`**
 
 ## Overview
+
+Application attack detection: the agent finds an injection, a
+cross-site script or a traversal in what an application received, and
+can then block the attacker in the kernel for a bounded time. It is not
+a web application firewall and sits in no request path. The first
+request is seen and may reach the application, the source is then
+blocked in the kernel. A WAF in front, if you run one, can read the
+same blocks: see
+[handing the blocks to the proxy in front](#handing-the-blocks-to-the-proxy-in-front).
 
 The enterprise L7 deep content inspection engine runs compiled
 Vectorscan pattern databases against HTTP, gRPC, database, and

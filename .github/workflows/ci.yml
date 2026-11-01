@@ -165,6 +165,13 @@ jobs:
       - name: Check for typographic dashes
         run: npm run check:no-typographic-dash
 
+      # The agent blocks the author of an application attack in the kernel,
+      # after the first request reached the application. A page calling it a
+      # WAF promises what it cannot do; this reads every tracked page and needs
+      # no dependency either.
+      - name: Check that no page calls the agent a WAF
+        run: npm run check:no-waf-claim
+
       - run: npm ci
 
       - run: npm run typecheck
