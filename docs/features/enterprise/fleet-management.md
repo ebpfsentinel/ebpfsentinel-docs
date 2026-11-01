@@ -527,6 +527,85 @@ agent rather than applied. The request is proxied to that one agent only. With
 the whole estate selected the panel asks for a host, because shadow counters
 are one machine's traffic.
 
+## Firewall Policy in Tiers
+
+One firewall list sorted by priority is enough for one team. When a platform
+team decides some rules for every node and each node keeps rules of its own,
+the two need an order that holds whatever priorities either side picks.
+`enterprise.firewall_tiers` gives the rules that order: a tier is a named list
+of rules, the tiers are evaluated in the order they are written, and inside a
+tier the rules are evaluated by their own priority. The first rule that
+matches decides, as before.
+
+Each tier ends one of three ways:
+
+| `end` | What a packet no rule of the tier matched does |
+|-------|------------------------------------------------|
+| `pass` (default) | Goes on to the next tier |
+| `allow` | Is allowed; no later tier sees it |
+| `deny` | Is dropped; no later tier sees it |
+
+The community `firewall.rules` list is the tier named `default`. Name it in the
+list to place it; leave it out and it comes last. It takes no rules and no
+`end` in this block: its rules are the ones under `firewall.rules` and it
+passes what they do not match. Traffic every tier passed meets
+`firewall.default_policy`, as it always did. With no tier configured the
+rules are not touched, so an estate that never names a tier sees no change.
+
+```yaml
+enterprise:
+  firewall_tiers:
+    - name: platform
+      end: pass
+      rules:
+        - id: deny-known-bad-range
+          priority: 10
+          action: deny
+          protocol: any
+          src_ip: 203.0.113.0/24
+    - name: default
+    - name: quarantine
+      end: deny
+      rules:
+        - id: allow-dns
+          priority: 10
+          action: allow
+          protocol: udp
+          dst_port: 53
+```
+
+Here `deny-known-bad-range` is evaluated before every rule of the node's own
+list, whatever priority those carry, and anything the node's list and the
+quarantine tier both left undecided is dropped by the quarantine tier's end
+rather than by the default policy.
+
+### How the order reaches the datapath
+
+The datapath walks one list in priority order, and the tiers are compiled into
+that list when the configuration is loaded rather than evaluated in the
+kernel. Tier `n`, counted from zero, adds `n x 10000000` to the priority of
+each of its rules, so the first tier's rules keep the priorities they were
+written with, and a tier ending in `allow` or `deny` becomes one more rule
+matching every packet at the bottom of its band, with the id
+`tier-end-<name>` and the priority `(n + 1) x 10000000 - 1`. The verdicts are
+the ones a walk tier by tier would give. Those are the priorities and ids the
+REST API, the CLI and the dashboard show for the running rules.
+
+### Validation
+
+The tiers are refused as a whole, which stops the agent at startup and leaves
+the running rules in place on a reload, when:
+
+- a name is not 1 to 48 lowercase letters, digits or inner hyphens, or is used twice;
+- more than 16 tiers are named, `default` counted whether it is named or not;
+- the `default` tier is given rules or an `end`;
+- a rule priority inside a tier is outside 1 to 9999998;
+- a rule id is used twice across the tiers and `firewall.rules`, or takes the `tier-end-<name>` id of a tier that ends in `allow` or `deny`.
+
+The block is read again from the configuration file on every reload, beside the
+rules it orders. Without the `fleet-management` licence feature the tiers are
+ignored with a warning and the rules are evaluated as one list.
+
 ## Configuration
 
 > A mistake in this block stops the agent: an unknown key, a value of the wrong type

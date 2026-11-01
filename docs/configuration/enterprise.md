@@ -402,6 +402,13 @@ enterprise:
     rules:
       - /etc/ebpfsentinel/sigma
     max_refused_share: 0.5
+
+  # ── Firewall tiers ──────────────────────────────────────────────
+  firewall_tiers:
+    - name: platform
+      end: pass               # pass, allow or deny
+      rules: []               # written exactly as firewall.rules entries
+    - name: default           # the community firewall.rules list
 ```
 
 > A full annotated reference covering every block (including DNS entropy, TLS
@@ -563,6 +570,23 @@ startup. It loads nothing without the `sigma-rules` licence feature.
 `ebpfsentinel-enterprise-agent sigma check` compiles the same files without
 starting the agent. [Sigma Rules](../features/enterprise/sigma-rules.md) lists
 every field the compiler takes and refuses.
+
+### Firewall tiers
+
+`firewall_tiers` orders the firewall rules in tiers evaluated one after the
+other, the community `firewall.rules` list being the tier named `default`.
+Empty, the default, leaves the rules as one list.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `name` | string | required | 1 to 48 lowercase letters, digits or inner hyphens, unique. `default` places the community list |
+| `end` | string | `pass` | `pass` hands what no rule of the tier matched to the next tier; `allow` and `deny` decide it there. Not set on `default` |
+| `rules` | list | empty | Firewall rules in the `firewall.rules` format, priority 1 to 9999998 inside the tier. Not set on `default` |
+
+At most 16 tiers, `default` included. The block is read again on every reload
+and needs the `fleet-management` licence feature.
+[Firewall policy in tiers](../features/enterprise/fleet-management.md#firewall-policy-in-tiers)
+explains the order and the priorities the running rules carry.
 
 ### License
 

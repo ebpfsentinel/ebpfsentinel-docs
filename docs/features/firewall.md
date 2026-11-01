@@ -242,6 +242,11 @@ configuration. The enterprise edition adds a route and a dashboard panel that
 put one in force on the reading it was decided on, recorded in the audit log:
 see [Putting a shadow rule in force](enterprise/fleet-management.md#putting-a-shadow-rule-in-force).
 
+The rules here form one list. The enterprise edition can order them in tiers
+evaluated one after the other, a platform team's rules ahead of a node's own
+whatever priorities either picks: see
+[Firewall policy in tiers](enterprise/fleet-management.md#firewall-policy-in-tiers).
+
 ### Interface Groups
 
 Rules can be scoped to specific interface groups using the `interfaces` field. Interface groups are defined at the top level and assign named groups to physical interfaces. Rules reference group names to control where they apply.
