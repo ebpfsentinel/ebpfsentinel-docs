@@ -110,6 +110,45 @@ Hashing is the cost: the reader hashes at most 64 MiB per request and leaves
 the rest for the next, so a burst of large writes is read over several seconds
 rather than stalling the watch.
 
+## The agent's own files
+
+Whatever `filesystems` names, the agent watches its own files: the executable
+it runs from, the configuration file it was started with, every eBPF object in
+its program directory, and `file_baselines.redb` itself. The filesystem holding
+each is opened beside the configured ones, each file is read and kept as soon
+as the watch is open, and their baselines are kept even once the store holds
+`max_baselines` entries. In a container the binary and the objects live in the
+image's filesystem, as the agent sees it; where that filesystem refuses a
+watch, the refusal is logged like any other and those files go unwatched.
+
+A difference another process leaves on one of them is an alert, not only a log
+line, and no rule needs to ask for it. The agent's own writes are not: it keeps
+the baseline store open and writes it continuously, so a content difference on
+the store counts only when another process wrote the file, while a change of
+mode, owner, extended attributes or kind, or the file disappearing, counts on
+every file whoever made it.
+
+| Rule | File |
+|------|------|
+| `agent-binary-changed` | The agent's executable |
+| `agent-configuration-changed` | The configuration file |
+| `agent-program-changed` | An eBPF object in the program directory |
+| `agent-baseline-store-changed` | `file_baselines.redb` |
+
+| Field | Value |
+|-------|-------|
+| Component | `agent_files` |
+| Severity | `high` |
+| MITRE ATT&CK | T1562.001, Impair Defenses: Disable or Modify Tools (defense evasion) |
+
+The alert names the file, what differs, and the writer with its executable,
+container and pod where they resolve. When the watch is opened again after a
+gap, a warden restart for instance, the files are read again and a difference
+found then is an alert whose writer is not known. The first opening after the
+agent starts only learns: an upgrade replaces the binary and the objects while
+the agent is stopped, so a difference then is logged and kept as the new
+baseline.
+
 ## Host rules
 
 Every settled change is also handed to the [host rules](../features/host-rules.md#file-intentions)
@@ -125,8 +164,8 @@ file intentions are evaluated by nothing.
 |--------|--------|---------|
 | `ebpfsentinel_file_changes_total` | `kind` | Changes seen, by kind: `created`, `written`, `attributes_changed`, `moved_out`, `moved_in`, `deleted` |
 | `ebpfsentinel_file_change_overflows_total` | - | Times changes were lost because the kernel's queue was full |
-| `ebpfsentinel_file_watch_filesystems` | - | Paths whose filesystem is watched |
-| `ebpfsentinel_file_watch_filesystems_refused` | - | Paths whose filesystem could not be watched |
+| `ebpfsentinel_file_watch_filesystems` | - | Configured paths whose filesystem is watched |
+| `ebpfsentinel_file_watch_filesystems_refused` | - | Configured paths whose filesystem could not be watched |
 | `ebpfsentinel_file_drifts_total` | `what` | Differences between a baseline and a new reading |
 | `ebpfsentinel_file_baselines` | - | Baselines kept |
 | `ebpfsentinel_file_baselines_refused_total` | - | Paths that got no baseline because the store was full |

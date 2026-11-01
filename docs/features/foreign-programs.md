@@ -143,6 +143,10 @@ What it does not cover:
   30 seconds.
 - **The kernel itself.** A module loaded into the kernel, or a process with
   write access to kernel memory, is past any hook.
+- **The files on disk.** The objects the agent loads, its binary and its
+  configuration are files, and a rewrite of one waits for the next start. With
+  the file watch on, a change another process makes to any of them is an
+  alert: see [the agent's own files](../configuration/file-watch.md#the-agents-own-files).
 
 ## Legitimate Holders
 
