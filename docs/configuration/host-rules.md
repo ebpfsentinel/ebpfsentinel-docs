@@ -80,6 +80,7 @@ them.
 | `<field>` or `<field>_in` | equals one of the values | every type |
 | `<field>_not_in` | equals none of the values | every type |
 | `<field>_matches` | matches one of the globs, `*` any run of characters, `?` one | text, path and digest |
+| `<field>_regex` | contains a match of one of the regular expressions | text, path and digest |
 | `<field>_gt`, `<field>_lt` | is above, below the one value | integer and port |
 | `<field>_eq_field`, `<field>_ne_field` | equals, differs from the other field named, of the same intention and type | every type |
 
@@ -90,6 +91,22 @@ lists nor one it excludes. An empty map matches every event of its intention.
 `any_of` sits once, at the top of `when`, and lists alternatives, each an
 intention with its matchers; it does not nest. The rule holds when one
 alternative does.
+
+## Regular expressions
+
+`_regex` takes the syntax of Rust's `regex` crate. It searches the text rather
+than matching all of it, so `^` and `$` are written when the whole value is
+meant, where a glob is anchored at both ends without saying so. The engine runs
+in time linear in the text and has no backtracking, no lookaround and no
+backreference, so no pattern can be written whose cost explodes on a crafted
+path.
+
+Glob stays the default because what a regular expression costs is memory: a
+pattern may compile to 512 KiB and cache another 512 KiB while it searches,
+where a glob holds its own characters. Per event the two are close, tens of
+nanoseconds either way on a path. A pattern that compiles larger is refused at
+load, and the refusal says what usually causes it: a counted repetition of a
+Unicode class such as `\w{200}`, which `(?-u)` or a narrower class shrinks.
 
 ## Counts
 
@@ -154,8 +171,8 @@ stops that process.
   unknown intention, with the list of known ones.
 - A value of the wrong type, an address that does not parse, a glob on a
   number, `_gt` or `_lt` on text, and two fields of different types compared.
-- `_regex`: this build evaluates no regular expression, and the refusal names
-  the glob that replaces it.
+- A regular expression that does not parse, with the engine's reason, or that
+  compiles to more than 512 KiB.
 - `count` without `min` or `within`, `min: 1`, `min` above 1024, a `per`
   outside the three, a `distinct` field the intention does not carry, a
   `per: process` or `per: workload` on an intention whose event names no
