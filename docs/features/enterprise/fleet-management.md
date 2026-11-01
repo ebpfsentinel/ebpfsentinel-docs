@@ -726,6 +726,28 @@ reduction from what the scanner listed to what is exposed and used is read
 off the report itself. What is not known ranks above what is known to be
 quiet, never below it.
 
+#### What moved since the last reading
+
+A standing is true on the day it was read, and an estate changes faster than
+a scan cadence. Every five minutes the agent reads the facts of every held
+report again and compares them with the reading before; the report's `drift`
+lists what moved, newest first, each change with the finding, the package,
+what moved (`joined`, `standing`, or one of the six facts) and its value
+before and after:
+
+- a library never mapped that a new release now loads: `mapped` from `no` to
+  `yes`, and its standing leaves `not_mapped`;
+- a port that opened: `listens` from `no` to `yes`;
+- a policy that stopped blocking: `blocked_by_policy` from `yes` to `no`, and
+  the standing leaves `closed_by_policy`;
+- a package installed, removed or moved to another version: `joined`, with
+  no value on the side where the finding named nothing installed.
+
+The first reading after an upload or a restart is the baseline and records
+nothing; uploading a report under the same name starts over. At most 4,096
+changes are kept per report, and `changes_let_go` counts the older ones let
+go.
+
 ### In the dashboard
 
 The dashboard's **Package reachability** screen, shown when the licence carries
