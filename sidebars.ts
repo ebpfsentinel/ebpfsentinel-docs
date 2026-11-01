@@ -155,6 +155,7 @@ const sidebars: SidebarsConfig = {
         'configuration/process-table',
         'configuration/host-rules',
         'configuration/kernel-drops',
+        'configuration/file-watch',
         'configuration/tcp-health',
         'configuration/network-inventory',
         'configuration/learning',

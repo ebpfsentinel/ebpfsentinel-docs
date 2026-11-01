@@ -10,7 +10,7 @@ The agent runs as a DaemonSet, one pod per node, installed by the Helm chart
 
 | Container | User | Capabilities | Role |
 |-----------|------|--------------|------|
-| `warden` | 0 | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | Privileged broker, run as a native sidecar (an init container with `restartPolicy: Always`). Delegates a bpffs to the agent once, then performs the host-namespace operations the agent cannot: conntrack teardown, routes, gratuitous ARP, the pcap socket pool and the DLP uprobe attach |
+| `warden` | 0 | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH` | Privileged broker, run as a native sidecar (an init container with `restartPolicy: Always`). Delegates a bpffs to the agent once, then performs the host-namespace operations the agent cannot: conntrack teardown, routes, gratuitous ARP, the pcap socket pool, the DLP uprobe attach and the file watch |
 | `agent` | 65534 | none (`drop: [ALL]`) | The agent. Unshares its own user namespace, has the warden stamp the bpffs it opened, loads its eBPF through the token and serves the API |
 
 Native sidecars need **Kubernetes 1.29 or later** (on 1.28 they sit behind an alpha feature gate that is off by default), and the chart's `kubeVersion` refuses an older cluster. The two containers share the
@@ -98,7 +98,7 @@ one rather than as a blanket requirement:
 | What | Why | Forbidden by |
 |---|---|---|
 | `hostNetwork: true` | XDP and TC attach to the node's own interfaces, which exist in no other namespace | `baseline` |
-| The warden's `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | bpffs delegation, conntrack and routes, the pcap pool, reading a neighbour's procfs, creating the DLP uprobe link | `baseline` |
+| The warden's `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH` | bpffs delegation, conntrack and routes, the pcap pool, reading a neighbour's procfs, creating the DLP uprobe link, naming the directory a watched file changed in | `baseline` |
 | `seccompProfile: Unconfined` and `appArmorProfile: Unconfined` on both containers | the agent unshares a user namespace and loads eBPF through its token without `CAP_SYS_ADMIN`; the warden issues `fsconfig`, netlink and `bpf` | `baseline` |
 | `allowPrivilegeEscalation: true` on the agent | it gains inside its own user namespace the capabilities it holds none of on the host | `restricted` |
 | hostPath volumes (`/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/fs/cgroup`, `/proc`, the state directory, `/etc/machine-id`) | the programs, the pinned maps and the node's procfs live on the node, not in the pod | `baseline` |

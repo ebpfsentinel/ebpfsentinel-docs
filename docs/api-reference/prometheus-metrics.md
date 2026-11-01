@@ -282,6 +282,20 @@ a request and a failure for each protocol, and how a service is named, is in
 What each port promises and when a connection is judged is in
 [L7 Firewall](../features/l7-firewall.md#a-protocol-on-the-wrong-port).
 
+### File Watch
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ebpfsentinel_file_changes_total` | Counter | `kind` | File changes seen on the watched filesystems, by kind |
+| `ebpfsentinel_file_change_overflows_total` | Counter | - | Times file changes were lost because the kernel's queue was full |
+| `ebpfsentinel_file_watch_filesystems` | Gauge | - | Configured paths whose filesystem is watched |
+| `ebpfsentinel_file_watch_filesystems_refused` | Gauge | - | Configured paths whose filesystem could not be watched |
+
+`kind` is one of `created`, `written`, `attributes_changed`, `moved_out`,
+`moved_in` and `deleted`. A change carrying several kinds at once counts once
+under each. What is watched and why a filesystem is refused is in
+[File Watch Configuration](../configuration/file-watch.md).
+
 ### Kernel Drop Reasons
 
 | Metric | Type | Labels | Description |

@@ -270,7 +270,7 @@ spec:
         runAsUser: 0
         capabilities:
           drop: [ALL]
-          add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON]
+          add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH]
       volumeMounts:
         - { name: warden-sock, mountPath: /run/ebpfsentinel }
         - { name: host-proc, mountPath: /host/proc, readOnly: true }

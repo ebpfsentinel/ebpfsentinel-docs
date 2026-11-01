@@ -135,6 +135,10 @@ the host pid namespace is no longer one of them:
   (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which
   returns the link descriptor over the control socket. The agent itself stays
   `cap-drop: ALL` - it never holds a tracing capability.
+- **The file watch on the warden only.** Marking a whole filesystem
+  (`CAP_SYS_ADMIN`) and turning the handle the kernel reports into a directory
+  name (`CAP_DAC_READ_SEARCH`) are done by the warden, on a control connection
+  of the agent's own; the watch ends with that connection.
 - **Entering a pod's network namespace on the warden only.** A `pod` profile
   agent attaches its TC chain inside each selected pod, which means entering
   that pod's network namespace (`CAP_SYS_ADMIN`), so the warden does it: the
