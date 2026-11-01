@@ -74,6 +74,7 @@ const sidebars: SidebarsConfig = {
         'features/raw-sockets',
         'features/listening-sockets',
         'features/foreign-programs',
+        'features/host-rules',
         'features/packet-trace',
         'features/nat',
         'features/routing',

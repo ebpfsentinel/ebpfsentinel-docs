@@ -1323,6 +1323,18 @@ between a workload that can open nothing new and one that is actually off the
 network; the default window and the number of protected cgroups are printed
 only where it is armed.
 
+### host-rules
+
+```bash
+# The intentions a host rule may name and which of them this node serves
+ebpfsentinel-agent host-rules intents
+```
+
+`host-rules intents` prints one row per intention with its state, the hook
+serving it and its fields, then how many this node serves and, for each one it
+does not, the reason, one sentence per missing source. `--output json` prints
+the API's answer, field types included. See [Host Rules](../features/host-rules.md).
+
 ### exposure
 
 ```bash

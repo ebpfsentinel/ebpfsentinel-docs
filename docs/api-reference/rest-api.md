@@ -867,6 +867,64 @@ Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
 `filter_instructions` when a filter is attached, `absent` when none is, and
 `unknown` when the kernel withheld the answer.
 
+### Host Rules
+
+#### GET /api/v1/host-rules/intents
+
+Every intention a host rule may name, the fields it carries with their types,
+the hook serving it and whether this host serves it. See
+[Host Rules](../features/host-rules.md) for what each source is.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules/intents
+```
+
+```json
+{
+  "kernel": "6.12",
+  "applicable": 8,
+  "intents": [
+    {
+      "name": "process.connects",
+      "family": "process",
+      "hook": "cgroup connect4 and connect6",
+      "sources": ["socket_attribution"],
+      "min_kernel": "4.17",
+      "state": "applicable",
+      "fields": [
+        { "name": "exe", "type": "path", "doc": "executable of the process" },
+        { "name": "remote_port", "type": "port", "doc": "port of the peer" }
+      ]
+    },
+    {
+      "name": "file.changes",
+      "family": "file",
+      "hook": "fanotify FAN_MODIFY on the watched mounts",
+      "sources": ["file_watch"],
+      "min_kernel": "5.1",
+      "state": "not_applicable",
+      "reason": "file_watch: no source for it is part of this build",
+      "fields": [
+        { "name": "path", "type": "path", "doc": "path of the file" }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kernel` | string | The running kernel as `major.minor`, absent when it could not be read |
+| `applicable` | integer | How many intentions this host serves |
+| `intents` | array | One entry per intention, in catalogue order |
+
+Each intention carries `name`, `family` (`process`, `file`, `posture` or
+`surface`), `hook`, the `sources` it needs, `min_kernel`, `fallback` where one
+exists, `state` (`applicable` or `not_applicable`), `reason` when it is not
+applicable, one sentence per missing source, and its `fields`, each with
+`name`, `type` (`text`, `path`, `integer`, `port`, `address`, `boolean` or
+`hash`) and `doc`.
+
 ### Exposure
 
 #### GET /api/v1/exposure/listeners
@@ -3301,6 +3359,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
+| GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |

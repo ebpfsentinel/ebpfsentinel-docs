@@ -1,0 +1,66 @@
+# Host Rules
+
+A host rule names what a workload does in the product's own words -
+`process.connects`, `file.changes`, `bpf.foreign_program` - and never the
+kernel mechanism that observes it. Which hook serves an intention, on which
+kernel and with what fallback, is the agent's table, resolved on the host it
+runs on, so a rule written once means the same thing on every node and nobody
+writing one has to know a kprobe symbol or an argument index.
+
+The price is stated rather than hidden: only the intentions listed below can be
+named. Adding one is a change to the agent, never a configuration key.
+
+## Intentions
+
+| Intention | Family | Fields |
+|-----------|--------|--------|
+| `process.starts` | process | `exe`, `uid`, `command_line`, `exe_on_disk`, `parent_exe`, `parent_uid` |
+| `process.ends` | process | `exe`, `uid`, `exit_code` |
+| `process.connects` | process | `exe`, `uid`, `exe_on_disk`, `remote_address`, `remote_port`, `protocol` |
+| `process.listens` | process | `exe`, `uid`, `exe_on_disk`, `local_address`, `local_port`, `protocol` |
+| `process.resolves` | process | `exe`, `uid`, `domain`, `query_type` |
+| `process.sends_tls` | process | `exe`, `uid`, `remote_address`, `remote_port`, `server_name`, `ja4` |
+| `file.changes` | file | `path`, `extension`, `exe`, `uid` |
+| `file.appears` | file | `path`, `extension`, `exe`, `uid` |
+| `file.disappears` | file | `path`, `extension`, `exe`, `uid` |
+| `file.permissions_change` | file | `path`, `exe`, `uid`, `mode`, `previous_mode`, `owner_uid` |
+| `file.integrity_breaks` | file | `path`, `expected_hash`, `actual_hash` |
+| `port.hidden` | posture | `local_address`, `local_port`, `protocol` |
+| `process.hidden` | posture | `pid`, `comm` |
+| `bpf.foreign_program` | posture | `program_id`, `program_name`, `program_type`, `attach_point`, `loader_exe` |
+| `packet_socket.appears` | posture | `exe`, `uid`, `interface` |
+| `package.vulnerable_reachable` | surface | `package`, `version`, `vulnerability`, `severity`, `exe`, `listening_port` |
+
+Every field has one declared type - text, path, integer, port, address,
+boolean or SHA-256 digest - and a rule comparing a field with a value of
+another type, or naming a field its intention does not carry, is refused when
+it is loaded rather than matching nothing for as long as nobody notices. An
+unknown intention is refused with the list of known ones.
+
+## What this host serves
+
+Each intention needs one or more sources, and whether a source is present is
+read from what the agent actually attached and is reading, not from the kernel
+version:
+
+| Source | Serves |
+|--------|--------|
+| `process_tracing` - the exec, fork and exit tracepoints | `process.starts`, `process.ends` |
+| `socket_attribution` - the cgroup socket hooks | `process.connects`, `process.listens`, and with the two below `process.resolves` and `process.sends_tls` |
+| `dns_capture` - the `tc-dns` program | `process.resolves` |
+| `tls_capture` - the `tc-ids` program, which reads the client hello | `process.sends_tls` |
+| `network_program_inventory` | `bpf.foreign_program` |
+| `raw_socket_inventory` | `packet_socket.appears` |
+| `file_watch`, `hidden_process_scan`, `hidden_port_scan`, `package_inventory` | the file, hidden and package intentions; no source for them is part of this build |
+
+An intention whose sources are absent is **not applicable, with the reason**,
+one sentence per missing source, rather than a rule that loads and is quietly
+never matched:
+
+```bash
+ebpfsentinel-agent host-rules intents
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules/intents
+```
+
+See [`GET /api/v1/host-rules/intents`](../api-reference/rest-api.md#get-apiv1host-rulesintents)
+for the response.
