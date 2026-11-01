@@ -59,6 +59,7 @@ file_watch:
 | `write_refusal.threshold` | integer | `100` | Under a data path, the write-open inside the window that is refused first, at least 1 |
 | `write_refusal.window_secs` | integer | `60` | The window the count runs over, 1 to 3600 seconds |
 | `write_refusal.count_by` | `process` or `cgroup` | `process` | Count each process alone, or a container or unit as one writer |
+| `write_refusal.route` | `auto`, `bpf_lsm` or `fanotify` | `auto` | Which mechanism refuses: the BPF LSM where it is active and the [fanotify fallback](#without-the-bpf-lsm) elsewhere, the BPF LSM only, or the fallback only |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
 every file of the filesystem holding `/etc`. Two paths on one filesystem watch
@@ -467,14 +468,16 @@ too, which is why the mode ships as `shadow`: read
 count is of write-opens and not of files, so one file reopened a hundred times
 counts a hundred.
 
-**It needs the BPF LSM active at boot**, which `lsm=` on the kernel command
-line decides and which not every distribution or host provider sets. Where it
-is not active, the program is not loaded, the agent starts anyway in either
-mode, the reason is logged and reported in the `write_refusal` block of
-`GET /api/v1/ebpf/kernel-features` and by `ebpfsentinel-agent ebpf host-check`,
-and the [mass encryption](../features/mass-encryption.md) detection beside it
-still detects the run and, with `stop` on, kills it: the node keeps a defence,
-and loses more files to it.
+**The program needs the BPF LSM active at boot**, which `lsm=` on the kernel
+command line decides and which not every distribution or host provider sets.
+Where it is not active, `route: auto` falls back to fanotify, described below,
+and `route: bpf_lsm` loads nothing. When neither route can run, the agent
+starts anyway in either mode, the reason is logged and reported in the
+`write_refusal` block of `GET /api/v1/ebpf/kernel-features` and by
+`ebpfsentinel-agent ebpf host-check`, and the
+[mass encryption](../features/mass-encryption.md) detection beside it still
+detects the run and, with `stop` on, kills it: the node keeps a defence, and
+loses more files to it.
 
 **It fails open.** The two hooks are links the agent holds and never pins, so
 an agent that stops, crashes or is killed takes them with it and nothing is
@@ -492,6 +495,53 @@ Counters are published under
 under the component `mass_encryption` and the rule `write-refusal`, naming the
 process, the file, the watched directory and the count, with the mitigation
 `refused` in `enforce`.
+
+### Without the BPF LSM
+
+Where the BPF LSM is not active, or with `route: fanotify`, the same two
+regimes are held by a fanotify permission group: the kernel asks the agent
+before every open of a marked inode and waits for its answer. The report's
+`route` field says which mechanism refuses, `bpf_lsm` or `fanotify`, and
+`marks` how many inodes the fallback holds.
+
+- **It marks inodes, never a filesystem or a mount.** A watched file is one
+  mark, a watched directory one mark per directory beneath it on the same
+  filesystem. The set is counted before the first mark is placed, against
+  4,096 and against the host's `fs.fanotify.max_user_marks` when that is
+  lower, and a set past either is refused with its count rather than held in
+  part. A directory created under a watched one is marked at the next
+  refresh, within thirty seconds; until then, files in it are not asked
+  about.
+- **It refuses with `EPERM`**, where the BPF LSM refuses with `EACCES`. A
+  refused creation leaves the name behind, empty, the same way.
+- **It sees opens and nothing else.** A truncation by path through
+  `truncate(2)` opens nothing and is not asked about, and a write through a
+  descriptor opened before the refusal began is never asked about either.
+  The open flags are read off the opener's pending system call, which is how
+  a write-open is told from a read; an open whose call cannot be read is let
+  through and counted as `unresolved`.
+- **It costs every open of a marked inode**, reads included, about 24
+  microseconds each when measured, against nothing for a file the set does
+  not name. Name the directories a run would reach, not a whole tree.
+- **It answers inside a budget.** The opens read at once are answered within
+  20 milliseconds, and those past it are allowed undecided and counted as
+  `over_budget`: an agent late to answer holds every opener on the watched
+  paths, and that outage is worse than a write let through.
+- **It needs `CAP_SYS_ADMIN`**, which the rootless agent does not hold, so
+  under the warden split the warden opens the group and hands the agent its
+  only descriptor, and reads each batch of openers' pending calls in one
+  round trip. An agent with neither the privilege nor a warden reports the
+  reason and refuses nothing on a host without the BPF LSM.
+- **It fails open.** The group's descriptor belongs to one thread of the
+  agent. When the agent stops, crashes or is killed the descriptor closes,
+  and the kernel allows every open still waiting and asks about none after.
+- **It never watches what it reads to decide.** To answer, the handler reads
+  `/proc` and `/sys/fs/cgroup` and nothing else, and a watched path under
+  either is refused at start: a handler that opened a watched file would
+  wait on its own answer.
+
+Its counters are published under
+`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_FALLBACK", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full`, `expected`, `own` and `over_budget`. The alerts are the same as the program's.
 
 ## Host rules
 
