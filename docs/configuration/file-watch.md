@@ -480,8 +480,10 @@ detects the run and, with `stop` on, kills it: the node keeps a defence, and
 loses more files to it.
 
 **It fails open.** The two hooks are links the agent holds and never pins, so
-an agent that stops, crashes or is killed takes them with it and nothing is
-refused afterwards. A write the program cannot attribute, a path deeper than
+an agent that stops, crashes or is killed, `SIGKILL` included, takes them
+with it and nothing is refused afterwards. An agent frozen with `SIGSTOP`
+leaves the program enforcing on its own counts, so the node stays writable
+for everything under its threshold. A write the program cannot attribute, a path deeper than
 sixteen directories below a watched one, or a new writer arriving with the
 counter map full at 16,384 writers is let through and counted. The agent's own
 writes are never counted.
@@ -535,6 +537,10 @@ before every open of a marked inode and waits for its answer. The report's
 - **It fails open.** The group's descriptor belongs to one thread of the
   agent. When the agent stops, crashes or is killed the descriptor closes,
   and the kernel allows every open still waiting and asks about none after.
+  An agent frozen rather than dead, stopped with `SIGSTOP` or held by a
+  debugger, still holds the descriptor, and the kernel puts no timeout on a
+  permission event: opens on the marked paths wait until it runs again or
+  dies, which is the one case the budget above does not cover.
 - **It never watches what it reads to decide.** To answer, the handler reads
   `/proc` and `/sys/fs/cgroup` and nothing else, and a watched path under
   either is refused at start: a handler that opened a watched file would
