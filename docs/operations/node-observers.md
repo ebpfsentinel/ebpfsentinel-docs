@@ -7,7 +7,7 @@ that has no business being there. The dashboard's node panel lists both, for
 the node it describes, so that the question "what else is looking at this
 host's traffic" has an answer on the screen rather than in a shell.
 
-The panel opens from the fleet page by picking a host. Its last section, **Who
+The panel opens from the fleet page by picking a host. One section, **Who
 else reads the network here**, holds two lists read from that agent alone:
 [packet sockets](../features/raw-sockets.md) and
 [foreign eBPF programs](../features/foreign-programs.md). Neither list is
@@ -76,6 +76,40 @@ Anything else is worth a look, and three things in particular:
 The agent raises an alert for each new packet socket and for each program put
 ahead of its own, so the panel is where the alert is read in context rather
 than where it is first noticed.
+
+## What this node hides, and where else
+
+The next section of the panel, **What this node hides, and where else**, lists
+what the [hidden port](../features/hidden-ports.md) and
+[hidden process](../features/hidden-processes.md) sweeps found on the node. It
+is the one part of the panel read across the fleet: opening it asks every
+agent of the tenant for its sweep, because a finding on one node and the same
+finding on twelve are different questions. One node holding a port that no
+socket listing shows is a question about that node. The same port on most of
+the estate is either a compromise that spread or a configuration somebody
+forgot, and only the set of nodes tells the two apart.
+
+Each row is one finding of this node, with where else it was found:
+
+- **A port** is the same finding on two nodes when its transport, address and
+  number agree. A port hidden in several network namespaces of one node counts
+  once for that node.
+- **A process** is the same finding when its command name agrees. A process
+  identifier means nothing outside its node, so the pids shown are this node's.
+  A process whose name could not be read is a finding of its node alone.
+- **This node only**, or **on N of M swept nodes** followed by the other
+  nodes' names. A finding held elsewhere is drawn with a highlighted border.
+
+"This node only" is a claim about every other node, so the line under each list
+names the nodes it cannot speak for: those whose sweep is off or has not run
+yet, and those the dashboard could not reach. A node whose own sweep is off says
+so instead of showing an empty list, and an empty list on a swept node means
+the sweep found nothing.
+
+Nothing here decides which reading is right. A port hidden on every node of one
+pool and on no other is worth comparing with what that pool runs before it is
+called a compromise; a process hidden on a single node is the agent's alert,
+read in context.
 
 ## When a list is missing
 

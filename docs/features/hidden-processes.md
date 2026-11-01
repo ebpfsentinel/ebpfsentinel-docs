@@ -83,4 +83,5 @@ There is no signature database and nothing is matched against a known rootkit.
 
 - REST: `/api/v1/ebpf/hidden-processes`, see the [REST API](../api-reference/rest-api.md#get-apiv1ebpfhidden-processes)
 - CLI: `ebpfsentinel-agent ebpf hidden-processes`
+- Dashboard: the node panel, which names every other node holding the same finding, as described in [What this node hides, and where else](../operations/node-observers.md#what-this-node-hides-and-where-else)
 - Configuration: [`hidden_checks`](../configuration/hidden-checks.md)
