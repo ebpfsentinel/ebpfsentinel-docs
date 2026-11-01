@@ -1206,6 +1206,9 @@ ebpfsentinel-agent ebpf raw-sockets
 
 # The eBPF programs on the network path that the agent did not load
 ebpfsentinel-agent ebpf foreign-programs
+
+# Ports a bind finds held and no socket listing shows
+ebpfsentinel-agent ebpf hidden-ports
 ```
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
@@ -1277,6 +1280,18 @@ PID   EXECUTABLE         POD  KIND  PROTOCOL  INTERFACE  NETNS  FILTER
 ```
 
 What each column means is on [Packet Sockets](../features/raw-sockets.md).
+
+`ebpf hidden-ports` prints what the last sweep found: how many binds were
+refused and what explained each, the namespaces it could not enter, and one row
+per hidden port:
+
+```text
+1024 port(s) probed in 3 namespace(s), read through warden.
+41 bind(s) refused: 37 by a listener, 3 by TIME_WAIT, 1 by another socket, 0 not confirmed by the second reading, 0 hidden. 0 bind(s) could not be tried.
+No hidden port.
+```
+
+What each count means is on [Hidden Ports](../features/hidden-ports.md).
 
 `ebpf foreign-programs` prints one row per eBPF program on the network path
 that the agent did not load, with where it runs and the processes holding it,

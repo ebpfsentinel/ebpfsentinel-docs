@@ -52,7 +52,8 @@ version:
 | `network_program_inventory` | `bpf.foreign_program` |
 | `raw_socket_inventory` | `packet_socket.appears` |
 | `file_watch` - the [file watch](../configuration/file-watch.md), present while at least one filesystem is watched | the five file intentions |
-| `hidden_process_scan`, `hidden_port_scan`, `package_inventory` | the hidden and package intentions; no source for them is part of this build |
+| `hidden_port_scan` - the [hidden port sweep](hidden-ports.md), present while it runs | `port.hidden` |
+| `hidden_process_scan`, `package_inventory` | the hidden process and package intentions; no source for them is part of this build |
 
 An intention whose sources are absent is **not applicable, with the reason**,
 one sentence per missing source, rather than a rule that loads and is quietly

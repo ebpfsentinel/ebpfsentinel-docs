@@ -867,6 +867,51 @@ Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
 `filter_instructions` when a filter is attached, `absent` when none is, and
 `unknown` when the kernel withheld the answer.
 
+#### GET /api/v1/ebpf/hidden-ports
+
+The last comparison of the socket listings with a bind probe, in every network
+namespace: what explained each refused bind, the namespaces that could not be
+entered, and the ports nothing explained. See [Hidden Ports](../features/hidden-ports.md)
+for the benign causes and what is not seen.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/ebpf/hidden-ports
+```
+
+```json
+{
+  "reading": true,
+  "source": "warden",
+  "probed_ports": 1024,
+  "scanned_at_ns": 1761900000000000000,
+  "counts": {
+    "namespaces": 3,
+    "unreachable_namespaces": 0,
+    "probed": 12288,
+    "unprobed": 0,
+    "refused": 41,
+    "explained_by_listener": 37,
+    "explained_by_time_wait": 3,
+    "explained_by_other_socket": 1,
+    "unconfirmed": 0,
+    "hidden": 0
+  },
+  "hidden": [],
+  "unreachable": []
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The sweep runs |
+| `source` | string | `warden` or `local`, absent when the sweep is off |
+| `probed_ports` | integer | How many ports each namespace is probed on |
+| `scanned_at_ns` | integer | When the last sweep was made, nanoseconds since the epoch, `0` before the first |
+| `last_error` | string | Why the last sweep failed, absent when it succeeded; the result is then the sweep before |
+| `counts` | object | How the sweep reached its result, one counter per explanation |
+| `hidden` | array | One entry per hidden port: `netns`, `host_netns`, `transport` (`tcp` or `udp`), `address` (`0.0.0.0` or `::`) and `port` |
+| `unreachable` | array | One entry per namespace that could not be entered: `netns` and `reason` |
+
 ### Host Rules
 
 #### GET /api/v1/host-rules
@@ -3455,6 +3500,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
+| GET | `/api/v1/ebpf/hidden-ports` | Yes | Ports that refuse a bind and appear in no socket listing |
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
