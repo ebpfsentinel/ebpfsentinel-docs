@@ -582,6 +582,7 @@ Empty, the default, leaves the rules as one list.
 | `name` | string | required | 1 to 48 lowercase letters, digits or inner hyphens, unique. `default` places the community list |
 | `end` | string | `pass` | `pass` hands what no rule of the tier matched to the next tier; `allow` and `deny` decide it there. Not set on `default` |
 | `rules` | list | empty | Firewall rules in the `firewall.rules` format, priority 1 to 9999998 inside the tier. Not set on `default` |
+| `owner_role` | string | none | The role that alone may change the tier. Required on the tier named `provider`, which must come first and needs the `multi-tenancy` licence feature; refused on every other tier |
 
 At most 16 tiers, `default` included. The block is read again on every reload
 and needs the `fleet-management` licence feature.

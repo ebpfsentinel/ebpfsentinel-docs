@@ -410,6 +410,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/exposure/listeners` | viewer | `config:read` | fleet-management | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did; the same body as the open source agent. |
 | `GET` | `/api/v1/firewall/shadow` | viewer | `firewall:read` | fleet-management | What each firewall rule in shadow mode would have done since its counters started; the same body as the open source agent. |
 | `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | `firewall:write` | fleet-management | Put one shadow rule in force on the reading it was decided on; `409` when that reading is stale or the rule is not in shadow, `404` when no rule carries the id. Recorded in the audit log. |
+| `GET` | `/api/v1/firewall/tiers` | viewer | `firewall:read` | fleet-management | The firewall tiers in evaluation order, each with its priority band, the ids of its rules and whether it is the provider's, which only the provider's role may change. |
 
 ## High availability
 

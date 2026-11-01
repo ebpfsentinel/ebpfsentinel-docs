@@ -606,6 +606,56 @@ The block is read again from the configuration file on every reload, beside the
 rules it orders. Without the `fleet-management` licence feature the tiers are
 ignored with a warning and the rules are evaluated as one list.
 
+### The provider tier
+
+A service provider running a customer's estate holds the tier named `provider`.
+It is evaluated before every other tier, so no rule the customer writes reaches
+a packet it decided, and only the role named in its `owner_role` may change it:
+
+```yaml
+enterprise:
+  firewall_tiers:
+    - name: provider
+      owner_role: mssp-provider
+      end: pass
+      rules:
+        - id: deny-tor-exits
+          priority: 10
+          action: deny
+          protocol: any
+          src_ip: 198.51.100.0/24
+    - name: default
+```
+
+The tier is refused, which stops the agent at startup and leaves the running
+rules in place on a reload, when it is not written first, when it names no
+`owner_role`, or when another tier names one. It needs the `multi-tenancy`
+licence feature beside `fleet-management`: a provider tier on a licence without
+it is refused rather than ignored, because an estate that loaded the provider's
+rules as the customer's own would let the customer change them.
+
+The fence covers every write that could change the tier: adding or replacing a
+rule (`POST /api/v1/firewall/rules`) whose id is one of the tier's or whose
+priority falls in its band, deleting one of its rules
+(`DELETE /api/v1/firewall/rules/{id}`), and promoting a shadow rule into it
+(`POST /api/v1/firewall/shadow/{id}/promote`). The caller must hold the owner
+role itself: the customer's administrator holds a role above it and is still
+refused, and so is a request carrying no identity. A refusal is a `403` whose
+body names the code `PROVIDER_TIER`. Reading is not fenced, and the customer's
+console marks each of the tier's rules as the provider's.
+
+`GET /api/v1/firewall/tiers` lists the tiers the agent runs, in evaluation
+order, with the priority band each one holds, the ids of its rules and whether
+it is the provider's. It is served when the `fleet-management` licence feature
+is held.
+
+On Kubernetes the operator carries the same tiers: `EnterpriseSettings` declares
+them in `firewallTiers` (`name`, `end`, `ownerRole`) and a `FirewallPolicy` places
+its rules in one through `tier`. A rule naming a tier nothing declared is refused
+when the configuration is rendered, and admission refuses a `FirewallPolicy`
+naming the `provider` tier in a namespace a `TenantPolicy` holds, since that is a
+customer's namespace.
+
 ## Configuration
 
 > A mistake in this block stops the agent: an unknown key, a value of the wrong type

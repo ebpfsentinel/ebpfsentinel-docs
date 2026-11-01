@@ -517,6 +517,44 @@ The paths are resolved in the agent's own mount view, so a binary inside a
 pod's image is not covered by naming its path. See
 [Executables allowed to reach the network](../../configuration/workload-firewall.md#executables-allowed-to-reach-the-network).
 
+### Firewall rules in tiers
+
+`EnterpriseSettings` declares the
+[firewall tiers](fleet-management.md#firewall-policy-in-tiers) in
+`firewallTiers`, in evaluation order, and a `FirewallPolicy` places its rules in
+one through `tier`. A policy naming no tier, or `default`, stays in the
+community list:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EnterpriseSettings
+spec:
+  firewallTiers:
+    - name: provider
+      ownerRole: mssp-provider
+    - name: default
+---
+apiVersion: ebpfsentinel.io/v1
+kind: FirewallPolicy
+metadata:
+  name: provider-baseline
+  namespace: mssp-system
+spec:
+  tier: provider
+  rules:
+    - id: deny-known-bad-range
+      priority: 10
+      action: deny
+      protocol: any
+      source: 203.0.113.0/24
+```
+
+A rule naming a tier `firewallTiers` does not declare is refused when the
+configuration is rendered, since nothing says where it would be evaluated. The
+`provider` tier belongs to the service provider: admission refuses a
+`FirewallPolicy` naming it in any namespace a `TenantPolicy` holds, so a
+customer cannot place a rule there from their own namespaces.
+
 ### Stopping the process behind a blocked flow
 
 An `IPSPolicy` rule in `block` mode may carry `killProcess: true`, which also
