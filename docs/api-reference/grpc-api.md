@@ -84,7 +84,7 @@ A single alert event streamed to the client.
 | 26 | `attack_type` | `string` | DDoS: attack type (SynFlood, UdpAmplification, etc.). Empty if absent. |
 | 27 | `peak_pps` | `uint64` | DDoS: peak packets per second observed (0 if absent). |
 | 28 | `current_pps` | `uint64` | DDoS: current smoothed packets per second / EWMA (0 if absent). |
-| 29 | `mitigation_status` | `string` | DDoS: mitigation status (Detecting, Active, Mitigated, Expired). Empty if absent. |
+| 29 | `mitigation_status` | `string` | What was done about the source: a DDoS mitigation state (Detecting, Active, Mitigated, Expired), or the outcome of blocking the source of an application attack (blocked, already_blocked, allow_listed, ceiling_reached, no_source, failed). Empty if absent. |
 | 30 | `total_packets` | `uint64` | DDoS: total packets in attack (0 if absent). |
 | 33 | `mitre_technique_id` | `string` | MITRE ATT&CK technique ID (e.g. "T1071", "T1499.001"). Empty if absent. |
 | 34 | `mitre_technique_name` | `string` | MITRE ATT&CK technique name (e.g. "Application Layer Protocol"). Empty if absent. |

@@ -51,7 +51,8 @@ A match raises an alert under the rule id `l7-tls-plaintext`, component
 `l7-inspect`. Its source is the peer that sent the bytes and its
 destination the server's own socket, where the probe could read the
 socket; the process, the executable and the container are those of the
-server that read the request.
+server that read the request. The alert carries the severity of the
+pattern that matched.
 
 What this covers, and what it does not:
 
@@ -70,8 +71,53 @@ What this covers, and what it does not:
   body, is not seen. See
   [what block mode means for detection](dlp.md#what-block-mode-means-for-detection).
 - **After the fact.** The scan runs on a copy, after the library handed
-  the bytes to the server: it raises an alert and blocks nothing, so the
-  request is seen and has already reached the application.
+  the bytes to the server, so the request is seen and has already
+  reached the application. What can follow is a block of its source,
+  below.
+
+### Blocking the source
+
+With `block_source` set, a match at or above its `min_severity` puts the
+address that sent the payload in the kernel's block list for
+`duration_secs`. **The first request is seen and may reach the
+application, the source is then blocked in the kernel**: its next packets
+are dropped by the XDP firewall at the interface, whatever state the
+connection is in, and the connection's conntrack entry is deleted so the
+kernel stops treating it as established. No reset is sent to the server;
+its socket closes on its own timeout once the client's packets stop.
+
+Three fences sit in front of every block:
+
+- **An allow-list.** An address inside an `allow` entry is never blocked,
+  checked before anything else, so a load balancer, a health check or
+  your own network cannot be locked out by a payload it relayed. A
+  server behind a proxy sees the proxy as its peer: list it here, or the
+  block lands on the proxy.
+- **A ceiling.** At most `max_active` sources are blocked at once; a match
+  past it is reported and blocks nothing, so a spray of rotating
+  addresses cannot fill the kernel table.
+- **An expiry.** Each block lapses after `duration_secs`, and a second
+  match from a source already blocked does not extend it.
+
+A source is blocked only when the probe read the socket of the library
+call itself. An address the agent correlated from another write of the
+same task is not proof of who sent these bytes, and is never blocked.
+
+The outcome is written on the alert that caused it, in
+`mitigation_status`, with one sentence appended to its message:
+
+| `mitigation_status` | Meaning |
+|---------------------|---------|
+| `blocked` | The source is in the block list until the duration lapses |
+| `already_blocked` | The source was blocked by an earlier match; unchanged |
+| `allow_listed` | An `allow` entry covers the source; nothing blocked |
+| `ceiling_reached` | `max_active` sources are blocked already; nothing blocked |
+| `no_source` | The socket the payload arrived on is not known; nothing blocked |
+| `failed` | Writing the block failed; the reason is in the message |
+
+A match below `min_severity` carries no `mitigation_status`. Blocking
+needs the eBPF datapath: an agent started without it logs that blocking
+is off and raises the alerts alone.
 
 ## Pattern Categories
 
@@ -243,6 +289,13 @@ enterprise:
           exe: /usr/sbin/nginx
         - container: 0123456789ab
           action: exclude
+      # Absent = a match raises an alert and blocks nothing.
+      block_source:
+        min_severity: high
+        duration_secs: 600
+        max_active: 1024
+        allow:
+          - 10.0.0.0/8
       custom_inspect_patterns:
         - id: acme-internal-code
           name: Acme internal tracking code
@@ -256,6 +309,7 @@ enterprise:
 |-------|------|---------|-------------|
 | `deep_inspect_rule_ids` | `[string]` | `[]` | Rule ids allowed to trigger a scan. Empty means every submitted payload is scanned |
 | `tls_plaintext_workloads` | `[Selector]` | `[]` | Workloads whose received TLS plaintext is scanned. Empty means none |
+| `block_source` | `BlockSource` | absent | Block the source of a match in the kernel. Absent means no block |
 | `custom_inspect_patterns` | `[Pattern]` | `[]` | Patterns loaded on top of the built-in catalogue |
 
 ### TLS plaintext workload selector
@@ -277,6 +331,18 @@ A selector naming nothing, or naming a tenant, a namespace, a pod or a
 systemd unit, stops the agent at startup: those are resolved per cgroup
 by the DLP scope report and never per buffer, so a selector on one would
 read as active and match nothing.
+
+### Source block
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `min_severity` | `string` | `high` | Lowest pattern severity that blocks: `low`, `medium`, `high`, `critical` |
+| `duration_secs` | `integer` | `600` | How long a source stays blocked, from 1 to 86400 |
+| `max_active` | `integer` | `1024` | Most sources blocked at once, from 1 to 65536 |
+| `allow` | `[string]` | `[]` | Addresses or CIDRs never blocked |
+
+An unknown severity, a bound outside its range or an `allow` entry that
+is not an address or a CIDR stops the agent at startup.
 
 ### Custom inspect pattern
 
@@ -319,6 +385,8 @@ severity are each reported by name and refuse the start.
 | `enterprise-domain` | `crates/enterprise-domain/src/l7_inspect/error.rs` | `L7InspectError` (`InvalidPattern`, `DuplicateId`, `NotFound`, `CompileFailed`, `ScanFailed`) |
 | `enterprise-domain` | `crates/enterprise-domain/src/l7_inspect/builtin.rs` | Built-in pattern catalogue |
 | `enterprise-domain` | `crates/enterprise-domain/src/l7_inspect/engine.rs` | `L7InspectEngine` (Vectorscan `BlockDatabase` + `ScratchPool`) |
+| `enterprise-domain` | `crates/enterprise-domain/src/l7_inspect/source_block.rs` | `SourceBlockRules`, `SourceBlockLedger`, `SourceVerdict` |
+| `enterprise-application` | `crates/enterprise-application/src/l7_source_blocker.rs` | `L7SourceBlocker`: block list write, conntrack delete, outcome on the alert |
 | `enterprise-vectorscan` | `crates/enterprise-vectorscan/` | Safe Rust wrapper around Vectorscan (shared with DLP) |
 
 ## Feature Gating

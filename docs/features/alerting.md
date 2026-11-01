@@ -65,7 +65,7 @@ Per-component context:
 | `pid`, `tgid`, `container` | anything with a process or container attribution |
 | `direction` | packet engines |
 | `matched_domain` | DNS |
-| `attack_type`, `peak_pps`, `current_pps`, `mitigation_status`, `total_packets` | DDoS |
+| `attack_type`, `peak_pps`, `current_pps`, `mitigation_status`, `total_packets` | DDoS; `mitigation_status` also on an application attack whose source was blocked (Enterprise) |
 | `ja4_fingerprint` | TLS fingerprinting |
 | `mitre_technique_id`, `mitre_technique_name`, `mitre_tactic` | any engine with an ATT&CK mapping |
 | `rule_id`, `tgid`, `workload`, `dst_addr`, `dst_port`, `protocol` | the workload firewall |

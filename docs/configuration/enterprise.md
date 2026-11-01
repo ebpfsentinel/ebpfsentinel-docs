@@ -81,6 +81,13 @@ enterprise:
       # here have what their TLS library decrypted for them scanned by
       # the same patterns (container, cgroup and exe matchers only).
       tls_plaintext_workloads: []
+      # Absent = a match blocks nothing. Set, a match at or above
+      # min_severity blocks its source in the kernel for duration_secs.
+      block_source:
+        min_severity: high
+        duration_secs: 600
+        max_active: 1024
+        allow: []
       custom_inspect_patterns:
         - id: acme-internal-code
           name: Acme internal tracking code
@@ -647,6 +654,11 @@ explains the order and the priorities the running rules carry.
 | `advanced_dlp.tls_inspection.redirect.dry_run` | bool | `false` | Resolve the selection and report on it at `/api/v1/enterprise/tls-probes/redirect` without loading the redirect programs: nothing is redirected. Run it first to see which selected workloads lack the authority or appear to pin |
 | `advanced_dlp.l7_advanced.deep_inspect_rule_ids` | list | `[]` | Rule ids allowed to trigger a deep-inspection scan. Empty means every submitted payload is scanned |
 | `advanced_dlp.l7_advanced.tls_plaintext_workloads` | list | `[]` | Workload selectors, the DLP scope selector shape limited to `container`, `cgroup` and `exe`, whose received TLS plaintext is deep-inspected. Empty means none. Covers only workloads whose TLS library is probed and inside the DLP scope |
+| `advanced_dlp.l7_advanced.block_source` | object | absent | Block the source of a deep-inspection match in the kernel. Absent means no block |
+| `advanced_dlp.l7_advanced.block_source.min_severity` | string | `high` | Lowest pattern severity that blocks: `low`, `medium`, `high`, `critical` |
+| `advanced_dlp.l7_advanced.block_source.duration_secs` | integer | `600` | How long a source stays blocked, 1 to 86400 |
+| `advanced_dlp.l7_advanced.block_source.max_active` | integer | `1024` | Most sources blocked at once, 1 to 65536 |
+| `advanced_dlp.l7_advanced.block_source.allow` | list | `[]` | Addresses or CIDRs never blocked |
 | `advanced_dlp.l7_advanced.custom_inspect_patterns` | list | `[]` | Deep-inspection patterns loaded on top of the built-in catalogue |
 
 ### Custom L7 Inspect Pattern
@@ -791,6 +803,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Custom pattern regex validated via Vectorscan `expression_info` at config load
 - `l7_advanced.deep_inspect_rule_ids` entries cannot be empty or repeat
 - `l7_advanced.tls_plaintext_workloads` selectors must name at least one of `container`, `cgroup` or `exe`, and no `tenant`, `namespace`, `pod` or `unit`
+- `l7_advanced.block_source` must name a known `min_severity`, a `duration_secs` from 1 to 86400, a `max_active` from 1 to 65536, and `allow` entries that are addresses or CIDRs
 - `l7_advanced.custom_inspect_patterns` entries need a unique id (no collision with a built-in pattern), a non-empty name, a regex Vectorscan accepts, and a known category and severity
 - `ml_detection.anomaly_threshold` must be positive
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
