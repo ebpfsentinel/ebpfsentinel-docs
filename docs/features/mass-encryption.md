@@ -8,9 +8,11 @@ agree, the agent raises one alert, `mass_encryption`, naming the run, every
 signal that agreed with its evidence, and every signal this host could not
 read.
 
-This is detection. The alert says mass encryption was detected; it does not
-undo a file, it does not restore one, and it is not a promise that no file is
-lost.
+This is detection, and where it is told to, a stop. The alert says mass
+encryption was detected; with the stop on, a second alert says the run was
+stopped and how many files it had written by then. Neither undoes a file or
+restores one: the files written before the run died are lost, and the stop
+bounds how many, it does not prevent the first of them.
 
 ## The verdict
 
@@ -323,6 +325,50 @@ that executable does, held between half and four times the shipped one. The
 decisive signals are never learned, the verdict is still this engine's, and a
 threshold that drifts far from where it was first learned is reported:
 [mass encryption thresholds](enterprise/ml-detection.md#mass-encryption-thresholds).
+
+## Stopping the run
+
+With `file_watch.mass_encryption.stop` on and the verdict in force, the
+verdict kills the run it names rather than one process of it: the process the
+signals were attributed to and every process it started, read off the process
+table, each sent `SIGKILL` through the signal program at once. An encryptor
+that forks one worker per directory is stopped whole, workers included, and a
+process the run started outside its lineage, through a service manager or a
+scheduler, is not part of it.
+
+Two seconds after the signals, a second alert follows the verdict's, under the
+same rule:
+
+| Field | Value |
+|-------|-------|
+| mitigation status | `stopped` when every process of the run is gone, `partially_stopped` when some survived, `not_stopped` when none was reached |
+| message | the files written before the run was stopped, how many of its processes are gone and how long after the verdict, then any process that survived and why, then the verdict's own message |
+
+The file count is the number of distinct files the run was seen writing,
+renaming or creating under the file watch by the time the alert was written. It
+is read off the watch rather than off the disk, and the watch reads changed
+paths back in batches, so against a run writing at full speed it is a floor:
+the files lost are more, as the measurements below show.
+
+**How long it takes, and what it costs.** On the test lane, a guest running
+kernel 7.0, `tests/perf/08-mass-encryption-kill-latency.bats` encrypted a tree
+of 2,000 small documents in twenty directories at full speed, five times with a
+single process and five times with one forking a worker per directory:
+
+| Run | Verdict to last process gone | Files the alert counted | Files lost on disk | Outcome |
+|-----|------------------------------|-------------------------|--------------------|---------|
+| Single process | 101 to 105 ms | 34 to 87 | 128 to 249 | `stopped` in five runs of five |
+| A worker per directory | 103 to 109 ms where a worker was still running | 21 to 175 | 1,711 to 2,000 | `partially_stopped` in two runs, `not_stopped` in three |
+
+The single process is stopped every time, after a tenth or less of the tree.
+Twenty workers writing in parallel finished the whole tree before the verdict
+in three runs of five, and most of it in the other two: each document is
+small, the verdict waits on the watch reading the changed paths back, and by
+then there was nothing, or little, left to kill. That is the bound this
+feature gives, not a promise about the first files: what a run loses is what
+it writes between its first rewrite and the verdict, plus the tenth of a
+second the signal takes, and a run fast enough to finish inside that interval
+is reported as such rather than as stopped.
 
 ## What does not raise it
 

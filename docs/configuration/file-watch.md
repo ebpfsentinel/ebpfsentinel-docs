@@ -47,6 +47,7 @@ file_watch:
 | `canaries.directories` | list of paths | `/home`, `/root`, `/srv`, `/var/www`, `/opt`, `/mnt`, `/media` | Absolute directories a canary is planted into |
 | `canaries.names` | list of names | `0000-archive.docx`, `zzzz-archive.xlsx` | Names planted into each directory, no slash; at most 512 canaries in all |
 | `mass_encryption.mode` | `shadow` or `enforce` | `shadow` | Whether a [mass encryption](../features/mass-encryption.md) verdict is counted or raises the alert; see [Mass encryption](#mass-encryption) |
+| `mass_encryption.stop` | bool | `false` | Kill the run a verdict in force names, the process that reached it and every process it started; needs `mode: enforce`, `response.kill_process.enabled` and `process_table.enabled` |
 | `canaries.exempt` | list of paths | backup tools and scanners, see below | Executables, by full path, whose opens of a canary are not a signal |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
@@ -341,6 +342,26 @@ read at `GET /api/v1/host-rules/mass-encryption` or with
 `enforce` it raises the `mass_encryption` alert. Changing the mode takes a
 restart. The backups-destroyed signal reads command lines, so it is read only
 where `process_table.capture_command_line` is on.
+
+With `stop: true` a verdict in force also kills the run it names, as
+described in [Stopping the run](../features/mass-encryption.md#stopping-the-run).
+The agent refuses to start with `stop` set unless the mode is `enforce`, the
+signal program is armed (`response.kill_process.enabled`) and the process
+table is on (`process_table.enabled`), because those are what a run is found
+and killed through:
+
+```yaml
+file_watch:
+  enabled: true
+  mass_encryption:
+    mode: enforce
+    stop: true
+response:
+  kill_process:
+    enabled: true
+process_table:
+  enabled: true
+```
 
 ## Host rules
 

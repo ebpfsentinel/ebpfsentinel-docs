@@ -80,6 +80,8 @@ The action carries no signal number and no window of its own. Both are the node'
 
 The open-source agent has the narrow half of this action: an IPS rule in block mode carrying [`kill_process: true`](../../configuration/ips.md#stopping-the-process-behind-a-blocked-flow) stops the process behind the one flow it blocked, behind the same protected list and on the same node switch. What it lacks is everything in front of the act: a dry run of the kill, the never-act list, budgets, approval by a person and policies matching on more than one rule are this layer's.
 
+On an alert raised by the [mass encryption verdict](../mass-encryption.md), the action stops the run rather than the one process the alert names: that process and every process it started, the same lineage the open-source [stop](../mass-encryption.md#stopping-the-run) kills, read from the node's process table. A run forking one worker per directory is otherwise a policy that kills the parent while the workers carry on. The audit trail's outcome counts the members gone, and a run is reported stopped only when every one of them is; a node that does not keep the process table stops the named process alone and says so in the same count. This is how a fleet stops a run on nodes where the per-node `mass_encryption.stop` is left off, behind a dry run, a budget or an approval like any other kill.
+
 Two outcomes to read in the audit trail rather than assume:
 
 - `skipped` with a reason is a node where the capability is off, or an alert that named no process. A transited flow has no local process, and an alert whose node refused the attribution hooks carries no thread group; neither is invented, so the action is skipped rather than aimed at a guess.
