@@ -11,17 +11,24 @@ outside that subset by name: the refusal says which field, modifier or part of
 the condition stopped it, so a rule never loads meaning something other than
 what its author wrote.
 
-The subset is the network one. The agent has no log to read: it sees
-connections, keyed in the kernel on one port and decided in userspace on the
-addresses either side and on the domain the destination was resolved from. So
-a rule over the `network_connection` or `firewall` category, written on those
-fields, compiles; a rule over a process, a registry key, a command line or a
-DNS query is refused, because nothing here could fire it.
+The subset is the one the agent observes. The agent has no log to read: it
+sees connections, keyed in the kernel on one port and decided in userspace on
+the addresses either side and on the domain the destination was resolved from,
+and it sees the processes a Linux host starts. So a rule over the
+`network_connection` or `firewall` category, written on those fields, compiles
+into a connection rule; a rule over `process_creation` on Linux, written on the
+executable, its command line and its parent, compiles into a
+[host rule](../../configuration/host-rules.md); a rule over a registry key, a
+user name or a DNS query is refused, because nothing here could fire it.
 
-Compiled rules alert. They join the IDS rules the configuration already
-carries, are reported as imported rules on the alert (with the rule's
+Compiled connection rules alert. They join the IDS rules the configuration
+already carries, are reported as imported rules on the alert (with the rule's
 references and tags), and are matched in userspace on the connection, so they
-hold no kernel slot.
+hold no kernel slot. Compiled process rules join the host rules in shadow:
+they record what they would have matched and alert nothing until an operator
+promotes them, as every rule the agent did not write itself. A process rule
+whose identifier is already a host rule refuses the whole import, and the rules
+running stay as they were.
 
 ## Configuration
 
@@ -126,7 +133,7 @@ changes here in the same release.
 | `level` | Compiled | `informational` and `low` are low, `medium`, `high` and `critical` keep their name. Absent is medium. |
 | `references` | Compiled | Carried on the alert as `url,<reference>`. |
 | `tags` | Compiled | Carried on the alert as `tag,<tag>`. |
-| `logsource.category` | Compiled | `network_connection` or `firewall`. Any other category reads a log the agent does not have and is refused. |
+| `logsource.category` | Compiled | `network_connection` or `firewall` become connection rules; `process_creation` becomes a host rule over the process starts the agent observes, loaded in shadow. Any other category reads a log the agent does not have and is refused. |
 | `detection` | Compiled | Named selections, each a map of fields or a list of maps, and a `condition`. |
 | `condition` | Compiled | Selection names joined by `and`, `or`, `not` and parentheses. |
 | `DestinationPort` | Compiled | Also `dst_port`. One port or a list, at most 16. A rule names a port on exactly one side, because the classifier keys on one. |
@@ -140,10 +147,15 @@ changes here in the same release.
 | `\|endswith` | Compiled | On the host name. |
 | `\|contains` | Compiled | On the host name. |
 | `\|re` | Compiled | On the host name. The expression is compiled case-insensitively and bounded in size. |
+| `Image, CommandLine, ParentImage` | Compiled | In a `process_creation` rule: the executable, its command line and its parent's executable, compared case-insensitively. In a connection rule they are refused, because the classifier does not see the process. |
+| `\|startswith, \|endswith, \|contains, \|re on a process field` | Compiled | Anchored as the modifier says; `\|re` keeps the case sensitivity Sigma gives it. |
+| `logsource.product on process_creation` | Compiled | `linux` or absent. Another platform names processes the agent does not observe, and the rule is refused rather than loaded to never match. |
 | `status, description, author, date, modified, falsepositives, license, related, fields` | Accepted, changes nothing | Metadata. Read by people, not by the compiler. |
 | `logsource.product, logsource.service` | Accepted, changes nothing | Name the sensor the rule was written for. The category decides what the rule reads. |
 | `Initiated` | Accepted, decided more broadly | The rule also fires on a connection to the same port the host did not open, because the classifier sees the packet and not which side opened it. |
-| `Image, CommandLine, User, ParentImage, ProcessId` | Refused | Name the process. The connection classifier does not see one. |
+| `not in a process_creation rule` | Refused | A host rule has no negated pattern, and dropping the exclusion would fire where the author said it must not. |
+| `One field constrained twice in one branch` | Refused | A host rule holds one matcher per field. |
+| `User, ParentCommandLine, ProcessId, OriginalFileName, Hashes` | Refused | A process start here carries the numeric uid and no parent command line, file metadata or hash. |
 | `DestinationPortName, SourceHostname, SourceIsIpv6, DestinationIsIpv6` | Refused | Not decided on a connection here. |
 | `logsource.category: dns` | Refused | The agent matches the domain on the connection it resolved to, not on the query. Write the rule over `network_connection` with `DestinationHostname`. |
 | `\|all, \|base64, \|base64offset, \|windash, \|cased, \|exists, \|expand, \|fieldref, \|lt, \|lte, \|gt, \|gte` | Refused | A modifier outside the subset refuses the rule and is named in the refusal. |

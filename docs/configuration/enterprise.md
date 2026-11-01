@@ -619,10 +619,14 @@ from the content channel, beside the community `host_rules` section.
 |-------|------|---------|---------|
 | `profiles` | list | empty | Profile names, each lowercase letters, digits and inner hyphens and given once |
 | `exclude` | list | empty | Identifiers of delivered rules to leave out |
+| `tenants` | list | empty | Profiles given to one tenant: `tenant`, an identifier of `enterprise.tenants`, with its own `profiles` and `exclude` |
+| `exceptions` | list | empty | Workloads some rules leave alone: `id`, `rules` (every rule when empty), `tenant` (the estate's when absent) and `workload`, which names pods, namespaces or a service account |
 
 The block is read at startup and the library is followed while the agent runs.
 [Host rule profiles](host-rules.md#profiles) lists the profiles and what a
-library update does to the readings.
+library update does to the readings, and says how
+[exceptions](host-rules.md#exceptions) and [tenants](host-rules.md#tenants)
+apply.
 
 ### Firewall tiers
 
@@ -829,6 +833,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
 - `host_rules.profiles` entries must be profile names, each given once, and `host_rules.exclude` entries cannot be empty
+- `host_rules.tenants` entries must name a tenant of an enabled `enterprise.tenants` with at least one namespace, once each; `host_rules.exceptions` are at most 256, name pods, namespaces or a service account and no guest, and an exception naming a tenant names one given profiles
 - `intel.marker_path` cannot be empty, enabled or not
 - `intel.enabled` needs at least one `taxii` or `misp` source
 - Every `intel` source needs an id of letters, digits, `-`, `_` and `.`, a URL the agent can parse, and `https` unless the host is loopback

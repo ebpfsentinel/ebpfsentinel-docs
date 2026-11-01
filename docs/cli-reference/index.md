@@ -1338,7 +1338,9 @@ mode, what it does and, for a rule in shadow, how many events it would have
 acted on, then the intentions it names. Below the table, each shadow rule that
 matched gets a line naming the workloads it would have hit and how often, a
 process in none shown as `host`. Then how many events matched and how many
-alerts were lost to a full queue, and for each intention not served the reason.
+alerts were lost to a full queue, each exception in force with the rules and
+the workload it leaves alone and how many matches it did, and for each
+intention not served the reason.
 
 `host-rules intents` prints one row per intention with its state, the hook
 serving it and its fields, then how many this node serves and, for each one it

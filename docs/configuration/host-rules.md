@@ -149,6 +149,71 @@ enterprise:
 The library ships with every paid plan from Professional upward, and the
 engine evaluating it is the open source one on this page.
 
+### Exceptions
+
+A workload that does on purpose what a rule looks for, a CI runner starting
+shells or a backup job reading every database file, is named once rather than
+carved out of each rule:
+
+```yaml
+enterprise:
+  host_rules:
+    profiles: [web-server]
+    exceptions:
+      - id: ci-runners
+        rules: [profile-web-server-starts-a-shell]   # every rule when empty
+        workload:
+          service_account: ci-runner
+      - id: backups
+        workload:
+          namespaces:
+            match_labels: {team: ops}
+```
+
+- The `workload` is written as a rule's, and must name `pods`, `namespaces` or
+  a `service_account`: an exception is a workload the cluster names, never a
+  path a process can take. A `guest` is refused.
+- A match an exception leaves alone raises nothing, records nothing in the
+  shadow reading and is counted as `exempted` rather than `matched`, so how
+  much an exception hides stays visible.
+- At most 256 exceptions, each naming at most as many rules as a rule list may
+  hold, identifiers unique.
+- A process in no pod is never under an exception.
+
+### Tenants
+
+An estate running several tenants gives each its own profiles. A tenant is one
+of `enterprise.tenants`, with the namespaces its workloads run in:
+
+```yaml
+enterprise:
+  tenants:
+    tenants:
+      - id: acme
+        namespaces: [shop, shop-db]
+  host_rules:
+    profiles: [kubernetes-node]
+    tenants:
+      - tenant: acme
+        profiles: [web-server, database]
+        exclude: [profile-database-child-connects-out]
+    exceptions:
+      - id: ci
+        tenant: acme
+        workload:
+          service_account: ci-runner
+```
+
+- A tenant's rules carry the tenant's identifier in front of the library's,
+  `acme-profile-web-server-starts-a-shell`, and match only in its namespaces:
+  a process in another tenant's namespace, or in none, is never theirs.
+- The estate's own `profiles` match every workload and come first. A tenant's
+  exception names rules as the library names them, silences only that tenant's
+  rules inside its namespaces, and never an estate rule.
+- A tenant must be defined with at least one namespace, and an exception naming
+  a tenant must name one given profiles here. A tenant exception naming a rule
+  the tenant was not given leaves the rules running as they are and is logged.
+
 ## Shadow and enforce
 
 A rule is in shadow unless it says `mode: enforce`. A shadow rule is evaluated
@@ -170,7 +235,9 @@ before trusting a rule on a node, and it is what `GET /api/v1/host-rules` and
   was decided on; see
   [Putting a host rule in force](../features/enterprise/fleet-management.md#putting-a-host-rule-in-force).
 - `matched` counts the matches of every rule, in force or in shadow;
-  `dropped` only ever concerns a rule in force, a shadow rule raising nothing.
+  `dropped` only ever concerns a rule in force, a shadow rule raising nothing;
+  `exempted` counts the matches an enterprise [exception](#exceptions) left
+  alone, which are in neither.
 
 The mode is the firewall's: a [shadow firewall rule](firewall.md) counts what it
 would have decided the same way, and both are named `shadow` and `enforce`.

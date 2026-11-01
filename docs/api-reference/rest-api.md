@@ -888,6 +888,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
   "pending_refused": 0,
   "counting": 3,
   "counting_refused": 0,
+  "exempted": 0,
+  "exceptions": [],
   "rules": [
     {
       "id": "shell-under-web-server",
@@ -922,6 +924,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `pending_refused` | integer | First steps not held because the set of waiting ones was full |
 | `counting` | integer | Groups a count is running for |
 | `counting_refused` | integer | Events not counted because the groups or the events held were at their bound |
+| `exempted` | integer | Matches an exception left alone: no alert, no shadow reading, not counted in `matched` |
+| `exceptions` | array | The exceptions in force, each with `id`, the `rules` it silences (every rule when empty) and the `workload` it names. Set by the enterprise agent; always empty on the community one |
 | `rules` | array | One entry per rule, in file order |
 
 Each rule carries `id`, `description` when it has one, `severity`, `then`,
