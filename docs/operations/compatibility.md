@@ -117,6 +117,23 @@ reason, never "unsupported". The answer is the `file_kfuncs` block of
 [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md) and the
 last section of `ebpfsentinel-agent ebpf kernel-features`.
 
+Three more facts are asked the same way although no shipped program uses them
+yet, each named after the one thing it would be used for, so that the day one
+is wired, whether a host offers it is already a reading rather than a kernel
+version to interpret:
+
+| Fact | Kfuncs | Would be used for | How it is confirmed |
+|------|--------|-------------------|---------------------|
+| `kprobe_session` | `bpf_session_is_return`, `bpf_session_cookie` | One program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them | A kprobe program with the session attach type calling both kfuncs is loaded and closed |
+| `copy_from_user_str` | `bpf_copy_from_user_str` | The real argument vector of a process, read at exec | A sleepable LSM program calling it is loaded and closed |
+| `tcp_reqsk_assign` | `bpf_sk_assign_tcp_reqsk` | A validated SYN cookie handed to the stack as a request socket, so the stack does not revalidate a cookie it did not issue | Read from the kernel's BTF only: a call needs a listening socket looked up first, which a probe cannot honestly fake |
+
+A load that succeeds confirms the fact; a kfunc the BTF does not declare, or a
+load the verifier refuses, is a definite no with the verifier's first line as
+the reason. The third is reported as declared and never as confirmed. Where
+the load is refused for lack of privilege, the answer is "not probed". The
+answer is the `kfunc_features` block of the same endpoint.
+
 SYN cookies are computed by the kernel's raw syncookie helpers and the
 SYN-ACK is written by `xdp-ratelimit-syncookie` and sent back with `XDP_TX`;
 the socket-bound `bpf_tcp_gen_syncookie` is not used.

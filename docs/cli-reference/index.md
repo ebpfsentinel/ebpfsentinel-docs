@@ -1247,6 +1247,11 @@ one line per file kfunc: `usable`, `declared, not usable`, `not declared`, or
 `unknown` when the kernel's BTF could not be read, with the condition that
 failed under each one that is not usable and the one change that would fix it.
 
+The `Kernel facts not yet used` section lists the facts no shipped program rests
+on yet: `confirmed by a load`, `not available`, `declared, not confirmed` for
+one read from the BTF alone, or `not probed`, each with the line saying what it
+would be used for and, where it is not confirmed, why.
+
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
 

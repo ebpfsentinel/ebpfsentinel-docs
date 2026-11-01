@@ -513,6 +513,36 @@ load anything for lack of privilege, which says nothing about the kernel. How
 the three questions are asked is on the
 [compatibility page](../operations/compatibility.md#probed-rather-than-read-from-the-version).
 
+`kfunc_features` carries the kernel facts no shipped program uses yet, each with
+the kfuncs it rests on and what it would be used for:
+
+```json
+{
+  "kfunc_features": {
+    "probed": true,
+    "features": [
+      { "name": "kprobe_session",
+        "consumer": "one program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them",
+        "kfuncs": [
+          { "name": "bpf_session_is_return", "declared": true },
+          { "name": "bpf_session_cookie", "declared": true }
+        ],
+        "load_tested": true, "usable": true, "reason": null },
+      { "name": "tcp_reqsk_assign",
+        "consumer": "a validated SYN cookie handed to the stack as a request socket, so the stack does not revalidate a cookie it did not issue",
+        "kfuncs": [ { "name": "bpf_sk_assign_tcp_reqsk", "declared": true } ],
+        "load_tested": false, "usable": null,
+        "reason": "declared, not confirmed: a call needs a listening socket looked up first, so the probe reads the kernel's BTF and loads nothing" }
+    ]
+  }
+}
+```
+
+`usable` is `true` only where a load confirmed it and `false` where the kernel
+does not declare a kfunc or refused the program. It is `null` when nothing could
+confirm it either way: an entry read from the BTF alone (`load_tested: false`),
+a load refused for lack of privilege, or a BTF that could not be read.
+
 #### GET /api/v1/ebpf/coverage
 
 What the agent sees of each pod scheduled on its node, computed from the links
