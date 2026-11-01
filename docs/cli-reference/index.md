@@ -1333,8 +1333,11 @@ ebpfsentinel-agent host-rules list
 ebpfsentinel-agent host-rules intents
 ```
 
-`host-rules list` prints one row per rule with its severity, its state, what it
-does and the intentions it names, then how many events matched and how many
+`host-rules list` prints one row per rule with its severity, its state, its
+mode, what it does and, for a rule in shadow, how many events it would have
+acted on, then the intentions it names. Below the table, each shadow rule that
+matched gets a line naming the workloads it would have hit and how often, a
+process in none shown as `host`. Then how many events matched and how many
 alerts were lost to a full queue, and for each intention not served the reason.
 
 `host-rules intents` prints one row per intention with its state, the hook

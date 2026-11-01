@@ -20,7 +20,7 @@ host_rules:
         process.starts:
           exe: [/bin/sh, /bin/bash, /usr/bin/dash]
       then: [alert, kill_process]
-
+      mode: enforce
     - id: setuid-transition
       severity: critical
       when:
@@ -68,6 +68,30 @@ host_rules:
 | `rules[].when` | map | required | One intention and its matchers, or one `any_of` listing alternatives |
 | `rules[].followed_by` | map | none | A second step: `within` and one intention and its matchers, or one `any_of` |
 | `rules[].then` | list | `[alert]` | `alert`, and `kill_process` to stop the process the event is about |
+| `rules[].mode` | string | `shadow` | `shadow` counts what the rule would have done and does none of it; `enforce` does what `then` says |
+
+## Shadow and enforce
+
+A rule is in shadow unless it says `mode: enforce`. A shadow rule is evaluated
+like any other, and where it would have raised an alert or stopped a process it
+does neither: it counts the event against the workload it would have hit, its
+container, else its cgroup, else its systemd unit. That reading is what to weigh
+before trusting a rule on a node, and it is what `GET /api/v1/host-rules` and
+`ebpfsentinel-agent host-rules` show beside each shadow rule.
+
+- A reading names at most 32 workloads, the first ones seen; events about any
+  other are counted as `unsampled` rather than displacing a workload already
+  named.
+- A process in no container, cgroup or unit is counted under no name, and the
+  CLI shows it as `host`.
+- The readings start with the agent, at `shadow_since_ns`, and are not kept
+  across a restart.
+- A rule is put in force by writing `mode: enforce` and restarting the agent.
+- `matched` counts the matches of every rule, in force or in shadow;
+  `dropped` only ever concerns a rule in force, a shadow rule raising nothing.
+
+The mode is the firewall's: a [shadow firewall rule](firewall.md) counts what it
+would have decided the same way, and both are named `shadow` and `enforce`.
 
 ## Matchers
 

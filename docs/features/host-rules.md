@@ -94,7 +94,14 @@ host_rules:
         process.starts:
           exe: [/bin/sh, /bin/bash]
       then: [alert, kill_process]
+      mode: enforce
 ```
+
+A rule that does not say `mode: enforce` is in shadow: it raises no alert and
+stops nothing, and counts instead what it would have done, per workload it
+would have hit. That reading is the one to weigh before putting a rule in
+force on a node; see
+[Shadow and enforce](../configuration/host-rules.md#shadow-and-enforce).
 
 What is loaded, whether this host can match each rule, and how many events
 matched:

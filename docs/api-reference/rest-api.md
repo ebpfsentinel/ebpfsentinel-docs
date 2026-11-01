@@ -882,6 +882,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 ```json
 {
   "matched": 3,
+  "shadow_since_ns": 1793520000000000000,
   "dropped": 0,
   "pending": 1,
   "pending_refused": 0,
@@ -894,6 +895,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "then": ["alert", "kill_process"],
       "state": "applicable",
       "intents": [{ "name": "process.starts", "state": "applicable" }],
+      "mode": "shadow",
+      "shadow": {
+        "events": 3,
+        "workloads": [{ "workload": "3f9c2a71d0e4", "events": 3 }],
+        "unsampled": 0
+      },
       "spec": {
         "id": "shell-under-web-server",
         "severity": "high",
@@ -908,8 +915,9 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `matched` | integer | Events that matched a rule |
-| `dropped` | integer | Of those, alerts lost to a full alert queue |
+| `matched` | integer | Events that matched a rule, in force or in shadow |
+| `shadow_since_ns` | integer | When the shadow readings started, nanoseconds since the epoch: the agent's start |
+| `dropped` | integer | Of the matches of rules in force, alerts lost to a full alert queue |
 | `pending` | integer | First steps of sequences waiting for their second |
 | `pending_refused` | integer | First steps not held because the set of waiting ones was full |
 | `counting` | integer | Groups a count is running for |
@@ -918,8 +926,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 Each rule carries `id`, `description` when it has one, `severity`, `then`,
 `state` (`applicable`, `partially_applicable` or `not_applicable`), `intents`,
-each with `name`, `state` and the `reason` when it is not served, and `spec`,
-the rule as it was written. A node with the process table off answers an empty
+each with `name`, `state` and the `reason` when it is not served, `mode`
+(`shadow` or `enforce`), and `spec`, the rule as it was written. A rule in
+shadow also carries `shadow`: the `events` it would have acted on, those
+events by `workload` (its container, else its cgroup, else its systemd unit,
+`null` for none), at most 32 named, and `unsampled`, the events about any
+other. A node with the process table off answers an empty
 list.
 
 #### GET /api/v1/host-rules/intents
