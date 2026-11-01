@@ -10,7 +10,7 @@ aya 0.16 relocates a kfunc call only when the kfunc lives in vmlinux, and cannot
 2. Each kfunc name is resolved to its BTF id by walking the raw BTF of vmlinux and of the loaded kernel modules (module BTF is split BTF layered on vmlinux, which `aya-obj` does not parse).
 3. The program is loaded with a raw `BPF_PROG_LOAD` carrying an `fd_array` of module BTF fds, and attached with raw `BPF_LINK_CREATE` (`kfunc_attach.rs`).
 
-Opening a module's BTF fd needs `CAP_SYS_ADMIN`, which a BPF token does not grant, so in the split deployment the warden opens them and hands them to the agent through `EBPF_MODULE_BTF_FDS`. A kfunc found in neither vmlinux nor any loaded module fails the load with `kfunc ... not found in vmlinux or any loaded module BTF`: the conntrack kfuncs need `nf_conntrack`, the FOU kfuncs `fou`/`fou6`, the XFRM interface kfuncs `xfrm_interface`.
+Opening a module's BTF fd needs `CAP_SYS_ADMIN`, which a BPF token does not grant, so in the split deployment the warden opens them and hands them to the agent through `EBPF_MODULE_BTF_FDS`. The loader knows which module registers each module kfunc the programs call - the conntrack kfuncs `nf_conntrack`, the FOU kfuncs `fou`, the XFRM interface kfuncs `xfrm_interface` - and checks the module's BTF before loading anything. A missing module is refused with its name, the kfuncs and the programs that call them, and every missing module of the object is named at once. A kfunc found in neither vmlinux nor any module, and owned by no module the loader knows, keeps the resolver's own error, `kfunc ... not found in vmlinux or any loaded module BTF`.
 
 ## Status
 

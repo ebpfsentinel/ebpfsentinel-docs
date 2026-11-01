@@ -20,6 +20,14 @@ failed to read vmlinux BTF at /sys/kernel/btf/vmlinux: No such file or directory
 
 The version check does not look at BTF, so the agent starts, but the programs that resolve kfuncs against kernel BTF fail to load and the error lands in the log and in `/api/v1/ebpf/status`. The kernel was built without `CONFIG_DEBUG_INFO_BTF=y`; install a BTF-enabled kernel for your distribution.
 
+### A program needs a kernel module that is not loaded
+
+```
+`xdp_firewall` calls `bpf_xdp_ct_lookup`, `bpf_ct_release` and `bpf_ct_change_timeout`, registered by kernel module `nf_conntrack`, which is not loaded on this host (absent from /sys/kernel/btf): load it with `modprobe nf_conntrack` or list it in /etc/modules-load.d, then restart the agent
+```
+
+The firewall, conntrack, IDS and NAT programs call kfuncs that `nf_conntrack`, `fou` and `xfrm_interface` register, and a minimal image loads none of them until something asks. The agent checks the module's BTF before loading and names the module and the program; every module the object is missing is named in the same line. Load them now and at every boot as the [prerequisites](../getting-started/prerequisites.md#kernel-modules) show. On a node image with no package manager, such as GKE's Container-Optimized OS, whether a module can be loaded at all is a property of the image rather than something the node can install, so the refusal is what tells you which one to ask for.
+
 ### "BPF token unavailable - running in API-only mode"
 
 ```
