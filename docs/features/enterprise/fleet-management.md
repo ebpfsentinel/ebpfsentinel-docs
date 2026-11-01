@@ -25,6 +25,7 @@ Gated by the `FleetManagement` license feature.
 | `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
 | `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
 | `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
+| `GET` | `/api/v1/firewall/workload/peers` | viewer | fleet-management | The rules naming a remote workload and which ends decide each. |
 | `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
 | `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
 | `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
@@ -427,6 +428,32 @@ the console names it to nobody and counts it in `conflicts`, for the same
 reason a node leaves out an address two of its own workloads hold. A node
 whose licence does not carry `fleet-management` serves neither route and is
 not asked.
+
+## Rules on Remote Workloads
+
+**GET** `/api/v1/firewall/workload/peers`
+
+A workload firewall rule may name its destination by the workload on another node, under `workload.peer`, and the peer list above is what turns that name into addresses. The tables are written again within five seconds of a new list or a reload, and emptied while the node holds none.
+
+```json
+{
+  "loaded": true,
+  "list_version": "5d0f9c2a41b7e8f6a3c1d4e9b2f7a6c0",
+  "destinations": 37,
+  "sources": 12,
+  "refused": 0,
+  "rules": [
+    { "rule": "allow-api-to-db", "decided_at": "both" },
+    {
+      "rule": "deny-curl-to-db",
+      "decided_at": "source",
+      "source_only_reason": "the source is named by exe, which no address carries"
+    }
+  ]
+}
+```
+
+`both` means the node a TCP connection arrives at decides it too, against the source address; `source` means only the node it leaves can, and says why. **Behind a source NAT the destination cannot know**: a connection arriving from a translated address names a host and no workload, so the destination refuses nothing and the rule holds at the source alone. The rules, the limits and the same-node case are in [Workload Firewall Rules](../../configuration/workload-firewall.md#destinations-by-remote-workload).
 
 ## Network Flow Graph
 

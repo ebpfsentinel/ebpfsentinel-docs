@@ -200,6 +200,69 @@ CNAME chains are followed for up to eight hops.
 - **A connection already open outlives its grant.** Only new connections and new datagrams consult it. A long-lived connection keeps running after the address has lapsed.
 - **Capacity is bounded.** At most 16384 addresses are open at once across the node. Past that, a new answer is logged and its address stays closed. The kernel copies DNS packets through a ring buffer: a packet that does not fit is counted under `dns_lost` and teaches nothing, which again lands on the closed side.
 
+## Destinations by remote workload
+
+A destination that is a workload on another node goes in `peer`, inside the `workload` block, in place of `dst_ip`. Enterprise edition: the addresses of the other nodes reach a node through the console, as the list served at `/api/v1/agent/remote-identities`, and a node holding no list names no remote workload.
+
+```yaml
+firewall:
+  rules:
+    - id: allow-api-to-db
+      priority: 100
+      action: allow
+      protocol: tcp
+      dst_port: 5432
+      workload:
+        pods:
+          match_labels: { app: api }
+        peer:
+          kind: pod
+          pods:
+            match_labels: { app: db }
+          namespaces:
+            match_labels: { kubernetes.io/metadata.name: shop }
+        mode: enforce
+    - id: deny-api-elsewhere-in-cluster
+      priority: 200
+      action: deny
+      workload:
+        pods:
+          match_labels: { app: api }
+        peer:
+          kind: pod
+        mode: enforce
+```
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `workload.peer.kind` | `host`, `container`, `pod` or `guest` | What sits behind the remote address |
+| `workload.peer.container` | string | The container, by name or by an id prefix of at least twelve characters |
+| `workload.peer.pods` | label selector | Labels of the remote pod |
+| `workload.peer.namespaces` | label selector | Labels of the remote pod's namespace |
+| `workload.peer.service_account` | string | The service account the remote pod runs as |
+| `workload.peer.guest` | string | The guest, by the name its hypervisor gives it |
+
+`peer` names at least one matcher, and every matcher it carries must hold. A rule carrying it cannot also carry `dst_ip`, `dst_alias` or `fqdn`, and covers `tcp`, `udp` or `any`.
+
+**Two ends decide a TCP connection.** The node a connection leaves decides it at `connect()` against the destination address, which always works. The node it arrives at decides it again on the SYN, against the source address and the workload the connection is for, which refuses a connection the source node let through because it runs an older policy, or no agent at all. `GET /api/v1/firewall/workload/peers` lists every rule naming a remote workload and says, for each, `both` or `source` with the reason.
+
+A rule is decided where the connection leaves **and nowhere else** when:
+
+- its source is named by `exe`, `unit`, `cgroup`, `parent` or `ancestor`, none of which a remote address carries;
+- it covers UDP, which has no handshake to refuse;
+- the remote workload is a `guest`, whose sockets live in its own kernel;
+- an `allow` rule above it, decided on facts the destination cannot read, would have let the connection through first.
+
+### Behind a source NAT the destination cannot know
+
+A connection that crosses a source NAT arrives from the address of the node or of the gateway that translated it, which names a host and no workload. The end it arrives at then has nothing to match a source selector against and **refuses nothing**: the rule is enforced on the node the connection leaves, and only there. That covers a CNI masquerading pod traffic between nodes, a cloud NAT gateway, and a `kube-proxy` or service mesh that rewrites the source. A deployment that needs the destination to decide keeps pod addresses routed end to end.
+
+### What a remote workload rule does not see
+
+- **A workload on the same node is not in the list.** The list names the other nodes' addresses only, so a rule naming a remote workload matches nothing for a pod next door; name that one with a local selector.
+- **The list is as current as the console.** A pod that moved is named at its new address once the console has read both nodes and handed the list on, every thirty seconds; between the two, the old address keeps its old name. A node cut off from the console keeps its last list, and `age_seconds` says how old it is.
+- **Capacity is bounded.** At most 65,536 remote addresses are named; past that, an address stays unnamed, a rule naming its workload does not match it, and `refused` counts it.
+
 ## Modes
 
 `mode` defaults to `observe`, deliberately. An observing rule counts what it would have refused and lets the syscall through, so the first policy anybody writes cannot take an application offline. Turning a rule to `enforce` changes which counter moves, not how much.

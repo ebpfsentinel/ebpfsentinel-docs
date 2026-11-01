@@ -1241,6 +1241,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 }
 ```
 
+A rule whose destination is a workload on another node, under
+`workload.peer`, also carries `decided_at`: `both` when the node a TCP
+connection arrives at decides it too, `source` when only the node it leaves
+can, with the reason under `source_only_reason`. Both fields are absent from
+every other rule, and the same two ride each rule of the reach answer below.
+
 #### GET /api/v1/firewall/workload/reach
 
 What the workload policy lets one workload reach. Name the workload with
