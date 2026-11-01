@@ -40,7 +40,7 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `distinct_rewrites` and `entropy_rise`. Every other signal in
+This agent reads `distinct_rewrites`, `entropy_rise` and `header_mismatch`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
@@ -69,6 +69,36 @@ end of each file, or encrypts in intermittent blocks to go faster, can leave the
 first 64 KiB untouched and the entropy flat. A file that was already compressed
 or encrypted cannot rise. A file seen for the first time has nothing to rise
 from. That is why this signal only supports a verdict.
+
+### Header mismatch
+
+The same read hands back each rewritten file's first four bytes, where a format
+writes its signature, and they are set against what the file's extension names:
+a `.docx` that is neither a ZIP archive nor an encrypted Office file, a `.pdf`
+that does not start with `%PDF`, a `.jpg` with no JPEG marker. Ten such files
+from one run within a minute are decisive on their own, because legitimate
+software does not leave a file named `.docx` that is not one, and because a run
+that encrypts only the start of each file breaks the signature first.
+
+| Extensions | Expected start |
+|------------|----------------|
+| `zip`, `jar`, `apk`, `epub`, `odt`, `ods`, `odp`, `odg` | a ZIP archive |
+| `docx`, `xlsx`, `pptx`, `docm`, `xlsm`, `pptm` | a ZIP archive, or an OLE compound file when password-protected |
+| `doc`, `xls`, `ppt`, `msg` | an OLE compound file |
+| `pdf` | `%PDF` |
+| `png`, `jpg`, `jpeg`, `gif`, `tif`, `tiff`, `bmp`, `psd`, `webp` | the image format's signature |
+| `wav`, `avi`, `flac`, `ogg`, `oga`, `ogv`, `opus` | the audio or video container's signature |
+| `gz`, `tgz`, `bz2`, `tbz2`, `xz`, `txz`, `zst`, `7z`, `rar` | the compressor's signature |
+| `sqlite`, `sqlite3`, `rtf` | `SQLite format`, `{\rtf` |
+
+Left out on purpose, because their start is not fixed: MP3 (an ID3 tag or a
+bare frame), MP4 and MOV (the signature sits at the fifth byte), plain text,
+CSV, JSON, XML and HTML (no signature at all), and `.db`, which a dozen engines
+share. Never counted: a file shorter than four bytes, a file whose first four
+bytes are zeros (space reserved by a download or torrent client and not yet
+written), an Office owner file (`~$report.docx`), a name with no extension, and
+a name whose extension the table does not cover, such as `report.pdf.locked`,
+which is what a rename to a new extension is for.
 
 ## The alert
 

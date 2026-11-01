@@ -100,6 +100,11 @@ go from ordinary content to near-random content. Being a sample, it misses an
 encryption that leaves the first 64 KiB untouched, and a file that was already
 compressed cannot rise at all.
 
+The same read also hands back a regular file's first four bytes, where a format
+writes its signature, so the verdict can tell a file named `.pdf` that no longer
+starts with `%PDF`. Those four bytes travel with the reading and are never
+stored in the baseline.
+
 The first reading of a path is kept and raises nothing. Every later one is
 compared with it and replaces it, and each difference is logged with the path,
 the path as the writer sees it, the writer's process ID and executable, and
