@@ -10,7 +10,7 @@ eBPFsentinel refuses to start: kernel 6.8 is below the required minimum 6.12. On
 
 The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.12. BPF token delegation, the only way it loads eBPF, needs 6.9; 6.12 is the long-term kernel the distributions and managed node images converged on, and the floor. There is no degraded mode.
 
-The second sentence is the way up for the distribution the release string belongs to: the Ubuntu hardware enablement kernel, Debian backports, the RHEL 10 family, the Amazon Linux 2023 6.12 stream or the EKS node image for Kubernetes 1.33 and later, Talos 1.9, Oracle UEK 8, SLES 16, or a GKE cluster version on COS milestone 125. It is read off the kernel release rather than `/etc/os-release`, because in a container that file describes the image and not the host. An Azure kernel gets a refusal and no upgrade: no current AKS node image carries 6.12.
+The second sentence is the way up for the distribution the release string belongs to: the Ubuntu hardware enablement kernel, Debian backports, the RHEL 10 family, the Amazon Linux 2023 6.12 stream or the EKS node image for Kubernetes 1.33 and later, Talos 1.9, Oracle UEK 8, SLES 16, or a GKE cluster version on COS milestone 125. It is read off the kernel release rather than `/etc/os-release`, because in a container that file describes the image and not the host. An Azure kernel is pointed at the Ubuntu 26.04 node image, which carries 7.0, because a standard AKS node pool changes its kernel only by changing its node image; Azure Linux 3.0 and Ubuntu 22.04 node images are below the floor.
 
 ### BTF not available
 

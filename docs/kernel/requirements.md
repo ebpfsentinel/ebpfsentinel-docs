@@ -231,9 +231,9 @@ What matters is the running kernel, not the release: any distribution booting 6.
 | Distribution | Stock Kernel | Supported |
 |-------------|--------------|-----------|
 | Debian 13 (Trixie) | 6.12 | Yes |
-| Debian 12 (Bookworm) | 6.1 | No - use a backports kernel 6.12+ or upgrade |
-| Ubuntu 24.04.3+ | HWE 6.14+ | Yes, with `linux-generic-hwe-24.04` |
-| Ubuntu 24.04.2 | HWE 6.11 | No - update to the current HWE kernel |
+| Debian 12 (Bookworm) | 6.1 (backports 6.12) | Yes, with the `bookworm-backports` kernel |
+| Ubuntu 26.04 LTS | 7.0 | Yes |
+| Ubuntu 24.04 (HWE kernel) | 7.0 since 24.04.5 | Yes, with `linux-generic-hwe-24.04` on any 24.04 host kept up to date |
 | Ubuntu 24.04 (GA kernel) | 6.8 | No - move to the HWE kernel |
 | Ubuntu 22.04 LTS | 5.15 (HWE 6.8) | No |
 | RHEL 10 / Rocky 10 | 6.12 | Yes |
@@ -242,7 +242,8 @@ What matters is the running kernel, not the release: any distribution booting 6.
 | Arch Linux | Rolling | Yes |
 | Alpine 3.21+ | `linux-lts` 6.12 | Yes |
 | Alpine 3.20 and earlier | `linux-lts` 6.6 | No - use `linux-stable` |
-| NixOS | Default LTS | Yes, with `boot.kernelPackages = pkgs.linuxPackages_latest` |
+| NixOS 25.05+ | 6.12 or later | Yes |
+| NixOS 24.11 and earlier | 6.6 | Yes, with `boot.kernelPackages = pkgs.linuxPackages_latest` |
 | Talos Linux 1.9+ | 6.12 | Yes |
 
 **Not supported:** macOS, Windows, FreeBSD (no Linux eBPF subsystem).

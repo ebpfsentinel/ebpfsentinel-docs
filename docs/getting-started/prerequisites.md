@@ -70,10 +70,10 @@ shipped AppArmor profile is loaded. See the
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
 | Debian 13+ | Yes | Ships 6.12 |
-| Debian 12 | No | Ships 6.1 - use a backports kernel 6.12+ or upgrade to Debian 13 |
-| Ubuntu 24.04.3+ (HWE) | Yes | `linux-generic-hwe-24.04` → 6.14 or later |
-| Ubuntu 24.04.2 (HWE) | No | Its HWE kernel is 6.11 - update to the current HWE kernel |
-| Ubuntu 24.04 (GA) | No | Ships 6.8 - move to the HWE kernel |
+| Debian 12 | Yes, with the backports kernel | Ships 6.1; `apt install -t bookworm-backports linux-image-amd64` installs 6.12 |
+| Ubuntu 26.04 LTS | Yes | Ships 7.0 |
+| Ubuntu 24.04 with the HWE kernel | Yes | `linux-generic-hwe-24.04` is 7.0 since 24.04.5 (6.17 in 24.04.4, 6.14 in 24.04.3); any 24.04 host kept up to date gets it, whatever point release it was installed from |
+| Ubuntu 24.04 on its GA kernel | No | Ships 6.8 - `apt install linux-generic-hwe-24.04` and reboot |
 | Ubuntu 22.04 | No | The HWE kernel stops at 6.8 |
 | RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
 | RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.12+ |
@@ -81,7 +81,8 @@ shipped AppArmor profile is loaded. See the
 | Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
 | Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
 | Arch Linux | Yes | Rolling |
-| NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.12 |
+| NixOS 25.05+ | Yes | The default kernel is 6.12 or later |
+| NixOS 24.11 and earlier | With `linuxPackages_latest` | The default kernel is 6.6 |
 | Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
 
 ### Managed Node Images
@@ -100,7 +101,9 @@ is out says so at startup rather than loading half its programs.
 | EKS, Amazon Linux 2023, Kubernetes 1.31 and 1.32 | No | 6.1 | Upgrade the node group, or build a custom AMI on a newer AL2023 kernel stream |
 | EKS, Bottlerocket `aws-k8s-1.33` and later variants | Yes | 6.12 | The variant, which follows the Kubernetes version |
 | EKS, Bottlerocket `aws-k8s-1.32` and earlier variants | No | 6.1 | Move the node group to a 1.33 or later variant |
-| AKS, every current node image | No | Azure Linux 3.0 is 6.6, Ubuntu 22.04 is 5.15, Ubuntu 24.04 is 6.8 | None today: a standard node pool accepts no node image of your own, so the agent does not run on AKS |
+| AKS, Ubuntu 26.04 node images | Yes | 7.0 | The node pool's OS SKU: in preview from Kubernetes 1.36, and what the `Ubuntu` SKU defaults to from 1.38 |
+| AKS, Ubuntu 24.04 node images | Where the image's kernel is 6.12 or later | Per image | Canonical moved the 24.04 `linux-azure` kernel to 7.0, but the node image decides what a node boots: read `uname -r` on one node before rolling out, or move the pool to Ubuntu 26.04 |
+| AKS, Azure Linux 3.0 and Ubuntu 22.04 node images | No | 6.6 and 5.15 | Move the node pool to Ubuntu 26.04 |
 
 **Architectures:** x86_64 (primary), aarch64/ARM64 (cross-tested)
 
