@@ -40,14 +40,14 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `distinct_rewrites`, `entropy_rise`, `header_mismatch` and
-`mass_rename`. Every other signal in
+This agent reads `distinct_rewrites`, `entropy_rise`, `header_mismatch`,
+`mass_rename` and `replace_sequence`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
 verdict.
 
-All four come from the [file watch](../configuration/file-watch.md) and need
+All five come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
 
@@ -123,6 +123,39 @@ observed on 7.0, below the agent's floor and so present on every kernel it
 runs on. A filesystem whose mark refuses it is logged at startup, and on it a
 rename reads as a disappearance and an appearance, which this signal does not
 count.
+
+### Replace sequence
+
+A run that does not encrypt in place reads each file, writes what it read into
+a new file beside it, and then renames that file over the original or deletes
+the original. Twenty distinct files replaced that way by one run within a
+minute are a strong signal. Volume does not tell that apart from a backup or a
+package upgrade, so the shape is what is counted, on two facts the file watch
+reads:
+
+- **Written now.** The replacement's modification time is within five minutes
+  of the reading. `rsync -a`, `cp -p`, a package manager and an archive
+  extraction leave the time their source carried, and a run writing what it
+  just read does not.
+- **Of the original's size.** The replacement is at least as large as the
+  original and larger by at most 1 MiB, which is what writing back what was
+  read, with a header, padding or a wrapped key, produces. An empty original is
+  never counted.
+
+Two shapes are matched. A file renamed over a known file of its directory, from
+any name, hidden temporaries included. And a new file whose name is the
+original's plus one extension, `report.docx.locked` beside `report.docx`, with
+the original then deleted: the two halves are matched in whichever order they
+are read, since the file watch settles a batch of paths in no fixed order, and
+each run holds at most 1,024 unmatched halves of each kind.
+
+What it costs is stated rather than hidden. The read itself is not observed: a
+read event on a whole filesystem would cost every open on the host, so the size
+stands for it. A tool that rewrites a tree's files in place under new names,
+with fresh times and sizes that barely move, matches the shape, which is why
+the signal is strong and never decisive alone. A rename of a file onto a new
+extension without a deletion is the mass rename signal and not this one, so one
+behaviour never counts twice.
 
 ## The alert
 
