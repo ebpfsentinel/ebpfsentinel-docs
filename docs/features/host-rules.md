@@ -23,6 +23,7 @@ named. Adding one is a change to the agent, never a configuration key.
 | `file.changes` | file | `path`, `extension`, `exe`, `uid`, `host_path`, `device`, `inode` |
 | `file.appears` | file | `path`, `extension`, `exe`, `uid`, `host_path`, `device`, `inode` |
 | `file.disappears` | file | `path`, `extension`, `exe`, `uid`, `host_path`, `device`, `inode` |
+| `file.renames` | file | `path`, `extension`, `exe`, `uid`, `host_path`, `device`, `inode`, `previous_path`, `previous_extension` |
 | `file.permissions_change` | file | `path`, `exe`, `uid`, `host_path`, `device`, `inode`, `mode`, `previous_mode`, `owner_uid` |
 | `file.integrity_breaks` | file | `path`, `exe`, `uid`, `host_path`, `device`, `inode`, `expected_hash`, `actual_hash` |
 | `port.hidden` | posture | `local_address`, `local_port`, `protocol` |
@@ -86,6 +87,13 @@ it says is what the change amounted to rather than which call made it:
   its image for the first time, is `file.changes` instead.
 - `file.changes` - a known file was written, or replaced by a move.
 - `file.disappears` - a known file was deleted or moved away.
+- `file.renames` - an entry was renamed inside one filesystem, reported once
+  with both names: `path` and `extension` are the name it took,
+  `previous_path` and `previous_extension` the name it left, each as the
+  writer sees it. The name it left raises no `file.disappears`. Where the
+  filesystem's mark refused rename reporting, which the agent logs per
+  watched path, a rename reads as `file.disappears` at the old name and
+  `file.appears` or `file.changes` at the new one instead.
 - `file.permissions_change` - its permission bits or its owner changed.
 - `file.integrity_breaks` - its content hash differs from the one kept.
 

@@ -76,7 +76,11 @@ else: the other paths are still watched.
 
 Each change carries the process ID of the writer, the directory it happened in
 and the name of the entry, and the device and inode of the entry when it still
-exists. A change in a directory that was removed before it could be named is
+exists. A rename inside one filesystem is reported once with both names,
+through the kernel's `FAN_RENAME` event, introduced in Linux 5.17 and observed
+on 7.0. Where a filesystem's mark refuses it, the agent watches that path
+without it, logs a warning naming the path, and a rename there reads as a
+disappearance at the old name and an appearance at the new one. A change in a directory that was removed before it could be named is
 counted with the reason it could not be.
 
 The kernel queues changes until they are read. When the queue fills, changes

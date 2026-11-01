@@ -40,13 +40,14 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `distinct_rewrites`, `entropy_rise` and `header_mismatch`. Every other signal in
+This agent reads `distinct_rewrites`, `entropy_rise`, `header_mismatch` and
+`mass_rename`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
 verdict.
 
-Both signals come from the [file watch](../configuration/file-watch.md) and need
+All four come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
 
@@ -99,6 +100,29 @@ bytes are zeros (space reserved by a download or torrent client and not yet
 written), an Office owner file (`~$report.docx`), a name with no extension, and
 a name whose extension the table does not cover, such as `report.pdf.locked`,
 which is what a rename to a new extension is for.
+
+### Mass rename
+
+A rename the kernel reports with both names counts toward its run when it gives
+the file a new extension: fifty distinct files renamed to one new extension by
+one run within a minute are a strong signal. It is what a run that encrypts in
+place leaves behind, and it survives a run whose encryption no sampled read can
+see, because the name changes whatever the content does.
+
+What a build, an editor, a download or log rotation renames is not counted: the
+extension must differ from the old one, the old name must not be hidden, neither
+the old nor the new extension may be one a file carries while it is written or
+once it is set aside (`tmp`, `temp`, `part`, `partial`, `swp`, `crdownload`,
+`download`, `new`, `lock`, `bak`, `old`, `orig`), and the new extension may not
+be a number, which is what log rotation appends. A run spreading its renames
+over more than eight new extensions in one window is not that shape, and what
+it adds past the eighth is not counted.
+
+Rename reporting is the kernel's `FAN_RENAME`, introduced in Linux 5.17 and
+observed on 7.0, below the agent's floor and so present on every kernel it
+runs on. A filesystem whose mark refuses it is logged at startup, and on it a
+rename reads as a disappearance and an appearance, which this signal does not
+count.
 
 ## The alert
 
