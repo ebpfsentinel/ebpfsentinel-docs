@@ -674,6 +674,29 @@ only is not a difference, since scanners and package URLs often leave it off.
 The severity and the fixed version are the scanner's own words, carried
 unchanged: the agent computes neither.
 
+#### What the host shows about each package
+
+Each entry of `installed[]` carries six `facts`, read off the same package
+inventory and the node's listening sockets at the moment the report is
+asked for. Each is `yes`, `no` or `not_read`, with a `because` sentence
+naming what it was read off, so an operator who disagrees with an order built
+on them can see exactly where:
+
+| Fact | `yes` when |
+|------|------------|
+| `runs` | A live process runs a program the package installs. A library mapped by somebody else's program is `no` here and `yes` below. |
+| `mapped` | A live process maps a file the package installs, in the root it is installed in, at the version the finding names. |
+| `listens` | One of the processes mapping it accepts traffic on a socket. |
+| `received_traffic` | One of those sockets accepted a TCP connection since the hooks attached. A UDP socket's use is not counted, and says so as `not_read`. |
+| `reachable_from_outside` | The packet firewall lets a source outside the private ranges reach one of those sockets. A socket open to the private ranges only is `no`, and the reason says east-west. |
+| `blocked_by_policy` | The firewall drops every packet bound for every one of those sockets. |
+
+Beside them are the evidence: the processes mapping the package, the files of
+it they map, and every socket of theirs with who may reach it and how many
+connections it accepted. Where the socket hooks are not attached, the four
+socket facts are `not_read` rather than `no`, because nothing was looked at.
+For a Go module the process is the program built from it.
+
 ### In the dashboard
 
 The dashboard's **Package reachability** screen, shown when the licence carries
