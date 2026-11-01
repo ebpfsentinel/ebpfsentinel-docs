@@ -16,6 +16,7 @@ Gated by the `FleetManagement` license feature.
 | `POST` | `/api/v1/agent/heartbeat` | operator | fleet-management | Report status, receive aggregated health. |
 | `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
 | `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
+| `GET` | `/api/v1/agent/addresses?epoch=&since=` | viewer | fleet-management | This node's addresses and the pod, container, guest or host behind each, as what changed since the reader's last answer. |
 | `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
 | `GET` | `/api/v1/flows/reachability` | viewer | fleet-management | SBOMs held and workloads observed, with how many components each report reached. |
 | `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
@@ -34,7 +35,7 @@ Two different credentials are in play, and neither substitutes for the other.
 
 | Credential | Where it travels | Which routes require it |
 |------------|------------------|-------------------------|
-| The API credential (`Authorization: Bearer <token>` or `X-API-Key: <key>`) | HTTP header | All nine, whenever `auth.enabled: true` |
+| The API credential (`Authorization: Bearer <token>` or `X-API-Key: <key>`) | HTTP header | Every one of them, whenever `auth.enabled: true` |
 | The agent token minted by registration | The `token` field of the heartbeat request body | `POST /api/v1/agent/heartbeat` only |
 
 With `auth.enabled: true` these endpoints require the API credential like every
@@ -50,7 +51,7 @@ fleet writes.
 
 The other routes carry no per-agent proof, because none of them asserts an
 identity: `register` mints the first token and so cannot require one, while
-`identity`, `config/version`, `flows/graph` and the reachability routes act on
+`identity`, `addresses`, `config/version`, `flows/graph` and the reachability routes act on
 this agent's own state for whoever already holds the API credential.
 
 ## Agent Registration
@@ -292,6 +293,78 @@ The hash is taken over the configuration the file parses to rather than over its
 The enterprise agent applies its configuration once, at startup: unlike the OSS agent it has no file watcher, no `SIGHUP` reload and no `/api/v1/config/reload` route, so `pending_changes: true` means a restart is outstanding rather than a reload.
 
 Fleet managers can poll this endpoint to detect config drift across agents by comparing `config_version` hashes.
+
+## Node Addresses
+
+**GET** `/api/v1/agent/addresses?epoch=&since=`
+
+A flow carries its workload on the node that opened it, and the node at the
+other end sees an address. This endpoint is the half that names a node's
+addresses for the rest of the fleet: each address the node holds, with the
+pod, the container, the virtual machine or the host behind it. It is read on
+demand from the process table and from the network namespaces its processes
+sit in, so it needs `process_table.enabled` (the default) and, in a
+container, the host's procfs mounted where `EBPFSENTINEL_HOST_PROC` points.
+Without either the answer is `503` with the reason.
+
+The list is versioned. A reader passes back the `epoch` and `version` of its
+last answer and is told what changed since: `removed` first, then `upserts`.
+An answer with `full: true` replaces what the reader held, which is what a
+first reading, a restarted agent (a new `epoch`) and a reader too far behind
+are all handed. Removals are what keep a remote node from naming a workload
+that has gone: a pod deleted and its address handed to another is a removal
+followed by an upsert, never a stale name.
+
+### Response
+
+```json
+{
+  "epoch": 1793012345678901234,
+  "version": 42,
+  "full": false,
+  "upserts": [
+    {
+      "address": "10.244.1.17",
+      "kind": "pod",
+      "pod": "checkout-7d9f",
+      "namespace": "shop",
+      "service_account": "checkout",
+      "pod_labels": { "app": "checkout" },
+      "namespace_labels": { "kubernetes.io/metadata.name": "shop" }
+    },
+    {
+      "address": "10.0.1.5",
+      "kind": "host",
+      "services": [
+        { "protocol": "tcp", "port": 5432, "unit": "postgresql.service", "exe": "/usr/lib/postgresql/16/bin/postgres" }
+      ]
+    }
+  ],
+  "removed": ["10.244.1.9"],
+  "conflicts": 0
+}
+```
+
+| `kind` | What holds the address |
+|---|---|
+| `pod` | A Kubernetes pod; its containers share the address, so it is named once, by the pod |
+| `container` | A container with a network namespace of its own, by its runtime name and image, or by its id |
+| `guest` | A KubeVirt virtual machine, through its launcher pod |
+| `host` | The node itself; a process on the host network shares the node's addresses, so a systemd unit or a host-network pod is named on the ports it listens on, under `services` |
+
+### What is left out
+
+- **Addresses nobody off the node can reach**: loopback, link-local,
+  multicast and the unspecified address.
+- **An address two workloads hold.** Two containers that are not one pod
+  sharing a namespace, or a container holding an address the host holds too,
+  is an address the node cannot attribute. It names neither and counts it in
+  `conflicts`, because naming one of the two would hand a remote policy the
+  wrong workload.
+- **Guests of libvirt and Proxmox.** The host holds no record binding a
+  guest's address to its device; the guest's own traffic carries it, which
+  is a reading rather than a fact the node owns. Only KubeVirt guests, whose
+  address is their launcher pod's, are named.
 
 ## Network Flow Graph
 

@@ -398,6 +398,7 @@ and for the request and response bodies.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/agent/addresses` | viewer | `config:read` | fleet-management | This node's addresses and who holds each, as what changed since `?epoch=&since=`, or the whole list; `503` without a process table. |
 | `GET` | `/api/v1/agent/config/version` | viewer | `config:read` | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
 | `POST` | `/api/v1/agent/heartbeat` | operator | `config:write` | fleet-management | Report status, receive aggregated health. |
 | `GET` | `/api/v1/agent/identity` | viewer | `config:read` | fleet-management | Full agent identity with capabilities. |
