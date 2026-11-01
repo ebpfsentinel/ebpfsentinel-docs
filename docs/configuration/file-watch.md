@@ -490,13 +490,51 @@ writes are never counted.
 
 A directory that does not exist yet is left out with a warning and picked up
 within thirty seconds of being created; the watched set and the expired counts
-are refreshed on the same tick. Changing anything here takes a restart.
+are refreshed on the same tick. Changing anything here takes a restart, except
+putting a refusal in `shadow` in force, described below.
 
 Counters are published under
-`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_METRICS", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full`, `event_lost` and `expected`. A writer reaching the threshold raises one alert per window
+`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_METRICS", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full`, `event_lost` and `expected`.
+
+In `enforce`, a writer reaching the threshold raises one alert per window
 under the component `mass_encryption` and the rule `write-refusal`, naming the
 process, the file, the watched directory and the count, with the mitigation
-`refused` in `enforce`.
+`refused`. In `shadow` it raises nothing and is counted in the reading below.
+
+### Shadow first, then in force
+
+In `shadow`, each writer that reaches the threshold is counted under its
+workload, the cgroup it runs in, and the last sixteen are kept as the alert
+would have read. The reading is served at
+`GET /api/v1/host-rules/write-refusal` and by
+`ebpfsentinel-agent host-rules write-refusal`, with `counting_since_ns`, the
+boot-time instant it started counting, which a restart moves:
+
+```json
+{
+  "enabled": true,
+  "mode": "shadow",
+  "counting_since_ns": 812345678901,
+  "shadow": {
+    "events": 3,
+    "workloads": [{ "workload": "/system.slice/backup.service", "events": 3 }],
+    "unsampled": 0
+  },
+  "recent": [{ "at_ns": 812399000000, "pid": 4121, "workload": "/system.slice/backup.service", "message": "write refusal would refuse pid 4121 ..." }]
+}
+```
+
+A backup, a build or a package upgrade showing up in that reading is a writer
+to raise the threshold for, or to name in `system_writers`, before anything is
+refused. Putting it in force is a decision taken on that reading, and the
+Enterprise edition takes it without a restart:
+`POST /api/v1/host-rules/write-refusal/promote` with the
+`counting_since_ns` that was read. A promotion naming a reading that has
+started again since is refused with `409`, so nobody promotes on numbers they
+did not see, and a refusal already in force answers `409` too. The promotion
+is written to the audit log with who made it and every workload count it was
+made on, and both routes follow it on the next open. In the community edition
+the mode is the configuration's, and turning `enforce` on takes a restart.
 
 ### Without the BPF LSM
 

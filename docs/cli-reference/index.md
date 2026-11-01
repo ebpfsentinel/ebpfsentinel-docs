@@ -1364,6 +1364,9 @@ ebpfsentinel-agent host-rules intents
 
 # The mass encryption verdict's mode and what it counted in shadow
 ebpfsentinel-agent host-rules mass-encryption
+
+# The write refusal's mode and what it would have refused in shadow
+ebpfsentinel-agent host-rules write-refusal
 ```
 
 `host-rules list` prints one row per rule with its severity, its state, its
@@ -1384,6 +1387,11 @@ the API's answer, field types included. See [Host Rules](../features/host-rules.
 with the verdicts it reached in shadow, how many were about other workloads,
 and the message of each recent one. See
 [Mass Encryption](../features/mass-encryption.md).
+
+`host-rules write-refusal` prints the refusal's mode and the instant its
+reading started, one row per workload with the writes it would have refused in
+shadow, how many were about other workloads, and the message of each recent
+one. See [File Watch](../configuration/file-watch.md#write-refusal).
 
 ### exposure
 

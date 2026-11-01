@@ -37,6 +37,8 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
 | `GET` | `/api/v1/host-rules/intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
 | `GET` | `/api/v1/host-rules/mass-encryption` | viewer | fleet-management | The mass encryption verdict's mode and what it reached in shadow, by workload. |
+| `GET` | `/api/v1/host-rules/write-refusal` | viewer | fleet-management | The write refusal's mode and what it would have refused in shadow, by workload. |
+| `POST` | `/api/v1/host-rules/write-refusal/promote` | operator | fleet-management | Put the write refusal in force, on the reading it was decided on. |
 | `POST` | `/api/v1/host-rules/{id}/promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
 
 ### What authenticates what
@@ -954,6 +956,33 @@ host rules: shadow rule 'shipped-shell-from-web-server' promoted to enforce by a
 **The promotion changes the running rules, not the configuration file**, and
 is not kept across a restart: the rule is in shadow again the next time the
 agent starts, unless the file says `mode: enforce`.
+
+### The write refusal
+
+The [write refusal](../../configuration/file-watch.md#write-refusal) is
+promoted the same way. `GET /api/v1/host-rules/write-refusal` answers the open
+source body: in shadow, the writers that reached the threshold, counted by
+workload, and `counting_since_ns`, the instant the reading started.
+`POST /api/v1/host-rules/write-refusal/promote` takes that instant:
+
+```json
+{ "counting_since_ns": 812345678901 }
+```
+
+It is compared to within one microsecond, and a reading that started again
+since is refused with `409`, as is a refusal already in force; `404` means no
+refusal runs on this node. Both routes follow the promotion on the next open,
+the BPF LSM program through its configuration slot and the fanotify handler
+between two reads, so nothing restarts and no write slips through a reload.
+The answer carries the reading it was decided on, and the audit log gets one
+line:
+
+```text
+write refusal: promoted to enforce by alice on a reading of 2 writes it would have refused (/system.slice/backup.service 2; 0 more not sampled by workload), reading since 812345678901 ns
+```
+
+Like a host rule's, the promotion is not kept across a restart: the refusal
+starts in the configuration's mode again.
 
 ## Firewall Policy in Tiers
 

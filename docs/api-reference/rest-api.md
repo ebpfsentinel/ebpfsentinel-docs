@@ -1119,6 +1119,46 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `shadow` | object | Verdicts reached in shadow since the agent started: `events`, `workloads` (at most 32, each with `workload` and `events`) and `unsampled`, those about any other workload |
 | `recent` | array | The last sixteen verdicts reached in shadow, newest last, each with `at_ns` (boot-time nanoseconds), `pid`, `exe`, `workload` and the alert's `message` |
 
+#### GET /api/v1/host-rules/write-refusal
+
+The [write refusal](../configuration/file-watch.md#write-refusal): its mode
+and, in shadow, the writers that reached the threshold, counted by workload
+rather than refused or raised.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules/write-refusal
+```
+
+```json
+{
+  "enabled": true,
+  "mode": "shadow",
+  "counting_since_ns": 812345678901,
+  "shadow": {
+    "events": 2,
+    "workloads": [{ "workload": "/system.slice/backup.service", "events": 2 }],
+    "unsampled": 0
+  },
+  "recent": [
+    {
+      "at_ns": 812399000000,
+      "pid": 4121,
+      "exe": "/usr/bin/restic",
+      "workload": "/system.slice/backup.service",
+      "message": "write refusal would refuse pid 4121 opening for writing `chunk-0100` under `/srv/data`: write 100 inside the window, and every one after it until the window ends"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Whether a refusal runs here, on either route |
+| `mode` | string | `shadow`, counting and refusing nothing, or `enforce`; absent where no refusal runs |
+| `counting_since_ns` | integer | When this reading started, boot-time nanoseconds; a promotion names it |
+| `shadow` | object | Writers that reached the threshold in shadow: `events`, `workloads` (each with `workload`, the writer's cgroup, and `events`) and `unsampled` |
+| `recent` | array | The last sixteen, newest last, each with `at_ns`, `pid`, `exe`, `workload` and the alert's `message` |
+
 ### Surface
 
 #### GET /api/v1/surface/packages
@@ -3817,6 +3857,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/host-rules/mass-encryption` | Yes | The mass encryption verdict's mode and the verdicts it reached in shadow, by workload |
+| GET | `/api/v1/host-rules/write-refusal` | Yes | The write refusal's mode, when its reading started and the writes it would have refused in shadow, by workload |
 | GET | `/api/v1/surface` | Yes | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks |
 | GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
 | GET | `/api/v1/surface/loaded` | Yes | Every file live processes map executable, once per root, and the package owning it |
