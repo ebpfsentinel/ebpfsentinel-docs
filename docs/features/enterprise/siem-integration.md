@@ -132,6 +132,19 @@ nothing, and the kernel's swapper opens no connections.
 | LEEF | `workloadSource`, `processId`, `processName`, `executablePath`, `userId`, `cgroupId`, `containerId`, `containerImage`, `podName`, `podNamespace`, `serviceAccount`, `systemdUnit`, `parentPid`, `workloadAncestry` |
 | Splunk HEC | The `workload` object of the event, serialized whole under its own names |
 
+Where the other end of the flow is an address another node of the fleet
+holds, the block gains a peer half read from the list of remote identities the
+console hands each node. It is a corroboration rather than a reading - the
+node holding the address published it, nothing on the wire carried it - so no
+format puts it on a standard destination attribute: ECS writes it under
+`ebpfsentinel.workload.peer.*`, OCSF under `unmapped.peer_workload`, CEF and
+LEEF as `workloadPeerSource`, `workloadPeerAddress`, `workloadPeerNode`,
+`workloadPeerKind`, `workloadPeerListVersion` and then `workloadPeerPod` and
+its siblings, and Splunk HEC as `workload.peer`. Every one of them leads with
+`remote_list` as the source, beside the address, the node, the kind, the list
+version and whatever names that node published. A list older than a
+pod's move names the pod that left, which is why the version travels with it.
+
 An alert that already named its own process keeps it: the block fills the
 process fields only where the alert itself resolved none, so a document never
 carries two process numbers that could disagree. A flow the node only

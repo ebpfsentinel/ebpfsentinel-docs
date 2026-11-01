@@ -97,7 +97,7 @@ A single alert event streamed to the client.
 
 The process a flow belongs to, as the agent resolved it. Mirrors the HTTP workload block field for field, so a console reading one and a SIEM reading the other describe the same process in the same words. A field is empty or zero where the node could not add it: a process table that has not seen the exec gives a pid and nothing more.
 
-14 fields, in declaration order. The number is the wire tag and never changes.
+15 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
@@ -115,6 +115,27 @@ The process a flow belongs to, as the agent resolved it. Mirrors the HTTP worklo
 | 12 | `ancestors` | [`repeated WorkloadAncestor`](#workloadancestor) | The processes above this one, parent first, at most eight. Empty where the process table holds no parent for it. |
 | 13 | `ancestry_truncated` | `bool` | The chain goes on past the last ancestor listed. |
 | 14 | `ancestry_incomplete` | `bool` | The chain stops at an ancestor that was named and that the table does not hold, rather than at the root. |
+| 15 | `peer` | [`PeerWorkload`](#peerworkload) | The workload at the other end of the flow, where its address is on another node of the fleet. Absent otherwise. |
+
+### PeerWorkload
+
+The other end of a flow, as the node holding its address published it. Named from the list of remote identities the console hands this node, never read off the wire: a corroboration rather than a kernel reading.
+
+11 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `address` | `string` | The remote address the name belongs to. |
+| 2 | `source` | `string` | Always "remote_list" today, written out so a reader never has to know. |
+| 3 | `node` | `string` | The node holding the address, as the console knows it. |
+| 4 | `kind` | `string` | What sits behind the address: host, container, pod or guest. |
+| 5 | `list_version` | `string` | The version of the list the name was read from. |
+| 6 | `container` | `string` | Container name or id. Empty if absent. |
+| 7 | `image` | `string` | Container image. Empty if absent. |
+| 8 | `pod` | `string` | Pod name. Empty if absent. |
+| 9 | `namespace` | `string` | Namespace. Empty if absent. |
+| 10 | `service_account` | `string` | Service account. Empty if absent. |
+| 11 | `guest` | `string` | Guest name, as its hypervisor gives it. Empty if absent. |
 
 ### WorkloadAncestor
 

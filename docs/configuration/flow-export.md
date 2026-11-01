@@ -223,6 +223,9 @@ The workload block, where the node resolved one:
 | `process.parent_pid` | The parent of that process, where the process table holds it |
 | `ebpfsentinel.workload.ancestry` | Up to eight ancestors on one line, parent first: each one's pid and executable, or its kernel name in brackets where no path was read, joined by ` < `, for example `900 /bin/sh < 120 [nginx]` |
 | `ebpfsentinel.workload.ancestry_truncated`, `ebpfsentinel.workload.ancestry_incomplete` | Written only when true: the chain goes on past the eighth ancestor, or it stops at one the table does not hold |
+| `ebpfsentinel.workload.peer.source` | `remote_list`, written first whenever the other end is named: the name below was read from the list of remote identities the console hands this node, not from the kernel |
+| `ebpfsentinel.workload.peer.address`, `ebpfsentinel.workload.peer.node`, `ebpfsentinel.workload.peer.kind`, `ebpfsentinel.workload.peer.list_version` | The remote address, the node holding it, what sits behind it (`host`, `container`, `pod` or `guest`) and the version of the list it was read from |
+| `ebpfsentinel.workload.peer.container`, `ebpfsentinel.workload.peer.image`, `ebpfsentinel.workload.peer.pod`, `ebpfsentinel.workload.peer.namespace`, `ebpfsentinel.workload.peer.service_account`, `ebpfsentinel.workload.peer.guest` | What the other node published about it, each only where it published one |
 
 **Absence is absence.** A field the node could not read has no attribute at
 all: no empty string and no zero. A transited flow carries no workload
@@ -328,6 +331,8 @@ asserted there rather than compared on a reader's screen.
 | `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` | The Kubernetes and systemd identities |
 | `parentPid`, `workloadAncestry` | The parent's pid, and the chain of up to eight ancestors on one line, parent first |
 | `workloadAncestryTruncated`, `workloadAncestryIncomplete` | `true` where the chain was cut at eight or stops at an ancestor the table no longer holds; absent otherwise |
+| `workloadPeerSource`, `workloadPeerAddress`, `workloadPeerNode`, `workloadPeerKind`, `workloadPeerListVersion` | The other end of the flow where another node of the fleet holds its address: `remote_list` first, because the name was relayed by the console rather than read here, then the address, the node, what sits behind it and the list version |
+| `workloadPeerContainer`, `workloadPeerImage`, `workloadPeerPod`, `workloadPeerNamespace`, `workloadPeerServiceAccount`, `workloadPeerGuest` | What that node published about it, each only where it published one |
 
 Everything a flow has and an alert does not is prefixed `flow`, because CEF has
 no key for a packet delta, a reverse direction, an end reason or a sampling

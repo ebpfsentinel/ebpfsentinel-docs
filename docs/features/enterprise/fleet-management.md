@@ -455,6 +455,8 @@ A workload firewall rule may name its destination by the workload on another nod
 
 `both` means the node a TCP connection arrives at decides it too, against the source address; `source` means only the node it leaves can, and says why. **Behind a source NAT the destination cannot know**: a connection arriving from a translated address names a host and no workload, so the destination refuses nothing and the rule holds at the source alone. The rules, the limits and the same-node case are in [Workload Firewall Rules](../../configuration/workload-firewall.md#destinations-by-remote-workload).
 
+The same list names the other end of a flow. A connection, an exported flow and an alert whose remote address is on another node carry a `peer` half in their workload block - node, kind, pod, namespace and the rest of what that node published - led by `source: remote_list` and the list version, so a name the console relayed is never read as one the kernel saw. The fields are in [the workload block](../../api-reference/rest-api.md#the-workload-block).
+
 ## Network Flow Graph
 
 **GET** `/api/v1/flows/graph`

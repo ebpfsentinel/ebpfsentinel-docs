@@ -2033,6 +2033,7 @@ tell a real pid 0 from a failed lookup.
 | `service_account` | string | Service account of the pod, where the enricher read one |
 | `unit` | string | systemd unit, for a host process placed in one |
 | `ancestry` | object | The processes above this one, where the process table holds its parent: `ancestors` (parent first, at most eight, each with `pid`, `exe` where a path was read, `name`, `uid`, `start_ns` where the kernel read it and `exited`), `truncated` (the chain goes on past the eighth) and `incomplete` (it stops at an ancestor the table no longer holds rather than at the root) |
+| `peer` | object | The workload at the other end, where its address is on another node of the fleet and the node holds a list of remote identities (see below) |
 
 `source` is the strength of the join and not a detail:
 
@@ -2050,6 +2051,25 @@ and says so, and a key that is always absent would be a promise it does not
 keep. Whether the hooks attached on this host is in
 [`ebpf kernel-features`](../cli-reference/index.md), and the table they fill is
 sized in [the attribution configuration](../configuration/attribution.md).
+
+The `peer` half is of another kind. Everything else in the block is this
+node's own reading; the peer is what the node holding the remote address
+published about it, relayed by the console in the list each node receives on
+`PUT /api/v1/agent/remote-identities`. Nothing on the wire carried it, so it
+is a corroboration and says so: its own `source` is always `remote_list`, and
+`list_version` names the list it came from, because a list older than a pod's
+move names the pod that left. It is written only inside a block that exists,
+so a forwarded flow carries no peer either, and it is absent where the other
+end is on this node, outside the fleet, or behind a source NAT that hid it.
+
+| Field | Type | When it is there |
+|-------|------|------------------|
+| `peer.address` | string | Always: the remote address the name belongs to |
+| `peer.source` | string | Always `remote_list` |
+| `peer.node` | string | Always: the node holding the address, as the console knows it |
+| `peer.kind` | string | Always: `host`, `container`, `pod` or `guest` |
+| `peer.list_version` | string | Always: the version of the list the name was read from |
+| `peer.container`, `peer.image`, `peer.pod`, `peer.namespace`, `peer.service_account`, `peer.guest` | string | Where that node published one |
 
 ```json
 {
