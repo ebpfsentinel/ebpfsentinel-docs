@@ -17,6 +17,8 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
 | `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
 | `GET` | `/api/v1/agent/addresses?epoch=&since=` | viewer | fleet-management | This node's addresses and the pod, container, guest or host behind each, as what changed since the reader's last answer. |
+| `GET` | `/api/v1/agent/remote-identities?address=` | viewer | fleet-management | The peer list this node holds: its version, its age, and the entry for one address. |
+| `PUT` | `/api/v1/agent/remote-identities` | operator | fleet-management | Replace the peer list whole; refused whole when any entry is wrong. |
 | `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
 | `GET` | `/api/v1/flows/reachability` | viewer | fleet-management | SBOMs held and workloads observed, with how many components each report reached. |
 | `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
@@ -365,6 +367,66 @@ followed by an upsert, never a stale name.
   guest's address to its device; the guest's own traffic carries it, which
   is a reading rather than a fact the node owns. Only KubeVirt guests, whose
   address is their launcher pod's, are named.
+
+## Peer Addresses
+
+**GET** `/api/v1/agent/remote-identities?address=`
+**PUT** `/api/v1/agent/remote-identities`
+
+A node names only its own workloads. What another node holds reaches it
+through the console: every thirty seconds the dashboard reads each node's
+addresses, keeps each tenant's lists apart, and hands every node the
+addresses of the other nodes of its own tenant, each labelled with the node
+that reported it. Nothing travels between nodes directly, and no overlay
+or CNI is involved: the list rides the same authenticated channel as every
+other write the console makes.
+
+The node keeps the last list it was handed, with its version and the time
+it arrived. A node that loses the console keeps that list and says how old
+it is under `age_seconds`; it never fills a gap itself, so an address no
+list names stays unnamed rather than being guessed. The console hands a new
+list only when its version differs from the one the node reports, the
+version being a digest of the sorted entries.
+
+```json
+{
+  "version": "5d0f9c2a41b7e8f6a3c1d4e9b2f7a6c0",
+  "received_at": "2026-11-01T10:12:40Z",
+  "age_seconds": 12,
+  "entries": 418,
+  "conflicts": 1,
+  "entry": {
+    "node": "worker-3",
+    "address": "10.244.3.17",
+    "kind": "pod",
+    "pod": "checkout-7d9f",
+    "namespace": "shop",
+    "service_account": "checkout",
+    "pod_labels": { "app": "checkout" },
+    "namespace_labels": { "kubernetes.io/metadata.name": "shop" }
+  }
+}
+```
+
+`entry` is present only when `?address=` names an address the list holds;
+an entry carries the [node address](#node-addresses) fields plus `node`.
+Before the first list, `version`, `received_at` and `age_seconds` are absent
+and `entries` is `0`.
+
+A list is taken whole or refused whole with `422`, so a node never holds
+half of one:
+
+- a list with no version;
+- more than 65,536 entries;
+- the same address twice;
+- an address nobody off a node can reach (loopback, link-local, multicast,
+  unspecified).
+
+An address two nodes of one tenant both claim is in neither node's entries:
+the console names it to nobody and counts it in `conflicts`, for the same
+reason a node leaves out an address two of its own workloads hold. A node
+whose licence does not carry `fleet-management` serves neither route and is
+not asked.
 
 ## Network Flow Graph
 

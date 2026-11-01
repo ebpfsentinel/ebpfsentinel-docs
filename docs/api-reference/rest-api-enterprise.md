@@ -403,6 +403,8 @@ and for the request and response bodies.
 | `POST` | `/api/v1/agent/heartbeat` | operator | `config:write` | fleet-management | Report status, receive aggregated health. |
 | `GET` | `/api/v1/agent/identity` | viewer | `config:read` | fleet-management | Full agent identity with capabilities. |
 | `POST` | `/api/v1/agent/register` | operator | `config:write` | fleet-management | Register agent, get UUIDv7 identity + token. |
+| `GET` | `/api/v1/agent/remote-identities` | viewer | `config:read` | fleet-management | The peer list the console handed this node: version, age, entry and conflict counts, and the entry for `?address=`. |
+| `PUT` | `/api/v1/agent/remote-identities` | operator | `config:write` | fleet-management | Replace the peer list whole; `422` and the previous list kept when any entry is refused. |
 | `GET` | `/api/v1/flows/graph` | viewer | `config:read` | fleet-management | Network flow graph from conntrack data. |
 | `GET` | `/api/v1/flows/reachability` | viewer | `config:read` | fleet-management | SBOMs held per workload and workloads observed originating flows, with the unattributed flow count. |
 | `GET` | `/api/v1/flows/reachability/report` | viewer | `config:read` | fleet-management | One workload's SBOM joined with its outbound flows (`?workload=`); `404` when no SBOM is held. Correlation, with its limits in the answer. |
