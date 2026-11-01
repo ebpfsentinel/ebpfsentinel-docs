@@ -973,7 +973,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "sources": ["file_watch"],
       "min_kernel": "5.1",
       "state": "not_applicable",
-      "reason": "file_watch: no source for it is part of this build",
+      "reason": "file_watch: the file watch is not enabled",
       "fields": [
         { "name": "path", "type": "path", "doc": "path of the file" }
       ]

@@ -77,8 +77,9 @@ extended attribute (an SELinux label, an IMA signature, a capability set). The
 values themselves never leave the reader, only their digests.
 
 The first reading of a path is kept and raises nothing. Every later one is
-compared with it and replaces it, and each difference is logged with the path
-and the writer's process ID and counted in `ebpfsentinel_file_drifts_total`:
+compared with it and replaces it, and each difference is logged with the path,
+the path as the writer sees it, the writer's process ID and executable, and
+counted in `ebpfsentinel_file_drifts_total`:
 
 | `what` | Meaning |
 |--------|---------|
@@ -108,6 +109,15 @@ says so at startup.
 Hashing is the cost: the reader hashes at most 64 MiB per request and leaves
 the rest for the next, so a burst of large writes is read over several seconds
 rather than stalling the watch.
+
+## Host rules
+
+Every settled change is also handed to the [host rules](../features/host-rules.md#file-intentions)
+as one of the five file intentions, named the way its writer sees it and
+carrying the writer and its ancestry from the process table. This needs the
+process table on (`process_table.enabled`), which is where the rules live;
+with it off the file watch still keeps baselines and reports drift, and the
+file intentions are evaluated by nothing.
 
 ## Metrics
 
