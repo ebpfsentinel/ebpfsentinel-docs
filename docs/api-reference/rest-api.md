@@ -885,6 +885,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
   "dropped": 0,
   "pending": 1,
   "pending_refused": 0,
+  "counting": 3,
+  "counting_refused": 0,
   "rules": [
     {
       "id": "shell-under-web-server",
@@ -910,6 +912,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `dropped` | integer | Of those, alerts lost to a full alert queue |
 | `pending` | integer | First steps of sequences waiting for their second |
 | `pending_refused` | integer | First steps not held because the set of waiting ones was full |
+| `counting` | integer | Groups a count is running for |
+| `counting_refused` | integer | Events not counted because the groups or the events held were at their bound |
 | `rules` | array | One entry per rule, in file order |
 
 Each rule carries `id`, `description` when it has one, `severity`, `then`,

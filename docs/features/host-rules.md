@@ -77,7 +77,8 @@ A rule names one intention, or alternatives under one `any_of`, a map of
 matchers on its fields, an optional workload selector, and `alert` or
 `kill_process`. It may add one second step under `followed_by` with the window
 it must arrive in, about the same process or one started below it, and no
-third. There is no expression language: no parenthesis, no operator
+third. A block may carry a `count`: how many events, or distinct values of one
+field, within a window, per process, workload or host. There is no expression language: no parenthesis, no operator
 and no function, and every check that can be made when the rule loads is made
 then. The keys, the matchers and what is refused are in
 [Host Rules Configuration](../configuration/host-rules.md).

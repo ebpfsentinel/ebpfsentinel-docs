@@ -38,6 +38,15 @@ host_rules:
         process.starts:
           exe: [/usr/bin/curl, /usr/bin/wget]
 
+    - id: fork-burst
+      description: one process starting many short-lived children
+      when:
+        process.starts:
+          count:
+            min: 50
+            within: 10s
+            per: host
+
     - id: fetcher-from-tmp
       when:
         any_of:
@@ -82,6 +91,36 @@ lists nor one it excludes. An empty map matches every event of its intention.
 intention with its matchers; it does not nest. The rule holds when one
 alternative does.
 
+## Counts
+
+`count` sits inside an intention, beside its matchers, and makes the block hold
+only on the event that brings enough matching events into the window. It is
+four typed fields and nothing else.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `min` | required | How many events, from 2 to 1024 |
+| `within` | required | The window, written like a sequence's: a whole number followed by `ms`, `s`, `m` or `h`, at most `1h`, inclusive at both ends |
+| `per` | `process` | What the events are grouped by: `process`, `workload` (its container, else its cgroup, else its systemd unit) or `host` |
+| `distinct` | none | One field of the intention: count distinct values of it rather than events |
+
+- The window slides: each event leaves it when it is older than `within`, so
+  three events in any ten seconds reach `min: 3`, not three events in the same
+  ten-second slot.
+- `distinct` is what separates two hundred writes to one log from two hundred
+  files written: the first is one distinct `path`.
+- The group starts again from nothing once it fires, so a burst raises one
+  alert for every `min` events rather than one for every event past `min`.
+- An event with nothing to group by is not counted: no process for
+  `per: process`, no workload for `per: workload`, no value of the `distinct`
+  field.
+- A node holds at most 8192 groups and 262144 events across every count. An
+  event arriving with either bound reached by groups still in their window is
+  not counted, and is counted as `counting_refused` by `GET /api/v1/host-rules`
+  rather than evicting a group that is still counting.
+- A count may sit in `when`, including the first step of a sequence, and not in
+  `followed_by`: a sequence closes on one event.
+
 ## Sequences
 
 `followed_by` makes a rule two steps: `when` opens it, and an event matching
@@ -117,7 +156,11 @@ stops that process.
   number, `_gt` or `_lt` on text, and two fields of different types compared.
 - `_regex`: this build evaluates no regular expression, and the refusal names
   the glob that replaces it.
-- `count`: no rule counts events over a window.
+- `count` without `min` or `within`, `min: 1`, `min` above 1024, a `per`
+  outside the three, a `distinct` field the intention does not carry, a
+  `per: process` or `per: workload` on an intention whose event names no
+  process, a count in `followed_by`, and `kill_process` on a count not
+  `per: process`, which many processes reach together.
 - `followed_by` without `within`, a window over an hour, a `followed_by` inside
   `followed_by`, a `workload` inside it, and either step on an intention whose
   event names no process: a sequence follows a process.
@@ -149,4 +192,6 @@ intention loads and is reported `not_applicable` by
 A match raises an alert of component `host_rule` with the rule's identifier,
 severity and the process's workload block and lineage. An alert lost to a full
 alert queue is counted as `dropped` by `GET /api/v1/host-rules`, and so are
-the first steps waiting, as `pending`.
+the first steps waiting, as `pending`, and the counts running, as `counting`.
+A counted rule's alert ends with what was counted, such as
+`, 50 events within 10s per host`.
