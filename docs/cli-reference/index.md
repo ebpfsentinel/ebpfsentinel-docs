@@ -1326,9 +1326,16 @@ only where it is armed.
 ### host-rules
 
 ```bash
+# The loaded rules, whether this node can match each, and the counters
+ebpfsentinel-agent host-rules list
+
 # The intentions a host rule may name and which of them this node serves
 ebpfsentinel-agent host-rules intents
 ```
+
+`host-rules list` prints one row per rule with its severity, its state, what it
+does and the intentions it names, then how many events matched and how many
+alerts were lost to a full queue, and for each intention not served the reason.
 
 `host-rules intents` prints one row per intention with its state, the hook
 serving it and its fields, then how many this node serves and, for each one it

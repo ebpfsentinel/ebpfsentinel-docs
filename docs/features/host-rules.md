@@ -64,3 +64,44 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 See [`GET /api/v1/host-rules/intents`](../api-reference/rest-api.md#get-apiv1host-rulesintents)
 for the response.
+
+A source being present is half of it: something in the agent must also hand
+the source's events to the rules. In this build that is the process table, so
+`process.starts` and `process.ends` are evaluated, and every other intention is
+reported `not_applicable` with the sentence saying no source delivers it, even
+on a host where its hook is attached.
+
+## Rules
+
+A rule names one intention, or alternatives under one `any_of`, a map of
+matchers on its fields, an optional workload selector, and `alert` or
+`kill_process`. There is no expression language: no parenthesis, no operator
+and no function, and every check that can be made when the rule loads is made
+then. The keys, the matchers and what is refused are in
+[Host Rules Configuration](../configuration/host-rules.md).
+
+```yaml
+host_rules:
+  rules:
+    - id: shell-under-web-server
+      severity: high
+      workload:
+        ancestor: /usr/sbin/nginx
+      when:
+        process.starts:
+          exe: [/bin/sh, /bin/bash]
+      then: [alert, kill_process]
+```
+
+What is loaded, whether this host can match each rule, and how many events
+matched:
+
+```bash
+ebpfsentinel-agent host-rules list
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules
+```
+
+A rule is `applicable` when every intention it names is served here,
+`partially_applicable` when some alternative of its `any_of` is, and
+`not_applicable` when none is. See
+[`GET /api/v1/host-rules`](../api-reference/rest-api.md#get-apiv1host-rules).

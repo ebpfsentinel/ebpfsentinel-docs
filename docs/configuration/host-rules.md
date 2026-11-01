@@ -1,0 +1,111 @@
+# Host Rules Configuration
+
+A host rule names an intention from the [catalogue](../features/host-rules.md),
+the values its fields must hold, and what to do when one event matches. Rules
+are read once at startup, with the rest of the file, and every rule is checked
+against the field registry then: a rule that loads is a rule every matcher of
+which can be true of some event.
+
+## Configuration
+
+```yaml
+host_rules:
+  rules:
+    - id: shell-under-web-server
+      description: an interactive shell started below the web server
+      severity: high
+      workload:
+        ancestor: /usr/sbin/nginx
+      when:
+        process.starts:
+          exe: [/bin/sh, /bin/bash, /usr/bin/dash]
+      then: [alert, kill_process]
+
+    - id: setuid-transition
+      severity: critical
+      when:
+        process.starts:
+          uid: 0
+          uid_ne_field: parent_uid
+
+    - id: fetcher-from-tmp
+      when:
+        any_of:
+          - process.starts:
+              exe_matches: /tmp/*
+          - process.starts:
+              exe_on_disk: false
+```
+
+## Reference
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `rules` | list | `[]` | The rules, at most 1024, each identifier used once |
+| `rules[].id` | string | required | Letters, digits, `-` and `_`, at most 128 characters; the `rule_id` of every alert it raises |
+| `rules[].description` | string | none | Written into the alert message in place of the intention's name |
+| `rules[].severity` | string | `medium` | `low`, `medium`, `high` or `critical` |
+| `rules[].workload` | map | none | A [workload selector](workload-firewall.md#the-matchers), every matcher of it true of the process the event is about |
+| `rules[].when` | map | required | One intention and its matchers, or one `any_of` listing alternatives |
+| `rules[].then` | list | `[alert]` | `alert`, and `kill_process` to stop the process the event is about |
+
+## Matchers
+
+Each key of an intention's map is a field of that intention, optionally
+followed by a suffix. Every key must hold; a list of values means any one of
+them.
+
+| Key | Holds when the field | Fields |
+|-----|----------------------|--------|
+| `<field>` or `<field>_in` | equals one of the values | every type |
+| `<field>_not_in` | equals none of the values | every type |
+| `<field>_matches` | matches one of the globs, `*` any run of characters, `?` one | text, path and digest |
+| `<field>_gt`, `<field>_lt` | is above, below the one value | integer and port |
+| `<field>_eq_field`, `<field>_ne_field` | equals, differs from the other field named, of the same intention and type | every type |
+
+A field the event does not carry is a mismatch for every matcher,
+`<field>_not_in` included: a value nobody could read is neither one a rule
+lists nor one it excludes. An empty map matches every event of its intention.
+
+`any_of` sits once, at the top of `when`, and lists alternatives, each an
+intention with its matchers; it does not nest. The rule holds when one
+alternative does.
+
+## What is refused at load
+
+- A field the intention does not carry, with the list of those it does, and an
+  unknown intention, with the list of known ones.
+- A value of the wrong type, an address that does not parse, a glob on a
+  number, `_gt` or `_lt` on text, and two fields of different types compared.
+- `_regex`: this build evaluates no regular expression, and the refusal names
+  the glob that replaces it.
+- `count`, `followed_by` and `within`: each event is evaluated alone, and no
+  rule counts events over a window or describes a sequence of two.
+- `kill_process` on an intention whose event names no process, and on
+  `process.ends`, whose process has already ended.
+- `kill_process` while `response.kill_process.enabled` is `false`, so a
+  configuration never reads as a containment that does not happen.
+- Any rule while `process_table.enabled` is `false`: the rules are evaluated on
+  the process table's events.
+- A `workload` naming a `guest`: a virtual machine runs its processes in its own
+  kernel.
+
+## What is evaluated in this build
+
+`process.starts` and `process.ends` reach the rules, from the
+[process table](process-table.md): an exec is evaluated once the table holds
+the new program, an exit before the entry is purged. A rule naming any other
+intention loads and is reported `not_applicable` by
+`GET /api/v1/host-rules`, with the sentence saying no source delivers it.
+
+- `command_line` is carried only with `process_table.capture_command_line`.
+- `exe_on_disk` is read from `/proc` when a rule names it, and only then.
+- `parent_exe` and `parent_uid` are those of the parent the table holds; a
+  process whose parent it never saw carries neither.
+- `exit_code` is never carried: the exit notification holds no status, so a
+  rule naming it matches nothing and should not be written yet.
+- An exit for a pid already reused by a newer process reaches no rule.
+
+A match raises an alert of component `host_rule` with the rule's identifier,
+severity and the process's workload block and lineage. An alert lost to a full
+alert queue is counted as `dropped` by `GET /api/v1/host-rules`.

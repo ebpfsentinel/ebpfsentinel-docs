@@ -153,6 +153,7 @@ const sidebars: SidebarsConfig = {
         'configuration/flow-export',
         'configuration/attribution',
         'configuration/process-table',
+        'configuration/host-rules',
         'configuration/kernel-drops',
         'configuration/tcp-health',
         'configuration/network-inventory',

@@ -869,6 +869,51 @@ Each socket carries `kind` (`raw` with link-layer headers, `dgram` without),
 
 ### Host Rules
 
+#### GET /api/v1/host-rules
+
+The loaded host rules, whether this host can match each and how many events
+matched since the start. See
+[Host Rules Configuration](../configuration/host-rules.md) for the grammar.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules
+```
+
+```json
+{
+  "matched": 3,
+  "dropped": 0,
+  "rules": [
+    {
+      "id": "shell-under-web-server",
+      "severity": "high",
+      "then": ["alert", "kill_process"],
+      "state": "applicable",
+      "intents": [{ "name": "process.starts", "state": "applicable" }],
+      "spec": {
+        "id": "shell-under-web-server",
+        "severity": "high",
+        "workload": { "ancestor": "/usr/sbin/nginx" },
+        "when": { "process.starts": { "exe": ["/bin/sh", "/bin/bash"] } },
+        "then": ["alert", "kill_process"]
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `matched` | integer | Events that matched a rule |
+| `dropped` | integer | Of those, alerts lost to a full alert queue |
+| `rules` | array | One entry per rule, in file order |
+
+Each rule carries `id`, `description` when it has one, `severity`, `then`,
+`state` (`applicable`, `partially_applicable` or `not_applicable`), `intents`,
+each with `name`, `state` and the `reason` when it is not served, and `spec`,
+the rule as it was written. A node with the process table off answers an empty
+list.
+
 #### GET /api/v1/host-rules/intents
 
 Every intention a host rule may name, the fields it carries with their types,
@@ -882,7 +927,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 ```json
 {
   "kernel": "6.12",
-  "applicable": 8,
+  "applicable": 2,
   "intents": [
     {
       "name": "process.connects",
@@ -890,7 +935,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
       "hook": "cgroup connect4 and connect6",
       "sources": ["socket_attribution"],
       "min_kernel": "4.17",
-      "state": "applicable",
+      "state": "not_applicable",
+      "reason": "no source in this build delivers `process.connects` events to host rules",
       "fields": [
         { "name": "exe", "type": "path", "doc": "executable of the process" },
         { "name": "remote_port", "type": "port", "doc": "port of the peer" }
@@ -3359,6 +3405,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/drop-reasons` | Yes | Packets the kernel dropped, by reason and interface |
 | GET | `/api/v1/ebpf/foreign-programs` | Yes | eBPF programs on the network path that the agent did not load |
 | GET | `/api/v1/ebpf/raw-sockets` | Yes | Packet sockets open on the node, their holder and filter |
+| GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
