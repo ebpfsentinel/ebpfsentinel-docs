@@ -18,7 +18,7 @@ Each signal carries a weight:
 
 | Weight | Signal | What it says |
 |--------|--------|--------------|
-| decisive | `canary_touched` | A decoy file nobody has a reason to open was written |
+| decisive | `canary_touched` | A canary file nobody has a reason to open was opened or read |
 | decisive | `header_mismatch` | A file's leading bytes no longer match what its name says it is |
 | strong | `crypto_rate` | The run calls encryption primitives at a rate no ordinary program does |
 | strong | `ransom_note` | The same new file name appeared in many directories |
@@ -40,14 +40,14 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `distinct_rewrites`, `entropy_rise`, `header_mismatch`,
-`mass_rename`, `replace_sequence` and `ransom_note`. Every other signal in
+This agent reads `canary_touched`, `distinct_rewrites`, `entropy_rise`,
+`header_mismatch`, `mass_rename`, `replace_sequence` and `ransom_note`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
 verdict.
 
-All six come from the [file watch](../configuration/file-watch.md) and need
+All seven come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
 
@@ -177,6 +177,38 @@ list writing one name into forty watched directories in a minute raises the
 signal, which is why it is strong and never decisive alone. Each run follows at
 most 256 names at once, dropping the one least recently seen, so a build
 creating thousands of distinct names does not push a note out of the count.
+
+### Canary files
+
+A canary is a file planted into a data directory under a name no legitimate
+process has a reason to open, watched for any open or read whatever the access
+mode. A run walking the directory to encrypt it opens the canary along with
+everything else, and one open is a decisive signal on its own, so wherever a
+canary sits the verdict follows from the first file of it the run touches. A
+canary deleted or renamed away by another process counts as touched too, and
+is planted again.
+
+Canaries are off by default, because planting writes files into the operator's
+own directories; `file_watch.canaries` in the
+[file watch](../configuration/file-watch.md#canary-files) turns them on. The
+default plants two names into each of `/home`, `/root`, `/srv`, `/var/www`,
+`/opt`, `/mnt` and `/media`: `0000-archive.docx`, which sorts before almost
+every other name, and `zzzz-archive.xlsx`, which sorts after, so a run walking
+a directory in name order meets a canary first or last, under extensions a run
+sets out to encrypt. A directory absent on the host is reported and skipped.
+
+Placement is where the value is. A canary in a directory nobody walks catches
+nothing, and one in a directory a backup or a scanner walks fires each time it
+runs, which is what the exempt list is for: backup tools and virus scanners,
+matched by the executable's full path, so a copy of one elsewhere is not
+exempt. An open by a process the process table cannot name is logged and
+raises no verdict, since there is no run to name.
+
+What a canary does not see: it is created by the watch's holder with mode
+`0644`, so a process running as another user that asks to open it for writing
+only is refused by the kernel before the open, and nothing is reported; a run
+that encrypts a file reads it first, and that read is reported. A run that
+skips files by name or by size can skip a canary too.
 
 ## The alert
 

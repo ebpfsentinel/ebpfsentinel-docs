@@ -43,6 +43,10 @@ file_watch:
 | `max_hash_bytes` | integer | `16777216` (16 MiB) | A regular file larger than this is not hashed; at most 67108864 (64 MiB) |
 | `max_baselines` | integer | `500000` | Baselines kept at most, at least 1 |
 | `paths` | list of paths | `[]` | Files or directories watched for any difference, at most 1024; see [Watched paths](#watched-paths) |
+| `canaries.enabled` | bool | `false` | Plant canary files and report any open of one; see [Canary files](#canary-files) |
+| `canaries.directories` | list of paths | `/home`, `/root`, `/srv`, `/var/www`, `/opt`, `/mnt`, `/media` | Absolute directories a canary is planted into |
+| `canaries.names` | list of names | `0000-archive.docx`, `zzzz-archive.xlsx` | Names planted into each directory, no slash; at most 512 canaries in all |
+| `canaries.exempt` | list of paths | backup tools and scanners, see below | Executables, by full path, whose opens of a canary are not a signal |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
 every file of the filesystem holding `/etc`. Two paths on one filesystem watch
@@ -281,6 +285,41 @@ difference is a `watched-path-unexpected` alert naming what differs, then
 kept as the node's baseline like any first reading. A path the node already
 keeps is compared with its own baseline, as before, and a path the fleet does
 not name is learned.
+
+## Canary files
+
+With `canaries.enabled` on, the watch plants each name of `canaries.names` into
+each directory of `canaries.directories`, marks every one for any open or read,
+whatever the access mode, and hands each open to
+[mass encryption](../features/mass-encryption.md#canary-files) as a decisive
+signal. Each directory is added to the filesystems watched, since a canary is
+only planted on a filesystem the watch covers.
+
+A canary is a small text file of fixed content saying what it is, created by
+the watch's holder with mode `0644`. A name already taken is kept only when it
+holds exactly that content, so a file of the operator's own is never adopted.
+A directory absent on the host, one on a read-only filesystem and one the
+holder may not write to are each reported once with the reason and skipped;
+the warden holds no `CAP_DAC_OVERRIDE`, so it seeds only directories its own
+user can write to. A canary deleted or renamed away is planted again at once,
+and every canary is planted again each time the watch is opened.
+
+```yaml
+file_watch:
+  enabled: true
+  canaries:
+    enabled: true
+    directories: [/srv, /home]
+    names: [0000-archive.docx, zzzz-archive.xlsx]
+    exempt: [/usr/bin/restic, /usr/bin/rsync]
+```
+
+The default exempt list is `/usr/bin/restic`, `/usr/bin/rclone`,
+`/usr/bin/kopia`, `/usr/bin/rsync`, `/usr/bin/tar`, `/usr/sbin/bacula-fd`,
+`/usr/sbin/bareos-fd`, `/usr/bin/clamscan` and `/usr/sbin/clamd`. An exempt
+entry replaces the list rather than adding to it, so name every tool that
+walks these directories on purpose: a backup job left off it fires on every
+run.
 
 ## Host rules
 
