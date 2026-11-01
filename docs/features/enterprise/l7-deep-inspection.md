@@ -72,6 +72,7 @@ L7 payload (up to 64 KiB decoded, refused above)
                     ├── origin          (BuiltIn | Custom)
                     ├── byte_offset     (match start in the payload)
                     ├── byte_length     (match length)
+                    ├── decoded         (matched only once normalised)
                     └── confidence()    (derived from severity: 40..95)
 ```
 
@@ -121,6 +122,35 @@ below.
 | `Medium` | 60 |
 | `High` | 80 |
 | `Critical` | 95 |
+
+### Normalisation before matching
+
+An attack the patterns know walks past them once it is encoded:
+`%27%20UNION%20SELECT`, `&lt;script&gt;`, `..%252f..%252f`,
+`UNION/**/SELECT`. Every payload is therefore scanned twice, as it arrived
+and once normalised, and a pattern only the normalised form matched is
+reported with `decoded: true`. Its `byte_offset` and `byte_length` then point
+into the normalised form, not into the bytes that were sent. A pattern both
+forms match is reported once, from the payload as it arrived, and a payload
+the normalisation leaves unchanged is scanned once.
+
+The transforms, in the order they run:
+
+| Transform | What it undoes |
+|---|---|
+| Percent decoding | `%2f`, `%u002f` and `+` as a space, repeated with entity decoding until the payload stops changing and at most four times, so a double or triple encoding is undone and a payload cannot keep the agent decoding |
+| HTML entities | Every numeric entity, decimal or hexadecimal, with or without its `;`, and the named ones that carry markup or a path: `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&amp;`, `&sol;`, `&bsol;`, `&colon;`, `&lpar;`, `&rpar;`, `&period;`, `&tab;`, `&newline;`, `&nbsp;` |
+| Overlong UTF-8 | The two-byte form of an ASCII character, `0xc0 0xae` for `.`, read as that character |
+| Null bytes | Dropped |
+| SQL inline comments | A closed `/* ... */` becomes one space |
+| Paths | A backslash is a slash, a run of slashes is one, a `/./` segment is removed; `..` is kept, being what the traversal patterns look for |
+| Case | ASCII letters folded to lower case, which also reaches a custom pattern written without `(?i)` |
+
+No transform makes the payload longer, so normalisation costs at most one copy
+of it per decoding round. An encoding left after four rounds stays encoded.
+The tests carry the evasion corpus each transform was added for: encoded,
+double-encoded and comment-split SQL injection, percent- and entity-encoded
+script tags, and double-encoded, overlong and backslash path traversal.
 
 ## Custom Patterns
 
