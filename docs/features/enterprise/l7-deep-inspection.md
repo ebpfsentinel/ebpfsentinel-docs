@@ -119,6 +119,34 @@ A match below `min_severity` carries no `mitigation_status`. Blocking
 needs the eBPF datapath: an agent started without it logs that blocking
 is off and raises the alerts alone.
 
+### Handing the blocks to the proxy in front
+
+A WAF, an ingress or a reverse proxy in front of the application can
+refuse the same sources before their requests cross the network. The
+blocks in force are served three ways, each listing only what is blocked
+at the moment of the request, so a proxy that re-reads the list on a
+schedule lifts a block when the agent does:
+
+| Route | Shape | Read by |
+|-------|-------|---------|
+| `GET /api/v1/enterprise/l7/blocks/ips` | `text/plain`, one address per line, nothing else | An HAProxy ACL file, a ModSecurity `ipMatchFromFile`, an ingress deny list |
+| `GET /api/v1/enterprise/l7/blocks/stix` | STIX 2.1 bundle, one `indicator` per source, `valid_until` set to when the block lapses | A threat intelligence platform or a WAF reading STIX |
+| `GET /api/v1/enterprise/l7/blocks` | JSON with the reason, the alert, the severity and both times | A person or a script |
+
+An indicator keeps the same identifier for the life of its block, so a
+consumer that deduplicates on it sees one object per block rather than
+one per poll. The routes answer even when blocking is off, with an
+empty list and, on the JSON route, `enabled: false`, so a poller reads
+"nothing blocked" rather than an error. They take the same credentials
+as the rest of the API: give the fetcher an API key with the `viewer`
+role.
+
+```bash
+curl -s -H "X-API-Key: $EBPFSENTINEL_API_KEY" \
+  https://agent.example:8444/api/v1/enterprise/l7/blocks/ips \
+  > /etc/haproxy/blocked.lst
+```
+
 ## Pattern Categories
 
 | Category | Example signatures | Severity range |
@@ -376,6 +404,9 @@ severity are each reported by name and refuse the start.
 | `PUT` | `/api/v1/enterprise/l7/rule-toggles` | operator | advanced-dlp | Replace that set. |
 | `PATCH` | `/api/v1/enterprise/l7/rule-toggles/{id}` | operator | advanced-dlp | Add or remove one rule id. |
 | `POST` | `/api/v1/enterprise/l7/analyze` | operator | advanced-dlp | Scan a payload and return matches, policy decision and enrichment. |
+| `GET` | `/api/v1/enterprise/l7/blocks` | viewer | advanced-dlp | Sources blocked after a match, with the reason and when each lapses. |
+| `GET` | `/api/v1/enterprise/l7/blocks/ips` | viewer | advanced-dlp | The same sources, one address per line. |
+| `GET` | `/api/v1/enterprise/l7/blocks/stix` | viewer | advanced-dlp | The same sources as a STIX 2.1 bundle. |
 
 ## Code Architecture
 

@@ -173,7 +173,7 @@ not from the request.
 | [Fleet management](#fleet-management) | 9 | [Fleet management](../features/enterprise/fleet-management.md) |
 | [High availability](#high-availability) | 6 | [High availability](../features/enterprise/high-availability.md) |
 | [L7 alert enrichment](#l7-alert-enrichment) | 1 | [L7 alert enrichment](../features/enterprise/l7-alert-enrichment.md) |
-| [L7 deep inspection](#l7-deep-inspection) | 9 | [L7 deep inspection](../features/enterprise/l7-deep-inspection.md) |
+| [L7 deep inspection](#l7-deep-inspection) | 12 | [L7 deep inspection](../features/enterprise/l7-deep-inspection.md) |
 | [L7 per-protocol policies](#l7-per-protocol-policies) | 13 | [L7 per-protocol policies](../features/enterprise/l7-per-protocol-policies.md) |
 | [Licensing](#licensing) | 1 | [Licensing](../features/enterprise/license.md) |
 | [ML detection](#ml-detection) | 21 | [ML detection](../features/enterprise/ml-detection.md) |
@@ -446,6 +446,9 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/enterprise/l7/analyze` | operator | `l7:write` | advanced-dlp | Scan a payload and return matches, policy decision and enrichment. |
+| `GET` | `/api/v1/enterprise/l7/blocks` | viewer | `l7:read` | advanced-dlp | Sources blocked in the kernel after a match, with the reason and when each lapses. |
+| `GET` | `/api/v1/enterprise/l7/blocks/ips` | viewer | `l7:read` | advanced-dlp | The same sources, one address per line, for a proxy's IP list. |
+| `GET` | `/api/v1/enterprise/l7/blocks/stix` | viewer | `l7:read` | advanced-dlp | The same sources as a STIX 2.1 bundle of indicators. |
 | `GET` | `/api/v1/enterprise/l7/matches` | viewer | `l7:read` | advanced-dlp | Recent match history. |
 | `GET` | `/api/v1/enterprise/l7/patterns` | viewer | `l7:read` | advanced-dlp | List loaded patterns. |
 | `POST` | `/api/v1/enterprise/l7/patterns` | operator | `l7:write` | advanced-dlp | Add one pattern. |
