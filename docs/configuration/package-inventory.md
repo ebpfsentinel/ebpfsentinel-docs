@@ -1,7 +1,8 @@
 # Package Inventory Configuration
 
 What the dpkg, rpm and Alpine databases say is installed, in the host's root
-and every container's. What is read, and what is not, is on
+and every container's, and the modules every running Go program was built
+from. What is read, and what is not, is on
 [Installed Packages](../features/installed-packages.md).
 
 ## Configuration
@@ -22,5 +23,6 @@ package_inventory:
 `interval_secs` is accepted between `60` and `86400`, and an unknown key in the
 block fails at boot. A database that has not changed since the last reading is
 looked at and not read again, so a short interval costs little on a node where
-nothing is installed. Turning the inventory off stops the readings and the API
+nothing is installed. The build information of running Go programs is read
+again on every reading, at most 12 MiB of it. Turning the inventory off stops the readings and the API
 route answers `reading: false`.

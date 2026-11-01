@@ -1087,7 +1087,8 @@ applicable, one sentence per missing source, and its `fields`, each with
 #### GET /api/v1/surface/packages
 
 What the dpkg, rpm and Alpine databases say is installed, root by root: the
-host's own and every container's. See
+host's own and every container's, and the modules every running Go program
+says it was built from. See
 [Installed Packages](../features/installed-packages.md) for what is read and
 what is not.
 
@@ -1129,6 +1130,21 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
         }
       ]
     }
+  ],
+  "executables_examined": 212,
+  "go_executables_not_read": 0,
+  "go_executables": [
+    {
+      "kind": "host",
+      "path": "/usr/bin/containerd",
+      "pids": [811],
+      "go_version": "go1.24.4",
+      "main_package": "github.com/containerd/containerd/v2/cmd/containerd",
+      "modules": [
+        { "path": "github.com/containerd/containerd/v2", "version": "v2.1.3", "main": true },
+        { "path": "golang.org/x/sys", "version": "v0.33.0", "main": false }
+      ]
+    }
   ]
 }
 ```
@@ -1143,6 +1159,10 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `roots` | array | One entry per filesystem root: `kind` (`host`, `container` or `other`), `container_id` and `runtime` for a container, `pid`, `error` when the root could not be read, and `databases` |
 | `roots[].databases` | array | One entry per database found: `manager` (`dpkg`, `rpm` or `apk`), `path`, `unreadable` with the reason when it was not read, and `packages` |
 | `roots[].databases[].packages` | array | `name`, `version` as the database writes it, `arch`, `state` (`installed` or `partial`) and `files`, the number of files it owns, absent when no file list was read |
+| `executables_examined` | integer | Distinct running executables looked at for Go build information, Go or not |
+| `go_executables_not_read` | integer | Go programs found beyond the 12 MiB one reading covers |
+| `go_executables` | array | One entry per running Go executable: `kind`, `container_id` and `runtime` of the root of its lowest process, `path` inside it, up to sixteen `pids`, `unreadable` with the reason when its build information was not read, `go_version`, `main_package` and `modules` |
+| `go_executables[].modules` | array | The main module first (`main: true`), then every dependency: `path`, `version` (`(devel)` for a working tree) and `replaced_by`, `path version` of what a `replace` directive put in its place |
 
 No field names a vulnerability, a severity or a score.
 
@@ -3610,7 +3630,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/hidden-processes` | Yes | Processes that answer a signal and that `/proc` does not list |
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
-| GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's |
+| GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |

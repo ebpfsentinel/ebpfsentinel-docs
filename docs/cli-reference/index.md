@@ -1412,15 +1412,22 @@ ebpfsentinel-agent surface packages
 in (`host`, the first twelve characters of a container id, or the pid whose
 root no runtime names), the package manager, its version, architecture and
 state, and how many files the database says it owns. A database that could
-not be read is named above the table with the reason:
+not be read is named above the table with the reason. A second table follows
+with one row per module of every running Go program, and a Go program whose
+build information could not be read is named above the first:
 
 ```text
 3 root(s) read through warden.
+212 running executable(s) examined, 1 carry Go build information.
 pid 5120: rpm database /var/lib/rpm/Packages not read: the rpm database is in its Berkeley DB format, which is not read
 ROOT          MANAGER  PACKAGE   VERSION          ARCH    STATE      FILES
 host          dpkg     libc6     2.41-12+deb13u4  amd64   installed  285
 host          dpkg     zlib1g    1:1.3.dfsg-3.1   amd64   partial    -
 3f2a9c01b7e4  apk      musl      1.2.5-r10        x86_64  installed  2
+
+ROOT  EXECUTABLE           GO        MODULE                              VERSION  REPLACED BY
+host  /usr/bin/containerd  go1.24.4  github.com/containerd/containerd/v2  v2.1.3   -
+host  /usr/bin/containerd  go1.24.4  golang.org/x/sys                    v0.33.0  -
 ```
 
 What is read and what is not is on
