@@ -224,6 +224,19 @@ firewall:
 
 The scheduler evaluates every 60 seconds and reloads eBPF rules on state transitions.
 
+### Shadow Rules
+
+A rule with `mode: shadow` decides nothing. The kernel walks it beside the
+rules in force on every packet they decide, and counts what it would have
+done: packets and flows it matched, and how many of them the rules in force
+decided otherwise. The most recent flows it matched are kept with the live
+verdict each one got, so the conversations a new deny would cut are named
+before it cuts them. Up to 64 shadow rules per address family are counted;
+the counters restart whenever the set of shadow rules changes. Read them with
+`ebpfsentinel-agent firewall shadow`. See
+[Shadow mode](../configuration/firewall.md#shadow-mode) for what the counters
+do and do not cover.
+
 ### Interface Groups
 
 Rules can be scoped to specific interface groups using the `interfaces` field. Interface groups are defined at the top level and assign named groups to physical interfaces. Rules reference group names to control where they apply.
@@ -443,6 +456,9 @@ ebpfsentinel-agent firewall add --json '{
 # Delete a rule
 ebpfsentinel-agent firewall delete block-telnet
 
+# What each shadow rule would have done
+ebpfsentinel-agent firewall shadow
+
 # Show conntrack status and the tracked connections
 ebpfsentinel-agent conntrack status
 ebpfsentinel-agent conntrack list
@@ -455,6 +471,7 @@ ebpfsentinel-agent conntrack list
 | GET | `/api/v1/firewall/rules` | List all firewall rules |
 | POST | `/api/v1/firewall/rules` | Create a firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Delete a firewall rule (403 for system rules) |
+| GET | `/api/v1/firewall/shadow` | What each shadow rule would have allowed or denied |
 | GET | `/api/v1/conntrack/status` | Conntrack status (enabled, connection count) |
 | GET | `/api/v1/conntrack/connections` | List active connections |
 | POST | `/api/v1/conntrack/flush` | Flush connection table |

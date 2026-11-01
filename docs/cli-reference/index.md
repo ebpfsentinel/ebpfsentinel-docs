@@ -420,6 +420,26 @@ allow-curl-registry   allow    enforce  exe=/usr/bin/curl     proto 6 to 10.0.0.
 default-deny          deny     enforce  exe=/usr/bin/curl     to anywhere                             14
 ```
 
+### firewall shadow
+
+What each rule in shadow mode would have done since counting started: the
+packets and flows it matched, and how many of them the rules in force decided
+otherwise. The most recent flows each rule matched follow the table.
+
+```bash
+ebpfsentinel-agent firewall shadow
+```
+
+```text
+RULE         WOULD  INSTALLED  PACKETS  FLOWS  CHANGED PKTS  CHANGED FLOWS
+tighten-ssh  deny   yes            312      9           312              9
+
+tighten-ssh - most recent flows:
+  198.51.100.7:51022 -> 10.0.0.5:22 proto 6 live allow (41 packets)
+
+Counters restart whenever the set of shadow rules changes. Flow counts are a floor.
+```
+
 ### firewall fqdn
 
 What the workload rules naming destinations by name have resolved on this

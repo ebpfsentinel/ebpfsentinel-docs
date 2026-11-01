@@ -74,6 +74,7 @@ firewall:
 | `priority` | `integer` | Yes | Evaluation order (lowest = first) |
 | `action` | `string` | Yes | `allow`/`pass`, `deny`/`drop`/`block`, `log`, or `reject`/`reset` (forge TCP RST / ICMP unreachable) |
 | `enabled` | `bool` | No | Enable/disable this rule (default: `true`) |
+| `mode` | `string` | No | `enforce` (default) decides traffic; `shadow` decides nothing and counts what the rule would have done. See [Shadow mode](#shadow-mode) |
 | `protocol` | `string` | No | `tcp`, `udp`, `icmp`, or `any` (default: `any`) |
 | `src_ip` | `string` | No | Source CIDR (`10.0.0.0/8`, `2001:db8::/32`) |
 | `dst_ip` | `string` | No | Destination CIDR |
@@ -112,6 +113,52 @@ installed: static aliases expand into one kernel rule per member, runtime
 aliases back a kernel IP set the rule matches against, and an alias that
 resolves to nothing drops its rule instead of widening it. See
 [Aliases](../features/aliases.md#how-a-rule-reference-reaches-the-kernel).
+
+### Shadow mode
+
+A rule written with `mode: shadow` is loaded into the kernel beside the rules
+in force and takes no part in the verdict. Every packet the firewall decides
+is also matched against the shadow rules, and the kernel counts, per shadow
+rule, how many packets and flows it matched and how many of them the rules in
+force decided otherwise: a shadow `deny` matching traffic that was let
+through, or a shadow `allow` matching traffic that was dropped. It keeps the
+most recent flows each rule matched, with what the rules in force did to them,
+so a reader sees which conversations a rule would have cut before it cuts one.
+
+```yaml
+firewall:
+  default_policy: pass
+  rules:
+    - id: tighten-ssh
+      priority: 5
+      action: deny
+      protocol: tcp
+      dst_port: "22"
+      src_ip: 0.0.0.0/0
+      mode: shadow
+```
+
+The reading is `ebpfsentinel-agent firewall shadow`, or
+`GET /api/v1/firewall/shadow`. Promoting the rule is changing `mode` to
+`enforce` (or removing the line) and reloading.
+
+What the counters do and do not say:
+
+- They restart whenever the set of shadow rules changes, and the reading says
+  since when it counts. A reload that leaves the shadow rules as they were
+  keeps them.
+- At most **64 shadow rules per address family** are counted. A rule past
+  that is accepted, listed as not installed, and counts nothing.
+- A disabled rule, or one outside its schedule, is not installed and counts
+  nothing.
+- The flow count is a floor: the flow table is bounded, and a flow it has
+  forgotten is counted again when it comes back.
+- A packet no rule decided is not counted: one that could not be parsed,
+  one whose source sits in the overload list of a per-source state limit,
+  and one an earlier program (rate limiting, DDoS) dropped before the
+  firewall saw it.
+- A shadow rule may not mark DSCP, cap states, name a workload or be a
+  system rule: each of those acts on traffic, and a shadow rule acts on none.
 
 ### Anti-Lockout
 

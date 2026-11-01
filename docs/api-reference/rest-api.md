@@ -972,6 +972,51 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 }
 ```
 
+#### GET /api/v1/firewall/shadow
+
+What each rule in shadow mode would have done since `counting_since_ns`, the
+moment the set of shadow rules last changed. `would` is the rule's action on
+the wire, `changed_packets` and `changed_flows` count what the rules in force
+decided otherwise, and `sample` holds the most recent flows matched, newest
+first, each with the verdict the rules in force gave it. `installed` is
+`false` for a rule past the limit of 64 per address family, disabled or
+outside its schedule. `flows` is a floor, since the flow table is bounded.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/firewall/shadow
+```
+
+```json
+{
+  "counting_since_ns": 1792310400000000000,
+  "rules": [
+    {
+      "rule_id": "tighten-ssh",
+      "action": "deny",
+      "would": "deny",
+      "installed": true,
+      "packets": 312,
+      "flows": 9,
+      "changed_packets": 312,
+      "changed_flows": 9,
+      "sample": [
+        {
+          "src_ip": "198.51.100.7",
+          "dst_ip": "10.0.0.5",
+          "src_port": 51022,
+          "dst_port": 22,
+          "protocol": 6,
+          "live_verdict": "allow",
+          "packets": 41,
+          "first_seen_ns": 1792310412000000000,
+          "last_seen_ns": 1792310470000000000
+        }
+      ]
+    }
+  ]
+}
+```
+
 #### GET /api/v1/firewall/workload/rules
 
 The workload rules in force, in the
@@ -3113,6 +3158,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
 | POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
 | DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
+| GET | `/api/v1/firewall/shadow` | Yes | What each shadow rule would have allowed or denied |
 | GET | `/api/v1/firewall/workload/rules` | Yes | Workload rules in force and what each has refused |
 | GET | `/api/v1/firewall/workload/fqdn` | Yes | What each workload rule by name has resolved |
 | GET | `/api/v1/firewall/workload/labels` | Yes | Containers whose labels carry policy, and any label refused |
