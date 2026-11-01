@@ -17,7 +17,9 @@ A change is reported after it is on disk, and what follows it - an alert, a
 that stops the writing process or cuts its workload off the network - acts on
 the writer afterwards. None of it undoes the write or claims to have prevented
 it. Refusing a write before it lands is a separate capability with its own
-kernel conditions, and the file watch does not provide it.
+kernel condition, the BPF LSM, configured under
+[`write_refusal`](#write-refusal) and described there; the watch itself never
+refuses anything.
 
 ## Configuration
 
@@ -49,6 +51,12 @@ file_watch:
 | `mass_encryption.mode` | `shadow` or `enforce` | `shadow` | Whether a [mass encryption](../features/mass-encryption.md) verdict is counted or raises the alert; see [Mass encryption](#mass-encryption) |
 | `mass_encryption.stop` | bool | `false` | Kill the run a verdict in force names, the process that reached it and every process it started; needs `mode: enforce`, `response.kill_process.enabled` and `process_table.enabled` |
 | `canaries.exempt` | list of paths | backup tools and scanners, see below | Executables, by full path, whose opens of a canary are not a signal |
+| `write_refusal.enabled` | bool | `false` | Load the [write refusal](#write-refusal); independent of `enabled` |
+| `write_refusal.mode` | `shadow` or `enforce` | `shadow` | Count what would be refused, or refuse it |
+| `write_refusal.paths` | list of paths | `[]` | Absolute directories counted, everything beneath each included; at most 256, never `/` |
+| `write_refusal.threshold` | integer | `100` | The write-open inside the window that is refused first, at least 1 |
+| `write_refusal.window_secs` | integer | `60` | The window the count runs over, 1 to 3600 seconds |
+| `write_refusal.count_by` | `process` or `cgroup` | `process` | Count each process alone, or a container or unit as one writer |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
 every file of the filesystem holding `/etc`. Two paths on one filesystem watch
@@ -362,6 +370,65 @@ response:
 process_table:
   enabled: true
 ```
+
+## Write refusal
+
+The write refusal is a BPF LSM program on two kernel hooks, `file_open` for a
+file opened for writing and `path_truncate` for a truncation by path. It counts
+each writer's write-opens under the watched directories inside a window, and
+from the one reaching the threshold until the window ends, the kernel refuses
+each with `EACCES` before a byte is written. A refused creation still leaves
+the file's name behind, empty, because the kernel creates the inode before it
+decides the open; no content reaches it:
+
+```yaml
+file_watch:
+  write_refusal:
+    enabled: true
+    mode: shadow
+    paths:
+      - /srv/data
+      - /home
+    threshold: 100
+    window_secs: 60
+    count_by: process
+```
+
+**What it costs is stated with it.** A run loses the files it writes before
+the threshold, `threshold - 1` per writer and window, and a run that spreads
+its writes over more writers than the count follows loses that many per
+writer, which is what `count_by: cgroup` narrows for a run that forks. A legitimate tool writing
+more than the threshold under a watched directory in one window is refused
+too, which is why the mode ships as `shadow`: read
+`would_refuse` against the host's own work before turning `enforce` on. The
+count is of write-opens and not of files, so one file reopened a hundred times
+counts a hundred.
+
+**It needs the BPF LSM active at boot**, which `lsm=` on the kernel command
+line decides and which not every distribution or host provider sets. Where it
+is not active, the program is not loaded, the agent starts anyway in either
+mode, the reason is logged and reported in the `write_refusal` block of
+`GET /api/v1/ebpf/kernel-features` and by `ebpfsentinel-agent ebpf host-check`,
+and the [mass encryption](../features/mass-encryption.md) detection beside it
+still detects the run and, with `stop` on, kills it: the node keeps a defence,
+and loses more files to it.
+
+**It fails open.** The two hooks are links the agent holds and never pins, so
+an agent that stops, crashes or is killed takes them with it and nothing is
+refused afterwards. A write the program cannot attribute, a path deeper than
+sixteen directories below a watched one, or a new writer arriving with the
+counter map full at 16,384 writers is let through and counted. The agent's own
+writes are never counted.
+
+A directory that does not exist yet is left out with a warning and picked up
+within thirty seconds of being created; the watched set and the expired counts
+are refreshed on the same tick. Changing anything here takes a restart.
+
+Counters are published under
+`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_METRICS", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full` and `event_lost`. A writer reaching the threshold raises one alert per window
+under the component `mass_encryption` and the rule `write-refusal`, naming the
+process, the file, the watched directory and the count, with the mitigation
+`refused` in `enforce`.
 
 ## Host rules
 

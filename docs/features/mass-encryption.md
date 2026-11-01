@@ -370,6 +370,22 @@ it writes between its first rewrite and the verdict, plus the tenth of a
 second the signal takes, and a run fast enough to finish inside that interval
 is reported as such rather than as stopped.
 
+## Refusing the next write
+
+The verdict and the stop act once the files are written. Where the BPF LSM is
+active, the [write refusal](../configuration/file-watch.md#write-refusal)
+acts before: it counts each writer's write-opens under the watched directories
+and the kernel refuses the one reaching the threshold, and every one after it
+in the window, before a byte is written. It reads no signal and reaches no
+verdict, so it is blunt where the verdict is careful: a run past the count is
+refused whatever it writes, and so is a legitimate tool, which is why it ships
+in `shadow`.
+
+It moves the bound and does not remove it. A run still loses the files it
+writes before the threshold, per writer, and on a host without the BPF LSM the
+refusal is not loaded and the detection and the stop above are what remain.
+An agent that is gone refuses nothing.
+
 ## What does not raise it
 
 The thresholds above were measured against the work a host does every day,

@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 27 eBPF kernel programs (the
+Detailed documentation for each of the 28 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -582,3 +582,11 @@ Keeps the agent's own programs where it put them. Detaching a link, or swapping 
 Nobody is refused who is in `BPF_GUARD_TASKS`: the agent, and in the rootless posture its warden. Each entry is a thread group as numbered in its own pid namespace, with that namespace's device and inode, and the program asks the kernel with `bpf_get_ns_current_pid_tgid` whether the caller is that thread group, so a process in another namespace carrying the same number is not mistaken for the agent.
 
 The `bpf` hook gained a fourth argument after 6.12, a flag set when the kernel makes the call itself, and a program may not read past the arguments its hook has, even on a branch never taken. The object therefore carries two programs on that hook, `bpf_guard_cmd3` and `bpf_guard_cmd4`, and userspace reads the hook's arity from the running kernel's BTF and attaches the one that fits; the four-argument one lets a call the kernel makes on its own behalf through. The offset of the map id inside `struct bpf_map` is read from the BTF too and written into `BPF_GUARD_CONFIG`, whose slot is marked valid last: the sets are written, the hooks attached, the agent's ids read back from its own descriptors, those of the guard included, and only then is anything refused. The ids are read again every 30 seconds, adding the new ones before taking the old ones out, along with the warden's identity, which changes when the warden restarts. A refusal returns `-EPERM`. `BPF_GUARD_METRICS` counts `checked`, `refused_map` and `refused_link`.
+
+### lsm-write-refusal
+
+**Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-write-refusal/`
+
+Refuses a writer's write-opens past a count. `write_refusal_file_open` on `file_open` decides a file opened with `FMODE_WRITE`, which covers an open for writing, a creation and a truncation by `O_TRUNC`, and `write_refusal_path_truncate` on `path_truncate` decides `truncate(2)`. Both hooks are non-sleepable and run before any data moves. From the file's dentry the program walks up through `d_parent`, at most sixteen steps, looking for a (device, inode) in `WRITE_REFUSAL_DIRS`; the field offsets of `struct file`, `path`, `dentry`, `qstr`, `inode` and `super_block` are read from the running kernel's BTF and written into `WRITE_REFUSAL_CONFIG`, whose slot is marked valid last, so nothing is decided against a partial layout.
+
+Under a watched directory, the writer, its thread group or with `count_by: cgroup` its cgroup, is counted in `WRITE_REFUSAL_COUNTS`, a plain hash of 16,384 entries rather than an LRU, since an LRU would evict the writer being counted under exactly the load a run produces: a newcomer finding it full is let through and counted as `table_full`. The write-open reaching the threshold inside the window is refused with `-EACCES`, and every one after it until the window ends; in shadow the hook counts `would_refuse` and lets it through. `WRITE_REFUSAL_EVENTS` carries one record per writer and window, with the file's name read off its dentry. The agent's own thread group is never counted, userspace removes expired counts every 30 seconds, and the links are never pinned, so the refusal ends with the agent. `WRITE_REFUSAL_METRICS` counts `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full` and `event_lost`.
