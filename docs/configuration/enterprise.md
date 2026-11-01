@@ -77,6 +77,10 @@ enterprise:
       # scanned. Populate to opt in rule by rule; anything not named is
       # then no longer scanned.
       deep_inspect_rule_ids: []
+      # Empty = no received TLS plaintext is scanned. Workloads listed
+      # here have what their TLS library decrypted for them scanned by
+      # the same patterns (container, cgroup and exe matchers only).
+      tls_plaintext_workloads: []
       custom_inspect_patterns:
         - id: acme-internal-code
           name: Acme internal tracking code
@@ -642,6 +646,7 @@ explains the order and the priorities the running rules carry.
 | `advanced_dlp.tls_inspection.redirect.refresh_seconds` | u64 | `15` | How often the selectors are resolved again against the workloads running on the node |
 | `advanced_dlp.tls_inspection.redirect.dry_run` | bool | `false` | Resolve the selection and report on it at `/api/v1/enterprise/tls-probes/redirect` without loading the redirect programs: nothing is redirected. Run it first to see which selected workloads lack the authority or appear to pin |
 | `advanced_dlp.l7_advanced.deep_inspect_rule_ids` | list | `[]` | Rule ids allowed to trigger a deep-inspection scan. Empty means every submitted payload is scanned |
+| `advanced_dlp.l7_advanced.tls_plaintext_workloads` | list | `[]` | Workload selectors, the DLP scope selector shape limited to `container`, `cgroup` and `exe`, whose received TLS plaintext is deep-inspected. Empty means none. Covers only workloads whose TLS library is probed and inside the DLP scope |
 | `advanced_dlp.l7_advanced.custom_inspect_patterns` | list | `[]` | Deep-inspection patterns loaded on top of the built-in catalogue |
 
 ### Custom L7 Inspect Pattern
@@ -785,6 +790,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Custom pattern IDs must be unique (no collision with built-in `dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`)
 - Custom pattern regex validated via Vectorscan `expression_info` at config load
 - `l7_advanced.deep_inspect_rule_ids` entries cannot be empty or repeat
+- `l7_advanced.tls_plaintext_workloads` selectors must name at least one of `container`, `cgroup` or `exe`, and no `tenant`, `namespace`, `pod` or `unit`
 - `l7_advanced.custom_inspect_patterns` entries need a unique id (no collision with a built-in pattern), a non-empty name, a regex Vectorscan accepts, and a known category and severity
 - `ml_detection.anomaly_threshold` must be positive
 - Tenant IDs must be unique, namespaces cannot overlap between tenants

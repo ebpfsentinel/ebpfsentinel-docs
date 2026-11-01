@@ -20,12 +20,15 @@ neither workload starves the other of scratch space.
 
 ## What Triggers a Scan
 
-The engine is not attached to the packet path. A scan runs when a
-payload is submitted to `POST /api/v1/enterprise/l7/analyze`, optionally
-carrying the id of the L7 rule it was matched under. That id is what
-`deep_inspect_rule_ids` filters on: leave the list empty and every
-submitted payload is scanned, name one id and only payloads submitted
-under a listed id are.
+A scan runs in two places, each fenced on its own.
+
+### A submitted payload
+
+A payload submitted to `POST /api/v1/enterprise/l7/analyze` is scanned,
+optionally carrying the id of the L7 rule it was matched under. That id
+is what `deep_inspect_rule_ids` filters on: leave the list empty and
+every submitted payload is scanned, name one id and only payloads
+submitted under a listed id are.
 
 The submitted payload is base64 in `payload_b64` and is held to 64 KiB
 once decoded, which is the whole of the bound on one scan. A larger
@@ -35,9 +38,40 @@ submission is refused with `400` and a message naming the limit:
 {"error": "payload is 131072 bytes decoded, over the 65536 byte limit"}
 ```
 
-The consequence for this feature is that the engine sees exactly what a
-caller hands over: it scans no traffic of its own, so a payload nobody
-submits is a payload nobody inspects.
+### What an HTTPS server received
+
+The DLP probes read the cleartext a process gets back from its TLS
+library once decrypted. In the workloads listed under
+`tls_plaintext_workloads`, that buffer is scanned by the same patterns
+and the same normalisation as a submitted payload, so an injection sent
+over HTTPS is seen without the agent terminating TLS. Nothing is
+scanned until a workload is listed.
+
+A match raises an alert under the rule id `l7-tls-plaintext`, component
+`l7-inspect`. Its source is the peer that sent the bytes and its
+destination the server's own socket, where the probe could read the
+socket; the process, the executable and the container are those of the
+server that read the request.
+
+What this covers, and what it does not:
+
+- **Only what a server read.** Requests are inspected; what the server
+  wrote back is not.
+- **Only where the library is probed.** The buffer exists only where the
+  agent hooks the TLS library the workload links. Which workloads that
+  is, and why the others are not, is the per-workload verdict in
+  [what this host actually reads](dlp.md#what-this-host-actually-reads).
+- **Only inside the DLP scope.** The DLP probes must be loaded and the
+  DLP scope must include the workload, since the scope decides whether
+  the probes copy a byte at all; this list can only narrow it.
+- **Only the excerpt of one library call.** Each read is scanned on its
+  own, at most its first 4096 bytes, with nothing carried between reads:
+  a request split across two reads, or an injection deep in a larger
+  body, is not seen. See
+  [what block mode means for detection](dlp.md#what-block-mode-means-for-detection).
+- **After the fact.** The scan runs on a copy, after the library handed
+  the bytes to the server: it raises an alert and blocks nothing, so the
+  request is seen and has already reached the application.
 
 ## Pattern Categories
 
@@ -202,6 +236,13 @@ enterprise:
       # Empty = every submitted payload is scanned. Populate to opt in
       # rule by rule; anything not named is then no longer scanned.
       deep_inspect_rule_ids: []
+      # Empty = no received TLS plaintext is scanned. Same selector
+      # shape as the DLP scope, limited to container, cgroup and exe.
+      tls_plaintext_workloads:
+        - name: storefront
+          exe: /usr/sbin/nginx
+        - container: 0123456789ab
+          action: exclude
       custom_inspect_patterns:
         - id: acme-internal-code
           name: Acme internal tracking code
@@ -214,7 +255,28 @@ enterprise:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `deep_inspect_rule_ids` | `[string]` | `[]` | Rule ids allowed to trigger a scan. Empty means every submitted payload is scanned |
+| `tls_plaintext_workloads` | `[Selector]` | `[]` | Workloads whose received TLS plaintext is scanned. Empty means none |
 | `custom_inspect_patterns` | `[Pattern]` | `[]` | Patterns loaded on top of the built-in catalogue |
+
+### TLS plaintext workload selector
+
+A selector is decided against each buffer the probes read, on what the
+agent resolved for the task that read it. Every matcher that is set has
+to match, an absent fact never matches, and an exclusion wins over an
+inclusion whatever the order.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | What to call the rule in a log. Optional |
+| `action` | `string` | `include` (default) or `exclude` |
+| `container` | `string` | Container id, or an id prefix of at least twelve characters |
+| `cgroup` | `string` | Absolute cgroup v2 path, matching it and everything under it |
+| `exe` | `string` | Absolute path of the executable, compared exactly. A path names the binary and not the bytes behind it |
+
+A selector naming nothing, or naming a tenant, a namespace, a pod or a
+systemd unit, stops the agent at startup: those are resolved per cgroup
+by the DLP scope report and never per buffer, so a selector on one would
+read as active and match nothing.
 
 ### Custom inspect pattern
 
