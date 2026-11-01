@@ -1272,6 +1272,49 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 No field names a vulnerability, a severity or a score.
 
+#### GET /api/v1/surface
+
+This host's own surface in one reading: what is installed, what runs and maps
+it, what listens, what is reachable and what the policy already blocks. See
+[Installed Packages](../features/installed-packages.md#the-surface-of-this-host).
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/surface
+```
+
+```json
+{
+  "inventory_read": true,
+  "listeners_read": true,
+  "scanned_at_ns": 1761900000000000000,
+  "installed": { "roots": 3, "roots_not_read": 0, "packages": 412, "go_programs": 1 },
+  "runs": {
+    "processes": 214, "processes_not_read": 0,
+    "files_mapped": 1360, "files_not_listed": 0, "files_unowned": 2, "files_deleted": 0,
+    "packages_mapped": 61, "packages_not_mapped": 351
+  },
+  "listens": {
+    "sockets": 5, "took_traffic": 1, "took_no_traffic": 2, "unmeasured": 1,
+    "anywhere": 2, "private_only": 1, "blocked": 1, "loopback": 1
+  },
+  "reachable": [],
+  "blocked": []
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `inventory_read` | boolean | The package inventory is read |
+| `listeners_read` | boolean | The socket hooks are attached; when not, every `listens` count is `0` and unknown |
+| `scanned_at_ns` | integer | When the inventory was last read, nanoseconds since the epoch, `0` before the first |
+| `installed` | object | `roots` read, `roots_not_read`, `packages` their databases list, and running `go_programs` |
+| `runs` | object | `processes` listed and `processes_not_read`; `files_mapped` once per root, `files_not_listed` beyond the limit, `files_unowned` and `files_deleted`; `packages_mapped`, the installed packages owning a mapped file, and `packages_not_mapped`, those owning none |
+| `listens` | object | `sockets`; `took_traffic`, `took_no_traffic` and `unmeasured` for UDP; `anywhere`, `private_only`, `blocked` and `loopback` by who may reach them |
+| `reachable` | array | Each listener reachable from anywhere or from private ranges only, in the shape of `GET /api/v1/surface/listening` |
+| `blocked` | array | Each listener the policy drops every packet for, in the same shape |
+
+No field names a vulnerability, a severity, a score or a ranking.
+
 ### Exposure
 
 #### GET /api/v1/exposure/listeners
@@ -3736,6 +3779,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/hidden-processes` | Yes | Processes that answer a signal and that `/proc` does not list |
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
+| GET | `/api/v1/surface` | Yes | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks |
 | GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
 | GET | `/api/v1/surface/loaded` | Yes | Every file live processes map executable, once per root, and the package owning it |
 | GET | `/api/v1/surface/listening` | Yes | Every listener with the packages its process maps, the traffic it took and who may reach it |

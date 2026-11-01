@@ -105,6 +105,32 @@ A process whose mappings were not read says so, and its lists are then unknown
 rather than empty. A server mapping a library no package owns is named with
 that file, so a binary copied in by hand is visible behind the port it opens.
 
+## The surface of this host
+
+`/api/v1/surface`, and `ebpfsentinel-agent surface` with no subcommand, answer
+in one reading what the three routes above answer in detail:
+
+- **what is installed**: the roots read and not read, the packages their
+  databases list, and the running Go programs;
+- **what runs**: the processes listed and not read, the files they map, how
+  many of the installed packages own at least one of those files and how many
+  own none, the mapped files no package owns and those unlinked since;
+- **what listens**: the sockets, how many took traffic, how many took none
+  and how many are UDP and not measured;
+- **what is reachable**: the listeners some source off the private ranges
+  may reach, those only private sources may reach, those bound to the
+  loopback, and each reachable listener with the packages behind it;
+- **what the policy already blocks**: the listeners the packet firewall drops
+  every packet for, each with the packages behind it.
+
+A package installed and mapped by no live process is not on the path of any
+packet the node accepts today, and a package behind a listener nothing may
+reach is not either. The answer carries counts and lists, never a
+vulnerability, a severity, a score or an order of importance: matching the
+packages against an advisory feed is the work of the scanner already reading
+the distribution's own backports, and this route gives it the part of the
+inventory that is running and reachable.
+
 ## Roots
 
 Every process on the node has a filesystem root, and the roots are told apart

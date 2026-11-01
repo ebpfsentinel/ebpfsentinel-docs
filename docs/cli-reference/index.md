@@ -1404,6 +1404,10 @@ binds again. What each column means is on
 ### surface
 
 ```bash
+# What is installed, what runs, what listens, what is reachable and what
+# the policy blocks, in one summary
+ebpfsentinel-agent surface
+
 # What the package databases say is installed, root by root
 ebpfsentinel-agent surface packages
 
@@ -1412,6 +1416,27 @@ ebpfsentinel-agent surface loaded
 
 # Every listener, the packages behind it and who may reach it
 ebpfsentinel-agent surface listening
+```
+
+`surface` with no subcommand prints the summary, then the listeners that are
+reachable and those the policy blocks, each with how many packages are behind
+it:
+
+```text
+Installed: 412 package(s) in 3 root(s), 0 root(s) not read, 1 running Go program(s).
+Runs:      214 process(es) map 1360 file(s); 61 package(s) mapped, 351 never mapped; 2 file(s) no package owns, 0 deleted since mapped.
+Listens:   5 socket(s); 1 took traffic, 2 took none, 1 UDP not measured.
+Reach:     2 from anywhere, 1 from private ranges only, 1 blocked by policy, 1 loopback only.
+
+Reachable:
+ADDRESS  PORT  PROTO  PID   EXECUTABLE              ORIGIN        ACCEPTED  PACKAGES
+0.0.0.0  443   tcp    2210  /usr/sbin/nginx         anywhere      1823      6
+0.0.0.0  53    udp    612   /usr/sbin/unbound       anywhere      -         9
+0.0.0.0  9100  tcp    811   /usr/bin/node_exporter  private_only  0         1
+
+Blocked by policy:
+ADDRESS  PORT  PROTO  PID   EXECUTABLE              ORIGIN   ACCEPTED  PACKAGES
+0.0.0.0  6379  tcp    2304  /usr/bin/redis-server   blocked  0         4
 ```
 
 `surface packages` prints one row per package, with the root it is installed
