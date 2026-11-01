@@ -28,6 +28,7 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/firewall/workload/peers` | viewer | fleet-management | The rules naming a remote workload and which ends decide each. |
 | `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
 | `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
+| `GET` | `/api/v1/file-watch/baselines` | viewer | fleet-management | What this node keeps of its watched files, for the console to compare across the fleet. |
 | `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
 | `GET` | `/api/v1/host-rules/intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
 | `POST` | `/api/v1/host-rules/{id}/promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
@@ -872,6 +873,34 @@ its rules in one through `tier`. A rule naming a tier nothing declared is refuse
 when the configuration is rendered, and admission refuses a `FirewallPolicy`
 naming the `provider` tier in a namespace a `TenantPolicy` holds, since that is a
 customer's namespace.
+
+## File Drift Across the Fleet
+
+Each node lists, at `GET /api/v1/file-watch/baselines`, the fingerprint of
+every file it keeps beneath its watched paths: kind, content digest, link
+target, permission bits, owner and group, and the digest of each extended
+attribute. Never a byte of content, and never the size, time, device or inode,
+which differ between hosts holding the same file. A node keeping more than
+10000 says so with `truncated`.
+
+The dashboard asks every node of a tenant and groups the answers by path, on its own
+`/api/v1/{tenant}/file-watch/drift` route. A path every node that answered holds
+alike is agreed; a path held two ways, or held on some nodes and absent on
+others, is divergent, and the answer names the nodes holding each fingerprint.
+Where one fingerprint is held by more than half the nodes that listed their
+files, it is what the fleet expects, and those together form the expected
+state, written in the shape a node lists its own. A node whose file watch is
+off, or that did not answer, is named and not counted.
+
+The File drift screen shows the divergent paths and saves the expected state
+as `expected-baselines.json`. Handed back to a node through
+[`enterprise.file_watch.expected_baselines`](../../configuration/file-watch.md#across-a-fleet),
+a path that node has never kept is compared against the fleet on first sight
+rather than learned, so a host joining with a tampered file says so instead of
+taking the tampered file as its baseline.
+
+The comparison is done in the console the customer runs, from the nodes the
+customer runs: no fingerprint leaves the estate.
 
 ## Configuration
 

@@ -29,7 +29,7 @@ feature that has something to show:
 | Area | Screens |
 |------|---------|
 | Overview and triage | Overview, alerts list and alert detail, [cases, response times and suppressions](cases.md), search, [hunting](hunting.md), MITRE view, topology, [service map](../l7-firewall.md#across-the-fleet), flow analytics, custom dashboards |
-| Fleet | Fleet overview and containers |
+| Fleet | Fleet overview, containers and [file drift](fleet-management.md#file-drift-across-the-fleet) |
 | Rules | Firewall, IDS, IPS, DLP, L7 firewall, staged rules, rate limits, NAT, connection tracking, zones, aliases, interface groups, VLANs, routing, load balancer, QoS, DDoS, GeoIP, DNS intelligence, threat intelligence |
 | Enterprise features | Analytics, SIEM export, compliance, forensics and [investigation of one workload](network-forensics.md#from-the-console), automated response and its SOAR endpoints, ML detection, TLS intelligence, JA4, post-quantum TLS, L7 inspection, L7 policies, L7 enrichment, packet capture, alerting |
 | Administration | Profile, auditor tokens, audit and licence |

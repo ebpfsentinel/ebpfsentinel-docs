@@ -51,6 +51,7 @@ const FEATURE_DOCS = [
   ['/api/v1/exposure', 'fleet-management.md'],
   ['/api/v1/firewall', 'fleet-management.md'],
   ['/api/v1/host-rules', 'fleet-management.md'],
+  ['/api/v1/file-watch', 'fleet-management.md'],
   ['/api/v1/ha', 'high-availability.md'],
   ['/api/v1/enterprise/l7/enriched-alerts', 'l7-alert-enrichment.md'],
   ['/api/v1/enterprise/l7/policy', 'l7-per-protocol-policies.md'],

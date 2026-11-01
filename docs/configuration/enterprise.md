@@ -430,6 +430,7 @@ enterprise:
   file_watch:
     profiles: [debian, kubernetes-node]
     exclude: []               # delivered paths to leave out
+    expected_baselines: /etc/ebpfsentinel/expected-baselines.json
 
   # ── Firewall tiers ──────────────────────────────────────────────
   firewall_tiers:
@@ -644,6 +645,7 @@ and nothing is watched, and the agent says so at startup.
 |-------|------|---------|---------|
 | `profiles` | list | empty | Profile names, each lowercase letters, digits and inner hyphens and given once |
 | `exclude` | list | empty | Delivered paths to leave out, written exactly as the profile writes them |
+| `expected_baselines` | string | none | Absolute path of the fleet's expected state, followed every minute; see [across a fleet](file-watch.md#across-a-fleet) |
 
 The block is read at startup and the set is followed while the agent runs.
 [File watch profiles](file-watch.md#profiles) lists the profiles and what a
@@ -853,7 +855,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
-- `file_watch.profiles` entries must be profile names, each given once, and `file_watch.exclude` entries must be paths the file watch can name
+- `file_watch.profiles` entries must be profile names, each given once, `file_watch.exclude` entries must be paths the file watch can name, and `file_watch.expected_baselines` must be an absolute path
 - `host_rules.profiles` entries must be profile names, each given once, and `host_rules.exclude` entries cannot be empty
 - `host_rules.tenants` entries must name a tenant of an enabled `enterprise.tenants` with at least one namespace, once each; `host_rules.exceptions` are at most 256, name pods, namespaces or a service account and no guest, and an exception naming a tenant names one given profiles
 - `intel.marker_path` cannot be empty, enabled or not

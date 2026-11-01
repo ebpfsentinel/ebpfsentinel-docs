@@ -172,6 +172,7 @@ any other file.
 |------|------|
 | `watched-path-changed` | A file under a watched path differs from its baseline |
 | `watched-path-appeared` | A file arrived under a watched path where none was known |
+| `watched-path-unexpected` | A file seen for the first time on this node differs from what the fleet expects at its path; see [Across a fleet](#across-a-fleet) |
 
 | Field | Value |
 |-------|-------|
@@ -222,6 +223,35 @@ a minute, and each newly named path is learned on that first reading. A set
 that does not verify or does not parse is refused whole and the paths in force
 stay as they were. Together the paths are at most 1024; past that, the rest
 are logged and not watched.
+
+## Across a fleet
+
+The Enterprise edition compares a node with the rest of its fleet. Each node
+lists the fingerprint of the files it keeps beneath its watched paths, the
+dashboard finds where the nodes disagree and what more than half of them hold
+alike, and saves that as an expected state; see
+[file drift across the fleet](../features/enterprise/fleet-management.md#file-drift-across-the-fleet).
+
+```yaml
+enterprise:
+  file_watch:
+    profiles: [debian]
+    expected_baselines: /etc/ebpfsentinel/expected-baselines.json
+```
+
+The file is the document the dashboard saves: a `baselines` list, one entry
+per path with its kind, content digest or link target, mode, owner, group and
+extended attribute digests, and `truncated`. It is read at startup and
+followed every minute while the agent runs. A file larger than 64 MiB, that
+does not parse, or that is marked `truncated` is refused whole and logged, and
+the expected state in force stays as it was; removing the file empties it.
+
+The expected state only changes what a first sight does. A path this node has
+never kept is compared against the fleet's fingerprint at that path, and a
+difference is a `watched-path-unexpected` alert naming what differs, then
+kept as the node's baseline like any first reading. A path the node already
+keeps is compared with its own baseline, as before, and a path the fleet does
+not name is learned.
 
 ## Host rules
 
