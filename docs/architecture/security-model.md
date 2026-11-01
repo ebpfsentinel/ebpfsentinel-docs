@@ -142,8 +142,8 @@ the host pid namespace is no longer one of them:
   file for its baseline is the warden's too, and bounded the same way: only a
   path on a filesystem that connection's watch covers is read, a link is never
   followed, a device, socket or pipe is never opened, and what crosses the
-  socket is a digest of the content and of each extended attribute, never the
-  bytes themselves.
+  socket is a digest of the content and of each extended attribute, and the
+  entropy of the content's first 64 KiB, never the bytes themselves.
 - **Entering a pod's network namespace on the warden only.** A `pod` profile
   agent attaches its TC chain inside each selected pod, which means entering
   that pod's network namespace (`CAP_SYS_ADMIN`), so the warden does it: the

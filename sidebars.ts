@@ -78,6 +78,7 @@ const sidebars: SidebarsConfig = {
         'features/listening-sockets',
         'features/foreign-programs',
         'features/host-rules',
+        'features/mass-encryption',
         'features/packet-trace',
         'features/nat',
         'features/routing',

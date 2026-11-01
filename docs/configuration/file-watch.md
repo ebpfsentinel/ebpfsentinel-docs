@@ -91,6 +91,15 @@ file's content, the target of a link, and the name and SHA-256 of each
 extended attribute (an SELinux label, an IMA signature, a capability set). The
 values themselves never leave the reader, only their digests.
 
+The same read gives a regular file its sampled entropy: the Shannon entropy,
+in bits per byte, of the first 64 KiB the hash reads, or of the whole file when
+it is shorter. It is a number derived from the bytes the way the hash is, it
+costs no second read, and it is never compared as a drift. It is what lets the
+[mass encryption](../features/mass-encryption.md) verdict see a file
+go from ordinary content to near-random content. Being a sample, it misses an
+encryption that leaves the first 64 KiB untouched, and a file that was already
+compressed cannot rise at all.
+
 The first reading of a path is kept and raises nothing. Every later one is
 compared with it and replaces it, and each difference is logged with the path,
 the path as the writer sees it, the writer's process ID and executable, and
