@@ -21,7 +21,7 @@ competent authority and testing programme belong to the entity.
 | Art. 7 | ICT systems, protocols and tools | Datapath loaded, HA peers with an active datapath | Capacity planning across the estate |
 | Art. 8 | Identification | Network zones defined, threat intelligence feeds loaded | Asset inventory and dependency mapping |
 | Art. 9 | Protection and prevention | Datapath loaded, firewall in block mode, IPS in block mode, rate limiting, L7 rules | - |
-| Art. 10 | Detection | Datapath loaded, IDS signatures, ML anomaly detection, alert pipeline | - |
+| Art. 10 | Detection | Datapath loaded, IDS signatures, ML anomaly detection, file watch following at least one path, alert pipeline | - |
 | Art. 11 | Response and recovery | Automated response policies, HA peers | Business continuity policy and its testing |
 | Art. 13 | Learning and evolving | Flow context freezing, scheduled compliance reports | Post-incident reviews |
 

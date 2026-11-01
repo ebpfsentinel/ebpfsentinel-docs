@@ -228,6 +228,11 @@ address. A line edited, removed or reordered behind the agent's back breaks the
 chain, and the agent **refuses to start capturing** over a log that does not
 verify rather than appending to one it cannot vouch for.
 
+The same chain records every [compliance report](compliance-reports.md#evidence-digest-and-custody)
+the agent completes, as a `report` event naming the report's identifier and the
+SHA-256 of what it asserts, so the directory is opened for the custody log even
+when packet capture is off but compliance reporting is on.
+
 A download is checked too: the file is read, its SHA-256 compared with the
 record, and the download chained into the log under the caller's name before
 a byte is served. A file that no longer matches its digest is refused with a

@@ -22,7 +22,7 @@ claim the qualification.
 | Ch.9.2 | Filtering | Datapath loaded, firewall rules, firewall in block mode | No |
 | Ch.9.3 | Flow monitoring | Datapath loaded, alert pipeline | No |
 | Ch.10.1 | Logging | Persistent audit trail, retention of at least 180 days | No |
-| Ch.10.2 | Monitoring and detection | IDS signatures, ML anomaly detection | No |
+| Ch.10.2 | Monitoring and detection | IDS signatures, ML anomaly detection, file watch following at least one path | No |
 | Ch.10.3 | Correlation | SIEM export | No |
 | Ch.12.1 | TLS | TLS floor at TLS 1.2 or above | Yes: the agent watches TLS on the wire and does not terminate it |
 | Ch.12.2 | Post-quantum readiness tracking | PQC tracking enabled | No |

@@ -2,7 +2,7 @@
 
 eBPFsentinel carries part of the technical requirements of the French health data hosting
 certification (Hebergeur de Donnees de Sante): the ISO/IEC 27001 controls on communications,
-cryptography, logging and incident management, the ISO/IEC 27018 protection of personal data,
+cryptography, logging, operational software and incident management, the ISO/IEC 27018 protection of personal data,
 and the access traceability of Art. R.1111-10 of the code de la sante publique.
 
 The [compliance report](../features/enterprise/compliance-reports.md) (Enterprise) judges each
@@ -20,6 +20,7 @@ the report evidences the part of it a network agent can carry.
 | A.10.1 | Cryptographic controls | TLS floor at TLS 1.2 or above | Encryption at rest and key management |
 | A.12.4.1 | Event logging | Persistent audit trail, SIEM export | - |
 | A.12.4.2 | Protection of log information | SIEM export, RBAC roles defined | - |
+| A.12.5.1 | Installation of software on operational systems | File watch following at least one path, alert pipeline | Approving what may be installed |
 | A.16.1 | Incident response | Automated response policies, alert pipeline | - |
 | A.16.2 | ARS notification (Art. R.1111-9) | Incident webhook registered | Notifying the Agence Regionale de Sante |
 | 27018.1 | Health data DLP | DLP patterns loaded, DLP in block mode | The French health identifiers are matched only once their patterns are added |

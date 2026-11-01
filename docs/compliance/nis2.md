@@ -21,7 +21,7 @@ the entity evidences elsewhere.
 | 21(2)(b) | Incident handling | Datapath loaded, IDS signatures, alert pipeline, SIEM export | The handling procedure |
 | 21(2)(c) | Business continuity | HA peers with an active datapath | Backup, disaster recovery, crisis management |
 | 21(2)(d) | Supply chain security | Threat intelligence feeds loaded | Assessing suppliers and their development practices |
-| 21(2)(e) | Security in acquisition, development and maintenance, including vulnerability handling | IDS signatures, IPS in block mode | Disclosure and patching |
+| 21(2)(e) | Security in acquisition, development and maintenance, including vulnerability handling | IDS signatures, IPS in block mode, file watch following at least one path | Disclosure and patching |
 | 21(2)(f) | Assessing the effectiveness of measures | Scheduled compliance reports, persistent audit trail | The rest of the programme |
 | 21(2)(g) | Basic cyber hygiene and training | Firewall default deny, API authentication | Training |
 | 21(2)(h) | Cryptography and encryption | TLS floor at TLS 1.2 or above, post-quantum tracking | The agent watches TLS on the wire and does not terminate it |
