@@ -426,6 +426,11 @@ enterprise:
     profiles: [web-server, kubernetes-node]
     exclude: []               # delivered rule identifiers to leave out
 
+  # ── File watch profiles ─────────────────────────────────────────
+  file_watch:
+    profiles: [debian, kubernetes-node]
+    exclude: []               # delivered paths to leave out
+
   # ── Firewall tiers ──────────────────────────────────────────────
   firewall_tiers:
     - name: platform
@@ -627,6 +632,22 @@ The block is read at startup and the library is followed while the agent runs.
 library update does to the readings, and says how
 [exceptions](host-rules.md#exceptions) and [tenants](host-rules.md#tenants)
 apply.
+
+### File watch profiles
+
+The `file_watch` block names the file watch profiles to follow from the
+content channel, beside the paths the community `file_watch.paths` declares.
+It needs the community file watch on: with it off, the profiles are named
+and nothing is watched, and the agent says so at startup.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `profiles` | list | empty | Profile names, each lowercase letters, digits and inner hyphens and given once |
+| `exclude` | list | empty | Delivered paths to leave out, written exactly as the profile writes them |
+
+The block is read at startup and the set is followed while the agent runs.
+[File watch profiles](file-watch.md#profiles) lists the profiles and what a
+set update does to the watch.
 
 ### Firewall tiers
 
@@ -832,6 +853,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
+- `file_watch.profiles` entries must be profile names, each given once, and `file_watch.exclude` entries must be paths the file watch can name
 - `host_rules.profiles` entries must be profile names, each given once, and `host_rules.exclude` entries cannot be empty
 - `host_rules.tenants` entries must name a tenant of an enabled `enterprise.tenants` with at least one namespace, once each; `host_rules.exceptions` are at most 256, name pods, namespaces or a service account and no guest, and an exception naming a tenant names one given profiles
 - `intel.marker_path` cannot be empty, enabled or not

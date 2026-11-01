@@ -18,6 +18,9 @@ file_watch:
     - /var/lib/containerd
   max_hash_bytes: 16777216
   max_baselines: 500000
+  paths:
+    - /etc/ssh
+    - /etc/shadow
 ```
 
 ## Reference
@@ -28,6 +31,7 @@ file_watch:
 | `filesystems` | list of paths | `["/"]` | One absolute path per filesystem to watch, at most 64 |
 | `max_hash_bytes` | integer | `16777216` (16 MiB) | A regular file larger than this is not hashed; at most 67108864 (64 MiB) |
 | `max_baselines` | integer | `500000` | Baselines kept at most, at least 1 |
+| `paths` | list of paths | `[]` | Files or directories watched for any difference, at most 1024; see [Watched paths](#watched-paths) |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
 every file of the filesystem holding `/etc`. Two paths on one filesystem watch
@@ -148,6 +152,76 @@ found then is an alert whose writer is not known. The first opening after the
 agent starts only learns: an upgrade replaces the binary and the objects while
 the agent is stopped, so a difference then is logged and kept as the new
 baseline.
+
+## Watched paths
+
+Every path under `paths` is watched for any difference, whichever process makes
+it, without a rule asking for it. A path names a file, or a directory and
+everything beneath it. Each is absolute, at most 4096 bytes, never `/` itself,
+with no trailing slash and no `.` or `..` component, and at most 1024 are
+named.
+
+The filesystem holding each path is opened beside the configured ones, so
+naming `/etc/ssh` is enough even when `filesystems` names only `/var/lib/containerd`.
+A path named exactly is read as soon as the watch is open and kept even once
+the store holds `max_baselines` entries, so its first change is compared rather
+than learned; what lies beneath a watched directory is kept as it is seen, like
+any other file.
+
+| Rule | When |
+|------|------|
+| `watched-path-changed` | A file under a watched path differs from its baseline |
+| `watched-path-appeared` | A file arrived under a watched path where none was known |
+
+| Field | Value |
+|-------|-------|
+| Component | `file_integrity` |
+| Severity | `medium` |
+| MITRE ATT&CK | T1565.001, Data Manipulation: Stored Data Manipulation (impact) |
+
+The alert names the file, the watched path covering it, where that path was
+declared (`configuration`, or the profile that named it), what differs and the
+writer, with its executable, container and pod where they resolve. The agent's
+own writes raise nothing, and a change to one of the agent's own files raises
+the alert of the section above rather than this one. When the watch is opened
+again after a gap, each named path is read again and a difference found then
+is an alert whose writer is not known; the first reading of a path only learns.
+
+## Profiles
+
+The Enterprise edition adds profiles: named lists of paths, delivered through
+the [content channel](../features/enterprise/content-channel.md) in the
+`file-profiles` set, so an estate names the kind of host it runs rather than
+listing every path a distribution keeps its accounts, its privilege, its boot
+and its services in.
+
+```yaml
+enterprise:
+  file_watch:
+    profiles: [debian, kubernetes-node]
+    exclude: [/boot]
+```
+
+| Profile | What it watches |
+|---------|-----------------|
+| `debian` | Debian and Ubuntu: accounts, sudo, SSH, PAM, cron, systemd units, the dynamic loader, APT sources and keys, the boot partition |
+| `rhel` | Red Hat Enterprise Linux, Rocky, Alma and Fedora: accounts, sudo, SSH, PAM, cron, systemd units, the dynamic loader, repositories and their keys, the SELinux mode, the boot partition |
+| `alpine` | Alpine: accounts, doas and sudo, SSH, cron and periodic jobs, OpenRC services and local start scripts, APK repositories and keys |
+| `talos` | Talos Linux: the machine state and the Kubernetes, container runtime and kubelet configuration and credentials, the only writable places on the node |
+| `kubernetes-node` | Any Kubernetes node: static pod manifests, the kubelet's configuration and credentials, the container runtime's configuration, the CNI configuration and plugins |
+
+Each path a profile names is added to `paths` and watched through that
+profile, which the alert names as where the path was declared; a path both
+declared and delivered keeps `configuration`. A delivered path an estate does
+not want is named in `exclude`, exactly as the profile writes it. A profile
+the set in force does not carry is logged and skipped.
+
+The set is followed while the agent runs: when it moves, through the channel,
+an import, a rollback or a pin, the watch opens again on the new paths within
+a minute, and each newly named path is learned on that first reading. A set
+that does not verify or does not parse is refused whole and the paths in force
+stay as they were. Together the paths are at most 1024; past that, the rest
+are logged and not watched.
 
 ## Host rules
 
