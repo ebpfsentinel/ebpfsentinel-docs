@@ -795,8 +795,17 @@ through kube-proxy while a named one is resolved by the agent.
 
 ### Uninstalling
 
-`helm uninstall` removes the operator and leaves the custom resource
-definitions in place, so every resource written against them survives: each
+`helm uninstall` removes the operator and nothing it rendered: an agent
+DaemonSet belongs to its `EbpfSentinelAgent`, so the agents keep running
+with the configuration they last had. Delete the agent resources first,
+while the operator still runs to remove their finalizer, when the agents
+should go too:
+
+```bash
+kubectl delete ebpfsentinelagents --all --all-namespaces --wait
+```
+
+`helm uninstall` leaves the custom resource definitions in place, so every resource written against them survives: each
 definition carries `helm.sh/resource-policy: keep`. Deleting a definition
 deletes every resource of its kind, which is why it is a step of its own:
 

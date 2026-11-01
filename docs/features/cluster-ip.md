@@ -95,6 +95,52 @@ Calico, it is asserted in CI that a pod that is not opted in still reaches a
 Service through kube-proxy and an opted-in pod reaches it through a backend
 chosen here.
 
+## Turning it off
+
+Resolution leaves nothing on the node that outlives the agent's own hold on
+it. The tables are created for this object alone and pinned nowhere, and the
+six cgroup hooks are links only the agent holds, the warden closing its own
+copy when it brokers the attach. Whatever the agent lets go of, the kernel
+removes: the hooks come off the cgroup, the programs and tables are freed,
+and every pod is back on kube-proxy, which was never taken out of the path.
+
+Any of these turns it off:
+
+- `cluster_ip.enabled: false` and a configuration reload. The hooks are
+  detached and the tables released without restarting the agent.
+- The chart's `container.kubernetes.clusterIp.enabled: false` and a
+  `helm upgrade`, which rolls the agents.
+- `clusterIp.enabled: false` on the `EbpfSentinelAgent`, which rolls the
+  agents the same way.
+- Stopping the agent, or deleting the `EbpfSentinelAgent` that renders it.
+  Removing the Kubernetes operator with `helm uninstall` alone leaves the
+  agents it rendered running, resolution included, so delete the agent
+  resources first; see
+  [Uninstalling](enterprise/kubernetes-operator.md#uninstalling).
+
+To check that a node kept nothing, read the kernel rather than the agent,
+from the node itself or anywhere sharing its kernel:
+
+```bash
+# No program and no table of the object. The kernel keeps fifteen characters
+# of each name, which keeps the prefix.
+bpftool -j prog show | jq '[.[] | select(.name // "" | startswith("clusterip_"))] | length'
+bpftool -j map show  | jq '[.[] | select(.name // "" | startswith("CLUSTERIP_"))] | length'
+
+# No hook on any cgroup.
+bpftool -j cgroup tree | jq '[.[].programs[] | select(.name | startswith("clusterip_"))] | length'
+
+# Nothing pinned under the BPF filesystem.
+find /sys/fs/bpf -iname '*clusterip*'
+```
+
+Each count is `0` and the search prints nothing. The agent's status says the
+same from its side: `cgroup-clusterip` is absent from `/api/v1/ebpf/status`
+or reported `loaded: false`. Beside both supported CNIs, CI turns
+resolution off on a running cluster, and deletes the agent resource, and
+checks each time that the counts are zero, that nothing is pinned on any node,
+and that a pod which was opted in reaches its Service through kube-proxy.
+
 ## Counters
 
 - `ebpfsentinel_packets_total{interface="CLUSTERIP_METRICS", action}`: `translated`, `left_to_kube_proxy`, `affinity_hit`, `reversed`.
