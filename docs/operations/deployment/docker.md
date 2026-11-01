@@ -474,7 +474,7 @@ hosts even though the container uses host networking.
 | `CAP_NET_ADMIN` | warden | conntrack teardown and route programming over netlink |
 | `CAP_NET_RAW` | warden | `AF_PACKET` pcap sockets and gratuitous ARP |
 | `CAP_SYS_PTRACE`, `CAP_BPF`, `CAP_PERFMON` | warden | read a neighbour container's `/proc/<pid>/root` and create the DLP uprobe link |
-| `CAP_DAC_READ_SEARCH` | warden | name the directory a watched file changed in, from the handle the kernel reports ([file watch](../../configuration/file-watch.md)) |
+| `CAP_DAC_READ_SEARCH` | warden | name the directory a watched file changed in, from the handle the kernel reports, and read a changed file for its baseline whatever its permissions ([file watch](../../configuration/file-watch.md)) |
 | `apparmor=unconfined`, `seccomp=unconfined` | warden | the default profiles block the `mount` family and netlink |
 | no capability at all | agent | the whole point of the split; the token authorises every eBPF syscall |
 | tailored seccomp profile | agent | the default profile gates `unshare`/`mount`/`bpf` on a capability the agent does not hold |

@@ -2,7 +2,9 @@
 
 The file watch reports every change to the files of whole filesystems and the
 process that made it: a file created, written and closed, its attributes
-changed, moved out of or into a directory, or deleted. It is off by default.
+changed, moved out of or into a directory, or deleted. Every changed path is
+then read again and compared with what it was the last time. It is off by
+default.
 
 Nothing here enforces anything: the watch only reads.
 
@@ -14,6 +16,8 @@ file_watch:
   filesystems:
     - /
     - /var/lib/containerd
+  max_hash_bytes: 16777216
+  max_baselines: 500000
 ```
 
 ## Reference
@@ -22,6 +26,8 @@ file_watch:
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Open the watch |
 | `filesystems` | list of paths | `["/"]` | One absolute path per filesystem to watch, at most 64 |
+| `max_hash_bytes` | integer | `16777216` (16 MiB) | A regular file larger than this is not hashed; at most 67108864 (64 MiB) |
+| `max_baselines` | integer | `500000` | Baselines kept at most, at least 1 |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
 every file of the filesystem holding `/etc`. Two paths on one filesystem watch
@@ -62,6 +68,47 @@ The kernel queues changes until they are read. When the queue fills, changes
 are lost, the agent logs it, and `ebpfsentinel_file_change_overflows_total`
 counts it.
 
+## Baselines
+
+A path's baseline is what it named the last time it was read: its kind, size,
+modification time, permission bits, owner and group, the SHA-256 of a regular
+file's content, the target of a link, and the name and SHA-256 of each
+extended attribute (an SELinux label, an IMA signature, a capability set). The
+values themselves never leave the reader, only their digests.
+
+The first reading of a path is kept and raises nothing. Every later one is
+compared with it and replaces it, and each difference is logged with the path
+and the writer's process ID and counted in `ebpfsentinel_file_drifts_total`:
+
+| `what` | Meaning |
+|--------|---------|
+| `content` | The content hash, or the target of a link, differs. For a file too large to hash, its size or modification time differs |
+| `content_unverified` | The file was hashed before and can no longer be, so whether it changed is not known |
+| `mode` | Permission, set-id or sticky bits differ |
+| `owner` | Owner or group differs |
+| `extended_attributes` | An extended attribute was added, removed or changed |
+| `type_changed` | The path names another kind of entry, such as a link where a file was |
+| `disappeared` | Nothing is at the path any more; its baseline is forgotten |
+| `unreadable` | The path can no longer be read; its baseline is kept |
+
+What could not be read is said, never recorded as empty: a file the reader
+cannot open, or larger than `max_hash_bytes`, is kept with no hash and the
+reason, never with the hash of nothing. Its size and time are compared
+instead. A move compares nothing across the two names: a log rotated away
+reads as the old path disappearing, and the new file at that path is a first
+sight.
+
+Baselines are kept in `file_baselines.redb`, beside the agent's other stores
+under the audit `storage_path` directory, so they survive a restart. Once the
+store holds `max_baselines` entries a newly seen path gets none and is counted
+in `ebpfsentinel_file_baselines_refused_total`; a disappeared path frees its
+entry. If the store cannot be opened the watch is not opened, and the agent
+says so at startup.
+
+Hashing is the cost: the reader hashes at most 64 MiB per request and leaves
+the rest for the next, so a burst of large writes is read over several seconds
+rather than stalling the watch.
+
 ## Metrics
 
 | Metric | Labels | Meaning |
@@ -70,3 +117,6 @@ counts it.
 | `ebpfsentinel_file_change_overflows_total` | - | Times changes were lost because the kernel's queue was full |
 | `ebpfsentinel_file_watch_filesystems` | - | Paths whose filesystem is watched |
 | `ebpfsentinel_file_watch_filesystems_refused` | - | Paths whose filesystem could not be watched |
+| `ebpfsentinel_file_drifts_total` | `what` | Differences between a baseline and a new reading |
+| `ebpfsentinel_file_baselines` | - | Baselines kept |
+| `ebpfsentinel_file_baselines_refused_total` | - | Paths that got no baseline because the store was full |

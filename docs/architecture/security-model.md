@@ -138,7 +138,12 @@ the host pid namespace is no longer one of them:
 - **The file watch on the warden only.** Marking a whole filesystem
   (`CAP_SYS_ADMIN`) and turning the handle the kernel reports into a directory
   name (`CAP_DAC_READ_SEARCH`) are done by the warden, on a control connection
-  of the agent's own; the watch ends with that connection.
+  of the agent's own; the watch ends with that connection. Reading a changed
+  file for its baseline is the warden's too, and bounded the same way: only a
+  path on a filesystem that connection's watch covers is read, a link is never
+  followed, a device, socket or pipe is never opened, and what crosses the
+  socket is a digest of the content and of each extended attribute, never the
+  bytes themselves.
 - **Entering a pod's network namespace on the warden only.** A `pod` profile
   agent attaches its TC chain inside each selected pod, which means entering
   that pod's network namespace (`CAP_SYS_ADMIN`), so the warden does it: the

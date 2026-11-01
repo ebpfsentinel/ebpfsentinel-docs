@@ -290,6 +290,9 @@ What each port promises and when a connection is judged is in
 | `ebpfsentinel_file_change_overflows_total` | Counter | - | Times file changes were lost because the kernel's queue was full |
 | `ebpfsentinel_file_watch_filesystems` | Gauge | - | Configured paths whose filesystem is watched |
 | `ebpfsentinel_file_watch_filesystems_refused` | Gauge | - | Configured paths whose filesystem could not be watched |
+| `ebpfsentinel_file_drifts_total` | Counter | `what` | Differences between a file's baseline and a new reading of it: `content`, `content_unverified`, `mode`, `owner`, `extended_attributes`, `type_changed`, `disappeared`, `unreadable` |
+| `ebpfsentinel_file_baselines` | Gauge | - | File baselines kept |
+| `ebpfsentinel_file_baselines_refused_total` | Counter | - | Paths that got no baseline because the store was full |
 
 `kind` is one of `created`, `written`, `attributes_changed`, `moved_out`,
 `moved_in` and `deleted`. A change carrying several kinds at once counts once
