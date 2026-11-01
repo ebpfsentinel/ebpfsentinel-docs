@@ -1209,6 +1209,9 @@ ebpfsentinel-agent ebpf foreign-programs
 
 # Ports a bind finds held and no socket listing shows
 ebpfsentinel-agent ebpf hidden-ports
+
+# Processes that answer a signal and that /proc does not list
+ebpfsentinel-agent ebpf hidden-processes
 ```
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
@@ -1292,6 +1295,18 @@ No hidden port.
 ```
 
 What each count means is on [Hidden Ports](../features/hidden-ports.md).
+
+`ebpf hidden-processes` prints what the last sweep found: how many pids were
+signalled, what explained each pid that answered and was not listed, and one
+row per hidden process:
+
+```text
+4194303 pid(s) signalled of 4194304 at 100000 a second, 412 thread group(s) listed, read through warden.
+1873 pid(s) answered and were not listed: 1870 thread(s) of a listed group, 2 exiting, 1 not confirmed by the second reading, 0 reused, 0 hidden.
+No hidden process.
+```
+
+What each count means is on [Hidden Processes](../features/hidden-processes.md).
 
 `ebpf foreign-programs` prints one row per eBPF program on the network path
 that the agent did not load, with where it runs and the processes holding it,

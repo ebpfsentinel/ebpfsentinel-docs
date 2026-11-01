@@ -73,6 +73,7 @@ const sidebars: SidebarsConfig = {
         'features/tcp-health',
         'features/raw-sockets',
         'features/hidden-ports',
+        'features/hidden-processes',
         'features/listening-sockets',
         'features/foreign-programs',
         'features/host-rules',
