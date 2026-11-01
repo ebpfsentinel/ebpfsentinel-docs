@@ -1082,6 +1082,70 @@ applicable, one sentence per missing source, and its `fields`, each with
 `name`, `type` (`text`, `path`, `integer`, `port`, `address`, `boolean` or
 `hash`) and `doc`.
 
+### Surface
+
+#### GET /api/v1/surface/packages
+
+What the dpkg, rpm and Alpine databases say is installed, root by root: the
+host's own and every container's. See
+[Installed Packages](../features/installed-packages.md) for what is read and
+what is not.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/surface/packages
+```
+
+```json
+{
+  "reading": true,
+  "source": "warden",
+  "scanned_at_ns": 1761900000000000000,
+  "roots_not_read": 0,
+  "roots": [
+    {
+      "kind": "host",
+      "pid": 1,
+      "databases": [
+        {
+          "manager": "dpkg",
+          "path": "/var/lib/dpkg/status",
+          "packages": [
+            { "name": "libc6", "version": "2.41-12+deb13u4", "arch": "amd64", "state": "installed", "files": 285 }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "container",
+      "container_id": "3f2a9c01b7e4d5a8c6f0e1b2a3d4c5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
+      "runtime": "containerd",
+      "pid": 5120,
+      "databases": [
+        {
+          "manager": "rpm",
+          "path": "/var/lib/rpm/Packages",
+          "unreadable": "the rpm database is in its Berkeley DB format, which is not read",
+          "packages": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The inventory is read |
+| `source` | string | `warden` or `local`, absent when the inventory is off |
+| `scanned_at_ns` | integer | When the last reading was made, nanoseconds since the epoch, `0` before the first |
+| `last_error` | string | Why the last reading failed, absent when it succeeded; the result is then the reading before |
+| `roots_not_read` | integer | Roots found beyond the 1024 one reading covers |
+| `roots` | array | One entry per filesystem root: `kind` (`host`, `container` or `other`), `container_id` and `runtime` for a container, `pid`, `error` when the root could not be read, and `databases` |
+| `roots[].databases` | array | One entry per database found: `manager` (`dpkg`, `rpm` or `apk`), `path`, `unreadable` with the reason when it was not read, and `packages` |
+| `roots[].databases[].packages` | array | `name`, `version` as the database writes it, `arch`, `state` (`installed` or `partial`) and `files`, the number of files it owns, absent when no file list was read |
+
+No field names a vulnerability, a severity or a score.
+
 ### Exposure
 
 #### GET /api/v1/exposure/listeners
@@ -3546,6 +3610,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/hidden-processes` | Yes | Processes that answer a signal and that `/proc` does not list |
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
+| GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |

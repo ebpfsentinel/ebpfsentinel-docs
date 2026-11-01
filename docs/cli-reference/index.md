@@ -1401,6 +1401,31 @@ A socket bound before the agent's socket hooks attached is not listed until it
 binds again. What each column means is on
 [Listening Sockets](../features/listening-sockets.md).
 
+### surface
+
+```bash
+# What the package databases say is installed, root by root
+ebpfsentinel-agent surface packages
+```
+
+`surface packages` prints one row per package, with the root it is installed
+in (`host`, the first twelve characters of a container id, or the pid whose
+root no runtime names), the package manager, its version, architecture and
+state, and how many files the database says it owns. A database that could
+not be read is named above the table with the reason:
+
+```text
+3 root(s) read through warden.
+pid 5120: rpm database /var/lib/rpm/Packages not read: the rpm database is in its Berkeley DB format, which is not read
+ROOT          MANAGER  PACKAGE   VERSION          ARCH    STATE      FILES
+host          dpkg     libc6     2.41-12+deb13u4  amd64   installed  285
+host          dpkg     zlib1g    1:1.3.dfsg-3.1   amd64   partial    -
+3f2a9c01b7e4  apk      musl      1.2.5-r10        x86_64  installed  2
+```
+
+What is read and what is not is on
+[Installed Packages](../features/installed-packages.md).
+
 ### config
 
 The running configuration, writing one section of it, and reloading it from
