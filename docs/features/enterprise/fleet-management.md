@@ -697,6 +697,35 @@ connections it accepted. Where the socket hooks are not attached, the four
 socket facts are `not_read` rather than `no`, because nothing was looked at.
 For a Go module the process is the program built from it.
 
+#### The order, and why each finding is where it is
+
+The report's `ranking` puts the joined findings in order without a score. A
+single number is what a security team learns to distrust, and it cannot
+defend a long report shrinking to a short one in a review; a reason per
+position can. Each finding is first given a `standing`, read off the facts of
+the most urgent of its installations:
+
+| `standing` | The facts |
+|------------|-----------|
+| `exposed_and_used` | It listens, a socket is open to sources outside the private ranges, the policy does not close it, and it took traffic. |
+| `exposed` | The same, with no traffic counted. |
+| `east_west` | It listens, on the private ranges or the loopback only. |
+| `mapped_sockets_not_read` | It is mapped and the socket hooks are not attached. |
+| `undetermined` | What the processes map was not read. |
+| `mapped_not_listening` | It is mapped and nothing mapping it listens. |
+| `closed_by_policy` | It listens and the policy drops everything bound for it. |
+| `not_mapped` | No live process maps a file of it. |
+
+Inside a standing the order is the scanner's own severity word, then a
+running program before a library only mapped, then the identifier. Each
+entry's `reasons` say which of those placed it: the standing with the fact it
+rests on (a finding moved down because its library is never mapped says
+`moved down: no live process maps a file libxml2 installs`), then what put it
+below the finding before it. `standings` counts the findings in each, so the
+reduction from what the scanner listed to what is exposed and used is read
+off the report itself. What is not known ranks above what is known to be
+quiet, never below it.
+
 ### In the dashboard
 
 The dashboard's **Package reachability** screen, shown when the licence carries
