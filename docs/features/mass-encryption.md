@@ -316,6 +316,14 @@ week of backups, upgrades and maintenance with nothing counted, setting
 from then on. The thresholds are the same in both modes: shadow changes what a
 verdict does, never when one is reached.
 
+With Enterprise's ML detection the four counts a legitimate job can reach -
+distinct rewrites, entropy rises, renames to one new extension and
+replacements - are read per executable against a threshold learned from what
+that executable does, held between half and four times the shipped one. The
+decisive signals are never learned, the verdict is still this engine's, and a
+threshold that drifts far from where it was first learned is reported:
+[mass encryption thresholds](enterprise/ml-detection.md#mass-encryption-thresholds).
+
 ## What does not raise it
 
 The thresholds above were measured against the work a host does every day,

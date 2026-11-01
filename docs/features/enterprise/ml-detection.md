@@ -414,6 +414,35 @@ Detects command-and-control beaconing channels by identifying repetitive payload
 
 ---
 
+## Mass Encryption Thresholds
+
+The [mass encryption verdict](../mass-encryption.md) counts four things a
+legitimate job can do at volume - distinct files rewritten, entropy rises,
+files renamed to one new extension and originals replaced - against
+thresholds measured on one lane. With this feature each of the four is read,
+per executable, against what that executable is seen doing: the files it
+counts in each active minute are fed to a running mean and deviation, and
+after thirty such minutes the threshold becomes the first value above four
+deviations past its mean.
+
+The model never produces the verdict. The open source engine still decides,
+still names every signal it composed, and holds what was learned inside a
+band the content fixes: no lower than half the shipped threshold and no
+higher than four times it. The decisive signals - a canary opened, files whose
+heads no longer match their names - are never learned at all, and neither are
+the encryption call rate and the ransom notes. An alert crossed against a
+learned threshold says so in its evidence.
+
+A baseline is something an intruder can teach. A minute that crossed the
+threshold in force is not learned from, the ceiling holds whatever was
+learned, and a threshold that has moved to twice where it was first learned is
+logged as drift and reported, rather than absorbed. Nothing is learned across
+an estate and nothing describes a binary in advance: every baseline is one
+executable on one machine. `GET /api/v1/enterprise/ml/mass-encryption` lists
+each executable and signal with the minutes learned from, the mean and
+deviation, the threshold in force, the first one learned and whether it
+drifted.
+
 ## Reset Scan Baseline
 
 The open-source agent raises the `tcp-reset-scan` alert when a source draws
@@ -612,6 +641,7 @@ memory; `model_warmed_up` says it is contributing to the fusion. A model loaded 
 |--------|------|------|-----------------|-------------|
 | `GET` | `/api/v1/enterprise/ml/heavy-hitters` | viewer | ml-detection | Top-K heavy hitters by byte volume. |
 | `GET` | `/api/v1/enterprise/ml/beaconing` | viewer | ml-detection | Active C2 beaconing suspects. |
+| `GET` | `/api/v1/enterprise/ml/mass-encryption` | viewer | ml-detection | The mass encryption threshold learned per executable and signal, and whether it drifted. |
 | `GET` | `/api/v1/enterprise/ml/rcf/scores` | viewer | ml-detection | Recent Random Cut Forest anomaly scores. |
 | `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
 | `GET` | `/api/v1/enterprise/ml/rcf/queue` | viewer | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |

@@ -519,6 +519,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/ml/alerts` | viewer | `config:read` | ml-detection | ML alerts with MITRE mapping. |
 | `GET` | `/api/v1/enterprise/ml/anomalies` | viewer | `config:read` | ml-detection | Recent anomalies (limit param). |
 | `GET` | `/api/v1/enterprise/ml/beaconing` | viewer | `config:read` | ml-detection | Active C2 beaconing suspects. |
+| `GET` | `/api/v1/enterprise/ml/mass-encryption` | viewer | `config:read` | ml-detection | The mass encryption threshold learned per executable and signal, and whether it drifted. |
 | `POST` | `/api/v1/enterprise/ml/cusum/reset` | operator | `config:write` | ml-detection | Reset CUSUM state. |
 | `POST` | `/api/v1/enterprise/ml/ewma/reset` | operator | `config:write` | ml-detection | Reset EWMA state. |
 | `GET` | `/api/v1/enterprise/ml/ewma/status` | viewer | `config:read` | ml-detection | EWMA engine status. |
