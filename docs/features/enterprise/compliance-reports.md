@@ -10,14 +10,14 @@ Automated compliance report generation for 8 regulatory frameworks including EU/
 
 | Framework | Sections | Controls | Description |
 |-----------|----------|----------|-------------|
-| **PCI-DSS 4** | 6 | 21 | Payment Card Industry Data Security Standard v4.0 |
+| **PCI-DSS 4** | 7 | 22 | Payment Card Industry Data Security Standard v4.0 |
 | **HIPAA** | 3 | 13 | Health Insurance Portability and Accountability Act Security Rule |
 | **GDPR Art 32** | 3 | 8 | General Data Protection Regulation Article 32 technical measures |
 | **SOC 2** | 4 | 12 | Service Organization Control 2 Trust Service Categories |
 | **NIS2** | 2 | 14 | EU Network and Information Security Directive 2 (Articles 21, 23) |
 | **DORA** | 3 | 12 | EU Digital Operational Resilience Act (Chapters II, III, IV) |
 | **SecNumCloud** | 5 | 12 | ANSSI cloud security qualification (Ch.8-14) |
-| **HDS** | 7 | 10 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
+| **HDS** | 8 | 11 | French health data hosting certification (ISO 27001/27018 + Art. R.1111) |
 
 Each framework has a page mapping its articles to what the agent reads:
 [PCI DSS](../../compliance/pci-dss.md), [HIPAA](../../compliance/hipaa.md),
@@ -81,7 +81,7 @@ The summary carries a `not_evaluated` count beside `passed`, `failed`, `partial`
 
 ## Framework Controls
 
-### PCI-DSS 4 (6 sections, 21 controls)
+### PCI-DSS 4 (7 sections, 22 controls)
 
 Control identifiers follow the PCI DSS v4.0 numbering.
 
@@ -90,6 +90,7 @@ Control identifiers follow the PCI DSS v4.0 numbering.
 | Requirement 1 - Network Security Controls | 4 | 1.2 controls configured, 1.3.1 inbound and 1.3.2 outbound CDE traffic, 1.4 trusted/untrusted connections |
 | Requirement 3 - Stored Account Data | 3 | 3.2 storage kept to a minimum, 3.3 sensitive authentication data, 3.4 PAN display |
 | Requirement 4 - Data in Transmission | 1 | 4.2 PAN protected in transit (TLS floor watched, not terminated) |
+| Requirement 5 - Malicious Software | 1 | 5.2 malicious software detected and addressed: a mass encryption run stopped and watched files changed, partial because the agent scans nothing and the files written before the verdict are lost |
 | Requirement 6 - Secure Systems and Software | 4 | 6.2 secure development, 6.2.4 common attacks screened in transit, 6.3 vulnerabilities, 6.5 change management |
 | Requirement 10 - Logging and Monitoring | 5 | 10.2 audit logs, 10.3 log protection, 10.4 automated review, 10.5 retention (12 months), 10.6 time sync |
 | Requirement 11 - Security Testing | 4 | 11.3 vulnerability scans, 11.4 penetration testing, 11.5.1 intrusion detection, 11.5.2 change detection |
@@ -144,12 +145,13 @@ Control identifiers follow the PCI DSS v4.0 numbering.
 | Ch.12 - Cryptography | 2 | TLS configuration, post-quantum readiness |
 | Ch.14 - Incident Management | 2 | Incident detection, forensics |
 
-### HDS (7 sections, 10 controls)
+### HDS (8 sections, 11 controls)
 
 | Section | Controls | Topics |
 |---------|----------|--------|
 | ISO 27001 A.13 - Communications Security | 2 | Network security management, information transfer |
 | ISO 27001 A.10 - Cryptography | 1 | Cryptographic controls |
+| ISO 27001 A.8.7 - Protection Against Malware | 1 | A mass encryption run stopped and watched files changed, partial because nothing is restored |
 | ISO 27001 A.12.4 - Logging/Monitoring | 2 | Event logging, log protection |
 | ISO 27001 A.12.5 - Operational Software | 1 | Changes to watched binaries and configuration detected |
 | ISO 27001 A.16 - Incident Management | 2 | Incident response, ARS notification (Art. R.1111-9) |

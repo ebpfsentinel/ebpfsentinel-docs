@@ -19,7 +19,7 @@ the entity evidences elsewhere.
 |-------|-------------|-----------------------------|-------------------|
 | 21(2)(a) | Risk analysis and information system security policies | Threat intelligence feeds loaded, IDS signatures loaded | The risk analysis and the policies themselves |
 | 21(2)(b) | Incident handling | Datapath loaded, IDS signatures, alert pipeline, SIEM export | The handling procedure |
-| 21(2)(c) | Business continuity | HA peers with an active datapath | Backup, disaster recovery, crisis management |
+| 21(2)(c) | Business continuity | HA peers with an active datapath, mass encryption verdicts in force with the stop on | Backup, disaster recovery, crisis management; a stopped run bounds the loss and restores nothing |
 | 21(2)(d) | Supply chain security | Threat intelligence feeds loaded | Assessing suppliers and their development practices |
 | 21(2)(e) | Security in acquisition, development and maintenance, including vulnerability handling | IDS signatures, IPS in block mode, file watch following at least one path | Disclosure and patching |
 | 21(2)(f) | Assessing the effectiveness of measures | Scheduled compliance reports, persistent audit trail | The rest of the programme |

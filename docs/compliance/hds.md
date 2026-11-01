@@ -18,6 +18,7 @@ the report evidences the part of it a network agent can carry.
 | A.13.1 | Network security management | Datapath loaded, firewall in block mode, IPS in block mode | - |
 | A.13.2 | Information transfer | DLP patterns loaded, TLS floor at TLS 1.2 or above | Transfer agreements; TLS is watched, not terminated |
 | A.10.1 | Cryptographic controls | TLS floor at TLS 1.2 or above | Encryption at rest and key management |
+| A.8.7 | Protection against malware | Mass encryption verdicts in force with the stop on, file watch following at least one path, alert pipeline | Anti-malware itself; the files written before the verdict are lost and their restore is the host's backups |
 | A.12.4.1 | Event logging | Persistent audit trail, SIEM export | - |
 | A.12.4.2 | Protection of log information | SIEM export, RBAC roles defined | - |
 | A.12.5.1 | Installation of software on operational systems | File watch following at least one path, alert pipeline | Approving what may be installed |

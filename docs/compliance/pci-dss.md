@@ -8,6 +8,7 @@ eBPFsentinel supports PCI-DSS compliance across five key requirements.
 |---------------------|---------------------|---------------|
 | **Req. 1** - Network Security Controls | Firewall (L3/L4 + L7) | `firewall`, `l7` sections |
 | **Req. 3** - Protect Cardholder Data | DLP with credit card patterns | `dlp` section |
+| **Req. 5** - Malicious Software | Mass encryption detected and stopped, file watch | `file_watch.mass_encryption` section; partial: the agent is not an anti-malware solution and the files written before the verdict are lost |
 | **Req. 6** - Secure Systems | IDS/IPS with SQL injection, XSS detection | `ids`, `ips` sections |
 | **Req. 10** - Logging and Monitoring | Audit trail with 90-day retention | `audit` section |
 | **Req. 11** - Security Testing | IPS auto-blocking, threat intelligence | `ips`, `threatintel` sections |
