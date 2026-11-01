@@ -24,6 +24,9 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
 | `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
 | `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
+| `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
+| `GET` | `/api/v1/host-rules/intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
+| `POST` | `/api/v1/host-rules/{id}/promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
 
 ### What authenticates what
 
@@ -526,6 +529,56 @@ rule will do, and sends the reading on screen so a stale one is refused by the
 agent rather than applied. The request is proxied to that one agent only. With
 the whole estate selected the panel asks for a host, because shadow counters
 are one machine's traffic.
+
+## Putting a Host Rule in Force
+
+A [host rule](../host-rules.md) in shadow raises nothing and stops nothing: it
+counts the events it would have acted on, per workload it would have hit. This
+edition runs the process table and the host rules on every node, whatever its
+place in a high-availability pair, and adds the same step after the reading as
+for the firewall.
+
+`GET /api/v1/host-rules` and `GET /api/v1/host-rules/intents` answer the same
+bodies as the open source agent. The intentions served by the socket
+inventories, `port.hidden` and `socket.raw`, are reported as not served here,
+because this edition does not run those inventories.
+`POST /api/v1/host-rules/{id}/promote` takes the start of the reading the
+decision was made on, `shadow_since_ns` from the list:
+
+```json
+{ "shadow_since_ns": 1789990000000000000 }
+```
+
+The readings start with the agent and do not restart while it runs, so the
+value is compared to within one microsecond and anything further is a reading
+of an earlier run, refused with `409`. A rule already in force is also `409`,
+and an id no rule carries is `404`. A rule whose `then` holds `kill_process` is
+refused with `409` on an agent that cannot stop a process, which is every
+enterprise agent today, rather than put in force to raise alerts promising an
+action nothing takes.
+
+The answer names the rule, its new mode and the reading it was decided on:
+
+```json
+{
+  "rule_id": "shipped-shell-from-web-server",
+  "mode": "enforce",
+  "shadow_since_ns": 1789990000000000000,
+  "reading": { "events": 3, "workloads": [{ "workload": "web-7f9c", "events": 3 }], "unsampled": 0 }
+}
+```
+
+From then on the rule raises an alert for each match, stored beside the
+datapath's at `GET /api/v1/alerts`. Every promotion writes one line to the
+audit log as a rule update:
+
+```text
+host rules: shadow rule 'shipped-shell-from-web-server' promoted to enforce by alice on a reading of 3 events (web-7f9c 3; 0 more not sampled by workload), reading since 1789990000000000000 ns
+```
+
+**The promotion changes the running rules, not the configuration file**, and
+is not kept across a restart: the rule is in shadow again the next time the
+agent starts, unless the file says `mode: enforce`.
 
 ## Firewall Policy in Tiers
 

@@ -127,6 +127,9 @@ before trusting a rule on a node, and it is what `GET /api/v1/host-rules` and
 - The readings start with the agent, at `shadow_since_ns`, and are not kept
   across a restart.
 - A rule is put in force by writing `mode: enforce` and restarting the agent.
+  The enterprise agent also puts one in force while it runs, on the reading it
+  was decided on; see
+  [Putting a host rule in force](../features/enterprise/fleet-management.md#putting-a-host-rule-in-force).
 - `matched` counts the matches of every rule, in force or in shadow;
   `dropped` only ever concerns a rule in force, a shadow rule raising nothing.
 
