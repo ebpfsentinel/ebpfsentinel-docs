@@ -40,6 +40,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Firewall](firewall.md) | OSS | XDP | L3/L4 stateful filtering, LPM trie CIDR, TCP flags, ICMP type/code, MAC, DSCP, aliases, conntrack, NAT, zones, scheduling, scrub, policy routing |
 | [Learning Mode](learning-mode.md) | OSS | Userspace | A declared window reads what each workload dialled, rendered back as workload firewall rules in observe mode, with prefix collapsing stated in the output |
 | [Process Detections](process-detections.md) | OSS | Userspace | A reverse shell, a binary with no file on disk and a server's unexpected descendant, each read off the process tree where it holds a connection |
+| [Mass Encryption](mass-encryption.md) | OSS | File watch + Userspace | One run encrypting many files recognised by signals that agree, and with the stop on the whole run killed and its files counted; detected and stopped, not prevented and not undone, the files written before the verdict are lost |
 | [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, payload shipped to the userspace L7 engine |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
 | [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
