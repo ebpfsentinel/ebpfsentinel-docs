@@ -31,7 +31,9 @@
     "generate:intel-objects": "node scripts/generate-intel-objects.mjs",
     "check:intel-objects": "node scripts/generate-intel-objects.mjs --check",
     "generate:cni-matrix": "node scripts/generate-cni-matrix.mjs",
-    "check:cni-matrix": "node scripts/generate-cni-matrix.mjs --check"
+    "check:cni-matrix": "node scripts/generate-cni-matrix.mjs --check",
+    "generate:host-rule-limits": "node scripts/generate-host-rule-limits.mjs",
+    "check:host-rule-limits": "node scripts/generate-host-rule-limits.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

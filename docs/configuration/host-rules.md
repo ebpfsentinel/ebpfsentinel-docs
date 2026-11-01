@@ -214,6 +214,27 @@ stops that process.
 - A `workload` naming a `guest`: a virtual machine runs its processes in its own
   kernel.
 
+## What a rule cannot say
+
+The syntax is closed on purpose: a limit is relieved by a typed field or a new
+intention, never by grammar. A rule running into one of these is refused at load
+with the limit's own words and what to write instead, and this table is
+generated from the same rows the refusals are built from.
+
+<!-- BEGIN GENERATED HOST RULE LIMITS -->
+
+| Limit | Written as | Instead |
+|---|---|---|
+| There is no expression language | `when` or `followed_by` written as text, such as `exe = /bin/sh and uid = 0`, or a `condition`, `match`, `expression` or `filter` key beside them | Write a map of matchers, every key holding at once, a list of values meaning any one of them, and one `any_of` at the top of `when` listing alternatives |
+| A rule fires on an event, never on the absence of one | `not_followed_by` or `unless_followed_by` | Under the load an attacker creates every first step left unanswered would fire, so the alerts would grow with the attack; write the first step as a rule of its own and read what came after it in the process tree its alert carries |
+| A sequence is two steps | `followed_by` inside `followed_by` | What came before the first step is in the ancestry the alert carries, so write the last two steps as the rule and a third step as a second rule |
+| `any_of` does not nest | `any_of` inside an entry of `any_of`, or inside an intent | List every alternative, each an intent with its matchers, in the one `any_of` at the top of `when` or of `followed_by` |
+| Two fields compare for equality only | `<field>_gt_field` or `<field>_lt_field` | Compare a field with a value through `_gt` or `_lt`, `_eq_field` and `_ne_field` comparing two fields, and open an issue naming the field an ordering would need, since ordering two fields is where arithmetic starts |
+| A rule names an intent of the catalogue | An intent the agent does not ship | Ask for one through an issue, or send the events through the OCSF export to an engine that holds the one you need |
+| A count has a window | `count` without `within` | Give it `within`, the window its events must fall in, such as `within: 60s` and at most an hour, since a counter with no window is a gauge and a gauge is a metric rather than a rule |
+
+<!-- END GENERATED HOST RULE LIMITS -->
+
 ## What is evaluated in this build
 
 `process.starts` and `process.ends` reach the rules, from the
