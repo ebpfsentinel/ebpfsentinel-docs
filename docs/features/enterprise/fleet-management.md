@@ -24,6 +24,10 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
 | `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
 | `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports` | viewer | fleet-management | The scanner reports held, each counted against the packages installed now. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports/report?name=` | viewer | fleet-management | One scanner report, each finding joined with the installed package it names or the reason it is not. |
+| `PUT` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Keep a CycloneDX, SPDX, Trivy, Grype or Harbor JSON report under a name. |
+| `DELETE` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Forget a scanner report. |
 | `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
 | `GET` | `/api/v1/firewall/workload/peers` | viewer | fleet-management | The rules naming a remote workload and which ends decide each. |
 | `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
@@ -615,6 +619,60 @@ whichever edition a node runs.
 | `components[]` | Per component: `status` (`reached` or `not_observed`), `join`, `confidence`, `identity`, the `executables` and `destinations` it was joined through, `last_seen_ns`, and `listens_on` |
 | `unmatched_executables[]` | Executables that originated flows and match no component |
 | `limits[]` | What the report cannot say, written into the answer itself |
+
+### Importing your scanner's report
+
+The agent holds no vulnerability database and fetches no feed. What it reads is
+the report your own scanner already wrote, and it answers which of those
+findings name a package this host has installed.
+
+```bash
+trivy image --format json -o app.trivy.json registry.example/app:1.4
+curl -X PUT -H "Authorization: Bearer $TOKEN" \
+  --data-binary @app.trivy.json \
+  "http://localhost:8444/api/v1/flows/reachability/scanner-reports?name=registry.example/app:1.4"
+```
+
+- **Formats**, detected from the document: CycloneDX JSON carrying a
+  `vulnerabilities` section, SPDX 2 JSON whose packages carry
+  `SECURITY`/`advisory` references, and the native JSON of Trivy
+  (`--format json`), Grype (`-o json`) and Harbor (the vulnerability report
+  its API returns). A CycloneDX or SPDX document with no vulnerability at all
+  is an SBOM rather than a scan, and is refused with a `400` naming the SBOM
+  route instead.
+- **Size**: at most 64 MiB and 200 000 findings; findings past the cap are
+  counted in `findings_past_cap`. The same vulnerability listed twice for the
+  same package, as Trivy does once per target, is kept once and counted in
+  `duplicates`.
+- **Persistence**: under `<fleet data_dir>/scanner-reports/` beside the SBOMs,
+  with the same modes, reloaded at start.
+
+Nothing is dropped silently. A record of the report that cannot become a
+finding is listed in `dropped[]` with its reason:
+
+| `reason` | The record |
+|----------|------------|
+| `no_vulnerability_id` | names no vulnerability identifier |
+| `no_package_identity` | names no package: no name and no package URL |
+| `unknown_component` | points at a component the document does not define |
+
+And each finding that cannot be joined to an installed package says why, in
+`mapping.unmapped[]`:
+
+| `reason` | What it means, and what to do |
+|----------|-------------------------------|
+| `inventory_not_read` | The agent has not read its packages yet, or `package_inventory` is turned off. |
+| `ecosystem_not_read` | The package belongs to an ecosystem the agent keeps no inventory of, such as npm or PyPI; see [the ecosystems not covered](../installed-packages.md#ecosystems-not-covered). |
+| `not_installed` | No package of that name is installed in any root the agent read: the report may describe another image. |
+| `version_not_installed` | The package is installed at another version, listed in `installed_versions`: the report may be older than the host. |
+
+A finding joined to a package lists where it is installed in
+`mapping.mapped[].installed[]`: the root (the host or a container), the
+database that lists it (`dpkg`, `rpm`, `apk`) or `go` with the program built
+from the module, and the version the host has. An epoch written on one side
+only is not a difference, since scanners and package URLs often leave it off.
+The severity and the fixed version are the scanner's own words, carried
+unchanged: the agent computes neither.
 
 ### In the dashboard
 
