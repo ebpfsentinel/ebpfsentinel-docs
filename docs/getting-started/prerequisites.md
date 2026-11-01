@@ -75,6 +75,24 @@ shipped AppArmor profile is loaded. See the
 | NixOS | Yes, with `linuxPackages_latest` | The default LTS kernel may be below 6.9 |
 | Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
 
+### Managed Node Images
+
+A managed cluster decides the node kernel, so the question is which node image
+the provider runs and what the operator can turn to reach 6.12. The agent
+refuses to start below the floor and says which kernel it found, so a node that
+is out says so at startup rather than loading half its programs.
+
+| Provider and node image | Supported | Kernel | The operator's lever |
+|-------------------------|-----------|--------|----------------------|
+| GKE, Container-Optimized OS milestone 125 and later | Yes | 6.12 | The cluster version: COS has no package manager, so the node image follows the GKE version and nothing else |
+| GKE, Container-Optimized OS milestones 121, 117 and 113 | No | 6.6, 6.6 and 6.1 | Upgrade the cluster to a version whose default COS image is milestone 125 or later |
+| GKE, Ubuntu node images | Where the image's kernel is 6.12 or later | Per image | The node image version, chosen per node pool; read `uname -r` on one node before rolling out |
+| EKS, Amazon Linux 2023, Kubernetes 1.33 and later | Yes | 6.12 | The Kubernetes version of the node group; AL2023's parallel kernel streams and a custom AMI built from `awslabs/amazon-eks-ami` are both supported ways to choose a newer kernel |
+| EKS, Amazon Linux 2023, Kubernetes 1.31 and 1.32 | No | 6.1 | Upgrade the node group, or build a custom AMI on a newer AL2023 kernel stream |
+| EKS, Bottlerocket `aws-k8s-1.33` and later variants | Yes | 6.12 | The variant, which follows the Kubernetes version |
+| EKS, Bottlerocket `aws-k8s-1.32` and earlier variants | No | 6.1 | Move the node group to a 1.33 or later variant |
+| AKS, every current node image | No | Azure Linux 3.0 is 6.6, Ubuntu 22.04 is 5.15, Ubuntu 24.04 is 6.8 | None today: a standard node pool accepts no node image of your own, so the agent does not run on AKS |
+
 **Architectures:** x86_64 (primary), aarch64/ARM64 (cross-tested)
 
 **Not supported:** macOS, Windows, FreeBSD (no Linux eBPF subsystem)
