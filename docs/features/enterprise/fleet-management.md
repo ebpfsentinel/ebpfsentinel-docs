@@ -804,6 +804,26 @@ needs that store; without it the screen says so. A node read on only one of the
 two days is named as not compared rather than shown as having opened or closed
 everything.
 
+The **Vulnerabilities** screen, under the same licence feature, lists every
+scanner report each agent of the estate holds, with the agent holding it and
+its findings counted per standing, so the list says how many face outside
+without opening anything; the counts come from the `standings` field each
+agent's list carries. Opening a report reads it from its agent: the findings
+in the agent's order with the reasons for each place, what moved since the
+first reading, and the findings the host does not account for with why. The
+evidence pack of the open report is saved as the agent wrote it. A report is
+handed over through the agent's own API, not through the dashboard. The
+screen says above its counts that a standing orders findings and is never
+proof that a flaw can be exploited.
+
+A provider reselling under the partner agreement reads the same counts across
+every tenant its session serves on the **Across tenants** tab, one row per
+report naming its tenant, the tenants with the most findings facing outside
+first. A tenant whose agents did not all answer is named above the list with
+the agents that did not, so a short list is never read as a clean estate.
+This view is the provider's: a session serving one tenant reads only that
+tenant, and naming a tenant the session does not serve is refused whole.
+
 ## Putting a Shadow Rule in Force
 
 A firewall rule in shadow mode decides nothing: it counts what it would have
