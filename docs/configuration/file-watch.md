@@ -53,8 +53,10 @@ file_watch:
 | `canaries.exempt` | list of paths | backup tools and scanners, see below | Executables, by full path, whose opens of a canary are not a signal |
 | `write_refusal.enabled` | bool | `false` | Load the [write refusal](#write-refusal); independent of `enabled` |
 | `write_refusal.mode` | `shadow` or `enforce` | `shadow` | Count what would be refused, or refuse it |
-| `write_refusal.paths` | list of paths | `[]` | Absolute directories counted, everything beneath each included; at most 256, never `/` |
-| `write_refusal.threshold` | integer | `100` | The write-open inside the window that is refused first, at least 1 |
+| `write_refusal.paths` | list of paths | `[]` | Data paths: absolute directories or files counted against `threshold`, everything beneath a directory included; at most 256 with `system_paths`, never `/` |
+| `write_refusal.system_paths` | list of paths | `[]` | System paths: absolute directories or files where the first write-open by an executable not in `system_writers` is refused; a path named in both lists is a system path |
+| `write_refusal.system_writers` | list of paths | `[]` | Absolute paths of the executables expected to write under the system paths, at most 256 |
+| `write_refusal.threshold` | integer | `100` | Under a data path, the write-open inside the window that is refused first, at least 1 |
 | `write_refusal.window_secs` | integer | `60` | The window the count runs over, 1 to 3600 seconds |
 | `write_refusal.count_by` | `process` or `cgroup` | `process` | Count each process alone, or a container or unit as one writer |
 
@@ -267,6 +269,24 @@ that does not verify or does not parse is refused whole and the paths in force
 stay as they were. Together the paths are at most 1024; past that, the rest
 are logged and not watched.
 
+A profile also names the executables expected to write under its paths: the
+package manager, the account and password tools, `crontab`, `ssh-keygen` and
+the service manager, and the kubelet on a Kubernetes node. With
+`refuse_writes: true` the profiles' paths become
+[system paths](#two-regimes) of the write refusal and those executables its
+expected writers, beside whatever `write_refusal` already names; the refusal is
+turned on if it was off, in the mode `write_refusal.mode` sets, `shadow`
+unless changed. No profile names a shell. Together with the configured paths
+they are at most 256 paths and 256 writers; past that, the rest are logged
+and refuse nothing.
+
+```yaml
+enterprise:
+  file_watch:
+    profiles: [debian]
+    refuse_writes: true
+```
+
 ## Across a fleet
 
 The Enterprise edition compares a node with the rest of its fleet. Each node
@@ -394,6 +414,49 @@ file_watch:
     count_by: process
 ```
 
+### Two regimes
+
+A watched path is in one of two regimes, declared once by the list naming it,
+and a path in neither list is never refused.
+
+- **Data paths** (`paths`) refuse at the threshold, because mass writes there
+  are legitimate: a backup, a build or a database writes hundreds of files a
+  minute, and what the threshold separates is that from a run.
+- **System paths** (`system_paths`) refuse at the first unexpected write,
+  because `/etc`, a package-owned binary or a unit file is written by a few
+  known executables and by nothing else. The writer is named by the
+  executable its process runs, read off the task's memory map as a (device,
+  inode) pair, and an executable listed in `system_writers` writes there
+  freely, counted as `expected`. A kernel thread, which runs no executable,
+  is let through and counted the same way; a process whose executable cannot
+  be read is let through and counted as `unresolved`.
+
+```yaml
+file_watch:
+  write_refusal:
+    enabled: true
+    mode: shadow
+    paths:
+      - /srv/data
+    system_paths:
+      - /etc/ssh
+      - /etc/sudoers
+      - /etc/systemd/system
+    system_writers:
+      - /usr/bin/dpkg
+      - /usr/bin/systemctl
+      - /usr/lib/systemd/systemd
+```
+
+A script writes as its interpreter, so a shell or a Python named in
+`system_writers` would let every script write; name the binaries that write,
+and read what `shadow` reports of a package upgrade, whose maintainer scripts
+write under `/etc` through a shell, before turning `enforce` on. An executable
+is followed by its file, so an upgrade that replaces it is picked up within
+thirty seconds, like a watched path created after start.
+
+### What it costs
+
 **What it costs is stated with it.** A run loses the files it writes before
 the threshold, `threshold - 1` per writer and window, and a run that spreads
 its writes over more writers than the count follows loses that many per
@@ -425,7 +488,7 @@ within thirty seconds of being created; the watched set and the expired counts
 are refreshed on the same tick. Changing anything here takes a restart.
 
 Counters are published under
-`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_METRICS", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full` and `event_lost`. A writer reaching the threshold raises one alert per window
+`ebpfsentinel_packets_total{interface="WRITE_REFUSAL_METRICS", action}`: `checked`, `watched`, `refused`, `would_refuse`, `unresolved`, `table_full`, `event_lost` and `expected`. A writer reaching the threshold raises one alert per window
 under the component `mass_encryption` and the rule `write-refusal`, naming the
 process, the file, the watched directory and the count, with the mitigation
 `refused` in `enforce`.

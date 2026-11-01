@@ -431,6 +431,7 @@ enterprise:
     profiles: [debian, kubernetes-node]
     exclude: []               # delivered paths to leave out
     expected_baselines: /etc/ebpfsentinel/expected-baselines.json
+    refuse_writes: false      # hold the profiles' paths against unexpected writers
 
   # ── Firewall tiers ──────────────────────────────────────────────
   firewall_tiers:
@@ -638,14 +639,16 @@ apply.
 
 The `file_watch` block names the file watch profiles to follow from the
 content channel, beside the paths the community `file_watch.paths` declares.
-It needs the community file watch on: with it off, the profiles are named
-and nothing is watched, and the agent says so at startup.
+Watching needs the community file watch on: with it off, the profiles are
+named and nothing is watched, and the agent says so at startup. Refusing
+writes does not: `refuse_writes` starts the write refusal on its own.
 
 | Field | Type | Default | Meaning |
 |-------|------|---------|---------|
 | `profiles` | list | empty | Profile names, each lowercase letters, digits and inner hyphens and given once |
 | `exclude` | list | empty | Delivered paths to leave out, written exactly as the profile writes them |
 | `expected_baselines` | string | none | Absolute path of the fleet's expected state, followed every minute; see [across a fleet](file-watch.md#across-a-fleet) |
+| `refuse_writes` | bool | `false` | Hold the profiles' paths as [system paths](file-watch.md#two-regimes) of the write refusal, with the executables the profiles expect as their writers, in the mode `file_watch.write_refusal.mode` sets |
 
 The block is read at startup and the set is followed while the agent runs.
 [File watch profiles](file-watch.md#profiles) lists the profiles and what a
