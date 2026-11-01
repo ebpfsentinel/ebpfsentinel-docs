@@ -22,6 +22,8 @@ Gated by the `FleetManagement` license feature.
 | `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
 | `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
 | `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
+| `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
+| `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
 
 ### What authenticates what
 
@@ -458,6 +460,72 @@ reading a day per node for 456 days in its history store, so the comparison
 needs that store; without it the screen says so. A node read on only one of the
 two days is named as not compared rather than shown as having opened or closed
 everything.
+
+## Putting a Shadow Rule in Force
+
+A firewall rule in shadow mode decides nothing: it counts what it would have
+done beside what the rules in force did (see
+[Shadow rules](../firewall.md#shadow-rules)). This edition adds the step after
+the reading: putting one of those rules in force on the node that was read.
+
+`GET /api/v1/firewall/shadow` answers the same body as the open source agent.
+`POST /api/v1/firewall/shadow/{id}/promote` takes the start of the reading the
+decision was made on:
+
+```json
+{ "counting_since_ns": 1789990000000000000 }
+```
+
+The rule is switched to `enforce` in the running rule set only if that reading
+is still the current one. The counters restart whenever the set of shadow
+rules changes, so a decision taken on an older reading is refused with `409`
+and the reason, and the reader reads again. The value is compared to within
+one microsecond, because a browser holds this nanosecond count as a double and
+rounds its last digits. A rule already in force or disabled is also `409`; an
+id no rule carries is `404`.
+
+The answer names the rule, its new mode, the reading it was decided on and
+that reading's counts:
+
+```json
+{
+  "rule_id": "block-legacy-smb",
+  "mode": "enforce",
+  "counting_since_ns": 1789990000000000000,
+  "reading": { "rule_id": "block-legacy-smb", "would": "deny", "packets": 1240, "flows": 18,
+               "changed_packets": 310, "changed_flows": 4, "...": "..." }
+}
+```
+
+Every promotion writes one line to the audit log as a rule update, naming who
+promoted it and on what evidence:
+
+```text
+firewall: shadow rule 'block-legacy-smb' promoted to enforce by alice on a reading of 1240 packets over 18 flows, 310 packets and 4 flows the rules in force decided otherwise, counting since 1789990000000000000 ns
+```
+
+A rule that held no datapath slot counted nothing, and the line says so rather
+than presenting its zeros as a clean reading.
+
+**The promotion changes the running rule set, not the configuration file.** A
+rule that came from the file returns to shadow mode the next time the file is
+loaded, unless the file says `mode: enforce`. Change the file in the same
+change window, or through whatever produces it.
+
+### In the dashboard
+
+The **Firewall** screen, once a host is chosen, lists that host's shadow rules
+below the rules in force. Each one carries one word before its numbers: it
+would change traffic, it agrees with the rules in force, it has matched
+nothing yet, or it holds no datapath slot and counts nothing. The rules that
+would change traffic come first, and the sampled flows are listed with the
+verdict the rules in force gave them, the ones the shadow rule would decide
+otherwise marked. A member holding the right to push agent configuration can
+put a rule in force; the screen asks twice, the second time saying what the
+rule will do, and sends the reading on screen so a stale one is refused by the
+agent rather than applied. The request is proxied to that one agent only. With
+the whole estate selected the panel asks for a host, because shadow counters
+are one machine's traffic.
 
 ## Configuration
 

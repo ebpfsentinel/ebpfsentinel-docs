@@ -237,6 +237,11 @@ the counters restart whenever the set of shadow rules changes. Read them with
 [Shadow mode](../configuration/firewall.md#shadow-mode) for what the counters
 do and do not cover.
 
+To put a rule in force here, change its `mode` to `enforce` in the
+configuration. The enterprise edition adds a route and a dashboard panel that
+put one in force on the reading it was decided on, recorded in the audit log:
+see [Putting a shadow rule in force](enterprise/fleet-management.md#putting-a-shadow-rule-in-force).
+
 ### Interface Groups
 
 Rules can be scoped to specific interface groups using the `interfaces` field. Interface groups are defined at the top level and assign named groups to physical interfaces. Rules reference group names to control where they apply.

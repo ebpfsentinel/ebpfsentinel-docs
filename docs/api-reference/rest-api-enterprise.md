@@ -408,6 +408,8 @@ and for the request and response bodies.
 | `PUT` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Keep a CycloneDX or SPDX JSON document (at most 32 MiB) as the SBOM of `?workload=`. |
 | `DELETE` | `/api/v1/flows/reachability/sbom` | operator | `config:write` | fleet-management | Forget the SBOM of `?workload=`. |
 | `GET` | `/api/v1/exposure/listeners` | viewer | `config:read` | fleet-management | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did; the same body as the open source agent. |
+| `GET` | `/api/v1/firewall/shadow` | viewer | `firewall:read` | fleet-management | What each firewall rule in shadow mode would have done since its counters started; the same body as the open source agent. |
+| `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | `firewall:write` | fleet-management | Put one shadow rule in force on the reading it was decided on; `409` when that reading is stale or the rule is not in shadow, `404` when no rule carries the id. Recorded in the audit log. |
 
 ## High availability
 
