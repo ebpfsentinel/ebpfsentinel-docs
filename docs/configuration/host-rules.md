@@ -110,6 +110,16 @@ connecting out are also the process table's
 [detections](process-table.md), which alert today; promoting the rule as well
 raises the same finding twice.
 
+The hidden port and hidden process sweeps hand each finding to the rules the
+sweep it first appears in, with no process: a port or a pid the listings omit
+has nothing in the process table to describe it, so a rule on `port.hidden`
+or `process.hidden` matches on the finding's own fields, `kill_process` stops
+nothing for it, and the reading counts it against the host rather than a
+workload. The sweeps raise their own alert whatever the rules say, so
+`shipped-hidden-port` and `shipped-hidden-process` start as a count of what
+they would have raised, and promoting either is a second alert on the same
+finding, under the rule's id and severity.
+
 ## Profiles
 
 The enterprise agent also takes rules from the

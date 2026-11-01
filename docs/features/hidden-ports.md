@@ -43,7 +43,9 @@ under its reason rather than reported:
 4. A refusal no listing entry on the same port and transport explains is read
    again: the listings and the bind. A refusal that survives both readings is
    reported hidden.
-5. A hidden port the previous sweep did not report raises an alert.
+5. A hidden port the previous sweep did not report raises an alert, and is
+   handed to the [host rules](host-rules.md) as `port.hidden`, carrying the
+   wildcard address the bind was refused on, the port and the transport.
 
 The probed ports are 1 to 1024 unless turned off, plus any listed in
 `extra_ports`. In the rootless posture the sweep is made by the warden, which

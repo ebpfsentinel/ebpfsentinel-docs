@@ -70,8 +70,9 @@ for the response.
 
 A source being present is half of it: something in the agent must also hand
 the source's events to the rules. In this build that is the process table,
-for `process.starts` and `process.ends`, and the file watch, for the five file
-intentions; every other intention is reported `not_applicable` with the
+for `process.starts` and `process.ends`, the file watch, for the five file
+intentions, and the two hidden sweeps, for `port.hidden` and `process.hidden`;
+every other intention is reported `not_applicable` with the
 sentence saying no source delivers it, even on a host where its hook is
 attached.
 

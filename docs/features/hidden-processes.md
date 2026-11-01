@@ -46,7 +46,9 @@ one the sweep explains is counted under its reason rather than reported:
 4. `/proc` is listed again and those pids are signalled and observed again. A
    pid that answers both times, is listed neither time, is a thread group
    leader that is not exiting and kept the same start time, is reported hidden.
-5. A hidden process the previous sweep did not report raises an alert.
+5. A hidden process the previous sweep did not report raises an alert, and
+   is handed to the [host rules](host-rules.md) as `process.hidden`, carrying
+   its pid and command name.
 
 In the rootless posture the agent runs in a pid namespace of its own and can
 signal nothing outside it, so the sweep is made by the warden, which runs in

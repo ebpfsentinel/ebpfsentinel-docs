@@ -705,8 +705,9 @@ for the firewall.
 
 `GET /api/v1/host-rules` and `GET /api/v1/host-rules/intents` answer the same
 bodies as the open source agent. The intentions served by the socket
-inventories, `port.hidden` and `socket.raw`, are reported as not served here,
-because this edition does not run those inventories.
+inventory and the two hidden sweeps, `packet_socket.appears`, `port.hidden`
+and `process.hidden`, are reported as not served here, because this edition
+does not run them.
 `POST /api/v1/host-rules/{id}/promote` takes the start of the reading the
 decision was made on, `shadow_since_ns` from the list:
 
