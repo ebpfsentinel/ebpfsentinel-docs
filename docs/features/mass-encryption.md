@@ -41,13 +41,13 @@ and not forty, and the alert is raised against the process that started them.
 ## What this agent reads
 
 This agent reads `distinct_rewrites`, `entropy_rise`, `header_mismatch`,
-`mass_rename` and `replace_sequence`. Every other signal in
+`mass_rename`, `replace_sequence` and `ransom_note`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
 verdict.
 
-All five come from the [file watch](../configuration/file-watch.md) and need
+All six come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
 
@@ -156,6 +156,27 @@ with fresh times and sizes that barely move, matches the shape, which is why
 the signal is strong and never decisive alone. A rename of a file onto a new
 extension without a deletion is the mass rename signal and not this one, so one
 behaviour never counts twice.
+
+### Ransom note
+
+A run leaves a note in every directory it walks, under one name. One new file
+name created in forty distinct directories by one run within a minute is a
+strong signal. Nothing of the file is read, only that it was created and in
+which directory, so the signal costs nothing and carries no privacy question.
+The count is of directories rather than files, since the same name written
+twice into one directory is still one directory.
+
+Some legitimate software scatters one name widely too, and those names are
+never counted, compared without regard to case: version control placeholders
+(`.gitkeep`, `.gitignore`), Python packaging (`__init__.py`, `METADATA`,
+`RECORD`, `py.typed`), JavaScript packages (`package.json`, `index.js`,
+`README.md`, `LICENSE`), other toolchains (`Cargo.toml`, `go.mod`, `pom.xml`,
+`Makefile`, `CMakeLists.txt`, `BUILD.bazel`, `meson.build`) and file managers
+(`.DS_Store`, `.directory`, `Thumbs.db`, `desktop.ini`). A tool outside that
+list writing one name into forty watched directories in a minute raises the
+signal, which is why it is strong and never decisive alone. Each run follows at
+most 256 names at once, dropping the one least recently seen, so a build
+creating thousands of distinct names does not push a note out of the count.
 
 ## The alert
 
