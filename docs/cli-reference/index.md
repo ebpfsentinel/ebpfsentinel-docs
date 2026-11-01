@@ -1409,6 +1409,9 @@ ebpfsentinel-agent surface packages
 
 # Every file live processes map, and the package owning it
 ebpfsentinel-agent surface loaded
+
+# Every listener, the packages behind it and who may reach it
+ebpfsentinel-agent surface listening
 ```
 
 `surface packages` prints one row per package, with the root it is installed
@@ -1443,6 +1446,17 @@ the first of them. A file unlinked since it was mapped carries ` (deleted)`:
 ROOT  FILE                                 PACKAGE  VERSION          PROCESSES  PIDS
 host  /opt/app/bin/server                  -        -                1          2210
 host  /usr/lib/x86_64-linux-gnu/libc.so.6  libc6    2.41-12+deb13u4  187        1,402,811
+```
+
+`surface listening` prints one row per listener: its address, port, protocol
+and process, who the policy lets reach it, its class, the connections it
+accepted and the packages behind it, followed by how many mapped files no
+package owns. A process whose mappings were not read shows `not read`:
+
+```text
+ADDRESS  PORT  PROTO  PID   ORIGIN        CLASS           ACCEPTED  PACKAGES
+0.0.0.0  443   tcp    2210  anywhere      exposed_used    1823      libc6 2.41-12+deb13u4, nginx 1.26.3-3+deb13u1
+0.0.0.0  9100  tcp    811   private_only  exposed_unused  0         libc6 2.41-12+deb13u4, 1 unowned file(s)
 ```
 
 What is read and what is not is on

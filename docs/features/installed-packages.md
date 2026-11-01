@@ -83,6 +83,28 @@ and how many it could not read, so a process left out is never mistaken for
 one mapping nothing. One reading lists at most 65,536 processes and 65,536
 files, and says how many it left beyond either.
 
+## Listening sockets and what is behind them
+
+A package matters most where it answers the network. A third route,
+`/api/v1/surface/listening`, takes every socket of the
+[listening sockets](listening-sockets.md) table and puts beside it the
+packages owning a file its process maps, each package once, and the files that
+process maps which no database in its root lists. Three facts sit next to
+them, read from the same places as the listeners route rather than inferred:
+
+- **the traffic it took**, the TCP connections accepted since the socket
+  hooks attached, and its class: used, unused, unmeasured for UDP, closed by
+  policy or loopback only;
+- **who may reach it**: `anywhere` when the packet firewall lets any source
+  through, `private_only` when every source it lets through lies in a
+  private, carrier-grade or link-local range, `blocked` when it lets none, and
+  `loopback` for a socket bound to the loopback address only;
+- **the sources let through**, when only some are.
+
+A process whose mappings were not read says so, and its lists are then unknown
+rather than empty. A server mapping a library no package owns is named with
+that file, so a binary copied in by hand is visible behind the port it opens.
+
 ## Roots
 
 Every process on the node has a filesystem root, and the roots are told apart

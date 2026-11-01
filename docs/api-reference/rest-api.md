@@ -1219,6 +1219,59 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 No field names a vulnerability, a severity or a score.
 
+#### GET /api/v1/surface/listening
+
+Every listener on the node with the packages its process maps, the
+connections it took and who the policy lets reach it. See
+[Installed Packages](../features/installed-packages.md#listening-sockets-and-what-is-behind-them).
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/surface/listening
+```
+
+```json
+{
+  "listeners_read": true,
+  "inventory_read": true,
+  "scanned_at_ns": 1761900000000000000,
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 443,
+      "protocol": "tcp",
+      "scope": "all_addresses",
+      "pid": 2210,
+      "executable": "/usr/sbin/nginx",
+      "class": "exposed_used",
+      "origin": "anywhere",
+      "accepted": 1823,
+      "mapped_read": true,
+      "packages": [
+        { "manager": "dpkg", "name": "libc6", "version": "2.41-12+deb13u4" },
+        { "manager": "dpkg", "name": "nginx", "version": "1.26.3-3+deb13u1" }
+      ],
+      "unowned": []
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `listeners_read` | boolean | The socket hooks are attached; when not, the node's listeners are unknown |
+| `inventory_read` | boolean | The package inventory is read |
+| `scanned_at_ns` | integer | When the mapped files were last read, nanoseconds since the epoch, `0` before the first |
+| `listeners` | array | One entry per listener: `address`, `port`, `protocol`, `scope`, `pid`, `executable`, `container` and `pod` as on the listeners route |
+| `listeners[].class` | string | `exposed_used`, `exposed_unused`, `exposed_unmeasured`, `closed_by_policy` or `loopback_only` |
+| `listeners[].origin` | string | `anywhere`, `private_only` when every source let through is private, carrier-grade or link-local, `blocked` or `loopback` |
+| `listeners[].allowed_from` | array | The sources let through, absent when any or none are |
+| `listeners[].accepted` | integer | TCP connections accepted since the hooks attached, absent for UDP |
+| `listeners[].mapped_read` | boolean | Whether the files its process maps were read; when not, `packages` and `unowned` are unknown rather than empty |
+| `listeners[].packages` | array | Each package owning a file the process maps, once: `manager`, `name`, `version` |
+| `listeners[].unowned` | array | Files the process maps that no database in its root lists |
+
+No field names a vulnerability, a severity or a score.
+
 ### Exposure
 
 #### GET /api/v1/exposure/listeners
@@ -3685,6 +3738,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
 | GET | `/api/v1/surface/loaded` | Yes | Every file live processes map executable, once per root, and the package owning it |
+| GET | `/api/v1/surface/listening` | Yes | Every listener with the packages its process maps, the traffic it took and who may reach it |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
