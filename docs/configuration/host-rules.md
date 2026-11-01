@@ -28,6 +28,16 @@ host_rules:
           uid: 0
           uid_ne_field: parent_uid
 
+    - id: shell-then-fetcher
+      description: a shell, then a download tool below it
+      when:
+        process.starts:
+          exe: [/bin/sh, /bin/bash]
+      followed_by:
+        within: 30s
+        process.starts:
+          exe: [/usr/bin/curl, /usr/bin/wget]
+
     - id: fetcher-from-tmp
       when:
         any_of:
@@ -47,6 +57,7 @@ host_rules:
 | `rules[].severity` | string | `medium` | `low`, `medium`, `high` or `critical` |
 | `rules[].workload` | map | none | A [workload selector](workload-firewall.md#the-matchers), every matcher of it true of the process the event is about |
 | `rules[].when` | map | required | One intention and its matchers, or one `any_of` listing alternatives |
+| `rules[].followed_by` | map | none | A second step: `within` and one intention and its matchers, or one `any_of` |
 | `rules[].then` | list | `[alert]` | `alert`, and `kill_process` to stop the process the event is about |
 
 ## Matchers
@@ -71,6 +82,33 @@ lists nor one it excludes. An empty map matches every event of its intention.
 intention with its matchers; it does not nest. The rule holds when one
 alternative does.
 
+## Sequences
+
+`followed_by` makes a rule two steps: `when` opens it, and an event matching
+`followed_by` closes it within the window, about the same process or one
+started below it. The alert is raised on the second event, names the process
+of the second event, says which first step it followed, and `kill_process`
+stops that process.
+
+| Key | Description |
+|-----|-------------|
+| `within` | Required. A whole number followed by `ms`, `s`, `m` or `h`, above zero and at most `1h`; inclusive |
+| an intention, or `any_of` | Required. The second step, written like `when` |
+
+- `workload` scopes the first step only: the second is tied to it by the
+  process tree, so a selector naming the shell would otherwise refuse the
+  `curl` it starts.
+- One first step closes once. A process matching the first step again while
+  it waits starts the window again.
+- One event never both opens and closes the same rule: the second steps are
+  tried first.
+- A node holds at most 8192 first steps across every rule. One arriving with
+  the set full of steps whose window is still open is not held, and is counted
+  as `pending_refused` by `GET /api/v1/host-rules` rather than evicting a step
+  that waits.
+- Two steps is the limit. Whatever came before the first is in the ancestry
+  the alert carries, and a third step is a second rule.
+
 ## What is refused at load
 
 - A field the intention does not carry, with the list of those it does, and an
@@ -79,8 +117,10 @@ alternative does.
   number, `_gt` or `_lt` on text, and two fields of different types compared.
 - `_regex`: this build evaluates no regular expression, and the refusal names
   the glob that replaces it.
-- `count`, `followed_by` and `within`: each event is evaluated alone, and no
-  rule counts events over a window or describes a sequence of two.
+- `count`: no rule counts events over a window.
+- `followed_by` without `within`, a window over an hour, a `followed_by` inside
+  `followed_by`, a `workload` inside it, and either step on an intention whose
+  event names no process: a sequence follows a process.
 - `kill_process` on an intention whose event names no process, and on
   `process.ends`, whose process has already ended.
 - `kill_process` while `response.kill_process.enabled` is `false`, so a
@@ -108,4 +148,5 @@ intention loads and is reported `not_applicable` by
 
 A match raises an alert of component `host_rule` with the rule's identifier,
 severity and the process's workload block and lineage. An alert lost to a full
-alert queue is counted as `dropped` by `GET /api/v1/host-rules`.
+alert queue is counted as `dropped` by `GET /api/v1/host-rules`, and so are
+the first steps waiting, as `pending`.
