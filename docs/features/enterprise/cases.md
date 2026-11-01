@@ -69,6 +69,13 @@ lists and how many connections it counts, and never the document itself. An
 agent without the `compliance-reports` feature answers nothing and the case
 records nothing for it.
 
+An ended [investigation of one workload](network-forensics.md#from-the-console)
+is kept in a case from the screen that ran it rather than collected: the case
+copies its node, its cgroup id and workload name, the reading, who started and
+who stopped it, how many samples it took and what they cost, and its last
+sample with that sample's SHA-256. The agent holds investigations in memory, so
+the copy is what survives its restart. One still running is refused with 409.
+
 ## Evidence pack
 
 The evidence pack reads one case against the two deadlines an incident
@@ -83,8 +90,8 @@ case and the evidence attached before it. Beside the marks it lists the
 assets involved (agents, workloads, addresses), the flows the alerts name with
 when each was first and last seen, every act with who did it, and every freeze
 and capture with its digest and chain position, and every bill of materials
-with its digest. Each line names the record it was read from, `alert:`,
-`case_event:`, `freeze:`, `capture:` or `cbom:`, so any figure
+and kept investigation with its digest. Each line names the record it was read from, `alert:`,
+`case_event:`, `freeze:`, `capture:`, `cbom:` or `investigation:`, so any figure
 can be traced back to the alert or the log row behind it.
 
 What the case does not hold is listed under gaps rather than left for the

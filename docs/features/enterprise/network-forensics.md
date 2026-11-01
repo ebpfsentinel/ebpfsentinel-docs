@@ -339,6 +339,31 @@ nothing is started or written to the audit log.
 What a node keeps is held in memory: the running investigations and the last
 `kept` ended ones, each with its last sample, until the agent restarts.
 
+### From the console
+
+The [dashboard](dashboard.md) has an Investigate screen, shown to a tenant
+whose agents carry the `network-forensics` feature. It is reached three ways:
+from its entry in the sidebar, from an alert whose workload the agent numbered
+with a cgroup id, and from a workload's entity page, which offers one link per
+host the workload's alerts were raised on. A link fills in the host, the cgroup
+id and the workload's name and starts nothing; the reading and the duration are
+chosen on the screen, and the duration field shows the host's own ceiling.
+
+While an investigation runs the screen reads it again every five seconds, so
+each sample appears as the agent takes it, beside the time left and what the
+samples cost so far. A stop button ends it early. The same screen lists what
+the host still keeps, any of which can be opened again.
+
+Starting and stopping one from the console need the analyst role or above. The
+console forwards the request to the agent under a token naming the person, so
+the agent's audit log carries their name.
+
+An ended investigation can be kept in an open [case](cases.md#evidence). The
+case copies its bounds, who started and stopped it, its cost and its last
+sample, because the agent forgets all of it at its next restart; one still
+running is refused with `409`, so what a case holds is a reading that will not
+change. Keeping one needs the analyst role, like any other change to a case.
+
 ## Flow Timeline Reconstruction
 
 The timeline engine reconstructs network activity around any alert or flow:
