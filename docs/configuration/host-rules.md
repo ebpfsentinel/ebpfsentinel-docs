@@ -234,6 +234,10 @@ before trusting a rule on a node, and it is what `GET /api/v1/host-rules` and
   The enterprise agent also puts one in force while it runs, on the reading it
   was decided on; see
   [Putting a host rule in force](../features/enterprise/fleet-management.md#putting-a-host-rule-in-force).
+- `kill_process` in force signals the process at its next system call, within
+  `response.kill_process.window_ms` of the start. A process blocked in one
+  long call for the whole window, such as a `sleep` of several seconds, is not
+  reached and is reported as a [survivor](response.md), and runs on.
 - `matched` counts the matches of every rule, in force or in shadow;
   `dropped` only ever concerns a rule in force, a shadow rule raising nothing;
   `exempted` counts the matches an enterprise [exception](#exceptions) left
