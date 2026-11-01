@@ -484,6 +484,35 @@ and its warden when it runs rootless. A node without the BPF LSM answers
 and what it does not is on
 [Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects).
 
+`file_kfuncs` says whether the kfuncs that read a task's executable, a path and
+an extended attribute are usable on this host, and which condition failed where
+one is not:
+
+```json
+{
+  "file_kfuncs": {
+    "probed": true,
+    "sleepable_lsm": true,
+    "sleepable_reason": null,
+    "kfuncs": [
+      { "name": "bpf_get_task_exe_file", "declared": true, "usable": true, "reason": null },
+      { "name": "bpf_put_file", "declared": true, "usable": true, "reason": null },
+      { "name": "bpf_path_d_path", "declared": true, "usable": true, "reason": null },
+      { "name": "bpf_get_dentry_xattr", "declared": false, "usable": false,
+        "reason": "this kernel does not declare it" }
+    ],
+    "remedy": "run a kernel that declares every file kfunc; the version alone does not guarantee it, so read this report again on the new kernel"
+  }
+}
+```
+
+`declared` comes from the kernel's BTF, `sleepable_lsm` from loading a
+sleepable LSM program at startup, and a kfunc is `usable` only where both hold
+and the BPF LSM is active. `sleepable_lsm` is `null` when the probe could not
+load anything for lack of privilege, which says nothing about the kernel. How
+the three questions are asked is on the
+[compatibility page](../operations/compatibility.md#probed-rather-than-read-from-the-version).
+
 #### GET /api/v1/ebpf/coverage
 
 What the agent sees of each pod scheduled on its node, computed from the links

@@ -1242,6 +1242,11 @@ resolvers, the number of clients, and one `Not seen:` line for each thing the
 rule does not decide - DNS over HTTPS, a query handed to a proxy, a resolver on
 another port and what a listed resolver forwards.
 
+The `File kfuncs` section says whether a sleepable LSM program loads here, then
+one line per file kfunc: `usable`, `declared, not usable`, `not declared`, or
+`unknown` when the kernel's BTF could not be read, with the condition that
+failed under each one that is not usable and the one change that would fix it.
+
 `ebpf kernel-features` ends with the required helpers this kernel does not
 provide. An empty list there is the answer you want.
 

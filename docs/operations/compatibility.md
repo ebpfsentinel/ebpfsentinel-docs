@@ -94,6 +94,29 @@ All features require kernel **6.9+**. Here is when each eBPF feature the agent r
 | `bpf_get_prandom_u32` | 4.1+ | QoS loss emulation, scrub IP ID randomisation; IDS random sampling |
 | `bpf_csum_diff` | 4.6+ | Checksums in scrub |
 
+### Probed rather than read from the version
+
+Four kfuncs read what a task executes and what a file carries:
+`bpf_get_task_exe_file` and `bpf_put_file` take and release a task's
+executable, `bpf_path_d_path` renders a path, and `bpf_get_dentry_xattr` reads
+an extended attribute. The agent never assumes them from the kernel version,
+because a vendor backports one and a configuration leaves another out. It asks
+three questions at startup and reports each answer separately:
+
+| Question | How it is answered |
+|----------|--------------------|
+| Does the kernel declare the kfunc? | Its name is a function in the kernel's own BTF |
+| Does a sleepable LSM program load? | A two-instruction sleepable LSM program is loaded and closed, through the same BPF token the agent's own LSM programs use |
+| Can it attach? | `bpf` is among the active security modules, the same `lsm=` condition as every LSM program |
+
+A kfunc is usable only where all three answer yes. The kernel offers these four
+to sleepable LSM programs alone, so a host that declares them and boots without
+`bpf` in `lsm=` has them and can use none of them, and says so. Where the probe
+itself is refused for lack of privilege, the answer is "not probed" with the
+reason, never "unsupported". The answer is the `file_kfuncs` block of
+[`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md) and the
+last section of `ebpfsentinel-agent ebpf kernel-features`.
+
 SYN cookies are computed by the kernel's raw syncookie helpers and the
 SYN-ACK is written by `xdp-ratelimit-syncookie` and sent back with `XDP_TX`;
 the socket-bound `bpf_tcp_gen_syncookie` is not used.
