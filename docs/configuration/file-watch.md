@@ -8,6 +8,17 @@ default.
 
 Nothing here enforces anything: the watch only reads.
 
+## Detection, not prevention
+
+The watch is a fanotify notification group, never a permission group, so it is
+told about a change once the change has happened and cannot hold a write back.
+A change is reported after it is on disk, and what follows it - an alert, a
+[host rule](../features/host-rules.md), or in the Enterprise edition a response
+that stops the writing process or cuts its workload off the network - acts on
+the writer afterwards. None of it undoes the write or claims to have prevented
+it. Refusing a write before it lands is a separate capability with its own
+kernel conditions, and the file watch does not provide it.
+
 ## Configuration
 
 ```yaml
