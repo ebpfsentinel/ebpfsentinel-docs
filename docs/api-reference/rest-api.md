@@ -1166,6 +1166,59 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 No field names a vulnerability, a severity or a score.
 
+#### GET /api/v1/surface/loaded
+
+Every file live processes map executable, once per root, with the package
+owning it in that root. See
+[Installed Packages](../features/installed-packages.md#loaded-files).
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/surface/loaded
+```
+
+```json
+{
+  "reading": true,
+  "scanned_at_ns": 1761900000000000000,
+  "processes_listed": 214,
+  "processes_reread": 3,
+  "processes_not_read": 0,
+  "objects_not_listed": 0,
+  "objects": [
+    {
+      "kind": "host",
+      "root_pid": 1,
+      "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+      "deleted": false,
+      "owner": { "manager": "dpkg", "name": "libc6", "version": "2.41-12+deb13u4" },
+      "pids": [1, 402, 811],
+      "processes": 187
+    },
+    {
+      "kind": "host",
+      "root_pid": 1,
+      "path": "/opt/app/bin/server",
+      "deleted": false,
+      "pids": [2210],
+      "processes": 1
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reading` | boolean | The inventory is read |
+| `scanned_at_ns` | integer | When the last reading was made, nanoseconds since the epoch, `0` before the first |
+| `last_error` | string | Why the last reading failed, absent when it succeeded |
+| `processes_listed` | integer | Processes the reading listed |
+| `processes_reread` | integer | Processes whose mappings were read again since the reading before, because they started or their stamp moved |
+| `processes_not_read` | integer | Processes whose mappings could not be read, or that were left beyond the limit |
+| `objects_not_listed` | integer | Files beyond the 65,536 one reading lists |
+| `objects` | array | One entry per file and root: `kind` (`host`, `container`, `other`, or `unread` when the process's root was not read), `container_id` and `runtime` for a container, `root_pid`, `path` inside that root, `deleted` when it was unlinked since it was mapped, `owner` (`manager`, `name`, `version`) when a database in that root lists it, up to sixteen `pids` and `processes`, how many map it in all |
+
+No field names a vulnerability, a severity or a score.
+
 ### Exposure
 
 #### GET /api/v1/exposure/listeners
@@ -3631,6 +3684,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
 | GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
+| GET | `/api/v1/surface/loaded` | Yes | Every file live processes map executable, once per root, and the package owning it |
 | GET | `/api/v1/exposure/listeners` | Yes | Sockets the node accepts traffic on, the workload that bound each, who may reach it and whether anybody did |
 | GET | `/api/v1/nat/status` | Yes | NAT status |
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |

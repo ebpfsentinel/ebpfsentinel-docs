@@ -1406,6 +1406,9 @@ binds again. What each column means is on
 ```bash
 # What the package databases say is installed, root by root
 ebpfsentinel-agent surface packages
+
+# Every file live processes map, and the package owning it
+ebpfsentinel-agent surface loaded
 ```
 
 `surface packages` prints one row per package, with the root it is installed
@@ -1428,6 +1431,18 @@ host          dpkg     zlib1g    1:1.3.dfsg-3.1   amd64   partial    -
 ROOT  EXECUTABLE           GO        MODULE                              VERSION  REPLACED BY
 host  /usr/bin/containerd  go1.24.4  github.com/containerd/containerd/v2  v2.1.3   -
 host  /usr/bin/containerd  go1.24.4  golang.org/x/sys                    v0.33.0  -
+```
+
+`surface loaded` prints how many processes the reading listed, read again
+and could not read, then one row per mapped file: its root, its path, the
+package owning it and that package's version, how many processes map it and
+the first of them. A file unlinked since it was mapped carries ` (deleted)`:
+
+```text
+214 process(es) listed, 3 read again since the last sweep, 0 not read.
+ROOT  FILE                                 PACKAGE  VERSION          PROCESSES  PIDS
+host  /opt/app/bin/server                  -        -                1          2210
+host  /usr/lib/x86_64-linux-gnu/libc.so.6  libc6    2.41-12+deb13u4  187        1,402,811
 ```
 
 What is read and what is not is on

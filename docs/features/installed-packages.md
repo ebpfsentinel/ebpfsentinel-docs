@@ -54,6 +54,35 @@ One reading reads at most 12 MiB of sections across all executables, and
 counts how many Go programs it left beyond that. A program that is not
 running is not listed: the list is of what runs, not of every file on disk.
 
+## Loaded files
+
+A package that is installed and mapped into no process runs nowhere, and a
+library loaded by forty processes is one fact rather than forty. Every file a
+live process maps executable, its program and each shared library, is read
+from `/proc/<pid>/maps` and joined to the package owning that path in the
+same process's root, on a second route:
+`/api/v1/surface/loaded`.
+
+Each file is listed once per root however many processes map it, with up to
+sixteen of those processes and how many there are in all. A file unlinked
+since it was mapped, the old library an upgrade replaced on disk while a
+process still runs it, is marked deleted, and the package named is the one
+owning the path now. A file no database lists, a binary copied in by hand or
+a process whose root was not read, carries no owner rather than a guess. On a
+merged `/usr` system a database writing `/lib/x86_64-linux-gnu/libc.so.6` and
+a process mapping `/usr/lib/x86_64-linux-gnu/libc.so.6` name one file.
+
+`/proc/<pid>/maps` is readable only by a process allowed to trace the one it
+describes, so on a rootless agent the warden reads it and hands back the
+device, inode and path of each executable mapping and nothing else. Each
+process is stamped with its start time and virtual size, both readable
+without tracing it: a process whose stamp has not moved since the last
+reading is not read again, while a `dlopen`, an `exec` or a reused pid moves
+it. The reading says how many processes it listed, how many it read again
+and how many it could not read, so a process left out is never mistaken for
+one mapping nothing. One reading lists at most 65,536 processes and 65,536
+files, and says how many it left beyond either.
+
 ## Roots
 
 Every process on the node has a filesystem root, and the roots are told apart
@@ -95,7 +124,10 @@ A database is read whole once. On every later reading it is looked at, its
 device, inode, size and modification time, and read again only if one of them
 moved, so a node where nothing is installed between two readings costs a few
 `stat` calls a root. The build information of running Go programs is read again on
-every reading, since a process may have started or been replaced.
+every reading, since a process may have started or been replaced. The mapped
+files of a process are read again only when its stamp moved, and joining every
+mapped file to its owner takes about 5 ms for a thousand processes against
+sixteen thousand packaged files, most of it building the index of owners.
 
 ## Turning it off
 
