@@ -61,6 +61,7 @@ host_rules:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `rules` | list | `[]` | The rules, at most 1024, each identifier used once |
+| `shipped` | bool | `false` | Load the [rules the agent ships](#shipped-rules) beside `rules`, each in shadow; the default configuration file and the `k3s-node` and `proxmox-host` profiles turn it on |
 | `rules[].id` | string | required | Letters, digits, `-` and `_`, at most 128 characters; the `rule_id` of every alert it raises |
 | `rules[].description` | string | none | Written into the alert message in place of the intention's name |
 | `rules[].severity` | string | `medium` | `low`, `medium`, `high` or `critical` |
@@ -69,6 +70,45 @@ host_rules:
 | `rules[].followed_by` | map | none | A second step: `within` and one intention and its matchers, or one `any_of` |
 | `rules[].then` | list | `[alert]` | `alert`, and `kill_process` to stop the process the event is about |
 | `rules[].mode` | string | `shadow` | `shadow` counts what the rule would have done and does none of it; `enforce` does what `then` says |
+
+## Shipped rules
+
+`shipped: true` loads fifteen rules the agent carries, written in the syntax on
+this page, from
+[`host_rules_shipped.yaml`](https://github.com/ebpfsentinel/ebpfsentinel/blob/main/crates/infrastructure/src/config/host_rules_shipped.yaml).
+Each is a detection every engine of the category carries, so none of them is
+sold. Each starts in [shadow](#shadow-and-enforce) and stops nothing: a
+promotion writes it into `rules` with `mode: enforce` under a name of its own,
+since a rule written with a shipped identifier is refused as a duplicate.
+
+<!-- BEGIN GENERATED SHIPPED HOST RULES -->
+
+| Rule | Intentions | Severity | What it catches |
+|---|---|---|---|
+| `shipped-reverse-shell` | `process.starts`, then `process.connects` | critical | A shell that opens a connection within seconds of starting |
+| `shipped-shell-from-web-server` | `process.starts` | high | A shell started by a web server or an application runtime |
+| `shipped-web-server-child-connects-out` | `process.starts`, then `process.connects` | high | A program started by a web server that connects out on its own |
+| `shipped-fileless-exec` | `process.starts` | critical | A program started from an executable with no file on disk |
+| `shipped-fileless-connect` | `process.connects` | critical | A connection opened by a program whose executable has no file on disk |
+| `shipped-exec-from-temporary-directory` | `process.starts` | high | A program started from a world-writable temporary directory |
+| `shipped-connect-fan-out` | `process.connects`, counted | high | One process connecting to many distinct addresses in seconds, the shape of a scan |
+| `shipped-dns-tunnel-shape` | `process.resolves`, counted | high | One process asking for many distinct TXT names in a minute |
+| `shipped-hidden-port` | `port.hidden` | critical | A listening port the kernel holds and the socket listing omits |
+| `shipped-hidden-process` | `process.hidden` | critical | A process the kernel holds and the process listing omits |
+| `shipped-foreign-bpf-program` | `bpf.foreign_program` | high | An eBPF program on the network path that the agent did not load |
+| `shipped-ssh-authorized-keys-change` | `file.changes`, `file.appears` | high | A change to a file listing who may sign in over SSH |
+| `shipped-scheduled-task-change` | `file.changes`, `file.appears` | medium | A change to a cron table or a systemd timer, the usual way to come back after a reboot |
+| `shipped-preload-change` | `file.changes`, `file.appears` | critical | A change to the file that makes the dynamic linker load a library into every program |
+| `shipped-setuid-bit-set` | `file.permissions_change` | high | A file given the set-user-id bit, which runs it as its owner |
+
+<!-- END GENERATED SHIPPED HOST RULES -->
+
+A rule on an intention this build does not deliver loads and reads
+`not_applicable` in `GET /api/v1/host-rules` until a source exists for it.
+The reverse shell, the executable with no file and the server's descendant
+connecting out are also the process table's
+[detections](process-table.md), which alert today; promoting the rule as well
+raises the same finding twice.
 
 ## Shadow and enforce
 

@@ -33,7 +33,9 @@
     "generate:cni-matrix": "node scripts/generate-cni-matrix.mjs",
     "check:cni-matrix": "node scripts/generate-cni-matrix.mjs --check",
     "generate:host-rule-limits": "node scripts/generate-host-rule-limits.mjs",
-    "check:host-rule-limits": "node scripts/generate-host-rule-limits.mjs --check"
+    "check:host-rule-limits": "node scripts/generate-host-rule-limits.mjs --check",
+    "generate:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs",
+    "check:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

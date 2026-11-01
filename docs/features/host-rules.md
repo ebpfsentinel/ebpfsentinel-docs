@@ -103,6 +103,13 @@ would have hit. That reading is the one to weigh before putting a rule in
 force on a node; see
 [Shadow and enforce](../configuration/host-rules.md#shadow-and-enforce).
 
+The agent ships fifteen rules of its own - a reverse shell, an executable with
+no file on disk, a hidden port, a foreign eBPF program, a change to
+`authorized_keys` and ten more - loaded in shadow with `host_rules.shipped:
+true`, which the default configuration sets. They are detections every engine
+of the category carries, so they are open source; see
+[Shipped rules](../configuration/host-rules.md#shipped-rules).
+
 What is loaded, whether this host can match each rule, and how many events
 matched:
 
