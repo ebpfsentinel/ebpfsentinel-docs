@@ -569,6 +569,19 @@ Executables that originated flows and match no component are listed under
 `unmatched_executables`: a binary the SBOM does not account for is itself worth
 reading.
 
+### Which ecosystems it covers
+
+Every ecosystem the SBOM generator listed, because the components come from
+the document and not from the node: a Node module, a Python package, a jar or
+a Rust crate is in the report when the generator found it. What the node
+contributes is the executable that took or made traffic, so such a component
+joins only through a file the SBOM lists at an executable's path, or by
+its name; a Python package or a Node module is loaded by an interpreter and
+joins through no executable of its own, and a Rust crate is linked into a
+binary that a generator names only when it was built with `cargo auditable`.
+What the agent reads from the node by itself, without an SBOM, is on
+[Installed Packages](../installed-packages.md#ecosystems-not-covered).
+
 ### What a component listens on
 
 The same report says which components take traffic in, not only which ones

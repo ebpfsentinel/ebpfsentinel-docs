@@ -156,11 +156,25 @@ reads the bytes it hands back; only the database files above can be asked for.
 - **An uncommitted write.** An rpm database in the middle of a transaction
   keeps its last pages in `rpmdb.sqlite-wal`; that file is not read, so the
   answer is the database as of its last checkpoint.
-- **Language package managers.** A Python wheel or a Node module is not in
-  any of these databases. A Go program is read from its own build
-  information while it runs, as above.
+- **Language package managers.** None of the following is in a dpkg, rpm or
+  Alpine database, and none is read. A Go program is the exception, read
+  from its own build information while it runs, as above.
 - **What no database lists.** A file copied into an image by hand, or a
   binary built in place, belongs to no package.
+
+### Ecosystems not covered
+
+Each of these is a reader of its own, and none is in the open source agent or
+in Enterprise. A package from one of them is invisible here; the file it
+loads still appears among the mapped files with no owner, which is the most
+this page can say about it.
+
+| Ecosystem | Where its packages are listed | Why it is not read |
+|---|---|---|
+| Node.js | a `node_modules` tree per application, one `package.json` per package, nested to any depth | no single database per root: finding every tree means walking the filesystem of every container |
+| Python | a `*.dist-info` or `*.egg-info` directory per package, under every interpreter's and every virtual environment's `site-packages` | the same walk, across as many environments as an image carries |
+| Java | `META-INF/MANIFEST.MF` and `pom.properties` inside each jar, and inside jars nested in a jar | each archive is opened and decompressed, and a framework's fat jar nests hundreds |
+| Rust | nothing, unless the program was built with `cargo auditable` | a Rust binary links its crates statically and records no list of them, so there is nothing to read; `cargo auditable` embeds one, and reading it is not built |
 
 A database larger than 256 MiB, or one that changes while it is read, is
 reported unreadable with the reason, and a node with more than 1024 roots
