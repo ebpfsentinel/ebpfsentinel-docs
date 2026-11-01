@@ -118,8 +118,13 @@ What a build, an editor, a download or log rotation renames is not counted: the
 extension must differ from the old one, the old name must not be hidden, neither
 the old nor the new extension may be one a file carries while it is written or
 once it is set aside (`tmp`, `temp`, `part`, `partial`, `swp`, `crdownload`,
-`download`, `new`, `lock`, `bak`, `old`, `orig`), and the new extension may not
-be a number, which is what log rotation appends. A run spreading its renames
+`download`, `new`, `lock`, `bak`, `old`, `orig`), nor one a package manager
+installs a file under or sets an edited one aside under (`dpkg-new`,
+`dpkg-tmp`, `dpkg-dist`, `dpkg-old`, `dpkg-bak`, `ucf-new`, `ucf-dist`,
+`ucf-old`, `rpmnew`, `rpmsave`, `rpmorig`, `pacnew`, `pacsave`, `apk-new`),
+the old extension may not carry the `;` an RPM transaction appends, and the new
+extension may not be a number or the old one followed by a date or a number,
+which is what log rotation appends (`app.log.1`, `app.log-20261101`). A run spreading its renames
 over more than eight new extensions in one window is not that shape, and what
 it adds past the eighth is not counted.
 
@@ -168,6 +173,11 @@ A run leaves a note in every directory it walks, under one name. One new file
 name created in forty distinct directories by one run within a minute is a
 strong signal. Nothing of the file is read, only that it was created and in
 which directory, so the signal costs nothing and carries no privacy question.
+A note is written for a person to open, so only a name under an extension a
+person opens is counted: `txt`, `html`, `htm`, `hta`, `rtf`, `md`, `url`,
+`png`, `jpg`, `jpeg` and `bmp`. A message catalogue a package installs into
+every locale directory, or a `Kconfig` a checkout writes into every directory
+of a kernel tree, is never one.
 The count is of directories rather than files, since the same name written
 twice into one directory is still one directory.
 
@@ -177,7 +187,11 @@ never counted, compared without regard to case: version control placeholders
 `RECORD`, `py.typed`), JavaScript packages (`package.json`, `index.js`,
 `README.md`, `LICENSE`), other toolchains (`Cargo.toml`, `go.mod`, `pom.xml`,
 `Makefile`, `CMakeLists.txt`, `BUILD.bazel`, `meson.build`) and file managers
-(`.DS_Store`, `.directory`, `Thumbs.db`, `desktop.ini`). A tool outside that
+(`.DS_Store`, `.directory`, `Thumbs.db`, `desktop.ini`), media libraries
+(`cover.jpg`, `folder.jpg`, `poster.jpg`, `fanart.jpg`), column stores writing
+one layout per data part (`columns.txt`, `checksums.txt`, `count.txt`,
+`default_compression_codec.txt`, `metadata_version.txt`) and generated
+documentation (`index.html`, `index.htm`). A tool outside that
 list writing one name into forty watched directories in a minute raises the
 signal, which is why it is strong and never decisive alone. Each run follows at
 most 256 names at once, dropping the one least recently seen, so a build
@@ -278,11 +292,57 @@ for that session. Any run started below that process within ten minutes then
 reaches a verdict on one strong signal, or on two supporting ones, and the
 verdict quotes the command line. A command started directly by the init
 process belongs to no run and holds no prior, which is what a backup unit's
-own scheduled prune looks like.
+own scheduled prune looks like. A backup program itself (`restic`, `rustic`,
+`borg`, `borgmatic`, `kopia`, `duplicity`), named by its executable or by the
+program its command line starts, inherits no prior from its ancestors: the
+`borg create` a backup job runs right after its own `borg prune` writes its
+repository under the same session, and that is the job doing its work.
 
 A command that is renamed, statically linked under another name or replaced by
 a direct call to the kernel is not recognised: this is a list of the tools a
 run reaches for, not a description of every way to remove a file.
+
+## Shadow first
+
+The verdict starts in shadow. In shadow it is evaluated exactly as it would be
+enforced, and a verdict reached is counted under the workload that reached it
+and kept among the last sixteen, with its message, instead of raising the
+alert. The count is read at `GET /api/v1/host-rules/mass-encryption` and with
+`ebpfsentinel-agent host-rules mass-encryption`, which name the mode, the
+verdicts per workload and the most recent ones. Once a host has run its own
+week of backups, upgrades and maintenance with nothing counted, setting
+`file_watch.mass_encryption.mode` to `enforce` in the
+[file watch](../configuration/file-watch.md#mass-encryption) raises the alert
+from then on. The thresholds are the same in both modes: shadow changes what a
+verdict does, never when one is reached.
+
+## What does not raise it
+
+The thresholds above were measured against the work a host does every day,
+replayed through the same engine with the command lines and process trees each
+tool produces, and none of it reaches a verdict:
+
+| Workload | Why it stays quiet |
+|----------|--------------------|
+| `rsync -a` of a tree, first copy and update | Files keep their source's time, so nothing is written now; its hidden temporaries are not renames to a new extension |
+| `tar` extracting an archive | New files with their archived times and content as it was |
+| A package upgrade (`apt`, `dpkg`, `rpm`) | Files are installed under a package manager's own suffix and renamed into place; the encryption a download calls writes no existing file |
+| `git checkout` between branches | Files are written anew and renamed over, with content that keeps its structure |
+| `updatedb` | One database file rewritten |
+| Log rotation and compression | Rotated names carry a number or a date; compressed logs are new files, not rewrites |
+| A media encoder | New files written once |
+| Database compaction (SQLite, PostgreSQL, ClickHouse) | Few files, or parts whose layout files are on the scattered list |
+| A backup job pruning and then backing up | The prune is a prior held for the session, and the backup program inherits none |
+| An administrator pruning snapshots | A prior and nothing more |
+
+Two cases are known to reach a verdict and are kept that way. A session that
+destroys snapshots and then, within ten minutes, copies a tree with `rsync -r`
+without `-t`, which writes every file fresh, reaches one on the replace
+sequence and the prior: the same shape a run deleting backups and then
+encrypting leaves, and nothing in the files tells them apart. And a backup
+program run through an interpreter is recognised by the program its command
+line starts, which the process table only knows where command lines are
+captured.
 
 ## The alert
 

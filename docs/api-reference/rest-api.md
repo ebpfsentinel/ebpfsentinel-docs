@@ -1082,6 +1082,43 @@ applicable, one sentence per missing source, and its `fields`, each with
 `name`, `type` (`text`, `path`, `integer`, `port`, `address`, `boolean` or
 `hash`) and `doc`.
 
+#### GET /api/v1/host-rules/mass-encryption
+
+The [mass encryption](../features/mass-encryption.md) verdict: its mode and,
+in shadow, the verdicts it reached without raising them.
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/host-rules/mass-encryption
+```
+
+```json
+{
+  "enabled": true,
+  "mode": "shadow",
+  "shadow": {
+    "events": 1,
+    "workloads": [{ "workload": "backup.service", "events": 1 }],
+    "unsampled": 0
+  },
+  "recent": [
+    {
+      "at_ns": 81234567890123,
+      "pid": 4242,
+      "exe": "/usr/local/bin/sync-tool",
+      "workload": "backup.service",
+      "message": "mass encryption by /usr/local/bin/sync-tool (pid 4242) on one strong and two supporting signals: mass_rename (pid 4242): 50 files renamed to .lockd in 3 s, ..."
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Whether the verdict is evaluated here; the file watch feeds it, so it is off where the watch is |
+| `mode` | string | `shadow`, counting verdicts and raising nothing, or `enforce`, raising the alert; absent where the verdict is off |
+| `shadow` | object | Verdicts reached in shadow since the agent started: `events`, `workloads` (at most 32, each with `workload` and `events`) and `unsampled`, those about any other workload |
+| `recent` | array | The last sixteen verdicts reached in shadow, newest last, each with `at_ns` (boot-time nanoseconds), `pid`, `exe`, `workload` and the alert's `message` |
+
 ### Surface
 
 #### GET /api/v1/surface/packages
@@ -3779,6 +3816,7 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/ebpf/hidden-processes` | Yes | Processes that answer a signal and that `/proc` does not list |
 | GET | `/api/v1/host-rules` | Yes | Loaded host rules, whether this host can match each, and the match counters |
 | GET | `/api/v1/host-rules/intents` | Yes | Every intention a host rule may name, its fields, the hook serving it and whether this host serves it |
+| GET | `/api/v1/host-rules/mass-encryption` | Yes | The mass encryption verdict's mode and the verdicts it reached in shadow, by workload |
 | GET | `/api/v1/surface` | Yes | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks |
 | GET | `/api/v1/surface/packages` | Yes | What the dpkg, rpm and Alpine databases say is installed, in the host's root and every container's, and the modules every running Go program was built from |
 | GET | `/api/v1/surface/loaded` | Yes | Every file live processes map executable, once per root, and the package owning it |

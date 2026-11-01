@@ -36,6 +36,7 @@ Gated by the `FleetManagement` license feature.
 | `GET` | `/api/v1/file-watch/baselines` | viewer | fleet-management | What this node keeps of its watched files, for the console to compare across the fleet. |
 | `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
 | `GET` | `/api/v1/host-rules/intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
+| `GET` | `/api/v1/host-rules/mass-encryption` | viewer | fleet-management | The mass encryption verdict's mode and what it reached in shadow, by workload. |
 | `POST` | `/api/v1/host-rules/{id}/promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
 
 ### What authenticates what
@@ -913,6 +914,9 @@ bodies as the open source agent. The intentions served by the socket
 inventory and the two hidden sweeps, `packet_socket.appears`, `port.hidden`
 and `process.hidden`, are reported as not served here, because this edition
 does not run them.
+`GET /api/v1/host-rules/mass-encryption` answers the same body as well: where
+the file watch is open, the [mass encryption](../mass-encryption.md) verdict
+runs on this edition too, in shadow until its configuration says `enforce`.
 `POST /api/v1/host-rules/{id}/promote` takes the start of the reading the
 decision was made on, `shadow_since_ns` from the list:
 

@@ -46,6 +46,7 @@ file_watch:
 | `canaries.enabled` | bool | `false` | Plant canary files and report any open of one; see [Canary files](#canary-files) |
 | `canaries.directories` | list of paths | `/home`, `/root`, `/srv`, `/var/www`, `/opt`, `/mnt`, `/media` | Absolute directories a canary is planted into |
 | `canaries.names` | list of names | `0000-archive.docx`, `zzzz-archive.xlsx` | Names planted into each directory, no slash; at most 512 canaries in all |
+| `mass_encryption.mode` | `shadow` or `enforce` | `shadow` | Whether a [mass encryption](../features/mass-encryption.md) verdict is counted or raises the alert; see [Mass encryption](#mass-encryption) |
 | `canaries.exempt` | list of paths | backup tools and scanners, see below | Executables, by full path, whose opens of a canary are not a signal |
 
 Each path stands for the whole filesystem it lives on: naming `/etc` watches
@@ -320,6 +321,26 @@ The default exempt list is `/usr/bin/restic`, `/usr/bin/rclone`,
 entry replaces the list rather than adding to it, so name every tool that
 walks these directories on purpose: a backup job left off it fires on every
 run.
+
+## Mass encryption
+
+Every settled change is also read by the
+[mass encryption](../features/mass-encryption.md) verdict, which needs no
+setting of its own to run:
+
+```yaml
+file_watch:
+  enabled: true
+  mass_encryption:
+    mode: shadow
+```
+
+In `shadow`, the default, a verdict reached is counted under its workload and
+read at `GET /api/v1/host-rules/mass-encryption` or with
+`ebpfsentinel-agent host-rules mass-encryption`, and raises no alert. In
+`enforce` it raises the `mass_encryption` alert. Changing the mode takes a
+restart. The backups-destroyed signal reads command lines, so it is read only
+where `process_table.capture_command_line` is on.
 
 ## Host rules
 

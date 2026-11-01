@@ -1361,6 +1361,9 @@ ebpfsentinel-agent host-rules list
 
 # The intentions a host rule may name and which of them this node serves
 ebpfsentinel-agent host-rules intents
+
+# The mass encryption verdict's mode and what it counted in shadow
+ebpfsentinel-agent host-rules mass-encryption
 ```
 
 `host-rules list` prints one row per rule with its severity, its state, its
@@ -1376,6 +1379,11 @@ intention not served the reason.
 serving it and its fields, then how many this node serves and, for each one it
 does not, the reason, one sentence per missing source. `--output json` prints
 the API's answer, field types included. See [Host Rules](../features/host-rules.md).
+
+`host-rules mass-encryption` prints the verdict's mode, one row per workload
+with the verdicts it reached in shadow, how many were about other workloads,
+and the message of each recent one. See
+[Mass Encryption](../features/mass-encryption.md).
 
 ### exposure
 
