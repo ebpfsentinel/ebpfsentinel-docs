@@ -5,10 +5,12 @@
 ### Kernel version too old
 
 ```
-kernel is below the mandatory minimum 6.9 (kernel 6.8 is below the required minimum 6.9; ...) - eBPFsentinel refuses to start.
+eBPFsentinel refuses to start: kernel 6.8 is below the required minimum 6.12. On Ubuntu 24.04 install the hardware enablement kernel (`apt install linux-generic-hwe-24.04`) and reboot; ... The agent needs Linux 6.12 or later and has no degraded mode below it; restart it once the host runs the new kernel.
 ```
 
-The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.9: BPF token delegation, the only way it loads eBPF, needs 6.9. There is no degraded mode. Upgrade the kernel.
+The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.12. BPF token delegation, the only way it loads eBPF, needs 6.9; 6.12 is the long-term kernel the distributions and managed node images converged on, and the floor. There is no degraded mode.
+
+The second sentence is the way up for the distribution the release string belongs to: the Ubuntu hardware enablement kernel, Debian backports, the RHEL 10 family, the Amazon Linux 2023 6.12 stream or the EKS node image for Kubernetes 1.33 and later, Talos 1.9, Oracle UEK 8, SLES 16, or a GKE cluster version on COS milestone 125. It is read off the kernel release rather than `/etc/os-release`, because in a container that file describes the image and not the host. An Azure kernel gets a refusal and no upgrade: no current AKS node image carries 6.12.
 
 ### BTF not available
 
