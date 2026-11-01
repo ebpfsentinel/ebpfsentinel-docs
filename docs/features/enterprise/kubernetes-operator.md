@@ -758,6 +758,41 @@ Read the report before applying anything. A policy partly imported is a hole
 the operator can believe is covered, which is why the import says so
 rather than staying quiet.
 
+### Resolving cluster addresses for chosen pods
+
+The agents can send the connections some pods make to a Service cluster
+address straight to a ready backend at `connect()`, every other pod keeping
+kube-proxy, which stays installed. It is not a kube-proxy replacement; see
+[Cluster address resolution](../cluster-ip.md) for what it leaves to
+kube-proxy.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: agent
+spec:
+  config:
+    container:
+      kubernetes:
+        enabled: true
+        clusterIp:
+          enabled: true
+          workloads:
+            - pods:
+                matchLabels: {app: checkout}
+              namespaces:
+                matchLabels: {kubernetes.io/metadata.name: shop}
+```
+
+The operator renders the selectors as written and grants nothing: the agent's
+ServiceAccount needs `list` and `watch` on `pods`, `namespaces` and
+`services`, and on `endpointslices` in `discovery.k8s.io`. Leave it off beside
+Cilium running as the kube-proxy replacement, which already resolves every
+pod's cluster addresses at `connect()`. Beside Cilium with kube-proxy and
+beside Calico, the coexistence lanes check that a pod not named keeps going
+through kube-proxy while a named one is resolved by the agent.
+
 ### Uninstalling
 
 `helm uninstall` removes the operator and leaves the custom resource

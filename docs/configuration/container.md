@@ -42,6 +42,9 @@ container:
     label_filter: []
     network_policy:
       mode: off
+    cluster_ip:
+      enabled: false
+      workloads: []
 ```
 
 ## Container Resolver
@@ -248,3 +251,43 @@ Any mode other than `off` requires `kubernetes.enabled`, and is refused at load
 otherwise. The ServiceAccount also needs `list` and `watch` on `namespaces`
 and `services`, on `networkpolicies` in `networking.k8s.io` and on
 `endpointslices` in `discovery.k8s.io`.
+
+### Cluster address resolution
+
+The agent can send the connections that chosen pods make to a Service cluster
+address straight to one of its ready backends at `connect()`, every other pod
+staying on kube-proxy. See
+[Cluster address resolution](../features/cluster-ip.md) for what it resolves
+and what it leaves to kube-proxy.
+
+```yaml
+container:
+  kubernetes:
+    enabled: true
+    cluster_ip:
+      enabled: true
+      workloads:
+        - pods:
+            match_labels:
+              app: checkout
+          namespaces:
+            match_expressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [shop]
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `kubernetes.cluster_ip.enabled` | bool | `false` | Load the hooks and resolve the cluster addresses of the pods `workloads` names |
+| `kubernetes.cluster_ip.workloads` | list | `[]` | The pods resolved here. A pod is taken when it matches any entry |
+| `kubernetes.cluster_ip.workloads[].pods` | label selector | absent | `match_labels` and `match_expressions` on the pod's labels; absent matches every pod |
+| `kubernetes.cluster_ip.workloads[].namespaces` | label selector | absent | The same on the labels of the pod's namespace; absent matches every namespace |
+
+`enabled` requires `kubernetes.enabled` and at least one entry in `workloads`,
+and each entry has to set `pods`, `namespaces` or both, so that turning it on
+never takes every pod of the node by omission. These are refused at load, as is
+a selector the API server would refuse. The setting is read when the agent
+starts, so a change takes a restart. The ServiceAccount needs `list` and
+`watch` on `namespaces`, `pods` and `services`, and on `endpointslices` in
+`discovery.k8s.io`.

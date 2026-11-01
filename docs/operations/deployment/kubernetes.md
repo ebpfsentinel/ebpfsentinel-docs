@@ -62,6 +62,7 @@ own subcommands through `kubectl exec`.
 | `DaemonSet` | always |
 | `ClusterRole` + `ClusterRoleBinding` (`pods`: `get`, `list`, `watch`; `namespaces`: `list`, `watch`) | `container.kubernetes.enabled` |
 | The same `ClusterRole` widened with `list`, `watch` on `services`, `networkpolicies` and `endpointslices` | `container.kubernetes.networkPolicy.mode` other than `off` |
+| The same `ClusterRole` widened with `list`, `watch` on `services` and `endpointslices` | `container.kubernetes.clusterIp.enabled` |
 | `ServiceMonitor` | `metrics.serviceMonitor.enabled` |
 | `PrometheusRule` | `metrics.prometheusRule.enabled` |
 | `PodDisruptionBudget` | `podDisruptionBudget.enabled` |

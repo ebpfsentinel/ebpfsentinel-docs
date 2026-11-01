@@ -92,6 +92,7 @@ const sidebars: SidebarsConfig = {
         'features/operational-essentials',
         'features/container-awareness',
         'features/network-policy',
+        'features/cluster-ip',
         'features/deployment-matrix',
         {
           type: 'category',

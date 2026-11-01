@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 25 eBPF kernel programs (the
+Detailed documentation for each of the 26 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -500,6 +500,17 @@ Three programs, loaded only by the enterprise agent and only where its TLS inspe
 - `redirect_sockops` runs once the kernel has chosen the source port, and moves the record into `REDIRECT_BY_PEER` under the address the proxy will see the connection come from. The proxy deletes the entry when it reads it.
 
 Userspace writes the selection off the configured cgroups and the workload selectors, the same resolver the DLP scope uses, and always exempts the agent's own cgroup. `REDIRECT_METRICS` counts `redirected`, `refused`, `port_skipped`, `published` and `publish_failed`.
+
+### cgroup-clusterip
+
+**Hook:** [cgroup sock_addr](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_CGROUP_SOCK_ADDR/) | **Path:** `crates/ebpf-programs/cgroup-clusterip/`
+
+Six programs, loaded only where cluster address resolution is turned on. They send the connections an opted-in pod makes to a Service cluster address straight to one of the Service's ready backends, so those connections never reach the node's kube-proxy rules.
+
+- `clusterip_connect4` / `clusterip_connect6` run while the destination is still an argument of `connect()`, for TCP and for connected UDP. A task whose own cgroup, or one of its first eight ancestors from the root, is in `CLUSTERIP_CGROUPS`, connecting to an address and port in `CLUSTERIP_SERVICES`, is given a backend: the one `CLUSTERIP_AFFINITY` remembers for its network namespace when the Service carries `ClientIP` session affinity and that backend is still in `CLUSTERIP_READY`, a random slot of the Service's current list in `CLUSTERIP_BACKENDS` otherwise. The pair is recorded in `CLUSTERIP_REVERSE` against the socket cookie before the destination is rewritten; when the record cannot be written the connection is left to kube-proxy rather than translated.
+- `clusterip_getpeername4` / `clusterip_getpeername6` and `clusterip_recvmsg4` / `clusterip_recvmsg6` rewrite the backend address back to the cluster address, so the task reads the address it asked for.
+
+A Service's list is written under a new revision before its entry points at it, and the old revision is removed afterwards, so a connection never reads a half-written list. The maps are pinned nowhere and shared with no other object: they go with the agent's descriptors. `CLUSTERIP_METRICS` counts `translated`, `left_to_kube_proxy`, `affinity_hit` and `reversed`. See [Cluster address resolution](../features/cluster-ip.md).
 
 ### tracepoint-process
 

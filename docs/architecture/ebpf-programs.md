@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 25 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-four form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 26 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-five form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -32,6 +32,7 @@ eBPFsentinel includes 25 eBPF kernel programs, all written in Rust using the [Ay
 | `lsm-exec-network` | BPF LSM | `crates/ebpf-programs/lsm-exec-network/` | Refuses an internet socket to an executable outside the configured list, at `socket_create` and `socket_connect` (loaded only where the list is on and the BPF LSM is active) |
 | `lsm-bpf-guard` | BPF LSM | `crates/ebpf-programs/lsm-bpf-guard/` | Refuses every task but the agent and its warden a writable descriptor to the agent's maps and any descriptor to its links, at `bpf_map` and `bpf` (loaded wherever the BPF LSM is active) |
 | `cgroup-connect-redirect` | cgroup sock_addr + sock_ops | `crates/ebpf-programs/cgroup-connect-redirect/` | Steers the TCP connections of selected cgroups to the enterprise TLS inspection proxy, recording where each was going (enterprise, loaded only where the redirect is configured) |
+| `cgroup-clusterip` | cgroup sock_addr | `crates/ebpf-programs/cgroup-clusterip/` | Resolves the Service cluster addresses of opted-in pods to a ready backend at `connect()` and answers with the cluster address at `getpeername` and `recvmsg` (loaded only where cluster address resolution is on) |
 
 ## Interface Groups (Cross-Cutting)
 

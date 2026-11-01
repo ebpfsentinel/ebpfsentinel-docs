@@ -123,13 +123,13 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-five program directories: twenty-one
+`crates/ebpf-programs/` holds twenty-six program directories: twenty-two
 attached at a hook of their own, three reached only by tail call from one of
-those twenty-one, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty-one attached programs, of which the six after
+those twenty-two, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-two attached programs, of which the seven after
 `uprobe-dlp` read a task rather than a packet, the next two
-read the kernel's own drops and the health of its TCP connections, and the last one guards the agent's own maps and links, and of those six only the workload firewall, the
-executables list and the connection redirect decide a syscall and only the
+read the kernel's own drops and the health of its TCP connections, and the last one guards the agent's own maps and links, and of those seven only the workload firewall, the
+executables list, the connection redirect and the cluster address resolution act on a syscall and only the
 signal program acts on a process:
 
 | Program | Hook | Features |
@@ -152,6 +152,7 @@ signal program acts on a process:
 | `tracepoint-signal` | raw tracepoint | Signals an armed thread group at its next system call, refusing the protected ones; loaded only where that capability is turned on |
 | `lsm-exec-network` | BPF LSM | Refuses an internet socket to an executable outside the configured list, read in the kernel from the calling task; loaded only where the list is on and the BPF LSM is active at boot |
 | `cgroup-connect-redirect` | cgroup socket hooks | Rewrites the destination of a selected cgroup's TCP connect to the enterprise TLS proxy and records where it was going, so the proxy can reach it; loaded only by the enterprise agent where a TLS redirect is configured |
+| `cgroup-clusterip` | cgroup socket hooks | Sends an opted-in pod's connection to a Service cluster address straight to one of its ready backends at `connect()`, and answers `getpeername` and `recvmsg` with the cluster address; loaded only where cluster address resolution is turned on, every other pod keeping kube-proxy |
 | `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
 | `tracepoint-tcp-health` | raw tracepoint | Counts retransmissions, resets and connections opened, failed and closed, per edge between two services |
 | `lsm-bpf-guard` | BPF LSM | Refuses a writable descriptor to one of the agent's maps and a descriptor to one of its links, so another process cannot rewrite or detach them; read-only descriptors are let through |
@@ -165,7 +166,7 @@ entered from the program that needs it, which is why they are counted apart:
 | `xdp-ratelimit-syncookie` | `xdp-ratelimit` | Forges the SYN-ACK cookie under SYN-flood protection |
 | `xdp-vip-announcer` | `xdp-firewall` | Answers ARP requests for a VIP this node owns; the gratuitous ARP on takeover is sent from userspace, not from eBPF |
 
-`xdp-pass` is the twenty-fourth directory. It is a no-op XDP program attached to the
+`xdp-pass` is the twenty-sixth directory. It is a no-op XDP program attached to the
 far side of a veth pair in the integration tests, because native XDP_TX on a
 veth needs a program on the peer to be delivered. Nothing deploys it.
 
