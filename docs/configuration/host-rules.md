@@ -110,6 +110,45 @@ connecting out are also the process table's
 [detections](process-table.md), which alert today; promoting the rule as well
 raises the same finding twice.
 
+## Profiles
+
+The enterprise agent also takes rules from the
+[content channel](../features/enterprise/content-channel.md), by name rather
+than by text. A profile is a name, and the rules it stands for are content:
+
+```yaml
+enterprise:
+  host_rules:
+    profiles: [web-server, database]
+    exclude: [profile-database-child-connects-out]
+```
+
+| Profile | What it is for |
+|---|---|
+| `web-server` | A host serving web traffic: nginx, Apache, PHP-FPM, Caddy or an application runtime behind them |
+| `database` | A host running a database server: PostgreSQL, MySQL, MariaDB, MongoDB, Redis or ClickHouse |
+| `kubernetes-node` | A Kubernetes node: the kubelet, a container runtime and the pods it starts |
+
+- The rules a profile expands to are loaded beside `rules` and the shipped
+  ones, count against the same bound of 1024, and may not take a name already
+  written there. They carry identifiers starting `profile-`.
+- A rule an estate does not want is named in `exclude`, rather than copied out
+  and edited.
+- Every delivered rule is in [shadow](#shadow-and-enforce), and a library
+  carrying one in force is refused whole: content never decides what the agent
+  does to a process. Putting one in force is the operator's act, on its reading.
+- The library is read again when its set moves, through the channel, an import,
+  a rollback or a pin, within a minute and without a restart. The readings of
+  every shadow rule start again then, and a rule promoted while the agent ran
+  stays in force only if the new set carries it exactly as it was.
+- A library that is refused, or that does not load beside the written rules,
+  leaves the rules running as they are and is logged. A profile the library in
+  force does not carry is logged by name and the others load. With no library
+  applied, only the written and shipped rules run.
+
+The library ships with every paid plan from Professional upward, and the
+engine evaluating it is the open source one on this page.
+
 ## Shadow and enforce
 
 A rule is in shadow unless it says `mode: enforce`. A shadow rule is evaluated

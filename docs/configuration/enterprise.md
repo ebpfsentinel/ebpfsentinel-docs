@@ -421,6 +421,11 @@ enterprise:
     max_running: 4
     kept: 50
 
+  # ── Host rule profiles ──────────────────────────────────────────
+  host_rules:
+    profiles: [web-server, kubernetes-node]
+    exclude: []               # delivered rule identifiers to leave out
+
   # ── Firewall tiers ──────────────────────────────────────────────
   firewall_tiers:
     - name: platform
@@ -604,6 +609,20 @@ one workload on this node. Absent, it takes the defaults below.
 The block is read at startup and needs the `network-forensics` licence feature.
 [Investigating one workload](../features/enterprise/network-forensics.md#investigating-one-workload)
 says what each reading answers.
+
+### Host rule profiles
+
+The `host_rules` block names the profiles of the host rule library to load
+from the content channel, beside the community `host_rules` section.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `profiles` | list | empty | Profile names, each lowercase letters, digits and inner hyphens and given once |
+| `exclude` | list | empty | Identifiers of delivered rules to leave out |
+
+The block is read at startup and the library is followed while the agent runs.
+[Host rule profiles](host-rules.md#profiles) lists the profiles and what a
+library update does to the readings.
 
 ### Firewall tiers
 
@@ -809,6 +828,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
 - `fleet.data_dir` cannot be empty when set
+- `host_rules.profiles` entries must be profile names, each given once, and `host_rules.exclude` entries cannot be empty
 - `intel.marker_path` cannot be empty, enabled or not
 - `intel.enabled` needs at least one `taxii` or `misp` source
 - Every `intel` source needs an id of letters, digits, `-`, `_` and `.`, a URL the agent can parse, and `https` unless the host is loopback
