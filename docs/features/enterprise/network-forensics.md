@@ -253,6 +253,61 @@ custody log.
 
 The file opens in Wireshark, `tshark` or `tcpdump -r` as it is.
 
+## Investigating one workload
+
+A context freeze and a capture start from an alert. An investigation starts
+from a question somebody asks about one workload, and is bounded in three ways
+before it reads anything: it names the node it reads on, it names the workload
+by the cgroup v2 id the kernel numbers it with, and it runs for at most a
+configured duration, after which it stops by itself.
+
+```bash
+curl -X POST http://localhost:8444/api/v1/investigations \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"node":"worker-3","cgroup_id":12345,"reading":"sockets","duration_secs":120}'
+```
+
+- **One node.** The request names the node, and a node that is not that one
+  answers `421` rather than reading its own workloads. The name is the one the
+  agent reports elsewhere: `EBPFSENTINEL_NODE_NAME`, then `HOSTNAME`, then the
+  kernel's host name.
+- **One workload.** The root cgroup, `0`, is refused. The workload's name as
+  the agent knows it at the start (`namespace/pod`, the container, the systemd
+  unit or the executable) is kept beside the id.
+- **A bounded time.** Without `duration_secs` it runs for `max_duration_secs`;
+  a longer duration is refused with `400` rather than shortened, so whoever
+  asked for an hour learns they get five minutes before they walk away. At most
+  `max_running` run at once and one of each reading per workload; past either,
+  `409`.
+- **Under a name.** Starting and stopping one need a caller the audit log can
+  name, the token's subject first, then the API key's principal; a request
+  nobody can be named for is refused with `403`. The audit log records
+  `investigation_started` under that name, `investigation_stopped` under the
+  name of whoever stopped it, and `investigation_expired` when it reached its
+  end, each with the samples taken and what they cost.
+- **Its own permission.** The routes sit in the `investigation` RBAC domain, so
+  a role can read what was found without being able to point the agent at a
+  workload.
+
+The first sample is taken when it starts, so the answer to the request already
+carries one, and the next ones every five seconds while it runs. Each sample
+records how long taking it held the agent, and the investigation keeps the
+number of samples, their total and the dearest one, so the cost of a reading is
+published beside its answer rather than estimated.
+
+| Reading | What it answers |
+|---------|-----------------|
+| `sockets` | The sockets the workload holds: the ones it is listening on or bound to first, then its tracked flows with their connection tracking state and the bytes both ways, busiest first. At most 500 rows |
+
+The `sockets` reading needs workload attribution on, since that is what ties a
+socket and a flow to a cgroup; on a node where it is off the reading fails and
+the investigation records no sample rather than an empty one that would look
+like a quiet workload. The local end of a flow is the side whose port the
+workload listens on, otherwise the side that opened it.
+
+What a node keeps is held in memory: the running investigations and the last
+`kept` ended ones, each with its last sample, until the agent restarts.
+
 ## Flow Timeline Reconstruction
 
 The timeline engine reconstructs network activity around any alert or flow:
@@ -293,6 +348,10 @@ A timeline by alert ID is centered on that alert and answers **404** when no eve
 | `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | network-forensics | Flow timeline around an alert. |
 | `GET` | `/api/v1/enterprise/forensics/timeline/flow` | viewer | network-forensics | Timeline for a specific flow tuple. |
 | `GET` | `/api/v1/forensics/events/stream` | viewer | network-forensics | Server-Sent Events live forensic event feed. |
+| `GET` | `/api/v1/investigations` | viewer | network-forensics | The investigations this node runs, then the ended ones it keeps, with the node's name and the longest duration it allows. |
+| `POST` | `/api/v1/investigations` | operator | network-forensics | Start an investigation of one workload on this node, under the caller's name; answers with its first sample. |
+| `GET` | `/api/v1/investigations/{id}` | viewer | network-forensics | One investigation: its bounds, its state, its cost and its last sample. |
+| `DELETE` | `/api/v1/investigations/{id}` | operator | network-forensics | Stop an investigation before its time, under the caller's name. |
 
 ### Timeline Query Parameters
 
@@ -390,6 +449,24 @@ enterprise:
 
 The memory the feature costs is `ring_max_bytes` times the number of
 interfaces, all the time, whether or not anything triggers.
+
+Investigations have a block of their own beside `forensics`:
+
+```yaml
+enterprise:
+  investigation:
+    enabled: true
+    max_duration_secs: 300   # the longest one may run, and how long one runs by default
+    max_running: 4           # how many run at once
+    kept: 50                 # ended ones kept in memory, newest first
+```
+
+| Setting | Default | Rule |
+|---------|---------|------|
+| `enabled` | `true` | Off mounts no route |
+| `max_duration_secs` | 300 | 1 to 3600 |
+| `max_running` | 4 | 1 to 32 |
+| `kept` | 50 | At most 1000 |
 
 ## Feature Gating
 

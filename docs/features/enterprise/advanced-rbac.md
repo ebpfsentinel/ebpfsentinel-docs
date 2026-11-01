@@ -30,6 +30,7 @@ Permissions are scoped to 17 individual security domains:
 | `threatintel` | Threat intelligence |
 | `loadbalancer` | Load balancer |
 | `trace` | Packet trace through the loaded programs |
+| `investigation` | Bounded investigations of one workload: reading them, and starting or stopping one |
 
 ## Permission Hierarchy
 

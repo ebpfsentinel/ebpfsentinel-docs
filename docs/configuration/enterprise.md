@@ -403,6 +403,13 @@ enterprise:
       - /etc/ebpfsentinel/sigma
     max_refused_share: 0.5
 
+  # ── Investigations ──────────────────────────────────────────────
+  investigation:
+    enabled: true
+    max_duration_secs: 300
+    max_running: 4
+    kept: 50
+
   # ── Firewall tiers ──────────────────────────────────────────────
   firewall_tiers:
     - name: platform
@@ -570,6 +577,22 @@ startup. It loads nothing without the `sigma-rules` licence feature.
 `ebpfsentinel-enterprise-agent sigma check` compiles the same files without
 starting the agent. [Sigma Rules](../features/enterprise/sigma-rules.md) lists
 every field the compiler takes and refuses.
+
+### Investigations
+
+The `investigation` block bounds the investigations an operator may run against
+one workload on this node. Absent, it takes the defaults below.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `enabled` | bool | `true` | Whether the investigation routes are mounted |
+| `max_duration_secs` | integer | `300` | 1 to 3600. The longest one may run, and how long one runs when the request names no duration; a longer request is refused |
+| `max_running` | integer | `4` | 1 to 32. How many run at once |
+| `kept` | integer | `50` | At most 1000. How many ended ones are kept in memory, newest first, until the agent restarts |
+
+The block is read at startup and needs the `network-forensics` licence feature.
+[Investigating one workload](../features/enterprise/network-forensics.md#investigating-one-workload)
+says what each reading answers.
 
 ### Firewall tiers
 
