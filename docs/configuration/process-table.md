@@ -141,6 +141,10 @@ it on widens what an operator with a read token can see. It is also read from
 `/proc/<pid>/cmdline` at exec time, which is a race: a process that exits
 immediately leaves nothing to read and the field is absent rather than empty.
 
+It is also what [mass encryption](../features/mass-encryption.md#backups-destroyed)
+reads the destruction of snapshots and backups from, so with it off that prior
+is named unavailable in every verdict.
+
 The command line is truncated at 4096 bytes, and a truncated one ends in ` ...`
 so a reader can tell the difference between a long command and a cut one.
 

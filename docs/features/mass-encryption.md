@@ -26,13 +26,14 @@ Each signal carries a weight:
 | strong | `replace_sequence` | Files were read, written anew and the originals removed, one after another |
 | supporting | `distinct_rewrites` | 100 distinct files rewritten within a minute |
 | supporting | `entropy_rise` | 20 files rewritten from ordinary content to near-random content within a minute |
-| prior | `backup_destroyed` | Snapshots or backups were removed; it raises nothing on its own |
+| prior | `backup_destroyed` | Snapshots or backups were destroyed; it raises nothing on its own and lowers what a later run needs |
 
 A verdict is reached by one decisive signal, by two strong signals, or by one
 strong signal and two supporting signals, counted by kind, within a minute, for
-one run. A prior signal is reported beside the verdict and never counts toward
-it. One run raises one verdict, and raises again only once its signals have all
-left the window.
+one run. A prior never reaches a verdict by itself: held for the run, it lowers
+the rule to one strong signal, or to two supporting signals, and it is reported
+in the verdict beside them. One run raises one verdict, and raises again only
+once its signals have all left the window.
 
 The run is the process doing the writing, climbed through its ancestors while
 they execute the same file, so a program that forks forty workers is one run
@@ -40,16 +41,20 @@ and not forty, and the alert is raised against the process that started them.
 
 ## What this agent reads
 
-This agent reads `canary_touched`, `distinct_rewrites`, `entropy_rise`,
-`header_mismatch`, `mass_rename`, `replace_sequence` and `ransom_note`. Every other signal in
+This agent reads `backup_destroyed`, `canary_touched`, `distinct_rewrites`,
+`entropy_rise`, `header_mismatch`, `mass_rename`, `replace_sequence` and
+`ransom_note`. Every other signal in
 the table is named in each verdict as not read by this agent, so a verdict
 never reads as the whole of the engine when part of it is absent, and a signal
 this host cannot read removes the combinations that need it rather than the
 verdict.
 
-All seven come from the [file watch](../configuration/file-watch.md) and need
+All but `backup_destroyed` come from the [file watch](../configuration/file-watch.md) and need
 the [process table](../configuration/process-table.md) to name the writer, so the verdict is
 reached only on paths the file watch covers, with `process_table.enabled` on.
+`backup_destroyed` is read from the command lines the process table captures,
+so it needs `process_table.capture_command_line` on as well; with it off, every
+verdict names the prior as unavailable and says which setting would give it.
 
 ### Distinct rewrites
 
@@ -209,6 +214,40 @@ What a canary does not see: it is created by the watch's holder with mode
 only is refused by the kernel before the open, and nothing is reported; a run
 that encrypts a file reads it first, and that read is reported. A run that
 skips files by name or by size can skip a canary too.
+
+### Backups destroyed
+
+A run that means to be paid removes what would restore the files before it
+encrypts them. The agent reads each command line the process table captures
+and recognises these, by the executable that ran rather than by what the
+command line calls itself:
+
+| Command | What it destroys |
+|---------|------------------|
+| `btrfs subvolume delete`, abbreviations included | A btrfs subvolume or snapshot |
+| `zfs destroy` | A zfs dataset or snapshot |
+| `restic forget`, `restic prune` | restic snapshots |
+| `borg delete`, `borg prune`, `borg rdelete`, `borg repo-delete` | borg archives or a repository |
+| `borgmatic delete`, `rdelete`, `repo-delete` | borgmatic archives or a repository |
+| `snapper delete` | snapper snapshots |
+| `timeshift --delete`, `--delete-all` | timeshift snapshots |
+| `systemctl stop`, `disable` or `mask` of a backup unit | A unit whose name contains `backup`, `restic`, `borg`, `kopia`, `duplicity`, `duplicati`, `rsnapshot`, `bacula`, `bareos`, `urbackup`, `amanda`, `veeam`, `snapper`, `timeshift`, `sanoid`, `syncoid` or `zfs-auto-snapshot` |
+| `crontab -r` | A crontab, whatever it held: its content is not read |
+
+Every one of them is also an administrator pruning snapshots on a Tuesday, so
+it is a prior and never a verdict. The command encrypts nothing, so the prior
+is held for whoever ran it: the process that started the command, climbed past
+the shells a command line passes through, so `sh -c "zfs destroy ..."` run by
+a program counts for that program, and a command typed in a login shell counts
+for that session. Any run started below that process within ten minutes then
+reaches a verdict on one strong signal, or on two supporting ones, and the
+verdict quotes the command line. A command started directly by the init
+process belongs to no run and holds no prior, which is what a backup unit's
+own scheduled prune looks like.
+
+A command that is renamed, statically linked under another name or replaced by
+a direct call to the kernel is not recognised: this is a list of the tools a
+run reaches for, not a description of every way to remove a file.
 
 ## The alert
 
