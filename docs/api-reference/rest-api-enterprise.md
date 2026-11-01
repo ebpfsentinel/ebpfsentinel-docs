@@ -626,7 +626,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | `config:read` | network-forensics | Flow timeline around an alert. |
 | `GET` | `/api/v1/forensics/events/stream` | viewer | `config:read` | network-forensics | Server-Sent Events live forensic event feed. |
 | `GET` | `/api/v1/investigations` | viewer | `config:read` | network-forensics | The investigations this node runs, then the ended ones it keeps. |
-| `POST` | `/api/v1/investigations` | operator | `config:write` | network-forensics | Start a bounded investigation of one workload, under the caller's name (403 when nobody can be named, 421 for another node). |
+| `POST` | `/api/v1/investigations` | operator | `config:write` | network-forensics | Start a bounded investigation of one workload, under the caller's name: `sockets`, `top-tcp`, `server-names` or `drops` (403 when nobody can be named, 421 for another node, 503 when this node cannot take the reading). |
 | `GET` | `/api/v1/investigations/{id}` | viewer | `config:read` | network-forensics | One investigation, its cost and its last sample. |
 | `DELETE` | `/api/v1/investigations/{id}` | operator | `config:write` | network-forensics | Stop an investigation before its time, under the caller's name. |
 

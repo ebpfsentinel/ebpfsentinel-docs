@@ -298,12 +298,43 @@ published beside its answer rather than estimated.
 | Reading | What it answers |
 |---------|-----------------|
 | `sockets` | The sockets the workload holds: the ones it is listening on or bound to first, then its tracked flows with their connection tracking state and the bytes both ways, busiest first. At most 500 rows |
+| `top-tcp` | Two lists. `by_bytes`: the workload's tracked TCP flows by bytes both ways, with their packets and state. `by_retransmits`: its TCP peers by the retransmits, resets and failed handshakes counted since the investigation started, leaving out peers with nothing counted. At most 50 rows each |
+| `server-names` | The TLS server names the workload asked for since the investigation started: each name with the address and port its client hello went to, how many hellos carried it, and when it was first and last seen. Most hellos first, at most 1024 per workload |
+| `drops` | The packets the kernel dropped from the workload's sockets since the investigation started, by the kernel's own reason name (`TCP_INVALID_SEQUENCE`, `SOCKET_RCVBUFF`, ...). Most packets first |
 
 The `sockets` reading needs workload attribution on, since that is what ties a
 socket and a flow to a cgroup; on a node where it is off the reading fails and
 the investigation records no sample rather than an empty one that would look
 like a quiet workload. The local end of a flow is the side whose port the
 workload listens on, otherwise the side that opened it.
+
+Each of the other three reads what the agent already counts, or loads what it
+needs for the investigation's life alone:
+
+- **`top-tcp`** reads connection tracking for the bytes, which needs workload
+  attribution on like `sockets`, and the TCP health counter
+  (`tcp_health.enabled` in the agent configuration) for the retransmits. The
+  kernel counts retransmits per peer and service port rather than per
+  connection, so every connection to one service on one peer shares a row.
+  Where the counter does not run, `by_retransmits` stays empty and the bytes
+  still answer.
+- **`server-names`** reads the client hellos the L7 dispatcher already parses,
+  so it needs the dispatcher running and the workload's TLS traffic inspected.
+  Nothing is recorded for a workload until an investigation watches it, and
+  what was recorded is forgotten when the last one watching it ends. A
+  connection opened before the investigation started sent its hello before
+  anybody was looking, and does not appear.
+- **`drops`** loads the kernel drop reason program when the first drops
+  investigation on the node starts, and unloads it when the last one ends, so a
+  node pays for that hook only while somebody is reading. Up to 64 workloads
+  may be watched at once. A drop is placed in a workload through the socket the
+  packet belonged to, so a packet dropped before the kernel matched it to a
+  socket, such as one refused by a firewall rule or with no listener behind it,
+  is counted by the node-wide drop counters and not here.
+
+A reading this node cannot take, because the dispatcher does not run or the
+drop reason program does not load, is refused with `503` and the reason, and
+nothing is started or written to the audit log.
 
 What a node keeps is held in memory: the running investigations and the last
 `kept` ended ones, each with its last sample, until the agent restarts.
