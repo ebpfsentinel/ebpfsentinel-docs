@@ -517,6 +517,40 @@ The paths are resolved in the agent's own mount view, so a binary inside a
 pod's image is not covered by naming its path. See
 [Executables allowed to reach the network](../../configuration/workload-firewall.md#executables-allowed-to-reach-the-network).
 
+### The write refusal
+
+An `EbpfSentinelAgent` may carry `config.writeRefusal`, which refuses a writer
+in the kernel past a count under the data paths, or at its first write under
+the system paths when it is not expected there. **Refusing needs the BPF LSM
+active at boot on each node**, which is the `lsm=` boot parameter and not a
+kernel version; without it a fanotify permission group refuses on a bounded set
+of paths, and with neither the node detects and stops a run instead of refusing
+it. Run `ebpfsentinel-agent ebpf host-check` on a node of each pool before
+relying on it. The files written before the threshold are lost in every case,
+and the refusal fails open: an agent that stops leaves its node writable at
+once.
+
+```yaml
+spec:
+  config:
+    writeRefusal:
+      enabled: true
+      mode: shadow           # shadow, then enforce
+      paths:
+        - /srv/data
+      threshold: 50
+      windowSecs: 10
+      countBy: cgroup
+```
+
+One document is rendered for every node of a resource, so the operator cannot
+hold the refusal back from one node and not another. It reads each node's own
+answer instead: `status.agentStatuses[].writeRefusal` carries whether that node
+refuses, through which route, and why not when it does not, and a resource
+asking for `enforce` on a node that refuses nothing raises a
+`WriteRefusalNotHeld` warning event naming that node and its reason. See
+[Write refusal](../../configuration/file-watch.md#write-refusal).
+
 ### Firewall rules in tiers
 
 `EnterpriseSettings` declares the

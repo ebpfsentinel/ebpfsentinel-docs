@@ -372,8 +372,8 @@ is reported as such rather than as stopped.
 
 ## Refusing the next write
 
-The verdict and the stop act once the files are written. Where the BPF LSM is
-active, the [write refusal](../configuration/file-watch.md#write-refusal)
+The verdict and the stop act once the files are written. The
+[write refusal](../configuration/file-watch.md#write-refusal)
 acts before: it counts each writer's write-opens under the watched directories
 and the kernel refuses the one reaching the threshold, and every one after it
 in the window, before a byte is written. It reads no signal and reaches no
@@ -382,9 +382,13 @@ refused whatever it writes, and so is a legitimate tool, which is why it ships
 in `shadow`.
 
 It moves the bound and does not remove it. A run still loses the files it
-writes before the threshold, per writer, and on a host without the BPF LSM the
-refusal is not loaded and the detection and the stop above are what remain.
-An agent that is gone refuses nothing.
+writes before the threshold, per writer. It needs the BPF LSM active at boot,
+which is the `lsm=` boot parameter and not a kernel version, and
+`ebpfsentinel-agent ebpf host-check` answers for your own host; without it a
+fanotify permission group refuses on a bounded set of paths, and where neither
+can run the refusal is not loaded and the detection and the stop above are what
+remain. It fails open: an agent that is gone refuses nothing, and the node is
+writable the moment it stops.
 
 ## What does not raise it
 
