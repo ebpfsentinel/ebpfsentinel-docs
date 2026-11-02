@@ -136,7 +136,24 @@ ebpfsentinel-agent investigate 203.0.113.42 --alert-limit 500
 
 | Flag | Description | Default |
 |------|-------------|---------|
+| `--pid <PID>` | Investigate a process of this machine instead of an address | - |
 | `--alert-limit <N>` | Max alerts to fetch | `100` |
+
+With `--pid`, the subject is a process rather than an address. The command
+prints the lineage oldest ancestor first, ending on the process itself, with each
+command line as the agent kept it: redacted where the agent read it, and present
+only when `process_table.capture_command_line` is on
+([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)).
+An ancestor that exited carries no command line. Neither does one whose pid now
+belongs to a later process, because a pid can be reused. The command then lists
+the alerts whose process block names this pid, and the host rules that fired on
+it, each with the intents it names. A rule no longer loaded says so rather than
+naming intents it may not have had.
+
+```bash
+ebpfsentinel-agent investigate --pid 4410
+ebpfsentinel-agent investigate --pid 4410 -o json
+```
 
 Example output:
 

@@ -89,7 +89,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Manual Packet Capture](operational-essentials.md#manual-packet-capture) | OSS | libpcap-based pcap capture with BPF filter |
 | [Auto-Capture](operational-essentials.md#auto-capture) | OSS | Event-triggered PCAP on high-severity alerts (1 capture, max 60s, auto BPF filter) |
 <!-- feature-count: cli-subcommands -->
-| CLI (44 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (IP correlation), `top` (top talkers), `flows`, `alerts stats` |
+| CLI (44 subcommands) | OSS | `watch` (live alerts), `score` (risk score), `investigate` (an address, or a process with its lineage), `top` (top talkers), `flows`, `alerts stats` |
 | Docker / Compose | OSS | Multi-stage build, compose file included |
 
 ### Enterprise
