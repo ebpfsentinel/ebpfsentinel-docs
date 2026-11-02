@@ -126,6 +126,34 @@ to be able to tell "the flow was quiet" from "nothing was kept".
 
 Freezes are automatically cleaned up after `retention_days` (default: 7 days), counted from `created_at_ns`.
 
+### The investigation graph
+
+A freeze also keeps the events it copied out: the flow's own, and those of
+the process behind the triggering alert within the same window, where the
+agent named one. `GET /api/v1/enterprise/forensics/context-freezes/{id}/graph`
+draws them as a graph and reads nothing else - no node is asked about after
+the fact, so the graph is the evidence as it was frozen and goes when the
+freeze goes.
+
+| Node kind | What it stands for |
+|-----------|--------------------|
+| `finding` | An alert the freeze holds; the one that triggered it is the root |
+| `flow` | A five-tuple, one node whichever direction the event saw it in |
+| `process` | The process behind a flow, and each ancestor the agent recorded above it |
+| `domain` | The name the remote end was resolved from, where the agent read one |
+
+Edges are `raised_on` (finding to flow), `opened` (process to flow),
+`parent` (ancestor to child) and `resolved` (flow to name).
+
+One answer is scoped to one finding and drawn around one node: the root by
+default, or the node named by `focus`. Two budgets bound it, `max_nodes`
+(default 50, at most 300) and `max_depth` hops from the focus (default 6, at
+most 12). A graph that stopped at either carries a `limits` entry with the
+sentence a screen shows, and every node says in `hidden_neighbours` how many
+of its neighbours were left out, which is what asking again with that node as
+`focus` would draw. `total_nodes` is the size of the whole freeze, so a
+partial picture is never mistaken for the whole one.
+
 ## Alert-triggered packet capture
 
 Off unless `forensics.capture.enabled` is set. The freeze keeps the events a
@@ -402,6 +430,7 @@ A timeline by alert ID is centered on that alert and answers **404** when no eve
 | `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes` | viewer | network-forensics | List all context freezes. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | viewer | network-forensics | Get a single context freeze. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}/graph` | viewer | network-forensics | The investigation graph of one freeze, bounded by a node budget and a depth budget. |
 | `DELETE` | `/api/v1/enterprise/forensics/context-freezes/{id}` | operator | network-forensics | Delete a context freeze. |
 | `GET` | `/api/v1/enterprise/forensics/captures` | viewer | network-forensics | List every capture, newest trigger first; empty when capture is off. |
 | `GET` | `/api/v1/enterprise/forensics/captures/{id}` | viewer | network-forensics | Get one capture's record. |
