@@ -3465,6 +3465,12 @@ The processes the agent currently knows about, newest first.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/processes
 ```
 
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `exe` | string | Only the processes whose executable is this path, compared exactly. A process whose executable could not be read never matches. `stats` and `tracing` still describe the whole table |
+
 **Response:**
 
 | Field | Type | Description |

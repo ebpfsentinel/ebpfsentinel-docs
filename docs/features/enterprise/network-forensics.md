@@ -183,9 +183,24 @@ where that source filled it:
 | Network activity | The flows and resolved names the freeze holds around the node |
 | Host rules that fired | Host-rule findings raised on the flows a process opened |
 
-A file digest, a sandbox verdict, a malware family and a
-global prevalence have no panel, because nothing in a freeze carries them: an
-empty panel shaped like one would read as a reading taken and found clean.
+One more panel is not read from the freeze. On a process whose executable is
+known, **Prevalence in your estate** says how many of your own machines run
+that executable now and how many processes do, which the dashboard answers on
+its `/api/v1/{tenant}/prevalence/executable?path=` route by asking each node of
+the tenant for the processes running that path (`GET /api/v1/processes?exe=`).
+The figure is local by construction: it counts the machines this dashboard
+reaches and no other. A node whose process table is off, or that did not
+answer, is named rather than counted, so an estate that could not say is never
+read as an estate that does not run it. Processes are matched on the path of
+their executable, which a binary copied over another keeps, and the panel
+says so.
+
+A file digest, a sandbox verdict and a malware family have no panel, because
+nothing in a freeze carries them: an empty panel shaped like one would read as
+a reading taken and found clean. A prevalence across every customer's estate
+has no panel and no field in any answer, empty or otherwise: building one
+would mean collecting what every customer runs, which is the opposite of an
+agent whose only report to us carries counters and never content.
 
 ## Alert-triggered packet capture
 
