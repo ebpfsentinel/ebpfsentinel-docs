@@ -177,7 +177,7 @@ not from the request.
 | [L7 per-protocol policies](#l7-per-protocol-policies) | 13 | [L7 per-protocol policies](../features/enterprise/l7-per-protocol-policies.md) |
 | [Licensing](#licensing) | 1 | [Licensing](../features/enterprise/license.md) |
 | [ML detection](#ml-detection) | 21 | [ML detection](../features/enterprise/ml-detection.md) |
-| [Multi-cluster federation](#multi-cluster-federation) | 13 | [Multi-cluster federation](../features/enterprise/multicluster.md) |
+| [Multi-cluster federation](#multi-cluster-federation) | 17 | [Multi-cluster federation](../features/enterprise/multicluster.md) |
 | [Multi-tenancy](#multi-tenancy) | 13 | [Multi-tenancy](../features/enterprise/multitenancy.md) |
 | [Network forensics](#network-forensics) | 14 | [Network forensics](../features/enterprise/network-forensics.md) |
 | [SIEM integration](#siem-integration) | 2 | [SIEM integration](../features/enterprise/siem-integration.md) |
@@ -555,6 +555,10 @@ and for the request and response bodies.
 | `POST` | `/api/v1/federation/clusters` | operator | `config:write` | multi-cluster | Register member cluster (201, 409 on duplicate endpoint). |
 | `GET` | `/api/v1/federation/clusters/{id}` | viewer | `config:read` | multi-cluster | Cluster details (404 if not found). |
 | `DELETE` | `/api/v1/federation/clusters/{id}` | operator | `config:write` | multi-cluster | Unregister cluster (204). |
+| `GET` | `/api/v1/federation/estate/response` | viewer | `config:read` | multi-cluster | The estate response's mode (`shadow` or `enforce`), the reading it started at, and the orders it made or would have made. Management cluster only. |
+| `POST` | `/api/v1/federation/estate/response/promote` | operator | `config:write` | multi-cluster | Put the estate response in force on the reading named by `seen_since_ms`; 409 when the reading has restarted since. Management cluster only. |
+| `POST` | `/api/v1/federation/estate/stop` | operator | `config:write` | multi-cluster | Stop the local processes writing to the named shares, found in this host's own process table. Called by the management cluster on the origin only. |
+| `GET` | `/api/v1/federation/estate/verdicts` | viewer | `config:read` | multi-cluster | Writers encrypting other hosts' shares, each with its origin, the shares written to and the bound on each. Management cluster only. |
 | `POST` | `/api/v1/federation/heartbeat` | operator | `config:write` | multi-cluster | Send heartbeat to management (204). |
 | `GET` | `/api/v1/federation/overview` | viewer | `config:read` | multi-cluster | Federation-wide status. |
 | `POST` | `/api/v1/federation/policies/apply` | operator | `config:write` | multi-cluster | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure). |

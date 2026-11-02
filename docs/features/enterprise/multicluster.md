@@ -244,6 +244,50 @@ receive fewer than `limit` rows when the newest alerts belong to other tenants.
 }
 ```
 
+## Encryption Across the Estate
+
+A host whose shares are being encrypted by another host raises its own alert,
+naming the remote writer as the actor. Forty file servers each seeing a little
+of one writer would be forty alerts; the management cluster folds them into
+one **estate verdict** keyed on the writer's address.
+
+- **Origin.** The writer's address is matched against the address each member
+  is registered at. A member registered by hostname rather than by IP cannot
+  be matched, so a writer on such a host has **no origin**: the verdict names
+  the writer by its address and no response is ever made for it. When the
+  origin's own agent also reported its outbound writing to file-service ports,
+  the origin is marked **corroborated**.
+- **Shares and their bound.** Each receiving host is listed with its first and
+  last verdict, the alerts raised and `exposure_ms`: how long its shares were
+  written to at most, counted from its first verdict until the writer was
+  stopped or the verdict went quiet. It is a bound on the exposure, not a
+  measurement of what was lost.
+- **Quiet.** A verdict with no new alert for an hour is closed; the writer's
+  next alert opens another. The 256 newest verdicts are held.
+
+### Response on the origin only
+
+The response acts on the origin, never on the hosts written to: stopping the
+writer is what stops every share at once, and the receiving hosts are the
+victims. The management cluster sends the origin the list of shares; the
+origin finds the local processes holding a connection to one of them on a
+file-service port (445, 139, 2049) in its own process table and stops them
+through its enforcement path. The order names only addresses, so no process
+identifier crosses the network.
+
+The response starts in **shadow**: every order is recorded as what it would
+have done, with the shares it names, and nothing is sent. A reader who has
+seen the orders puts the response in force with
+`POST /api/v1/federation/estate/response/promote` and a body
+`{"seen_since_ms": <since_ms>}` naming the reading they looked at; when the
+reading has restarted since, the promotion is refused with `409` rather than
+putting in force a response nobody has read. The dashboard draws each verdict
+on the incident graph with the hosts as nodes and offers the promotion there.
+
+This is detection with a bound and a response on the source host, and
+nothing is blocked before it: shares written to before the verdict was raised stay written to,
+and a writer on a host the estate does not run is named and left alone.
+
 ## Persistence
 
 Federation state is stored in **redb** (embedded key-value store):
@@ -379,6 +423,9 @@ after upgrade. To migrate without downtime:
 | `POST` | `/api/v1/federation/alerts` | operator | multi-cluster | Ingest alerts from members; 503 when the store refused, so the batch is resendable. |
 | `GET` | `/api/v1/federation/alerts` | viewer | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
 | `GET` | `/api/v1/federation/alerts/stream` | viewer | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
+| `GET` | `/api/v1/federation/estate/verdicts` | viewer | multi-cluster | Writers encrypting other hosts' shares, each with its origin, the shares written to and the bound on each. |
+| `GET` | `/api/v1/federation/estate/response` | viewer | multi-cluster | The estate response's mode, the reading it started at, and the orders it made or would have made. |
+| `POST` | `/api/v1/federation/estate/response/promote` | operator | multi-cluster | Put the estate response in force on the reading named by `seen_since_ms` (409 when it has restarted). |
 
 ### Member Endpoints
 
@@ -387,6 +434,7 @@ after upgrade. To migrate without downtime:
 | `POST` | `/api/v1/federation/heartbeat` | operator | multi-cluster | Send heartbeat to management (204). |
 | `POST` | `/api/v1/federation/policies/apply` | operator | multi-cluster | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure). |
 | `GET` | `/api/v1/federation/status` | viewer | multi-cluster | Federation health + applied-policy set (health-probe target). |
+| `POST` | `/api/v1/federation/estate/stop` | operator | multi-cluster | Stop the local processes writing to the named shares, found in this host's own process table. |
 
 ## Feature Gating
 
