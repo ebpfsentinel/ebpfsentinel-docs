@@ -154,6 +154,18 @@ of its neighbours were left out, which is what asking again with that node as
 `focus` would draw. `total_nodes` is the size of the whole freeze, so a
 partial picture is never mistaken for the whole one.
 
+The dashboard draws the answer two ways over one model, the lineage left to
+right and the relationships by force, and highlights it by intent. That row is
+the machine's own catalogue, read from `GET /api/v1/host-rules/intents`, so it
+lists every intent a host rule may name and nothing kept beside it. An intent
+carrying a peer address lights each flow and the process that opened it, one
+carrying a `domain` lights each name and the flows resolved to it, and a
+process intent carrying neither lights the processes. An intent this
+machine's kernel cannot serve is shown disabled with the agent's reason, so an
+empty highlight is never read as nothing having happened. A file intent says
+it covers the watched set, and a posture or surface intent says it is a
+reading taken at intervals rather than a stream of events.
+
 ## Alert-triggered packet capture
 
 Off unless `forensics.capture.enabled` is set. The freeze keeps the events a
