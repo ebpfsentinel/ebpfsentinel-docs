@@ -543,6 +543,37 @@ does not declare a kfunc or refused the program. It is `null` when nothing could
 confirm it either way: an entry read from the BTF alone (`load_tested: false`),
 a load refused for lack of privilege, or a BTF that could not be read.
 
+`capabilities` is the one answer an estate compares host by host: every
+capability above the kernel floor, active or not, read from the blocks above
+rather than asked again. `active` is decided from what the probes and attaches
+saw on this host and never from the kernel version, so two nodes on the same
+version can answer differently. An inactive entry carries `cause`, one of
+`kernel_older`, `not_declared`, `lsm_inactive`, `not_probed` or `refused`, a
+`reason` sentence, the `fallback` that runs instead and, where a change on the
+host would help, a `hint`: the `lsm=` boot parameter to set, or the way to a
+newer kernel on this distribution. A capability the probe could not ask for lack
+of privilege carries no hint, because no kernel would change that answer. The
+same identifiers label the `ebpfsentinel_kernel_capability_active` gauge.
+
+```json
+{
+  "capabilities": [
+    { "id": "attribution",
+      "unlocks": "the workload that opened a socket, named on every flow",
+      "active": true, "cause": null, "reason": null, "since": "6.12",
+      "fallback": "flows carry no workload name and everything else is unchanged",
+      "hint": null },
+    { "id": "write_refusal",
+      "unlocks": "a write-open refused past a count, before a byte is written",
+      "active": false, "cause": "lsm_inactive",
+      "reason": "the BPF LSM is not among the active security modules",
+      "since": "6.12",
+      "fallback": "a fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain",
+      "hint": "add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=landlock,lockdown,yama,integrity,apparmor,bpf" }
+  ]
+}
+```
+
 #### GET /api/v1/ebpf/coverage
 
 What the agent sees of each pod scheduled on its node, computed from the links

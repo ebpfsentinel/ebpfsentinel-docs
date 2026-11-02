@@ -469,6 +469,7 @@ Queries observed on the wire are a kernel slot:
 | `ebpfsentinel_ebpf_map_fill_permille` | Gauge | `map` | How full a map is, in parts per thousand. Only the maps that refuse an insert when full are measured, so a map with no series here is one nobody could measure rather than one sitting empty |
 | `ebpfsentinel_xdp_attach_mode` | Gauge | `interface`, `mode` | The XDP mode actually in force (1=in force). `mode` is `native`, `generic`, `offloaded`, `multiple` or `unknown` |
 | `ebpfsentinel_bpf_token_used` | Gauge | - | eBPF loaded through a BPF token (1=token-loaded, 0=API-only or no eBPF) |
+| `ebpfsentinel_kernel_capability_active` | Gauge | `capability` | Whether a capability above the kernel floor is active on this host (1=active, 0=inactive), set once at start-up with one series per capability. Decided from what the probes and attaches saw, never from the kernel version; why one is off and how to switch it on are in the `capabilities` block of `GET /api/v1/ebpf/kernel-features` |
 
 ## Enterprise Metrics
 
