@@ -41,6 +41,32 @@ The run is the process doing the writing, climbed through its ancestors while
 they execute the same file, so a program that forks forty workers is one run
 and not forty, and the alert is raised against the process that started them.
 
+## A run written by another host
+
+On a file server, the files are rewritten by the file service, not by the
+run: Samba's `smbd`, or the kernel's own SMB and NFS servers, write each file
+for a client on another host. The file service is therefore never the run.
+A change it makes counts against the client it served, which is a run of its
+own, never added to a run of this host's and never added to another client's:
+Samba forks one process per client, so each of those processes is one client,
+and the climb through ancestors described above is not made for them.
+
+The client is named by the address of the one connection that process holds
+on port 445, 139 or 2049, read off `/proc`, and the alert carries that address
+as its source. The kernel's servers hold no socket a process can be read for,
+and a process serving several addresses at once names none of them, so there
+the verdict says the writes came from a client on another host whose address
+was not read; every signal is still counted, against that one service thread.
+
+Two things change for such a run. The encryption calls of a file service are
+not counted, because they are the service encrypting its own transport for
+every client, not the client encrypting files. And a verdict against a client
+never stops anything on this host, whatever `stop` says: killing the file
+service would end every client's session and leave the run, which is on the
+client's host, running. What the server's alert gives is the address to act
+on. The client's own agent, where there is one, sees its writes leave as
+[writes to other hosts' shares](#writes-to-other-hosts-shares).
+
 ## What this agent reads
 
 This agent reads every signal in the table: `backup_destroyed`,
@@ -328,8 +354,8 @@ threshold that drifts far from where it was first learned is reported:
 
 ## Stopping the run
 
-With `file_watch.mass_encryption.stop` on and the verdict in force, the
-verdict kills the run it names rather than one process of it: the process the
+With `file_watch.mass_encryption.stop` on and the verdict in force, a verdict
+against a run of this host kills the run it names rather than one process of it: the process the
 signals were attributed to and every process it started, read off the process
 table, each sent `SIGKILL` through the signal program at once. An encryptor
 that forks one worker per directory is stopped whole, workers included, and a
