@@ -201,6 +201,10 @@ a reading taken and found clean. A prevalence across every customer's estate
 has no panel and no field in any answer, empty or otherwise: building one
 would mean collecting what every customer runs, which is the opposite of an
 agent whose only report to us carries counters and never content.
+Nor is a thread injected into another process drawn on any node: that is read
+from process memory and from the system calls between processes, which this
+agent does not trace. The [process detections](../process-detections.md#what-an-endpoint-suite-does-here-that-this-does-not)
+page lists the four things an endpoint suite shows here and this does not.
 
 ## Alert-triggered packet capture
 

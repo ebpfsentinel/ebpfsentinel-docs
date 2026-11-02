@@ -48,6 +48,15 @@ The connections are read from the host that raised the alert. Where that host re
 
 How complete a tree is depends on whether the agent can read the node's processes: complete on a host and wherever `/host/proc` is mounted, partial without it, absent under the pod profile. The [deployment matrix](deployment-matrix.md#process-table-and-the-process-tree) states it per platform.
 
+## What an endpoint suite does here that this does not
+
+An analyst who has used an endpoint detection and response product opens an incident looking for four things this agent does not give, on either edition, and none of them is drawn as an empty field:
+
+- **No sandbox and no detonation verdict.** Running a sample to see what it does is a second product, with its own infrastructure and its own legal footprint for holding live malware.
+- **No malware family from a hash.** The agent carries the indicator feeds you configure, not a corpus of samples, and naming a family is the work of the feeds you already pay for.
+- **No prevalence across other organisations.** It would mean collecting what every customer runs. The Enterprise incident graph says how many of your own machines run an executable, and nothing about anybody else's.
+- **No detection of code injected into another process.** Seeing a thread planted in a running program means reading process memory and tracing the system calls between processes, which is outside what this agent watches: the network, the process behind a connection, and the files you ask it to watch.
+
 ## Stopping the process
 
 With `kill_process: true` the agent stops each process an alert names, through the same in-kernel signal an [IPS](./ips.md) rule asks for, with the same protected commands. It is refused at load unless `response.kill_process.enabled` is set, so a configuration never reads as a containment that does not happen. It is off by default: the lists that decide what is a shell and what is a server are the operator's, and a kill on a list somebody else wrote is the operator's decision.
