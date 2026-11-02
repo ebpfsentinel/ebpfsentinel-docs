@@ -626,6 +626,10 @@ whichever edition a node runs.
 
 ### Importing your scanner's report
 
+What this answers and what it does not are summarised on
+[Reachable Vulnerabilities](reachable-vulnerabilities.md); this section is the
+reference.
+
 The agent holds no vulnerability database and fetches no feed. What it reads is
 the report your own scanner already wrote, and it answers which of those
 findings name a package this host has installed.

@@ -39,6 +39,36 @@ Configuration screens lock themselves on an agent reporting
 [Kubernetes operator](kubernetes-operator.md) is read-only in the console and the
 two cannot drift.
 
+## The incident graph
+
+Two screens draw an incident as a graph rather than a list, with one model and
+two layouts: the lineage left to right, and the relationships by force.
+
+- **Investigation graph**, opened from a context freeze, under the
+  `network-forensics` licence feature. Its nodes are the findings, flows,
+  processes and resolved names the freeze copied out, drawn around one node
+  and bounded by a node budget and a depth; a node says how many neighbours
+  were left out, and a graph cut short says so rather than passing for the
+  whole. The row of intents above it highlights what a host rule would name,
+  and the detail drawer shows only the panels a source in the freeze filled.
+  On a process, **Prevalence in your estate** counts the machines of the
+  tenant running that executable now, naming the nodes that could not answer.
+  What the graph is built from, its budgets and every panel are in
+  [The investigation graph](network-forensics.md#the-investigation-graph).
+- **Estate graph**, under the `multi-cluster` licence feature, read
+  from the management cluster, for one writer encrypting other hosts' shares. Its nodes are
+  hosts: the origin where the writer runs and every host it wrote to, each
+  with how long its shares were written to at most. The response it carries
+  acts on the origin alone, starts in shadow and is put in force from the
+  screen on the reading shown; a writer no member is registered at is named by
+  its address and no order is made against it. See
+  [Encryption Across the Estate](multicluster.md#encryption-across-the-estate).
+
+What the graph does not draw is stated where it would be looked for: no file
+digest, sandbox verdict or malware family, because nothing in a freeze
+carries one, no prevalence across other customers' estates, and no thread
+injected into another process, which this agent does not trace.
+
 ## Accessibility
 
 The console targets WCAG 2.2 Level AA, and the end-to-end suite runs axe-core

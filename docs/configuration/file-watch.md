@@ -6,7 +6,9 @@ changed, moved out of or into a directory, or deleted. Every changed path is
 then read again and compared with what it was the last time. It is off by
 default.
 
-Nothing here enforces anything: the watch only reads.
+Nothing here enforces anything: the watch only reads. What it answers and
+what it is not are summarised on [File Integrity](../features/file-integrity.md);
+this page is the reference.
 
 ## Detection, not prevention
 
@@ -393,6 +395,9 @@ process_table:
 ```
 
 ## Write refusal
+
+What the refusal answers, what it costs and what it is not are summarised on
+[Write Refusal](../features/write-refusal.md); this section is the reference.
 
 The write refusal is a BPF LSM program on two kernel hooks, `file_open` for a
 file opened for writing and `path_truncate` for a truncation by path. It counts

@@ -41,6 +41,8 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Learning Mode](learning-mode.md) | OSS | Userspace | A declared window reads what each workload dialled, rendered back as workload firewall rules in observe mode, with prefix collapsing stated in the output |
 | [Process Detections](process-detections.md) | OSS | Userspace | A reverse shell, a binary with no file on disk and a server's unexpected descendant, each read off the process tree where it holds a connection |
 | [Mass Encryption](mass-encryption.md) | OSS | File watch + Userspace | One run encrypting many files recognised by signals that agree, and with the stop on the whole run killed and its files counted; detected and stopped, not prevented and not undone, the files written before the verdict are lost |
+| [File Integrity](file-integrity.md) | OSS | fanotify + Userspace | Which file changed, how and by which process, against a baseline kept across restarts; profiles per kind of system and drift across a fleet in Enterprise. Reported once on disk, never held back |
+| [Write Refusal](write-refusal.md) | OSS | BPF LSM, fanotify fallback | The kernel refuses a writer's write-open past a threshold under a data path, or the first unexpected one under a system path, before a byte is written. Needs `lsm=bpf` at boot for the BPF LSM route; ships in shadow; a run still loses `threshold - 1` files per writer |
 | [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, payload shipped to the userspace L7 engine |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
 | [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
@@ -108,6 +110,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Air-Gap Mode](enterprise/airgap.md) | Offline feed bundles with Ed25519-signed import/export |
 | [Advanced Analytics](enterprise/analytics.md) | Top talkers, trends, IOC summaries, flow query API |
 | [Fleet Management](enterprise/fleet-management.md) | Agent registration, heartbeat, identity, config versioning |
+| [Reachable Vulnerabilities](enterprise/reachable-vulnerabilities.md) | Your scanner's findings joined with what the host runs, maps, listens on and lets the outside reach, ordered without a score; drift and an evidence pack |
 | [AI/LLM Security](enterprise/ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration, encrypted DNS |
 <!-- feature-count: ja4-builtin-threats -->
 | [TLS Intelligence](enterprise/tls-intelligence.md) | JA4+ matching against imported intelligence (7 sourced built-ins as a starter sample), behavior anomaly, PQC compliance, cipher policy |

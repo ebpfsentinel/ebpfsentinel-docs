@@ -399,7 +399,7 @@ is reported as such rather than as stopped.
 ## Refusing the next write
 
 The verdict and the stop act once the files are written. The
-[write refusal](../configuration/file-watch.md#write-refusal)
+[write refusal](write-refusal.md)
 acts before: it counts each writer's write-opens under the watched directories
 and the kernel refuses the one reaching the threshold, and every one after it
 in the window, before a byte is written. It reads no signal and reaches no
