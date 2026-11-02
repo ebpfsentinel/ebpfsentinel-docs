@@ -472,8 +472,21 @@ towards port 445 or 139, the bytes the local side sent being what it wrote, and
 the process behind the flow named through the
 [socket attribution](../configuration/attribution.md). It reads no file and no
 SMB message content, so the alert says where the writes went, how much and by
-which process, and says that the content was not read. It does not say the
-files were encrypted.
+which process, and says that its reading is **degraded**: volume, server count
+and timing only, with no SMB operation and no content read. It does not say the
+files were encrypted. An SMB 3 session that seals its messages hides every
+operation behind a transform header, and this reading is the same with or
+without it, which is why the alert says so on every firing rather than letting
+a cleartext lab suggest it saw more.
+
+Bytes are only in the connection table when the kernel counts them, so turning
+`share_writes` (or flow export) on sets `net.netfilter.nf_conntrack_acct` to `1`
+on the host. The agent never sets it back, and a connection opened before it
+was set carries no byte count. On a host whose kernel has no
+`/proc/net/nf_conntrack`, the table is read through `conntrack -L`, by the
+warden when the agent runs rootless, so `conntrack-tools` must be installed
+there. A window belongs to one process: several programs, each writing to a
+single new server, are several writers and raise nothing.
 
 The history of servers is learned, never written by hand. Every server this
 host writes to during the learning period, a week by default, is ordinary, and
@@ -496,3 +509,24 @@ again: a run that starts during learning is taken as ordinary.
 The message lists every new server with the bytes it received. The thresholds
 are in [Share Writes Configuration](../configuration/share-writes.md). This is
 detection: by the time the alert is raised, the writes it counts have landed.
+
+## What the network cannot tell you
+
+Three limits hold for every reading of encryption over the network, on this
+agent and across an estate, and none of them is lifted by configuration.
+
+- **A remote writer has no process tree here.** A flow carries no local
+  process on the far side, so a file server names the client it served by its
+  address, and the run is counted against that client rather than against the
+  file service. The process behind the writes is known only where the writing
+  host runs an agent of its own and names it in its `share_writes` alert.
+- **An encrypted SMB session hides what it does.** An SMB 3 session that seals
+  its messages carries no readable operation, so the signal degrades to
+  volume, server count and timing. The `share_writes` alert says it is
+  degraded on every firing, and a demonstration on a cleartext lane does not
+  stand for more.
+- **A host with no agent is invisible as a source.** The receiving hosts still
+  fire, each naming the writer by its address, but nothing reports the writer's
+  own side, and across an estate a writer at an address no member is
+  registered at has no origin and no response is made against it (see
+  [encryption across the estate](enterprise/multicluster.md#encryption-across-the-estate)).

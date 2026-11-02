@@ -264,6 +264,12 @@ one **estate verdict** keyed on the writer's address.
   measurement of what was lost.
 - **Quiet.** A verdict with no new alert for an hour is closed; the writer's
   next alert opens another. The 256 newest verdicts are held.
+- **What it rests on.** Each side is read on its own host and from the
+  network's point of view: volume, server count and timing, so an SMB session
+  that encrypts its traffic reads the same and the alert says the reading is
+  degraded. A writer with no agent of its own is seen only from the servers it
+  reaches. The limits are in
+  [what the network cannot tell you](../mass-encryption.md#what-the-network-cannot-tell-you).
 
 ### Response on the origin only
 

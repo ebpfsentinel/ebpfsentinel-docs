@@ -30,7 +30,7 @@ traffic at line rate is the job of the L3/L4 firewall and the IPS.
 | **TLS** | Handshake content type `0x16` | SNI, JA4+, ALPN, supported groups |
 | **SMTP** | Banner + EHLO/HELO/MAIL/RCPT/DATA/QUIT/RSET/NOOP/VRFY/EXPN | Command |
 | **FTP** | USER/PASS/LIST/RETR/… commands or `220` banner mentioning FTP | Command |
-| **SMB** | NetBIOS header + `\xffSMB` / `\xfeSMB` magic | Command, SMB1 vs SMB2 flag |
+| **SMB** | NetBIOS header + `\xffSMB` / `\xfeSMB` / `\xfdSMB` magic | Command, SMB1 vs SMB2 flag; behind the SMB 3 transform header (`\xfdSMB`) the message is encrypted, so it is known to be SMB and carries no command, and a rule naming an `smb_command` never matches it |
 | **SSH** | Banner prefix `SSH-` | Software banner substring (`OpenSSH_9.6`, …) |
 | **Redis** | RESP array `*N\r\n$L\r\n…` | Command verb + first key |
 | **MySQL** | 3-byte LE length + known `COM_*` command byte | Command byte, SQL query text (COM_QUERY) |
