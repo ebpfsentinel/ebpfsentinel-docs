@@ -2421,6 +2421,7 @@ tell a real pid 0 from a failed lookup.
 | `pid` | integer | Always, in a block that exists. A block is never written for pid 0 |
 | `source` | string | Always: `socket`, `flow` or `process`, how the process was reached |
 | `exe` | string | The executable path, where the process table read one |
+| `command_line` | string | The command line with its recognised secrets removed, only where `process_table.capture_command_line` is on and the line was read ([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
 | `uid` | integer | The real uid of the task when the socket was opened |
 | `cgroup` | integer | cgroup v2 id, as the kernel numbers it |
 | `container` | string | Container id, for a process in one |
@@ -3509,7 +3510,7 @@ Each entry of `processes`:
 | `start_ns` | integer? | When this process started, which precedes `started_at_ns` for a process that forked before it exec'd |
 | `comm` | string | The kernel's 16-byte command name |
 | `identity` | object | `kind` is `path` or `unknown`, and `path` carries the executable path where there is one |
-| `command_line` | string? | The full command line, only when `process_table.capture_command_line` is on |
+| `command_line` | string? | The command line with its recognised secrets removed, only when `process_table.capture_command_line` is on ([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
 | `uid` | integer | Effective user id at exec |
 | `gid` | integer | Effective group id at exec |
 | `cgroup_id` | integer | The kernel cgroup id of the task |

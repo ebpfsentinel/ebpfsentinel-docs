@@ -97,7 +97,7 @@ A single alert event streamed to the client.
 
 The process a flow belongs to, as the agent resolved it. Mirrors the HTTP workload block field for field, so a console reading one and a SIEM reading the other describe the same process in the same words. A field is empty or zero where the node could not add it: a process table that has not seen the exec gives a pid and nothing more.
 
-15 fields, in declaration order. The number is the wire tag and never changes.
+16 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
@@ -116,6 +116,7 @@ The process a flow belongs to, as the agent resolved it. Mirrors the HTTP worklo
 | 13 | `ancestry_truncated` | `bool` | The chain goes on past the last ancestor listed. |
 | 14 | `ancestry_incomplete` | `bool` | The chain stops at an ancestor that was named and that the table does not hold, rather than at the root. |
 | 15 | `peer` | [`PeerWorkload`](#peerworkload) | The workload at the other end of the flow, where its address is on another node of the fleet. Absent otherwise. |
+| 16 | `command_line` | `string` | The command line, where the operator turned its capture on, with the secret-bearing shapes removed where argv was read. Empty if absent. |
 
 ### PeerWorkload
 

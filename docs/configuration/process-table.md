@@ -137,7 +137,10 @@ apart from the process that held it before.
 `capture_command_line` is off by default for two reasons, and neither is
 performance. A command line frequently carries a secret - a password passed as
 an argument, a token in a URL - and the table is read over the API, so turning
-it on widens what an operator with a read token can see. It is also read from
+it on widens what an operator with a read token can see. The agent narrows that
+before anything else sees the line: see
+[what is removed before the line is kept](#what-is-removed-before-the-line-is-kept).
+It is also read from
 `/proc/<pid>/cmdline` at exec time, which is a race: a process that exits
 immediately leaves nothing to read and the field is absent rather than empty.
 
@@ -147,6 +150,31 @@ is named unavailable in every verdict.
 
 The command line is truncated at 4096 bytes, and a truncated one ends in ` ...`
 so a reader can tell the difference between a long command and a cut one.
+
+## What is removed before the line is kept
+
+The line is redacted where `/proc/<pid>/cmdline` is read, before it enters the
+table, so the table, every alert carrying the process, every SIEM export, every
+context freeze and every screen see the same redacted line, and the raw one is
+never stored. A host rule matching on `command_line` matches the redacted line
+too. Each removed value becomes `[redacted]`; the flag, the key, the user name,
+the host and the path stay, because they are what an investigation reads. The
+list of shapes is closed:
+
+| Shape | Example as typed | As kept |
+|---|---|---|
+| A flag or assignment whose name says it holds a secret: `password`, `passwd`, `passphrase`, `pwd`, `secret`, `token`, `apikey`, `accesskey`, `privatekey`, `credential`, `auth`, `sessionid`, `cookie`, compared with `-`, `_` and `.` removed | `mysql --password=hunter2`, `vault login --token s.abc`, `API_KEY=abc run` | `mysql --password=[redacted]`, `vault login --token [redacted]`, `API_KEY=[redacted] run` |
+| The same names inside a connection or query string, split on `;`, `&` and `?` | `Server=db;Password=p;Database=x`, `?user=a&access_token=x` | `Server=db;Password=[redacted];Database=x`, `?user=a&access_token=[redacted]` |
+| The password of `user:password` after `-u`, `--user` or `--proxy-user` | `curl -u admin:letmein` | `curl -u admin:[redacted]` |
+| The password in an address | `postgres://app:s3cret@db:5432/main` | `postgres://app:[redacted]@db:5432/main` |
+| The credential after `Bearer` or `Basic` | `Authorization: Bearer abc.def` | `Authorization: Bearer [redacted]` |
+| A value whose own shape names it, wherever it stands: a cloud access key id, a forge or chat platform token, a JSON web token, private key material | `deploy AKIA...` | `deploy [redacted]` |
+
+A secret in a shape the list does not name is kept as typed: a bare positional
+argument (`sshpass -p hunter2`), or the value of a flag whose name says
+nothing. A tool that takes its password that way should be given it through a
+file or the environment of a process the agent does not record. The published
+privacy notice states the same list.
 
 ## Identity strength is written into the entry
 

@@ -406,7 +406,9 @@ the new program, an exit before the entry is purged. A rule naming any other
 intention loads and is reported `not_applicable` by
 `GET /api/v1/host-rules`, with the sentence saying no source delivers it.
 
-- `command_line` is carried only with `process_table.capture_command_line`.
+- `command_line` is carried only with `process_table.capture_command_line`,
+  and is the redacted line: a pattern written against a password value never
+  matches.
 - `exe_on_disk` is read from `/proc` when a rule names it, and only then.
 - `parent_exe` and `parent_uid` are those of the parent the table holds; a
   process whose parent it never saw carries neither.

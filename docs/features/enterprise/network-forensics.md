@@ -179,11 +179,11 @@ where that source filled it:
 | Detection | The alert the freeze copied: component, severity, rule, MITRE technique and tactic |
 | Action taken | The mode the rule was in when it matched |
 | Threat intelligence | Your own indicators, where the finding matched one |
-| Process | The workload the agent attached to the alert: pid, executable, uid, container |
+| Process | The workload the agent attached to the alert: pid, executable, command line, uid, container. The command line is present only with `process_table.capture_command_line` and was redacted where the agent read it ([what is removed](../../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
 | Network activity | The flows and resolved names the freeze holds around the node |
 | Host rules that fired | Host-rule findings raised on the flows a process opened |
 
-A file digest, a command line, a sandbox verdict, a malware family and a
+A file digest, a sandbox verdict, a malware family and a
 global prevalence have no panel, because nothing in a freeze carries them: an
 empty panel shaped like one would read as a reading taken and found clean.
 
