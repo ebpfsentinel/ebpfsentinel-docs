@@ -379,14 +379,21 @@ reports its blast radius with its state:
     "reason": null,
     "signal": 9,
     "window_ms": 2000,
-    "protected": 15
+    "protected": 15,
+    "immediate": true,
+    "immediate_reason": null
   }
 }
 ```
 
-`signal` is the signal a kill would send and `window_ms` how long the kernel
-keeps looking for the target: a target that makes no system call inside that
-window is reported as a survivor rather than assumed dead. `protected` counts
+`signal` is the signal a kill would send. `immediate: true` says the kernel
+lets the agent name its target (`bpf_send_signal_task`, found from Linux 6.13
+by loading a program rather than by reading the version), so the signal lands
+at once, even on a process computing without a single system call. Where it
+is `false`, `immediate_reason` says why in one sentence and the signal waits
+for the target's next system call: `window_ms` is then how long the kernel
+keeps looking, and a target that makes no system call inside that window is
+reported as a survivor rather than assumed dead. `protected` counts
 the process ids the kernel refuses to signal whatever a rule asks, and is never
 zero while the capability is on, since the agent itself is one of them.
 `attached: false` is the answer on every node that did not turn the capability

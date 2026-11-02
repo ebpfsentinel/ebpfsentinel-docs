@@ -33,7 +33,7 @@ response:
 | `max_ttl_secs` | u64 | `86400` | Longest TTL the agent accepts on a response action, in seconds. Minimum `1`, maximum `2592000` |
 | `kill_process.enabled` | bool | `false` | Whether the agent loads the program that can stop a process |
 | `kill_process.signal` | u32 | `9` | The signal sent. Minimum `1`, maximum `64` |
-| `kill_process.window_ms` | u64 | `2000` | How long the kernel keeps looking for the target, in milliseconds. Minimum `1`, maximum `30000` |
+| `kill_process.window_ms` | u64 | `2000` | How long the kernel keeps looking for the target, in milliseconds, where the signal waits for the target's next system call. Unused where the kernel signals at once. Minimum `1`, maximum `30000` |
 | `kill_process.protected_commands` | list of string | `[]` | Extra executable names the agent refuses to signal. An empty entry is refused at config load |
 | `kill_process.protected_pids` | list of u32 | `[]` | Extra process ids the kernel refuses to signal. `0` is refused at config load |
 | `quarantine.enabled` | bool | `false` | Whether the agent acquires the maps that cut a workload off the network |
