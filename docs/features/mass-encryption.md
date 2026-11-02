@@ -429,3 +429,44 @@ captured.
 
 The message lists each signal that agreed, the process that produced it and its
 evidence, then each signal not read on this host and why.
+
+## Writes to other hosts' shares
+
+A run encrypting files over the network leaves the host it runs on untouched:
+the workstation mounts the shares it can reach and rewrites them from where it
+sits, so every signal above fires, if anywhere, on the file server, and the
+workstation's own disk shows nothing. What changes on the workstation is where
+its writes go. With `share_writes` turned on, the agent follows the writes this
+host pushes over SMB and raises one alert, `share_writes`, when one process
+writes to several file servers this host has never written to before, within a
+few minutes.
+
+The reading is taken off the flow records of the connection table: a TCP flow
+towards port 445 or 139, the bytes the local side sent being what it wrote, and
+the process behind the flow named through the
+[socket attribution](../configuration/attribution.md). It reads no file and no
+SMB message content, so the alert says where the writes went, how much and by
+which process, and says that the content was not read. It does not say the
+files were encrypted.
+
+The history of servers is learned, never written by hand. Every server this
+host writes to during the learning period, a week by default, is ordinary, and
+a server first seen later joins the history once the window it was seen in has
+closed. A backup server that reaches every share every night is quiet from the
+first night after learning, and a host that gains one new server at a time
+never adds up to an alert. The learning period starts at the first write the
+agent sees, and the history is held in memory, so an agent restart learns
+again: a run that starts during learning is taken as ordinary.
+
+| Field | Value |
+|-------|-------|
+| component | `share_writes` |
+| rule | `share-writes-to-new-peers` |
+| severity | high |
+| MITRE ATT&CK | T1021.002, Remote Services: SMB/Windows Admin Shares |
+| process | the process behind the writes where the node named it, otherwise the host |
+| destination | the server that received the most |
+
+The message lists every new server with the bytes it received. The thresholds
+are in [Share Writes Configuration](../configuration/share-writes.md). This is
+detection: by the time the alert is raised, the writes it counts have landed.

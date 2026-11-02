@@ -163,6 +163,7 @@ const sidebars: SidebarsConfig = {
         'configuration/file-watch',
         'configuration/tcp-health',
         'configuration/network-inventory',
+        'configuration/share-writes',
         'configuration/hidden-checks',
         'configuration/package-inventory',
         'configuration/learning',
