@@ -146,6 +146,14 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:cni-matrix
 
+      # Every capability above the kernel floor is stated in both kernel
+      # pages with its condition and its fallback, rendered from the agent's
+      # own catalogue, so the two pages cannot disagree and a claim cannot
+      # reach a reader without the condition that qualifies it.
+      - name: Check the capabilities above the floor
+        working-directory: ebpfsentinel-docs
+        run: npm run check:above-the-floor
+
   build:
     name: build
     runs-on: ubuntu-latest

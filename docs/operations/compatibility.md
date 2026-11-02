@@ -163,6 +163,31 @@ SYN cookies are computed by the kernel's raw syncookie helpers and the
 SYN-ACK is written by `xdp-ratelimit-syncookie` and sent back with `XDP_TX`;
 the socket-bound `bpf_tcp_gen_syncookie` is not used.
 
+## Above the Floor
+
+<!-- BEGIN GENERATED ABOVE THE FLOOR -->
+
+Everything below is above the 6.12 floor: each entry is active only where its condition holds on the host, and its fallback runs everywhere else. The agent decides each one from a probe or an attach, never from the kernel version, and reports it in the `capabilities` block of `GET /api/v1/ebpf/kernel-features` and in `ebpfsentinel-agent ebpf kernel-features`, with the reason and the way to switch it on where it is off.
+
+| Capability | What it unlocks | Condition | Where it is absent |
+|------------|-----------------|-----------|--------------------|
+| `bpf_lsm` | Programs attached at security module hooks, which is where the kernel decides a call before it happens | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Each capability resting on it runs its own fallback, listed beside it |
+| `file_kfuncs` | A task's executable, a rendered path and a file's extended attribute read in the kernel | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Executables are identified by the device and inode read in userspace, and paths and attributes are read off the filesystem |
+| `kprobe_session` | One program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them | A kernel built with it | Nothing changes: no shipped program rests on it yet |
+| `copy_from_user_str` | The real argument vector of a process, read at exec | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Nothing changes: no shipped program rests on it yet |
+| `tcp_reqsk_assign` | A validated SYN cookie handed to the stack as a request socket, so the stack does not revalidate a cookie it did not issue | A kernel built with it | Nothing changes: no shipped program rests on it yet |
+| `attribution` | The workload that opened a socket, named on every flow | Turned on in the configuration and attached on the node | Flows carry no workload name and everything else is unchanged |
+| `process_tracing` | The process behind a flow or an alert, with its command line and lineage | Turned on in the configuration and attached on the node | Flows and alerts carry no process and everything else is unchanged |
+| `workload_firewall` | Rules on what a named workload may connect to, send to or bind, decided in the syscall | Turned on in the configuration and attached on the node | No workload rule is enforced, and a configuration that needs one refuses to start rather than running unenforced |
+| `quarantine` | A workload cut off from the network in the kernel for a bounded time | Turned on in the configuration and attached on the node | A quarantine is refused with the reason and the alert still fires |
+| `process_signal` | A process stopped by a signal sent from the kernel | Turned on in the configuration and attached on the node | A signal is refused with the reason and the alert still fires |
+| `immediate_signal` | A signal that reaches its target at once, even a process making no syscall | A kernel offering it, from Linux 6.13 or through a vendor backport | The signal waits for the target's next syscall, and a target making none within the window is reported as a survivor |
+| `network_executables` | The list of executables allowed to reach the network, decided before the socket exists | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | An observing list is skipped with the reason and an enforcing list refuses to start the agent |
+| `write_refusal` | A write-open refused past a count, before a byte is written | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | A fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain |
+| `self_protection` | The agent's own maps and links refused to every other task | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | The agent's objects are guarded only by the privilege it takes to reach them, and the node reports itself unprotected |
+
+<!-- END GENERATED ABOVE THE FLOOR -->
+
 ## Kernel Verification
 
 ```bash

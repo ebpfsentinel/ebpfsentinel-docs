@@ -31,6 +31,8 @@
     "check:sigma-fields": "node scripts/generate-sigma-fields.mjs --check",
     "generate:intel-objects": "node scripts/generate-intel-objects.mjs",
     "check:intel-objects": "node scripts/generate-intel-objects.mjs --check",
+    "generate:above-the-floor": "node scripts/generate-above-the-floor.mjs",
+    "check:above-the-floor": "node scripts/generate-above-the-floor.mjs --check",
     "generate:cni-matrix": "node scripts/generate-cni-matrix.mjs",
     "check:cni-matrix": "node scripts/generate-cni-matrix.mjs --check",
     "generate:host-rule-limits": "node scripts/generate-host-rule-limits.mjs",
