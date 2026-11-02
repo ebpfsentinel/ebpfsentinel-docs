@@ -449,6 +449,45 @@ sample, because the agent forgets all of it at its next restart; one still
 running is refused with `409`, so what a case holds is a reading that will not
 change. Keeping one needs the analyst role, like any other change to a case.
 
+## From the first beacon to the encryption
+
+An intrusion that ends in encryption usually announces itself first: a
+beacon to a command-and-control server, then data leaving for somewhere it
+should not, days before the files are touched. Each is a finding of its own,
+raised by its own detection, and read separately they are three alerts. The
+forensics trail reads them on the actor that raised them: every finding whose
+MITRE ATT&CK tactic is `command-and-control` or `exfiltration` is kept for the
+trail's `retention_days`, and when [mass encryption](../mass-encryption.md) is
+raised, the precursors the same actor raised before it are gathered with it
+into one campaign, oldest first.
+
+The actor is the executable when a finding names a process, and the client's
+address when the encryption was written for another host through a file
+service. A precursor naming no process is a flow of this host that nothing
+attributed: it joins an encryption by a process of this host, marked
+`attributed: false` because it may belong to another program, and it never
+joins an encryption written for a client, which happened on somebody else's
+host. A precursor from another executable never joins.
+
+This is a correlation over findings already raised and not a detection of its
+own: a campaign is formed only around an encryption, an encryption with no
+precursor forms none, and a later encryption by the same actor inside the
+retention extends the campaign it belongs to rather than opening another. A
+campaign held is logged when it forms and listed by
+`GET /api/v1/enterprise/forensics/campaigns`, newest encryption first; the
+status route counts them under `campaigns_total`. The trail is held in memory,
+like the freezes, so a restart begins it again, and at most 10,000 precursors
+and 1,000 campaigns are kept, the oldest going first.
+
+| Field | Description |
+|-------|-------------|
+| `id` | The alert of the first encryption the campaign formed around |
+| `actor` | The executable, or the client the encryption was written for |
+| `first_ns` | When the earliest finding was raised |
+| `encryption_ns` | When the latest encryption was raised |
+| `stages` | `beacon`, `exfiltration` and `encryption`, those the campaign holds a finding for |
+| `findings` | Each finding: its stage, alert, component, time, message and `attributed` |
+
 ## Flow Timeline Reconstruction
 
 The timeline engine reconstructs network activity around any alert or flow:
@@ -476,10 +515,11 @@ A timeline by alert ID is centered on that alert and answers **404** when no eve
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer depth and oldest event, context freeze count, trigger policy in force, current packet mirror configuration, whether capture is on, the captures held and the bytes they take on disk. |
+| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer depth and oldest event, context freeze count, campaigns held, trigger policy in force, current packet mirror configuration, whether capture is on, the captures held and the bytes they take on disk. |
 | `GET` | `/api/v1/enterprise/forensics/mirror` | viewer | network-forensics | Return the current packet mirror configuration. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/start` | operator | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
 | `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
+| `GET` | `/api/v1/enterprise/forensics/campaigns` | viewer | network-forensics | Every encryption joined to the beacons and exfiltrations its actor raised before it, newest encryption first. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes` | viewer | network-forensics | List all context freezes. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | viewer | network-forensics | Get a single context freeze. |
 | `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}/graph` | viewer | network-forensics | The investigation graph of one freeze, bounded by a node budget and a depth budget. |
