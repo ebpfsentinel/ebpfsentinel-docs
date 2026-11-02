@@ -57,25 +57,47 @@ time it reads the key, and stands down when the window closes.
 
 ## Available Features
 
-| Feature Flag | Description |
-|-------------|-------------|
-| `advanced-dlp` | Hyperscan DLP, custom patterns, block mode |
-| `ml-detection` | ML-based anomaly detection |
-| `multi-tenancy` | Namespace-scoped policy isolation |
-| `siem-integration` | SIEM export connectors |
-| `compliance-reports` | Automated compliance reporting |
-| `high-availability` | Active-passive and active-active clustering |
-| `multi-cluster` | Federated policy management |
-| `advanced-rbac` | Per-domain/resource permissions |
-| `air-gap` | Offline operation mode |
-| `advanced-analytics` | Historical traffic analytics |
-| `fleet-management` | Fleet agent management |
-| `ai-llm-security` | AI/LLM traffic security |
-| `tls-intelligence` | TLS threat intelligence & PQC compliance |
-| `network-forensics` | Event ring buffer, context freezes & flow timeline |
-| `automated-response` | Policy engine & SOAR webhook integration |
-| `kubernetes-operator` | The Kubernetes operator, which refuses to start without it |
-| `sigma-rules` | Sigma rules over network connections compiled into IDS rules |
+A feature can gain scope without gaining a name. Re-issuing every key in the
+field each time a capability lands is the alternative, so instead a key keeps
+working and covers what its features cover in the release it runs, with no
+migration and no re-issue. The table says what each feature covers today and
+what it gained after it was first sold, so whether a key covers a capability
+is answered here rather than in a changelog.
+
+| Feature Flag | What it covers | What it gained, and when |
+|-------------|----------------|--------------------------|
+| `advanced-dlp` | Hyperscan DLP, custom patterns, block mode | - |
+| `ml-detection` | The anomaly engines: baseline, streaming, change point, ONNX model, heavy hitters, DGA and tunnelling, TLS fingerprint clustering and beaconing | The learned [mass encryption thresholds](ml-detection.md#mass-encryption-thresholds), per executable and per host, from the first release carrying the host capabilities |
+| `multi-tenancy` | Namespace-scoped policy isolation | - |
+| `siem-integration` | SIEM export connectors | - |
+| `compliance-reports` | Generated evidence for an audit, in JSON, CSV and PDF | The host controls: a mass encryption run stopped, watched files changed, the package inventory and the scanner reports joined with it, from the first release carrying the host capabilities |
+| `high-availability` | Active-passive and active-active clustering | - |
+| `multi-cluster` | Federated policy management, and the estate graph | - |
+| `advanced-rbac` | Per-domain/resource permissions | - |
+| `air-gap` | Offline operation mode | - |
+| `advanced-analytics` | Historical traffic analytics | - |
+| `fleet-management` | Fleet agent management, SBOMs, host rules and their promotion | The host verdicts read across the fleet: file drift between nodes, the mass encryption and write refusal readings by workload and their promotion, and [reachable vulnerabilities](reachable-vulnerabilities.md), from the first release carrying the host capabilities |
+| `ai-llm-security` | AI/LLM traffic security | - |
+| `tls-intelligence` | TLS threat intelligence & PQC compliance | - |
+| `network-forensics` | Event ring buffer, context freezes, flow timeline and the investigation graph | The campaign: the beacon and the exfiltration an actor raised before a mass encryption, gathered with it, including an encryption written for a client on another host, from the first release carrying the host capabilities |
+| `automated-response` | Policy engine, approvals and SOAR webhooks; blocking, rate limiting, isolating a flow, killing a process | Stopping a mass encryption run, the process and every process it started, from the first release carrying the host capabilities. **Not** the write refusal: see below |
+| `kubernetes-operator` | The Kubernetes operator, which refuses to start without it | - |
+| `content-channel` | Signed detection content delivered on an interval: rules, patterns, fingerprints, provider definitions and models | - |
+| `threat-intel-platforms` | TAXII 2.1 collections and MISP instances, read on an interval | - |
+| `sigma-rules` | Sigma rules over network connections compiled into IDS rules | - |
+
+### The write refusal is a configuration, not a licence
+
+A customer who turned `automated-response` on consented to packets being
+dropped and to a process being killed on an alert. Refusing a file operation is
+a different harm, so no licence feature turns the
+[write refusal](../write-refusal.md) on. The licence grants the capability and
+the configuration grants the activation: the refusal is off until
+`file_watch.write_refusal.enabled` is set or a file watch profile is given
+`refuse_writes: true`, it starts in `shadow` either way, and a key carrying
+`automated-response` on a host with neither setting refuses nothing. What
+`fleet-management` adds is reading the shadow and putting it in force without a
+restart.
 
 ## Keys bought from the portal
 
