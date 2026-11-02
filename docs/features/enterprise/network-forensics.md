@@ -166,6 +166,27 @@ empty highlight is never read as nothing having happened. A file intent says
 it covers the watched set, and a posture or surface intent says it is a
 reading taken at intervals rather than a stream of events.
 
+A `finding` node also carries what its alert said beyond its text, each field
+absent where the alert carried nothing: `rule_id`, `mitre_tactic`, `action`
+(`alert` when the rule only reported, `block` when the traffic was dropped),
+and, where the finding matched an indicator of your own threat intelligence,
+its `threat_type` and `confidence`. The dashboard's detail drawer is a closed
+list of panels, each built only from a source the freeze holds and drawn only
+where that source filled it:
+
+| Panel | Source |
+|-------|--------|
+| Detection | The alert the freeze copied: component, severity, rule, MITRE technique and tactic |
+| Action taken | The mode the rule was in when it matched |
+| Threat intelligence | Your own indicators, where the finding matched one |
+| Process | The workload the agent attached to the alert: pid, executable, uid, container |
+| Network activity | The flows and resolved names the freeze holds around the node |
+| Host rules that fired | Host-rule findings raised on the flows a process opened |
+
+A file digest, a command line, a sandbox verdict, a malware family and a
+global prevalence have no panel, because nothing in a freeze carries them: an
+empty panel shaped like one would read as a reading taken and found clean.
+
 ## Alert-triggered packet capture
 
 Off unless `forensics.capture.enabled` is set. The freeze keeps the events a
