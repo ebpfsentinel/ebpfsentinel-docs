@@ -206,6 +206,12 @@ namespace that reads the licence Secret and the agent token Secret by name and
 nothing beside them. A resource in any other namespace is left alone. Each
 namespace listed must exist before the chart is installed.
 
+Narrowed, the operator holds no cluster grant to hand on, so an agent whose
+Kubernetes settings read across the cluster - the pod enricher,
+`networkPolicy` in `observe` or `enforce`, `clusterIp` - reports
+`ClusterReads` False with the name of the `ClusterRole` it could not write,
+which an administrator then grants out of band.
+
 ### Refused at admission
 
 A resource's own schema refuses what it can see in one object. The chart
@@ -676,11 +682,14 @@ spec:
 The operator only renders the mode. Each agent watches the policies, pods,
 namespaces, services and endpoint slices itself and compiles them for its
 node, so a pod starting or stopping changes no configuration Secret and rolls
-no agent. The agent's ServiceAccount needs `list` and `watch` on `pods`,
-`namespaces` and `services`, on `networkpolicies` in `networking.k8s.io` and
-on `endpointslices` in `discovery.k8s.io`, bound through a `ClusterRole` of
-your own, the same way the pod metadata enricher's read of `pods` and
-`namespaces` is. See
+no agent. The agent refuses to start in `enforce` when it cannot read them,
+so the operator grants its ServiceAccount `list` and `watch` on `pods`,
+`namespaces` and `services`, on `networkpolicies` in `networking.k8s.io` and on
+`endpointslices` in `discovery.k8s.io`, through a `ClusterRole` and binding
+named `ebpfsentinel-agent-<namespace>-<name>`. The pod metadata enricher alone
+gets `pods` and `namespaces`. Both objects are deleted when the mode goes back
+to `off` and when the resource is deleted, and the resource's `ClusterReads`
+condition says whether the grant is held. See
 [Kubernetes NetworkPolicy](../network-policy.md) for the semantics and the
 counters.
 
@@ -819,9 +828,10 @@ spec:
                 matchLabels: {kubernetes.io/metadata.name: shop}
 ```
 
-The operator renders the selectors as written and grants nothing: the agent's
-ServiceAccount needs `list` and `watch` on `pods`, `namespaces` and
-`services`, and on `endpointslices` in `discovery.k8s.io`. Leave it off beside
+The operator renders the selectors as written and grants the agent's
+ServiceAccount `list` and `watch` on `pods`, `namespaces` and `services`, and
+on `endpointslices` in `discovery.k8s.io`, through the same per-resource
+`ClusterRole` as the `NetworkPolicy` translation. Leave it off beside
 Cilium running as the kube-proxy replacement, which already resolves every
 pod's cluster addresses at `connect()`. Beside Cilium with kube-proxy and
 beside Calico, the coexistence lanes check that a pod not named keeps going
