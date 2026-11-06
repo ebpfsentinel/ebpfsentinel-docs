@@ -88,7 +88,7 @@ This is the part that decides whether the document is useful or dangerous, so th
 - **Only TCP and UDP are recorded**, because those are the protocols a workload rule can carry.
 - **A flow nothing could attribute is kept and counted as `unattributed`**, with no workload on it. It is not written as a rule, and the count is in the header: a window that could name nothing says so instead of producing a short document that looks complete.
 - **A full window is incomplete and says so.** The aggregate refuses past `max_edges` rather than evicting, because a policy written from a window that quietly dropped its oldest destinations would be missing exactly the ones nobody remembers. `dropped_edges` above zero means the reading is short by at least that many destinations.
-- **An executable path is forgeable** by anything that can write one, like every workload rule: see [Workload firewall rules](../configuration/workload-firewall.md).
+- **An executable path is forgeable** by anything that can write one, like every workload rule; add `exe_hash` to a proposed rule to pin the bytes as well: see [Workload firewall rules](../configuration/workload-firewall.md#an-executable-path-is-forgeable-a-digest-is-not).
 
 ## Reading it in the console
 

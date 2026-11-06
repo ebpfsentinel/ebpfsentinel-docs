@@ -23,6 +23,7 @@ firewall:
 | Field | Type | Matching | Example |
 |-------|------|----------|---------|
 | `exe` | string | Exact, absolute path of the executable the task is running | `/usr/bin/curl` |
+| `exe_hash` | string | Exact digest of the executable, source included: `sha256:<hex>` for the SHA-256 of its contents, `fsverity-sha256:<hex>` for its fs-verity digest | `sha256:e3b0c442...b855` |
 | `unit` | string | Exact systemd unit name, derived from the task's cgroup path | `nginx.service` |
 | `cgroup` | string | Absolute cgroup v2 path, matching that cgroup **and everything under it** | `/system.slice/nginx.service` |
 | `container` | string | Container name as the runtime gave it, a full container id, or an id prefix of at least 12 characters | `payments-api` |
@@ -33,7 +34,7 @@ firewall:
 | `ancestor` | string | Absolute path of an executable any process above the task runs, the parent included | `/usr/sbin/nginx` |
 | `mode` | string | `observe` (default) or `enforce` | `enforce` |
 
-A virtual machine is not a workload here: its sockets are in its own kernel, where no hook of the host runs, so a `workload` naming a `guest` is refused with that reason. Scope an [IDS rule](ids.md#guests) to the guest instead, which is decided on its tap device. A selector must name at least one of the nine, and never both `parent` and `ancestor`. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe`, `cgroup`, `parent` and `ancestor` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
+A virtual machine is not a workload here: its sockets are in its own kernel, where no hook of the host runs, so a `workload` naming a `guest` is refused with that reason. Scope an [IDS rule](ids.md#guests) to the guest instead, which is decided on its tap device. A selector must name at least one of the ten, and never both `parent` and `ancestor`. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe`, `cgroup`, `parent` and `ancestor` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
 
 ### Three semantics worth knowing before writing one
 
@@ -448,9 +449,35 @@ On a host where the BPF LSM is not active, an observing list is skipped with a w
 
 Counters are published under `ebpfsentinel_packets_total{interface="EXEC_NET_METRICS"}`: `checked`, `allowed`, `refused`, `would_refuse`, `unreadable` and `event_lost`. Each call outside the set raises an alert under the rule `network-executables` naming the process, the executable's device and inode and whether the call was refused; a process is reported at most once a minute per hook, while the counters stay exact. Whether the list is attached, its mode and how many executables it holds are in the `network_executables` block of [`/api/v1/ebpf/kernel-features`](../api-reference/rest-api.md) and in `ebpfsentinel-agent ebpf kernel-features`.
 
-## An executable path is forgeable
+## An executable path is forgeable, a digest is not
 
-`exe` is the path the kernel reports for the running binary, and anything that can write a file can arrange for a path to look like the one in the rule: copy a binary to `/usr/bin/curl` on a writable mount, bind-mount over it, or run from a namespace where that path is something else. A workload rule is therefore an operational control - it stops the normal behaviour of normal software, which is what most egress incidents are made of - and it is not an identity. What would close it is identifying the binary by the hash of its contents rather than by where it sits, and that is **not shipped**: there is no `exe_hash` matcher and no hashing in the agent today. Until there is, every alert a workload rule raises says which identity it carried, so a reader can see that a path was what matched. The `unit`, `cgroup` and `container` matchers are not paths and do not share this weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.
+`exe` is the path the kernel reports for the running binary, and anything that can write a file can arrange for a path to look like the one in the rule: copy a binary to `/usr/bin/curl` on a writable mount, bind-mount over it, or run from a namespace where that path is something else. A rule naming `exe` alone is therefore an operational control - it stops the normal behaviour of normal software, which is what most egress incidents are made of - and it is not an identity.
+
+`exe_hash` names the bytes instead of the place. At every exec the agent opens the file the process is running, through the process's own `/proc/<pid>/exe` link so it is the file actually mapped even if its name has since moved, and obtains its digest in one of two ways:
+
+- **fs-verity**, where the file has it on. The kernel answers the digest it already holds without the agent reading anything, the file cannot be written while verity is on, and every page the process maps is checked against that digest, so the answer holds for as long as the process runs. `fsverity digest <file>` prints the same value, written `fsverity-sha256:<hex>`. Only SHA-256 verity files are measured this way; a file built with another algorithm falls through to the contents.
+- **The contents** everywhere else: the SHA-256 of the file, what `sha256sum <file>` prints and what a release's `SHA256SUMS` lists, written `sha256:<hex>`. It is read once per file and remembered against the device, the inode, the size and both change times, so a second exec of the same binary costs one `fstat` and a binary rewritten in place is read again. A file above 256 MiB is not read and carries no digest.
+
+The prefix is part of the value and the two never match each other, because they are different functions of the same file: write the rule with the one your hosts produce, which `ebpfsentinel-agent processes --output json` shows for any running task under `identity.exe_hash`. The usual source of a value is the package or image you deploy, hashed once at build time.
+
+```yaml
+- id: allow-pinned-curl-to-registry
+  priority: 100
+  action: allow
+  protocol: tcp
+  dst_ip: 10.20.0.0/16
+  dst_port: 443
+  workload:
+    exe: /usr/bin/curl
+    exe_hash: "sha256:<the digest of the curl you ship>"
+    mode: enforce
+```
+
+The rule that matters is the first semantic above: **a task the agent could not hash is not matched**. That happens where the file was larger than the bound, where the process exited before the read, and on a rootless agent for any process it may not open: the warden hands it the path and the inode of another user's executable but not a descriptor on it, so such a task carries a path and no digest. A rule allowing by digest then refuses rather than opens, and an alert or a flow carries `exe_hash` only where a digest was obtained, so a reader can always see which identity matched.
+
+IMA is not read. Its measurement list is a log of what the host's own policy chose to measure, readable as root from securityfs, keyed by path and appended to for the whole boot; answering "what is this process running" from it would mean a policy the agent does not control and a path to join on, which is the very thing a digest is meant to stop trusting.
+
+The `unit`, `cgroup` and `container` matchers are not paths and do not share the forging weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.
 
 ## What it costs and what it reports
 

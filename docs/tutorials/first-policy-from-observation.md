@@ -180,7 +180,7 @@ Do the next workload when its deny has counted nothing for a period you trust. E
 ## What you did not get
 
 - **A policy for behaviour that did not happen.** Everything in step 4 stays true a month later: a window is a reading, and the rules nobody observed are still yours to write.
-- **An identity.** A workload rule names an executable, a unit, a cgroup or a container, and an executable path is forgeable by anything that can write one. It is an operational control, not an authentication: see [Workload firewall rules](../configuration/workload-firewall.md).
+- **An identity, unless you pin the bytes.** A workload rule names an executable, a unit, a cgroup or a container, and an executable path is forgeable by anything that can write one. A rule naming `exe` alone is an operational control, not an authentication; adding `exe_hash` makes it name the binary's contents: see [Workload firewall rules](../configuration/workload-firewall.md#an-executable-path-is-forgeable-a-digest-is-not).
 - **Anything for traffic this node only forwarded.** Learning mode records connections the node opened, so a router or a gateway learns about its own workloads, not about what passes through it.
 
 ## Where to go next

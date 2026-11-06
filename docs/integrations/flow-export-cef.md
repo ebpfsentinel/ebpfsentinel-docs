@@ -51,6 +51,7 @@ agent and is asserted there rather than compared on a reader's screen.
 | `flowSampling` | The sampling rate, written only where it is not `1` |
 | `workloadSource` | How the workload was joined: `socket`, `flow` or `process` |
 | `spid`, `sproc`, `filePath`, `suid` | The process id, the binary's name, its whole path and the owning user |
+| `fileHash` | The digest of that binary, `sha256:<hex>` or `fsverity-sha256:<hex>`, where the agent could open it |
 | `cgroupId`, `containerId`, `containerImage` | The cgroup and container |
 | `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` | The Kubernetes and systemd identities |
 | `parentPid`, `workloadAncestry` | The parent's pid, and the chain of up to eight ancestors on one line, parent first, each as its pid and its executable or its kernel name in brackets, joined by ` < ` |
@@ -71,7 +72,8 @@ totals.
 **`filePath` is what the process claims.** It is the path the kernel reports for
 the executable, which an attacker who controls the binary controls too, so it
 identifies a workload and does not authenticate one. Correlate on it; do not
-authorise on it.
+authorise on it. `fileHash`, where it is present, names the bytes the process
+was started from and is the key to authorise on.
 
 ### What a transited flow carries
 

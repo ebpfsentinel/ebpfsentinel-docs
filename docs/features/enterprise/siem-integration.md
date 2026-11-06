@@ -88,6 +88,8 @@ off every destination.
 | `ebpfsentinel.process.executable_source` | How the path was obtained: `process_at_alert_time` |
 | `ebpfsentinel.flow_source` | How the five-tuple was obtained: `kernel_socket` or `task_socket_correlation`. Absent means the address fields are absent too |
 | `ebpfsentinel.workload.source` | How the workload was reached: `socket`, `flow` or `process`. Present whenever the workload block is |
+| `ebpfsentinel.workload.exe_hash` | The digest of the executable, `sha256:<hex>` or `fsverity-sha256:<hex>`, where the agent could open the file |
+| `process.hash.sha256` | The same digest as bare hex, written only for `sha256:`: ECS defines it as the SHA-256 of the file, which an fs-verity digest is not |
 | `container.id`, `container.image.name` | The container the process runs in, where the node resolved one |
 | `orchestrator.type`, `orchestrator.resource.type`, `orchestrator.resource.name`, `orchestrator.namespace` | `kubernetes`, `pod`, the pod and its namespace, on a Kubernetes node |
 | `user.id` | The uid that opened the socket, as a string, which is what ECS asks for |

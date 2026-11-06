@@ -216,6 +216,7 @@ The workload block, where the node resolved one:
 | Attribute | Source |
 |-----------|--------|
 | `process.pid`, `process.executable.path` | The process behind the local socket |
+| `ebpfsentinel.workload.exe_hash` | The digest of that executable, `sha256:<hex>` or `fsverity-sha256:<hex>`, where the agent could open the file ([how it is obtained](workload-firewall.md#an-executable-path-is-forgeable-a-digest-is-not)) |
 | `container.id`, `container.image.name` | The container it runs in |
 | `k8s.pod.name`, `k8s.namespace.name` | The pod and namespace |
 | `ebpfsentinel.workload.source` | How the join was made: `socket`, `flow` or `process` |
@@ -327,6 +328,7 @@ asserted there rather than compared on a reader's screen.
 | `flowSampling` | The sampling rate, written only where it is not `1` |
 | `workloadSource` | How the workload was joined: `socket`, `flow` or `process` |
 | `spid`, `sproc`, `filePath`, `suid` | The process id, the binary's name, its whole path and the owning user |
+| `fileHash` | The digest of that binary, `sha256:<hex>` or `fsverity-sha256:<hex>`, where the agent could open it |
 | `cgroupId`, `containerId`, `containerImage` | The cgroup and container |
 | `podName`, `podNamespace`, `serviceAccount`, `systemdUnit` | The Kubernetes and systemd identities |
 | `parentPid`, `workloadAncestry` | The parent's pid, and the chain of up to eight ancestors on one line, parent first |

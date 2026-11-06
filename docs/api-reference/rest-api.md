@@ -3553,7 +3553,7 @@ Each entry of `processes`:
 | `parent_start_ns` | integer? | When the parent started. With `parent_pid`, a name a reused pid cannot take |
 | `start_ns` | integer? | When this process started, which precedes `started_at_ns` for a process that forked before it exec'd |
 | `comm` | string | The kernel's 16-byte command name |
-| `identity` | object | `kind` is `path` or `unknown`, and `path` carries the executable path where there is one |
+| `identity` | object | `kind` is `path` or `unknown`, `path` carries the executable path where there is one, and `exe_hash` the digest of that file where the agent could open it (`sha256:<hex>` or `fsverity-sha256:<hex>`) |
 | `command_line` | string? | The command line with its recognised secrets removed, only when `process_table.capture_command_line` is on ([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
 | `uid` | integer | Effective user id at exec |
 | `gid` | integer | Effective group id at exec |
@@ -3563,7 +3563,9 @@ Each entry of `processes`:
 
 `identity.kind` is what makes the strength of the name explicit. A path is
 forgeable: a process can be started from a binary that has since been replaced
-or deleted. `unknown` means the path could not be read at all, and the entry
+or deleted. `identity.exe_hash` names the bytes rather than the place, and is
+absent where the file could not be opened, which is how a rule naming a digest
+knows not to match. `unknown` means the path could not be read at all, and the entry
 carries only `comm`, which is 16 bytes the task can set itself.
 
 #### GET /api/v1/processes/{pid}
