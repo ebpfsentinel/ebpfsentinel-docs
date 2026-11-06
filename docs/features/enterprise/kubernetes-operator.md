@@ -736,6 +736,109 @@ signalled, `protectedCommands` only adds to that list, and a stopped process
 does not come back. See
 [Stopping the process behind a blocked flow](../../configuration/ips.md#stopping-the-process-behind-a-blocked-flow).
 
+`windowMs` is how long the probe keeps a stop request open, two seconds
+unless set, and `protectedPids` adds thread group ids the probe itself
+refuses to signal, for a host process an estate cannot name by command.
+
+### Fences around automated response
+
+What automated response may never touch is set on the node, never on a
+policy, so a rule posted over the REST API cannot shorten it. The open source
+agent's quarantine sits beside the process kill on the agent resource:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+spec:
+  config:
+    response:
+      quarantine:
+        enabled: true
+        windowSecs: 900
+        maxWindowSecs: 86400
+        protectedPaths:
+          - /kubepods.slice/kubepods-burstable.slice
+```
+
+A `windowSecs` longer than `maxWindowSecs` is refused at admission, as the
+agent would refuse it. The enterprise layer's never-act list and approval
+threshold sit on `EnterpriseSettings`:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EnterpriseSettings
+spec:
+  response:
+    enabled: true
+    neverAct:
+      - id: management-network
+        cidr: 10.0.0.0/24
+      - id: ledger-database
+        namespace: ledger
+    approval:
+      minSeverity: critical
+      timeoutSecs: 900
+      onTimeout: refuse
+```
+
+Every field an entry names must hold for the same alert, and a fact the alert
+does not carry does not match, so a management network is protected by
+`cidr`, which every alert carries. An entry naming nothing, or two entries
+sharing an `id`, are refused at admission. An action at or above
+`minSeverity` waits for a person; `onTimeout: refuse` drops it when nobody
+answers within `timeoutSecs`.
+
+A response rule's own `killProcess`, `quarantine`, `dryRun` and action budget
+are not fields of the `ResponsePolicy` resource: the enterprise agent reads
+them from rules created through its REST API and keeps them in its state
+file, not in its configuration, so there is nothing for a resource to render
+them into. `ResponsePolicy` renders the open source agent's block and
+throttle rules.
+
+### Per-entity baselines
+
+`MLDetection` sizes the per-entity forests under `rcf`:
+
+```yaml
+spec:
+  rcf:
+    enabled: true
+    poolCapacity: 128
+    entityIdleSecs: 10800
+    groupAlerts: true
+    calibrationCapacity: 4096
+```
+
+`poolCapacity` is how many entities hold a forest at once, the least recently
+seen being evicted beyond it, and each forest costs memory on every node, so
+size it from the per-forest cost the agent reports. `minObservations`,
+`adaptiveThreshold` and the explanation settings are tuning a cluster rarely
+changes on day one and are set through `spec.config.raw` when they are.
+
+### Packet capture on a preserved timeline
+
+`ForensicsPolicy` takes a `capture` block that keeps a ring of recent frames
+per interface and writes the flow's frames around a preserved timeline as one
+pcapng file:
+
+```yaml
+spec:
+  capture:
+    enabled: true
+    interfaces:
+      - eth0
+    ringMaxBytes: 67108864
+    preWindowSecs: 10
+    postWindowSecs: 5
+    retentionHours: 72
+```
+
+An enabled capture naming no interface, a window of zero seconds on both
+sides, or a `postWindowSecs` above 300 is refused at admission. Each ring is
+held in the agent's memory for every listed interface. The default directory
+sits in the agent's state directory, which the operator mounts from the node;
+a `directory` anywhere else needs a volume of its own.
+
 ### Inside selected pods
 
 Where the node agent's coverage verdict names a pod it misses for a reason only
