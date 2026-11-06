@@ -188,6 +188,15 @@ Releases are listed on the
 The chart configures the operator and nothing about an agent: every agent-side
 setting, open source and enterprise alike, is a custom resource.
 
+The agents the operator deploys need Linux 6.12 or later with BTF on every
+node they run on, and refuse to start below it. The executables allowed to
+reach the network and the kernel route of the write refusal also need the BPF
+LSM active at boot, the `lsm=` kernel parameter listing `bpf`, which a kernel
+version does not tell. `kubectl get nodes -o wide` shows each node's kernel,
+and `ebpfsentinel-agent ebpf host-check`, run on a node of each pool, answers
+for the BPF LSM. The chart prints both after an install. See
+[Prerequisites](../../getting-started/prerequisites.md).
+
 ### Reconciling some namespaces only
 
 By default the operator reconciles across the cluster under a ClusterRole,
