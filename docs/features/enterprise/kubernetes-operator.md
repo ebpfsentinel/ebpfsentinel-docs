@@ -492,6 +492,42 @@ kubectl get tenantpolicy -A
 kubectl get tenantpolicy acme -n tenants -o jsonpath='{.status.tenantNamespaces}'
 ```
 
+### The container runtime the agents read
+
+Attributing a container's traffic to a tenant reads the container's labels
+from the node's runtime, and the agent pod mounts each runtime socket the
+rendered document names, read-only:
+
+- with `multiTenancy.cgroupAttribution.enabled` on `EnterpriseSettings`, the
+  directory of every socket in `criSockets`, which defaults to containerd's
+  `/run/containerd/containerd.sock` and CRI-O's `/run/crio/crio.sock`. A
+  directory the node does not have is created empty under `/run`, a tmpfs,
+  and the agent reports that socket as absent, so one list serves a fleet
+  running both. List only the runtime the fleet runs to keep the other's
+  directory off its nodes, and a socket elsewhere, k3s's
+  `/run/k3s/containerd/containerd.sock` for one, by its own path;
+- with `container.docker.enabled` on the agent resource, the socket
+  `container.docker.socket` names, which then has to exist on every node the
+  agents run on.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EnterpriseSettings
+metadata:
+  name: settings
+spec:
+  target:
+    all: true
+  licenseSecretRef:
+    name: ebpfsentinel-license
+    key: license.lic
+  multiTenancy:
+    cgroupAttribution:
+      enabled: true
+      criSockets:
+        - /run/containerd/containerd.sock
+```
+
 ### Executables allowed to reach the network
 
 A `FirewallPolicy` may carry `networkExecutables`, the list of executables
