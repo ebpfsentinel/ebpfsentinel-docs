@@ -52,7 +52,7 @@ feature each one requires in
 license does not carry is never mounted, so a call to one of its paths answers
 `404 Not Found` rather than `403 Forbidden`.
 
-Nine routes are mounted whatever the license carries:
+Eleven routes are mounted whatever the license carries:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
@@ -62,6 +62,8 @@ Nine routes are mounted whatever the license carries:
 | `PATCH` | `/api/v1/alerts/{id}/triage` | operator | none | Set one alert's status or assignee, or append a note. |
 | `POST` | `/api/v1/alerts/triage` | operator | none | Apply one triage change to at most 1000 alerts. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
+| `GET` | `/api/v1/ebpf/hidden-ports` | viewer | none | The last hidden-port sweep, as the open-source agent serves it. |
+| `GET` | `/api/v1/ebpf/hidden-processes` | viewer | none | The last hidden-process sweep, as the open-source agent serves it. |
 | `GET` | `/metrics` | none | none | OpenMetrics text output for every metric this process keeps: the `ebpfsentinel_ent_` registry and the datapath's own `ebpfsentinel_` one, in one exposition. |
 | `GET` | `/healthz` | none | none | Liveness. Answers 200 while the process is running. |
 | `GET` | `/readyz` | none | none | Readiness. 200 once this node is doing what its role asks of it, 503 otherwise. |

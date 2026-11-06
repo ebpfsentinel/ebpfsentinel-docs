@@ -92,6 +92,8 @@ const AGENT_WIDE_DOC = 'overview.md';
 const AGENT_WIDE = [
   '/api/v1/alerts',
   '/api/v1/ebpf/kernel-features',
+  '/api/v1/ebpf/hidden-ports',
+  '/api/v1/ebpf/hidden-processes',
   '/metrics',
   '/healthz',
   '/readyz',
