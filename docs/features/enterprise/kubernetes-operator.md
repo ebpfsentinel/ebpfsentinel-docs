@@ -839,6 +839,103 @@ held in the agent's memory for every listed interface. The default directory
 sits in the agent's state directory, which the operator mounts from the node;
 a `directory` anywhere else needs a volume of its own.
 
+### Watching the node's files
+
+`config.fileWatch` follows changes under the node paths it names, and
+`config.shareWrites` follows the SMB writes the node pushes to file servers:
+
+```yaml
+spec:
+  config:
+    fileWatch:
+      enabled: true
+      filesystems:
+        - /etc/kubernetes
+      paths:
+        - /etc/kubernetes/manifests
+      massEncryption:
+        mode: shadow          # shadow, then enforce
+    shareWrites:
+      enabled: true
+      windowSecs: 300
+      minNewPeers: 5
+```
+
+The warden opens the watch, so the operator mounts each entry of `filesystems`
+read-only into the warden at the node's own path, and only while the watch is
+enabled. An enabled watch naming no filesystem is refused at admission, and so
+is `/`: inside a pod `/` is the warden's own image, not the node's. A path in
+`paths` must sit on one of the listed filesystems to be seen. `massEncryption.stop`
+is refused unless the mode is `enforce`, `response.killProcess.enabled` is on
+and the process table is not switched off, which is what the agent refuses at
+startup. See [File watch](../../configuration/file-watch.md) and
+[Share writes](../../configuration/share-writes.md).
+
+The baseline ceilings are typed as `maxHashBytes` and `maxBaselines`.
+`file_watch.canaries` is overlay-only, set through `spec.config.raw`: canary
+files are written by the agent into the watched tree, which the operator
+mounts read-only, so a canary set needs a writable volume of its own beside
+the overlay.
+
+### Steering workloads into the inspection proxy
+
+A `DLPPolicy` carrying `tlsProxy` may add a `redirect`, which hands the TCP
+connections of the chosen workloads to the proxy at `connect()`:
+
+```yaml
+spec:
+  tlsProxy:
+    enabled: true
+    caSecretRef:
+      name: ebpfsentinel-tls-ca
+    listenPort: 8443
+    redirect:
+      selectors:
+        - namespace: storefront
+        - action: exclude
+          exe: /usr/bin/pg_dump
+      ports:
+        - 443
+      listenerIpv4: 169.254.20.10
+      dryRun: true
+```
+
+A redirect without `enabled`, one selecting no cgroup and no workload, one
+with no listener address, or one whose listener is a loopback or unspecified
+address is refused at admission. One document is rendered for every node of
+the resource, so the listener address must be one every selected node holds,
+a link-local address assigned on each node for instance; an address held by
+one node only steers every other node's connections nowhere. Start with
+`dryRun: true`, which reports the pods that would be redirected and those that
+would refuse the session, then remove it. See
+[Redirecting chosen workloads to the proxy](dlp.md#redirecting-chosen-workloads-to-the-proxy).
+
+### Deep inspection scope and source blocks
+
+`l7Advanced` names the workloads whose received TLS plaintext is
+deep-inspected and blocks the source of a match for a while:
+
+```yaml
+spec:
+  l7Advanced:
+    tlsPlaintextWorkloads:
+      - name: checkout-nginx
+        exe: /usr/sbin/nginx
+    blockSource:
+      minSeverity: critical
+      durationSecs: 600
+      maxActive: 1024
+      allow:
+        - 10.0.0.0/8
+```
+
+A plaintext workload is decided per captured buffer, so it names a container,
+a cgroup or an executable, and never a namespace or a pod, which a buffer does
+not carry; one naming none of the three is refused. `durationSecs` runs up to
+one day and `maxActive` up to 65536. See
+[TLS plaintext workload selector](l7-deep-inspection.md#tls-plaintext-workload-selector)
+and [Source block](l7-deep-inspection.md#source-block).
+
 ### Inside selected pods
 
 Where the node agent's coverage verdict names a pod it misses for a reason only
