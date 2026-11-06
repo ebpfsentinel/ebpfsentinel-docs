@@ -516,7 +516,7 @@ All fields are optional:
 - `name` defaults to `id` if omitted
 - `interfaces`, `subnets`, `vlans`, `namespaces` default to empty
 - `quotas` fields use defaults when omitted
-- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and the Docker socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings, and Podman's sockets from `container.podman` when that block is enabled
+- `cgroup_attribution` is disabled by default; when enabled it reads the cgroup root and the Docker socket from the agent's `container.resolver.cgroup_root` and `container.docker.socket` settings, Podman's sockets from `container.podman` when that block is enabled, and the containerd and CRI-O sockets from `cri_sockets` below
 - `cri_sockets` defaults to the containerd and CRI-O defaults above; a socket that is not there is reported once at startup with the path that was looked at, so the list costs nothing on a node running neither. Mount the parent directory read-only (`/run/containerd`, `/run/crio`) - the chart's `daemonset.criSockets` does it per runtime
 - `cri_timeout_ms` defaults to `2000` and bounds each runtime call, so a runtime that stops answering costs a pass rather than the watcher
 

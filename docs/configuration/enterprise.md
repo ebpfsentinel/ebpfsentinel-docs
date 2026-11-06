@@ -311,6 +311,17 @@ enterprise:
       per_request_threshold_bytes: 10485760           # 10 MiB
       aggregate_threshold_bytes_per_hour: 104857600   # 100 MiB
       burst_requests_per_minute: 60
+    agent_traffic:                      # which workload reaches which model provider or MCP server
+      default_action: allow             # allow | deny, when no rule matches
+      rules:                            # first match wins
+        - workload: payments/checkout   # a workload key as the ledger shows it, or "*"
+          provider: mcp                 # a registry id, a provider name, mcp, or "*"
+          action: deny
+      alert_on_new_provider: true
+      learning_secs: 3600               # watched this long before a new provider is news
+      max_requests_per_minute: 600      # unset: no volume alert
+      max_bytes_per_minute: 10485760    # unset: no volume alert
+      deny_flow_secs: 300               # how long a refused flow stays cut
 
   # ── TLS intelligence ────────────────────────────────────────────
   tls_intelligence:

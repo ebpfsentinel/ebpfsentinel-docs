@@ -25,6 +25,18 @@ const entOpenApiJson = process.env.EBPFSENTINEL_ENT_OPENAPI_JSON
   ? resolve(process.env.EBPFSENTINEL_ENT_OPENAPI_JSON)
   : DEFAULT_ENT_OPENAPI_JSON;
 
+// The grant a request needs is decided by the enterprise RBAC middleware alone:
+// the domain from the path, the permission from the method, raised on the one
+// read that hands out packet content and on the routes that touch the role
+// model. The OpenAPI document does not carry it, so the Grant column of the
+// enterprise reference is held to those sources instead.
+const DEFAULT_ENT_CRATES = resolve(repoRoot, '..', 'ebpfsentinel-enterprise', 'crates');
+const entCrates = process.env.EBPFSENTINEL_ENT_CRATES
+  ? resolve(process.env.EBPFSENTINEL_ENT_CRATES)
+  : DEFAULT_ENT_CRATES;
+const entHttpDir = join(entCrates, 'enterprise-adapters', 'src', 'http');
+const entRbacEntity = join(entCrates, 'enterprise-domain', 'src', 'rbac', 'entity.rs');
+
 const VERBS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const VERB_SET = new Set(VERBS.map((verb) => verb.toUpperCase()));
 
@@ -220,6 +232,7 @@ function documentedPairs(text) {
         if (columns) {
           if (columns.role !== -1) claim.role = trimmed[columns.role];
           if (columns.feature !== -1) claim.feature = trimmed[columns.feature];
+          if (columns.grant !== -1) claim.grant = trimmed[columns.grant].replace(/`/g, '');
         }
         add(method, path, claim);
         continue;
@@ -227,7 +240,11 @@ function documentedPairs(text) {
 
       const header = trimmed.map((cell) => cell.toLowerCase());
       if (header[0] === 'method' && header[1] === 'path') {
-        columns = { role: header.indexOf('role'), feature: header.indexOf('license feature') };
+        columns = {
+          role: header.indexOf('role'),
+          feature: header.indexOf('license feature'),
+          grant: header.indexOf('grant'),
+        };
         continue;
       }
       columns = null;
@@ -376,6 +393,114 @@ report(
   'documented role or license feature the agent does not enforce',
   wrongAccess.sort(),
   'Take both values from the x-access block of the operation in the enterprise OpenAPI document.',
+);
+
+function readSource(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    return fail([
+      `Cannot read ${path}:`,
+      `  ${error.message}`,
+      '',
+      'The enterprise repository is expected beside this one. Set',
+      'EBPFSENTINEL_ENT_CRATES to its crates directory.',
+    ]);
+  }
+}
+
+// The text of one Rust item, from its signature to its closing line.
+function itemOf(source, start) {
+  const from = source.indexOf(start);
+  if (from === -1) fail([`Cannot find \`${start}\` in the RBAC middleware. Update this check.`]);
+  const end = start.includes(' const ') ? '];' : '\n}\n';
+  return source.slice(from, source.indexOf(end, from));
+}
+
+function readGrantRules() {
+  const middleware = readSource(join(entHttpDir, 'rbac_middleware.rs'));
+  const methodClass = readSource(join(entHttpDir, 'method_class.rs'));
+  const names = new Map(
+    [...readSource(entRbacEntity).matchAll(/Self::(\w+) => write!\(f, "([a-z0-9_-]+)"\)/g)].map(
+      (m) => [m[1], m[2]],
+    ),
+  );
+
+  const branches = [];
+  let conditions = [];
+  const body = itemOf(middleware, 'pub fn path_to_domain');
+  for (const m of body.matchAll(
+    /path\.starts_with\("([^"]+)"\)|path == "([^"]+)"|Some\(SecurityDomain::(\w+)\)/g,
+  )) {
+    if (m[1]) conditions.push({ prefix: m[1] });
+    else if (m[2]) conditions.push({ exact: m[2] });
+    else {
+      const domain = names.get(m[3]);
+      if (!domain) fail([`path_to_domain names SecurityDomain::${m[3]}, which entity.rs never displays.`]);
+      branches.push({ conditions, domain });
+      conditions = [];
+    }
+  }
+
+  const admin = [
+    ...itemOf(middleware, 'pub const ROLE_MODEL_WRITES').matchAll(
+      /\(\s*Method::(\w+),\s*"([^"]+)",?\s*\)/g,
+    ),
+  ].map((m) => ({ method: m[1], pattern: m[2] }));
+  const exempt = [...itemOf(middleware, 'pub const RBAC_EXEMPT_PATHS').matchAll(/"([^"]+)"/g)].map(
+    (m) => m[1],
+  );
+  const capturePrefix = methodClass.match(/CAPTURE_PREFIX: &str = "([^"]+)"/)?.[1];
+  const captureSuffix = methodClass.match(/CAPTURE_FILE_SUFFIX: &str = "([^"]+)"/)?.[1];
+  if (branches.length === 0 || admin.length === 0 || !capturePrefix || !captureSuffix) {
+    fail(['The RBAC middleware no longer reads the way this check expects. Update it.']);
+  }
+  return { branches, admin, exempt, capturePrefix, captureSuffix };
+}
+
+// Segment by segment, a `{name}` on either side standing for one segment.
+function sameRoute(path, pattern) {
+  const a = path.replace(/\/$/, '').split('/');
+  const b = pattern.replace(/\/$/, '').split('/');
+  const wild = (segment) => /^\{[^}]+\}$/.test(segment);
+  return a.length === b.length && a.every((segment, i) => wild(segment) || wild(b[i]) || segment === b[i]);
+}
+
+function grantFor(rules, method, path) {
+  if (rules.exempt.includes(path)) return 'none';
+  const branch = rules.branches.find(({ conditions }) =>
+    conditions.some((c) => (c.exact ? path === c.exact : path.startsWith(c.prefix))),
+  );
+  if (!branch) return null;
+  let permission = ['GET', 'HEAD', 'OPTIONS'].includes(method) ? 'read' : 'write';
+  if (path.startsWith(rules.capturePrefix) && path.endsWith(rules.captureSuffix)) {
+    const id = path.slice(rules.capturePrefix.length, -rules.captureSuffix.length);
+    if (id && !id.includes('/')) permission = 'write';
+  }
+  if (rules.admin.some((rule) => rule.method === method && sameRoute(path, rule.pattern))) {
+    permission = 'admin';
+  }
+  return `${branch.domain}:${permission}`;
+}
+
+const grantRules = readGrantRules();
+const wrongGrant = [];
+for (const [pair, claim] of entPage) {
+  if (!claim.grant) continue;
+  const method = pair.slice(0, pair.indexOf(' '));
+  const path = pair.slice(pair.indexOf(' ') + 1);
+  const truth = grantFor(grantRules, method, path);
+  if (truth === null) {
+    wrongGrant.push(`${pair} says ${claim.grant}, and the middleware maps the path to no domain`);
+  } else if (claim.grant !== truth) {
+    wrongGrant.push(`${pair} says ${claim.grant}, the middleware asks for ${truth}`);
+  }
+}
+report(
+  problems,
+  'grant in the enterprise reference the RBAC middleware does not ask for',
+  wrongGrant.sort(),
+  'Take the grant from path_to_domain and required_permission in rbac_middleware.rs.',
 );
 
 if (problems.length > 0) fail(problems);

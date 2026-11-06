@@ -35,8 +35,9 @@ jobs:
           path: ebpfsentinel
 
       # The enterprise registry is the other half of the metric names, mounts
-      # the other half of the REST surface, carries the HA peer service and
-      # declares the licence binary's flags. That repository is private, so the
+      # the other half of the REST surface, decides in its RBAC middleware the
+      # grant each route asks for, carries the HA peer service and declares
+      # the licence binary's flags. That repository is private, so the
       # checkout needs a read token. The same checks run in the enterprise
       # pipeline as well, so a family renamed, a route regated, an rpc added or
       # a default changed there fails the change that caused it rather than the

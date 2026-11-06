@@ -621,7 +621,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | `config:write` | multi-tenancy | Check if operation is allowed. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | `config:write` | multi-tenancy | Suspend tenant (admin). |
 | `GET` | `/api/v1/tenants` | viewer | `config:read` | multi-tenancy | List all tenants (admin only). |
-| `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `docker_api` or `unavailable` (admin only). |
+| `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `runtime_api` or `unavailable` (admin only). |
 | `GET` | `/api/v1/tenants/metrics` | viewer | `config:read` | multi-tenancy | Prometheus quota metrics (admin only). |
 | `GET` | `/api/v1/tenants/{id}` | viewer | `config:read` | multi-tenancy | Tenant details (read permission). |
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | `config:read` | multi-tenancy | Current quota limits and usage. |
@@ -651,10 +651,10 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/forensics/timeline/flow` | viewer | `config:read` | network-forensics | Timeline for a specific flow tuple. |
 | `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | `config:read` | network-forensics | Flow timeline around an alert. |
 | `GET` | `/api/v1/forensics/events/stream` | viewer | `config:read` | network-forensics | Server-Sent Events live forensic event feed. |
-| `GET` | `/api/v1/investigations` | viewer | `config:read` | network-forensics | The investigations this node runs, then the ended ones it keeps. |
-| `POST` | `/api/v1/investigations` | operator | `config:write` | network-forensics | Start a bounded investigation of one workload, under the caller's name: `sockets`, `top-tcp`, `server-names` or `drops` (403 when nobody can be named, 421 for another node, 503 when this node cannot take the reading). |
-| `GET` | `/api/v1/investigations/{id}` | viewer | `config:read` | network-forensics | One investigation, its cost and its last sample. |
-| `DELETE` | `/api/v1/investigations/{id}` | operator | `config:write` | network-forensics | Stop an investigation before its time, under the caller's name. |
+| `GET` | `/api/v1/investigations` | viewer | `investigation:read` | network-forensics | The investigations this node runs, then the ended ones it keeps. |
+| `POST` | `/api/v1/investigations` | operator | `investigation:write` | network-forensics | Start a bounded investigation of one workload, under the caller's name: `sockets`, `top-tcp`, `server-names` or `drops` (403 when nobody can be named, 421 for another node, 503 when this node cannot take the reading). |
+| `GET` | `/api/v1/investigations/{id}` | viewer | `investigation:read` | network-forensics | One investigation, its cost and its last sample. |
+| `DELETE` | `/api/v1/investigations/{id}` | operator | `investigation:write` | network-forensics | Stop an investigation before its time, under the caller's name. |
 
 ### GET /api/v1/forensics/events/stream
 
