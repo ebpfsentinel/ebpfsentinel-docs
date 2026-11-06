@@ -87,3 +87,4 @@ There is no signature database and nothing is matched against a known rootkit.
 - CLI: `ebpfsentinel-agent ebpf hidden-ports`
 - Dashboard: the node panel, which names every other node holding the same finding, as described in [What this node hides, and where else](../operations/node-observers.md#what-this-node-hides-and-where-else)
 - Configuration: [`hidden_checks`](../configuration/hidden-checks.md)
+- Editions: both. The open-source agent and the enterprise agent run the same sweep and serve the same route, and on the enterprise agent the host rules reading it fire as well
