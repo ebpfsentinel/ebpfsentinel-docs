@@ -1388,9 +1388,11 @@ therefore a Secret edit followed by the rollout the checksum triggers. Several
 join secrets can be live at once in the portal, so mint the new one, update the
 Secret, let the DaemonSet roll, then withdraw the old one.
 
-The enrolment state under `statePath` lives inside the pod unless a volume is
-mounted there through `extraVolumes` and `extraVolumeMounts` on the
-`EbpfSentinelAgent`. Losing it is not a new machine: an agent that joins again
+The enrolment state under `statePath` defaults to a path below
+`/var/lib/ebpfsentinel`, which the operator mounts from a node directory per
+resource (`/var/lib/ebpfsentinel/k8s/<namespace>/<name>` unless
+`spec.host.statePath` names another), so it survives a pod restart and goes
+only with that directory or a `statePath` set outside it. Losing it is not a new machine: an agent that joins again
 under the same name is the same agent with a fresh credential, and with the
 node's network namespace joined, which is the default, the name is the node's
 own. It does need the join secret to still be live, so a Secret pointing at a
