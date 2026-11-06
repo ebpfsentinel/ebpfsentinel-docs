@@ -1401,6 +1401,29 @@ The fields behave exactly as the agent's own
 section, and the whole path from purchase to machines reporting is walked in
 [From purchase to reporting agents](../../getting-started/from-purchase-to-reporting-agents.md).
 
+### Detection content from the portal
+
+Once the estate reports, `spec.content` on the same resource asks the portal
+for the detection content published for it:
+
+```yaml
+spec:
+  portal:
+    enabled: true
+    # ...
+  content:
+    enabled: true
+    intervalSeconds: 3600
+```
+
+`content.enabled` without `portal.enabled` is refused at admission, since the
+reporting relationship is the address and the credential the content is asked
+with. `intervalSeconds` runs from 15 to 86400 and is six hours when unset;
+each node spreads its first fetch of a cycle over a share of the interval. The
+content in force and the version it replaced are kept under the agent's state
+directory, which the operator mounts from the node, so a restarted pod starts
+from the content it had. See [Content channel](content-channel.md).
+
 ## Deploying without the operator
 
 The operator is not required. An agent runs as a plain DaemonSet with a
