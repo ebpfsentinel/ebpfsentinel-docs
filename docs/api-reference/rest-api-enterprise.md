@@ -316,6 +316,8 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/surface/listening` | viewer | `config:read` | none | Every listener with the packages its process maps, the traffic it took and who may reach it. |
 | `GET` | `/api/v1/surface/loaded` | viewer | `config:read` | none | Every file live processes map executable, once per root, and the package owning it. |
 | `GET` | `/api/v1/surface/packages` | viewer | `config:read` | none | What the package managers say is installed, in the host's root and every container's. |
+| `GET` | `/api/v1/threatintel/feeds` | viewer | `threatintel:read` | none | The configured feeds, the CrowdSec local API among them, with when each was last fetched. |
+| `POST` | `/api/v1/threatintel/feeds/refresh` | operator | `threatintel:write` | none | Fetch every feed now; refused while a fetch is already running. |
 | `GET` | `/api/v1/threatintel/iocs` | viewer | `threatintel:read` | none | List loaded IOCs. |
 | `GET` | `/api/v1/threatintel/status` | viewer | `threatintel:read` | none | Threat intel subsystem status. |
 | `GET` | `/api/v1/threatintel/urls` | viewer | `threatintel:read` | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
@@ -335,8 +337,7 @@ and the federation stream, false-positive marking by
 DLP by `/api/v1/enterprise/dlp`, TLS probes, fingerprints and TLS posture by
 `/api/v1/enterprise/tls-probes` and `/api/v1/enterprise/tls-intelligence`,
 L7 rules by `/api/v1/enterprise/l7`, responses by
-`/api/v1/enterprise/response`, the service graph by `/api/v1/flows/graph`
-and the threat-intel feed cycle by `/api/v1/intel` and the air-gap bundles.
+`/api/v1/enterprise/response` and the service graph by `/api/v1/flows/graph`.
 The rest belong to services this edition does not start: the VIP announcer
 (`/api/v1/lb/vips`), the connection event poller, domain reputation, the
 kernel drop counter outside an investigation, guest attribution, policy
