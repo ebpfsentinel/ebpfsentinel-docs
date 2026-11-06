@@ -451,6 +451,87 @@ kubectl get firewallpolicy allow-api \
   -o jsonpath='{.status.conditions[?(@.type=="WorkloadsSelected")]}'
 ```
 
+### Workload rules by lineage, digest and remote workload
+
+A `workload` block also carries the rest of the
+[workload firewall](../../configuration/workload-firewall.md) matchers, each
+reaching the agent unchanged:
+
+- `parent` names the executable the task's direct parent runs, and
+  `ancestor` an executable any of its ancestors runs, both absolute paths.
+  The two are exclusive, and a resource naming both is refused at admission
+  ([selecting by what a task was started under](../../configuration/workload-firewall.md#selecting-by-what-a-task-was-started-under)).
+- `exeHash` names the executable's bytes rather than its path, as
+  `sha256:<64 hex>` or `fsverity-sha256:<64 hex>`
+  ([a digest is not forgeable](../../configuration/workload-firewall.md#an-executable-path-is-forgeable-a-digest-is-not)).
+- `peer` names the destination by the workload behind it instead of by
+  address: `kind` (`host`, `container`, `pod` or `guest`), `container`,
+  `podSelector`, `namespaceSelector`, `serviceAccount` or `guest`. It replaces
+  `destination`, `destinationAlias` and `fqdn` on the same rule, needs a
+  `tcp`, `udp` or `any` protocol, and a `guest` is not combined with a
+  container or pod matcher; each of those is refused at admission
+  ([destinations by remote workload](../../configuration/workload-firewall.md#destinations-by-remote-workload)).
+
+A firewall rule also takes `mode: shadow`, which decides nothing and counts
+what the rule would have decided
+([shadow mode](../../configuration/firewall.md#shadow-mode)). A shadow rule
+carrying a `workload`, a `dscpMark` or a `maxStates` is refused at admission,
+since each of those acts on traffic.
+
+```yaml
+rules:
+  - id: deny-curl-under-nginx
+    action: deny
+    protocol: tcp
+    workload:
+      exe: /usr/bin/curl
+      ancestor: /usr/sbin/nginx
+      mode: enforce
+  - id: allow-api-to-ledger
+    action: allow
+    protocol: tcp
+    destinationPort: {start: 8443, end: 8443}
+    workload:
+      serviceAccount: api
+      mode: enforce
+      peer:
+        kind: pod
+        podSelector:
+          matchLabels: {app.kubernetes.io/name: ledger}
+  - id: watch-legacy-subnet
+    action: deny
+    destination: 10.250.0.0/16
+    mode: shadow
+```
+
+An `IDSPolicy` rule takes a `workload` block too, which inspects only the
+traffic of the pods, containers, units, cgroups or guest it names
+([workload scope](../../configuration/ids.md#workload-scope)). It carries
+`unit`, `cgroup`, `container`, `podSelector`, `namespaceSelector`,
+`serviceAccount` and `guest`, where a guest is named alone; it is refused at
+admission beside `interfaces`, and on a rule carrying a `pattern`, which is
+matched where the link a packet crossed is not known.
+
+### The process table
+
+`spec.config.processTable` sets the table of live processes each agent keeps
+and the reverse shell, fileless binary and unexpected server descendant
+detections read off it ([process table](../../configuration/process-table.md)):
+`enabled`, `capacity` (256 to 262144), `captureCommandLine`, and under
+`detections` the `enabled` switch, `intervalSecs`, one switch per detection
+in `kinds`, the `interpreters`, `servers` and `expected` lists, and
+`killProcess`. Every field left out keeps the agent's default, and
+`killProcess` is refused at admission unless `response.killProcess.enabled`
+is set. A `pod` profile agent does not watch the node's processes, so the
+block is not rendered for one.
+
+The guest naming directories (`container.guests`) and the Podman and LXC
+enrichers are not typed on the resource and are set through
+`spec.config.raw` where needed: they read a hypervisor's or a container
+host's records on the node, which a Kubernetes node does not keep, and a
+`KubeVirt` guest is named from its launcher pod's labels by the Kubernetes
+enricher instead ([guest naming](../../configuration/container.md#guest-naming)).
+
 ### Namespaces a tenant holds
 
 A `TenantPolicy` names its namespaces one by one with `namespaces`, selects
