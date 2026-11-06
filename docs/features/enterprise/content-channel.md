@@ -21,16 +21,23 @@ the channel measures is what was fetched and when.
 
 ## What the Channel Delivers
 
-| Set | Identifier | What it carries |
-|-----|-----------|-----------------|
-| IDS rules | `ids-rules` | Signature patterns the intrusion detection engine matches, with severity and classification |
-| DLP patterns | `dlp-patterns` | Regular expressions and validators for structured secrets and personal data |
-| JA4 fingerprints | `ja4-fingerprints` | Known client and server TLS fingerprints, with the software each one belongs to |
-| AI providers | `ai-providers` | Hostnames, API shapes and model names of AI services, for the AI security module |
-| ML models | `ml-models` | The base anomaly model as an ONNX graph, with the model card that states what it was measured to detect. Explained in [ML Anomaly Detection](ml-detection.md#the-delivered-base-model) |
-| TLS offsets | `tls-offsets` | The send and receive offsets of stripped TLS builds, keyed by build id, each one proven on the exact image it names. Served with TLS intelligence, and explained in [Enterprise DLP](dlp.md#the-offset-catalogue) |
-| Host rule profiles | `host-rules` | The host rule library: rules grouped under the profile names an operator picks, `web-server`, `database` and `kubernetes-node`, each rule in shadow. Explained in [Host rules](../../configuration/host-rules.md#profiles) |
-| File watch profiles | `file-profiles` | Paths the file watch follows, grouped under `debian`, `rhel`, `alpine`, `talos` and `kubernetes-node`. Explained in [File watch](../../configuration/file-watch.md#profiles) |
+| Set | Identifier | What it carries | Read by |
+|-----|-----------|-----------------|---------|
+| IDS rules | `ids-rules` | Signature patterns the intrusion detection engine matches, with severity and classification | `ids`: the IDS engine, the delivered rules added to every configuration reload and a moved set triggering one |
+| DLP patterns | `dlp-patterns` | Regular expressions and validators for structured secrets and personal data | `dlp`: Enterprise DLP, recompiled once under one write and handed to the capture path |
+| JA4 fingerprints | `ja4-fingerprints` | Known client and server TLS fingerprints, with the software each one belongs to | `tls-intelligence`: the TLS intelligence threat database, the delivered entries replaced in one write |
+| AI providers | `ai-providers` | Hostnames, API shapes and model names of AI services, for the AI security module | `ai-security`: the AI security provider list, the delivered entries replaced in one write |
+| ML models | `ml-models` | The base anomaly model as an ONNX graph, with the model card that states what it was measured to detect. Explained in [ML Anomaly Detection](ml-detection.md#the-delivered-base-model) | `ml-detection`: adopted as the base model when its set moves |
+| TLS offsets | `tls-offsets` | The send and receive offsets of stripped TLS builds, keyed by build id, each one proven on the exact image it names. Explained in [Enterprise DLP](dlp.md#the-offset-catalogue) | `extended-tls-probes`: the offset catalogue, reread on every scan pass |
+| Host rule profiles | `host-rules` | The host rule library: rules grouped under the profile names an operator picks, `web-server`, `database` and `kubernetes-node`, each rule in shadow. Explained in [Host rules](../../configuration/host-rules.md#profiles) | `host-rules`: the named profiles, composed with the written rules when the set moves |
+| File watch profiles | `file-profiles` | Paths the file watch follows, grouped under `debian`, `rhel`, `alpine`, `talos` and `kubernetes-node`. Explained in [File watch](../../configuration/file-watch.md#profiles) | `file-watch`: the file watch and write refusal, composed with the declared paths when the set moves |
+
+Every kind has exactly one reader, named in the last column as the status
+reports it. A set is written to disk first and read by its engine afterwards, and
+the two are separate acts: the engine can refuse what was written, in which case
+it keeps the version it held, and a set whose engine is not licensed or not
+configured on this agent is written and never read. The status says which, per
+kind, rather than reporting a version nothing matches on.
 
 A set the licence does not entitle is not served, and a set this build is too
 old to read is skipped rather than applied: the agent keeps what it already has
@@ -375,8 +382,17 @@ version applies as usual. Pinning a set that holds nothing is refused, because
 there is no version to hold.
 
 The same figures are served over the API at `GET /api/v1/content/status`, which
-is what a dashboard reads, and the portal shows the customer the other side of
-the same question: which versions are published, and how much of their own
+is what a dashboard reads. Beside the sets on disk, its `kinds` list carries one
+entry per kind this agent knows: the `consumer` that reads it, whether that
+engine is `reading` on this agent, the `written_version` on disk, the
+`in_force_version` the engine holds, and the `last_refusal` with its reason when
+the engine turned a set down. `in_force_version` trails `written_version` until
+the engine's next pass, and stays behind it when the engine refused the set. The
+`ebpfsentinel_ent_content_set_version` gauge reports the version the engine
+holds, not the one written, and a refusal is counted under
+`ebpfsentinel_ent_content_skipped_total` with the reason `reader_refused`.
+
+The portal shows the customer the other side of the same question: which versions are published, and how much of their own
 estate is on them.
 
 ## Across an Air Gap
@@ -432,7 +448,7 @@ from somewhere nobody signed.
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/content/status` | viewer | The versions in force, with each set's publication date, entry count, rollback target and whether it is pinned, and the number of consecutive fetch failures. |
+| `GET` | `/api/v1/content/status` | viewer | The versions in force, with each set's publication date, entry count, rollback target and whether it is pinned; the bundle version, the attestation digest, the last fetch and the last failure, and the number of consecutive fetch failures; and per kind the engine reading it, whether it reads on this agent, the version written, the version it holds and its last refusal. |
 | `POST` | `/api/v1/content/import` | operator | Verify a bundle in a local directory and put it in force. Takes `{ "bundle_dir": "...", "verify_only": false }`. |
 | `POST` | `/api/v1/content/rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. A pinned set stays pinned, at the version it went back to. |
 | `POST` | `/api/v1/content/pin` | operator | Hold one set at the version in force until it is released. Takes `{ "set": "ml-models" }`. `400` if nothing of that set is applied. |

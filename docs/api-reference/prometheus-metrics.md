@@ -841,10 +841,10 @@ than applied.
 | `ebpfsentinel_ent_content_fetches_total` | Counter | - | Requests to the portal for the published content bundle |
 | `ebpfsentinel_ent_content_up_to_date_total` | Counter | - | Answers saying this machine already holds the current bundle |
 | `ebpfsentinel_ent_content_applied_total` | Counter | `set` | Content sets put in force, by set |
-| `ebpfsentinel_ent_content_skipped_total` | Counter | `set`, `reason` | Content sets left alone in a verified bundle, by set and reason (`agent_too_old`, `unknown_kind`, `already_in_force`) |
+| `ebpfsentinel_ent_content_skipped_total` | Counter | `set`, `reason` | Content sets left alone in a verified bundle, by set and reason (`agent_too_old`, `unknown_kind`, `already_in_force`, `pinned`), and sets the engine reading them refused (`reader_refused`) |
 | `ebpfsentinel_ent_content_failures_total` | Counter | `reason` | Content fetches, verifications or applies that failed, by reason |
 | `ebpfsentinel_ent_content_rollbacks_total` | Counter | `set` | Content sets put back to the version they replaced, by set |
-| `ebpfsentinel_ent_content_set_version` | Gauge | `set` | Version of each content set in force, by set |
+| `ebpfsentinel_ent_content_set_version` | Gauge | `set` | Version of each content set the engine reading it holds, by set; zero until that engine holds one, and behind the version written when the engine refused it |
 | `ebpfsentinel_ent_content_published_at_seconds` | Gauge | - | When the bundle in force was published, as seconds since the epoch |
 
 A failure raises an alert as well as the counter, and only the first one in a
