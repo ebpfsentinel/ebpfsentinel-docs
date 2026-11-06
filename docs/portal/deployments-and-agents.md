@@ -73,7 +73,10 @@ The same list, **What telemetry sends**, is public at
 `https://portal.ebpfsentinel.io/telemetry/collected-fields` with its notice
 version, so it can be read before anybody has an account.
 
-- **Turn telemetry on** agrees to that list as it stands that day. If the list
+- **Turn telemetry on** needs a plan carrying the hosted analytics add-on, see
+  [Hosted analytics](billing-and-licence-keys.md#hosted-analytics); without it
+  the screen says so and points at **Billing**. It agrees to that list as it
+  stands that day. If the list
   changes later, nothing new is sent until somebody turns telemetry off and on
   again to agree to the new one.
 - **Issue an ingest token** asks for your password again and shows the token

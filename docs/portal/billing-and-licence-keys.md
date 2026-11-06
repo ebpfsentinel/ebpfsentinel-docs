@@ -91,6 +91,24 @@ provider taking on another customer does not reprice the subscriptions it
 already holds, and a partner standing withdrawn later leaves each subscription
 at its price until that subscription is changed.
 
+### Hosted analytics
+
+**Hosted analytics** is a box on the subscribe screen and on **Move to another
+plan**, priced per agent and per month as the website publishes it for the
+plan. Ticked, it is a line of its own on the same order, **Of which hosted
+analytics** on the quote: it takes none of the volume, partner or annual
+discounts, so it is the same figure on either term, and it is already inside
+both totals. Our reseller charges it with the nodes, on the same document.
+
+Nothing is added unless you tick it. The pooled volume belongs to a plan that
+carries the add-on: **Your subscription** reads **Hosted analytics held** or
+**No hosted analytics**, and turning telemetry on for a deployment is refused
+while the plan in force carries none. To take the add-on off, untick it under
+**Move to another plan**; that is refused while a deployment still has
+telemetry turned on, so turn it off there first. On a plan where the add-on is
+agreed in writing with the contract rather than bought here, the box is
+refused at the checkout and the written agreement carries the add-on instead.
+
 ## Billing
 
 **Your subscription** shows the plan, whether it is **Active**, **Awaiting
@@ -181,9 +199,9 @@ website publishes for your plan. That figure never changes afterwards, whatever
 happens to the readings it came from. If anything lies past the pool, it goes to
 our reseller as one line against your running contract, and the reseller adds it
 to its own document, excluding VAT, which it adds at its checkout. The per-agent
-price of the hosted analytics add-on is not charged yet: the pooled volume comes
-with any paid plan, and there is nothing to ask for and nothing to agree in
-writing.
+price of the add-on itself is the line ticked at the checkout, see
+[Hosted analytics](#hosted-analytics); the overage is the only part counted
+after the fact.
 
 Under the meter, **Months already closed** lists the last two years, newest
 first, each with what was sent, what was included and what lay past the pool,
@@ -194,8 +212,9 @@ before the reseller's document does, so the amount you will be invoiced is never
 a surprise. The list is read from the frozen figures alone, so it is shown even
 while the live meter above it cannot be reached.
 
-Every paid plan publishes its pooled volume. An organisation that has not
-bought anything yet still has what arrives counted.
+Every paid plan publishes its pooled volume, and a plan holds it once the
+add-on is bought with it. An organisation that has not bought anything yet
+still has what arrives counted.
 An order still waiting for its payment includes no volume either, and the screen
 says the order is waiting rather than that nothing was bought. If the readings
 cannot be reached for a moment, the meter says so and the subscription above it

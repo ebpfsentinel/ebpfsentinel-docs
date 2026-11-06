@@ -18,8 +18,9 @@ Analytics shows totals only. Your agents send counters, and packets, payloads,
 addresses, process names and file paths stay on the machine that saw them. The
 one thing derived from an address that leaves is the country an alert's source
 resolved to, as two letters, resolved on your machine.
-Nothing arrives until telemetry is turned on for a deployment and its agents
-hold an ingest token, see
+Nothing arrives until the plan carries the hosted analytics add-on, see
+[Hosted analytics](billing-and-licence-keys.md#hosted-analytics), telemetry is
+turned on for a deployment and its agents hold an ingest token, see
 [Deployments and Agents](deployments-and-agents.md#telemetry).
 
 While no deployment has telemetry switched on, the screen says so first, with
