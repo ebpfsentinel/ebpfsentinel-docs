@@ -99,6 +99,14 @@ const AGENT_WIDE = [
   '/readyz',
 ];
 
+// The open-source routes the enterprise agent serves with the open-source
+// handlers, listed in its own source. They are mounted whatever the license
+// carries, so they belong to the overview page too, and they are read rather
+// than copied here so that a route the agent gains is a route this check asks
+// for on the day it is mounted.
+const OSS_SURFACE_SOURCE = 'oss_surface.rs';
+const OSS_SURFACE_LIST = 'OSS_SERVED_PATHS';
+
 // Operations deliberately left out of the enterprise reference page. Add a pair
 // here only when the route is internal by design, with the reason beside it.
 const INTERNAL = new Set([]);
@@ -259,8 +267,23 @@ function documentedPairs(text) {
   return found;
 }
 
+function readOssSurface() {
+  const source = readSource(join(entHttpDir, OSS_SURFACE_SOURCE));
+  const from = source.indexOf(`${OSS_SURFACE_LIST}: &[&str] = &[`);
+  if (from === -1) {
+    fail([`Cannot find ${OSS_SURFACE_LIST} in ${OSS_SURFACE_SOURCE}. Update this check.`]);
+  }
+  const list = source.slice(from, source.indexOf('];', from));
+  const paths = new Set([...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+  if (paths.size === 0) fail([`${OSS_SURFACE_LIST} lists no path. Update this check.`]);
+  return paths;
+}
+
 function docFor(path) {
-  if (AGENT_WIDE.some((p) => path === p || path.startsWith(`${p}/`))) {
+  if (
+    ossSurface.has(path) ||
+    AGENT_WIDE.some((p) => path === p || path.startsWith(`${p}/`))
+  ) {
     return AGENT_WIDE_DOC;
   }
   let best = null;
@@ -277,6 +300,7 @@ function report(problems, heading, pairs, remedy) {
   problems.push(`${pairs.length} ${heading}:`, '', ...pairs.map((pair) => `  ${pair}`), '', remedy);
 }
 
+const ossSurface = readOssSurface();
 const spec = readOpenApi(openApiJson, 'open-source');
 const entSpec = readOpenApi(entOpenApiJson, 'enterprise');
 const served = new Map([...spec, ...entSpec]);
