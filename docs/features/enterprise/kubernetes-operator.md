@@ -936,6 +936,99 @@ one day and `maxActive` up to 65536. See
 [TLS plaintext workload selector](l7-deep-inspection.md#tls-plaintext-workload-selector)
 and [Source block](l7-deep-inspection.md#source-block).
 
+### Node counters, inventory and the port promise
+
+The node observers that answer from the kernel's own counters are typed under
+`config`, with the protocol a port promises:
+
+```yaml
+spec:
+  config:
+    kernelDrops:
+      enabled: true
+      pollIntervalSecs: 10
+    tcpHealth:
+      enabled: true
+      resetScan:
+        enabled: true
+        windowSecs: 60
+        resets: 200
+    networkInventory:
+      enabled: true
+      intervalSecs: 60
+    portMismatch:
+      ignorePorts:
+        - 443           # sslh answers SSH and TLS on one port
+    shippedHostRules: true
+```
+
+Every interval runs from one second to one hour. `portMismatch.ignorePorts`
+takes only the ports a protocol is expected on, and a port outside that list
+is refused at admission, since the agent would refuse it at startup.
+`shippedHostRules` loads the rules the agent carries in its image; it reads
+the process table, so it is refused with the process table switched off and
+on an agent whose pod profile turns the table off. See
+[Kernel drops](../../configuration/kernel-drops.md),
+[TCP health](../../configuration/tcp-health.md),
+[Network inventory](../../configuration/network-inventory.md),
+[Protocol on the wrong port](../../configuration/l7.md#protocol-on-the-wrong-port)
+and [Shipped rules](../../configuration/host-rules.md#shipped-rules).
+
+`EnterpriseSettings` carries `investigation`, the bounds on the investigations
+an operator runs against one workload on a node:
+
+```yaml
+spec:
+  investigation:
+    enabled: true
+    maxDurationSecs: 600
+    maxRunning: 2
+```
+
+See [Investigations](../../configuration/enterprise.md#investigations).
+
+### Rates held per workload
+
+A `QoSPolicy` may hold the egress of chosen workloads to a rate, each cgroup
+on its own, whatever pipe the traffic leaves by:
+
+```yaml
+spec:
+  cgroupShaping:
+    - id: batch-egress
+      workload:
+        namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: batch
+      rate: 200mbps
+```
+
+The rate is written with its unit, `kbps`, `mbps` or `gbps`, and the agent
+refuses one below 8000 bits per second. A rate belongs to a cgroup, so the
+workload names a unit, a cgroup, a container, pods, namespaces or a service
+account, and never a virtual machine; `horizonMs` runs up to 60000. The `fq`
+qdisc must sit on the interfaces the traffic leaves by. See
+[Per-workload shaping](../../configuration/qos.md#per-workload-shaping).
+
+### Set through the overlay only
+
+These sections are not typed, and are set through `spec.config.raw`:
+
+- `flow_export`: each sink carries a collector address and certificate
+  paths, which differ per cluster rather than per policy.
+- The Suricata ruleset import under `ids`: a ruleset is a file the agent reads
+  at load, so it arrives with a volume of its own.
+- The CrowdSec bouncer under `threatintel`: it talks to a local API with a key
+  or a password written inline; the operator keeps the agent's configuration
+  in a Secret, so the credential is not exposed in a ConfigMap.
+- `enterprise.intel` TAXII and MISP feeds: their credentials are inline, a MISP
+  key is a file path, and the feed's position marker needs a writable path that
+  survives a restart.
+- `firewall.dns_clients`: each client takes the full workload block, which
+  belongs to a firewall rule rather than to the agent's settings.
+- `host_rules.rules`: host rules have a grammar of their own; only `shipped`
+  is typed.
+
 ### Inside selected pods
 
 Where the node agent's coverage verdict names a pod it misses for a reason only
