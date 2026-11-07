@@ -62,7 +62,7 @@ The OSS edition ships with 17 built-in patterns (payment cards, national identif
 
 <!-- feature-count: ja4-builtin-threats -->
 
-No. The enterprise JA4+ threat database ships a starter sample of 7 sourced
+No. The enterprise JA4 threat database ships a starter sample of 7 sourced
 fingerprints, each naming the public source it was taken from and the day it
 was last confirmed, and the detection value comes from the intelligence you
 import: STIX 2.1 indicators, your own captures, or entries added through the

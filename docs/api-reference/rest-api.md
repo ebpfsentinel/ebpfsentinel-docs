@@ -3447,7 +3447,7 @@ MITRE ATT&CK technique coverage map based on active features.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/mitre/coverage
 ```
 
-### JA4+ Fingerprints
+### JA4 Fingerprints
 
 #### GET /api/v1/fingerprints/summary
 
@@ -3462,23 +3462,6 @@ Response:
 | Field | Type | Description |
 |-------|------|-------------|
 | `cached_count` | integer | Current number of cached JA4 entries |
-| `max_size` | integer | Maximum cache size before LRU eviction |
-| `ttl_seconds` | integer | Entry TTL in seconds |
-| `persistent` | boolean | `true` when `l7.fingerprints.persistence_path` is set |
-
-#### GET /api/v1/fingerprints/ja4s
-
-JA4S server TLS fingerprint cache summary. Populated as the agent observes `ServerHello` bytes on monitored interfaces and computes a per-flow JA4S hash.
-
-```bash
-curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1/fingerprints/ja4s
-```
-
-Response:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `cached_count` | integer | Current number of cached JA4S entries |
 | `max_size` | integer | Maximum cache size before LRU eviction |
 | `ttl_seconds` | integer | Entry TTL in seconds |
 | `persistent` | boolean | `true` when `l7.fingerprints.persistence_path` is set |
@@ -3945,7 +3928,6 @@ keeps working without holding the agent's key.
 | DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
 | GET | `/api/v1/mitre/coverage` | Yes | MITRE ATT&CK technique coverage map |
 | GET | `/api/v1/fingerprints/summary` | Yes | JA4 client fingerprint cache summary |
-| GET | `/api/v1/fingerprints/ja4s` | Yes | JA4S server fingerprint cache summary |
 | GET | `/api/v1/processes` | Yes | The process table, newest first |
 | GET | `/api/v1/processes/{pid}` | Yes | One process by pid |
 | GET | `/api/v1/responses` | Yes | List active auto-response actions |

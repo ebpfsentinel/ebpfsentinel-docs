@@ -43,7 +43,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **XDP_TX packet forging** - firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation
 - **Parallel event dispatch** - configurable worker count (default 4), deterministic per-source partitioning, lock-free ArcSwap service access
 - **MITRE ATT&CK mapping** - every alert tagged with technique + tactic ID
-- **JA4+ TLS fingerprinting** - ClientHello parsing in eBPF, JA4/JA4S computation in userspace
+- **JA4 TLS fingerprinting** - ClientHello parsing in eBPF, JA4 client fingerprint computed in userspace (the JA4 method by FoxIO, BSD 3-Clause)
 - **Shared `ebpf-helpers` crate** - deduplicated network helpers, header parsing, metrics macros across all eBPF programs
 - **Container link hot-plug** - auto-attach TC programs to every container and pod link as it appears (veth, netkit, macvlan, ipvlan, bridge members)
 - **RingBuf adaptive backpressure** - skip event emission when buffer >75% full
@@ -67,9 +67,9 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 
 ## OSS vs Enterprise
 
-eBPFsentinel is open source (AGPL-3.0). All 14 security domains, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4+ fingerprinting are included - no paywall.
+eBPFsentinel is open source (AGPL-3.0). All 14 security domains, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4 fingerprinting are included - no paywall.
 
-An [enterprise edition](features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
+An [enterprise edition](features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
 
 ## Next Steps
 

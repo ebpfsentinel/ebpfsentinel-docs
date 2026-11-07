@@ -1034,15 +1034,12 @@ ebpfsentinel-agent responses revoke resp-001
 
 ### fingerprints
 
-JA4+ TLS fingerprint cache and analysis.
+JA4 TLS client fingerprint cache.
 
 ```bash
 # Show client fingerprint cache summary
 ebpfsentinel-agent fingerprints summary
 ebpfsentinel-agent fingerprints summary -o json
-
-# Show the JA4S server fingerprint cache summary
-ebpfsentinel-agent fingerprints ja4s
 ```
 
 ### processes

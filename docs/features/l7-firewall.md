@@ -27,7 +27,7 @@ traffic at line rate is the job of the L3/L4 firewall and the IPS.
 |----------|-----------|-----------------|
 | **HTTP/1.1** | Request-line methods | Method, path, host, headers, user-agent |
 | **HTTP/2 (gRPC)** | Connection preface `PRI * HTTP/2.0` | Service name, method |
-| **TLS** | Handshake content type `0x16` | SNI, JA4+, ALPN, supported groups |
+| **TLS** | Handshake content type `0x16` | SNI, JA4, ALPN, supported groups |
 | **SMTP** | Banner + EHLO/HELO/MAIL/RCPT/DATA/QUIT/RSET/NOOP/VRFY/EXPN | Command |
 | **FTP** | USER/PASS/LIST/RETR/… commands or `220` banner mentioning FTP | Command |
 | **SMB** | NetBIOS header + `\xffSMB` / `\xfeSMB` / `\xfdSMB` magic | Command, SMB1 vs SMB2 flag; behind the SMB 3 transform header (`\xfdSMB`) the message is encrypted, so it is known to be SMB and carries no command, and a rule naming an `smb_command` never matches it |

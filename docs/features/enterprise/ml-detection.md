@@ -393,7 +393,7 @@ The alert carries the flow of the query and the full workload block with its anc
 
 ## TLS Fingerprint Clustering
 
-Groups JA4+ TLS fingerprints into behavioral clusters using **Mini-Batch K-Means** and flags outliers (novel or spoofed fingerprints).
+Groups JA4 TLS fingerprints into behavioral clusters using **Mini-Batch K-Means** and flags outliers (novel or spoofed fingerprints).
 
 - 10-dimensional feature vector from `TlsClientHello` (cipher count, extension count, supported groups, signature algorithms, ALPN, versions, SNI, handshake version, key shares)
 - Pre-seeded with 8 known client profiles: Chrome, Firefox, Safari, Edge, curl, Python, Go, Java

@@ -1,11 +1,13 @@
-# JA4+ TLS Fingerprinting
+# JA4 TLS Fingerprinting
 
-eBPFsentinel extracts [JA4+](https://github.com/FoxIO-LLC/ja4) fingerprints from TLS ClientHello messages, enabling identification of clients by their TLS behavior without decrypting traffic.
+eBPFsentinel computes the JA4 fingerprint of TLS ClientHello messages, enabling identification of clients by their TLS behavior without decrypting traffic.
+
+The fingerprint follows the [JA4 method by FoxIO](https://github.com/FoxIO-LLC/ja4), which is licensed BSD 3-Clause. Only the client fingerprint is computed: the other methods FoxIO publishes beside it (for servers, HTTP, certificates, SSH, latency and TCP) are under a different licence and are not implemented.
 
 ## How It Works
 
 1. The existing L7 payload capture (TC classifier, 512 bytes) intercepts TLS ClientHello messages
-2. The userspace parser extracts all JA4+ fields: TLS version, cipher suites, extensions, supported groups, signature algorithms, ALPN protocols, supported versions
+2. The userspace parser extracts every field JA4 reads: TLS version, cipher suites, extensions, supported groups, signature algorithms, ALPN protocols, supported versions
 3. GREASE values (RFC 8701) are filtered automatically
 4. The JA4 hash is computed per the FoxIO specification and cached per flow tuple
 
@@ -37,33 +39,6 @@ t = TCP protocol
 | `alpn_protocols` | Extension 0x0010 |
 | `supported_versions` | Extension 0x002B (TLS 1.3 negotiation) |
 
-## JA4S ServerHello Fingerprinting
-
-JA4S complements client-side JA4 by fingerprinting the server's `ServerHello` response. The datapath inspects both directions of any conversation touching an `l7.ports` entry, so replies reach the parser and JA4S is computed and cached alongside JA4; the cache is served by `/api/v1/fingerprints/ja4s`.
-
-### JA4S Hash Format
-
-```
-t1302_1301_abcdef012345
-│││││ │     │
-││╰╰╰─╰─── Section b: selected cipher (4 hex chars)
-││          Section c: SHA-256 of sorted extensions (12 hex chars)
-│╰── Extension count (2 digits)
-╰── TLS version
-t = TCP protocol
-```
-
-### Extracted Fields
-
-| Field | Source |
-|-------|--------|
-| `selected_cipher` | ServerHello selected cipher suite |
-| `selected_version` | ServerHello protocol version |
-| `extensions` | ServerHello extension type IDs |
-| `selected_group` | KeyShare or ServerKeyExchange group |
-
-The enterprise TLS intelligence engine tracks JA4S per SNI and reports when a server's fingerprint changes from its established baseline (e.g., certificate rotation, compromise, or MITM). It is fed by submitting the JA4S alongside the `ClientHello` that provoked it, on the `ja4s` field of the [TLS intelligence ingest event](enterprise/tls-intelligence.md#ja4s-serverhello-fingerprinting).
-
 ## Session ID Tracking
 
 The `TlsClientHello` struct includes an optional `session_id` field parsed from the ClientHello. The enterprise TLS intelligence engine uses it for session resumption anomaly tracking (detecting ticket reuse across multiple destinations).
@@ -84,20 +59,19 @@ controls. The values themselves are read per flow from the cache below.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/fingerprints/summary` | State of the JA4 client cache |
-| GET | `/api/v1/fingerprints/ja4s` | State of the JA4S server cache |
 
-Both answer the same four fields, read off the running cache rather than off a
+It answers four fields, read off the running cache rather than off a
 constant: `cached_count` (entries held right now, not since start, since they
 expire), `max_size` and `ttl_seconds` (the ceiling and the lifetime that cache
 was built with, 10,000 and 300 in the shipped configuration), and `persistent`,
 which says whether the cache is mirrored to a store that survives a restart.
 
-Neither route returns a fingerprint. A JA4 value is derived from bytes a peer
+The route returns no fingerprint. A JA4 value is derived from bytes a peer
 chose, so it is read per flow off an alert's `ja4_fingerprint` rather than
 listed, for the same reason it is not a metric label.
 
-`cached_count` at zero has more than one explanation - nothing captured, a
-cache that expired, or a server side that never saw a reply - so read it next
+`cached_count` at zero has more than one explanation - nothing captured, or a
+cache that expired - so read it next
 to `l7.ports`, `l7.enabled` and `ids.enabled`, which are what decide whether a
 payload reaches the parser at all.
 
@@ -106,11 +80,8 @@ payload reaches the parser at all.
 ```bash
 # The JA4 client cache
 ebpfsentinel-agent fingerprints summary
-
-# The JA4S server cache
-ebpfsentinel-agent fingerprints ja4s
 ```
 
-Both print the same four lines, persistence included, so a cache that fell back
-to memory because its store would not open is visible on either.
+It prints the same four lines, persistence included, so a cache that fell back
+to memory because its store would not open is visible.
 

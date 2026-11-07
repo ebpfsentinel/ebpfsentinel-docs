@@ -145,5 +145,5 @@ The same list is served by `GET /api/v1/tls/handshakes`, described in the
 ## Related
 
 - [Post-Quantum TLS](pq-tls.md): the key exchange of the agent's own listeners.
-- [JA4+ Fingerprinting](ja4-fingerprinting.md): the same handshakes, read as
-  client and server fingerprints.
+- [JA4 Fingerprinting](ja4-fingerprinting.md): the same handshakes, read as
+  client fingerprints.

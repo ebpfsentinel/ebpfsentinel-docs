@@ -883,7 +883,6 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | viewer | `config:read` | tls-intelligence | Peer-group rarity status. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/pqc/connections` | viewer | `config:read` | tls-intelligence | Connections carrying post-quantum key exchange. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/pqc/report` | viewer | `config:read` | tls-intelligence | Post-quantum readiness summary for the estate. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/server-fingerprints` | viewer | `config:read` | tls-intelligence | List server fingerprint changes. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | viewer | `config:read` | tls-intelligence | List session resumption anomalies. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | viewer | `config:read` | tls-intelligence | List SNI/cert mismatch detections. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/status` | viewer | `config:read` | tls-intelligence | Overall TLS intelligence status. |

@@ -28,7 +28,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph |
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy |
 <!-- feature-count: ja4-builtin-threats -->
-| [TLS Intelligence](tls-intelligence.md) | JA4+ matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, JA4S, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity |
+| [TLS Intelligence](tls-intelligence.md) | JA4 matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity |
 | [Threat Intelligence Platforms](threat-intel-platforms.md) | TAXII 2.1 collections and MISP instances polled on their own intervals, the whole of STIX this engine can act on (addresses, domains, URLs, JA4), every indicator carrying where it came from, when it was last confirmed and what kind it is, and a type no matcher covers reported as not actionable at import |
 | [Sigma Rules](sigma-rules.md) | Sigma rules over network connections compiled into the agent's own rules, every rule outside the declared subset refused by the field that stopped it, the supported list generated from the compiler, and `sigma check` to read the refusals before deploying |
 | [Network Forensics](network-forensics.md) | Event ring buffer, event-triggered context freezes, flow timeline reconstruction |

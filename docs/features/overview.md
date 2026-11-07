@@ -72,7 +72,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
 | [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 40 techniques mapped, filter by tactic/technique, coverage dashboard |
-| [JA4+ Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
+| [JA4 Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
 | [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Userspace | DoH/DoT passive detection with built-in resolvers |
 
 ### Infrastructure
@@ -80,7 +80,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (133 paths, 150 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (132 paths, 149 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |
@@ -113,7 +113,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Reachable Vulnerabilities](enterprise/reachable-vulnerabilities.md) | Your scanner's findings joined with what the host runs, maps, listens on and lets the outside reach, ordered without a score; drift and an evidence pack |
 | [AI/LLM Security](enterprise/ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration, encrypted DNS |
 <!-- feature-count: ja4-builtin-threats -->
-| [TLS Intelligence](enterprise/tls-intelligence.md) | JA4+ matching against imported intelligence (7 sourced built-ins as a starter sample), behavior anomaly, PQC compliance, cipher policy |
+| [TLS Intelligence](enterprise/tls-intelligence.md) | JA4 matching against imported intelligence (7 sourced built-ins as a starter sample), behavior anomaly, PQC compliance, cipher policy |
 | [Network Forensics](enterprise/network-forensics.md) | Event ring buffer, event-triggered context freezes, flow timeline |
 | [Automated Response](enterprise/automated-response.md) | Policy engine, SOAR webhook, eBPF enforcement, audit trail |
 | [Dashboard UI](enterprise/dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |

@@ -4,7 +4,7 @@
 
 ## Overview
 
-TLS Intelligence provides deep visibility into TLS handshake metadata across the network. It fingerprints clients and servers using JA4+ hashes, detects anomalous TLS behavior via statistical rarity scoring, tracks post-quantum cryptography adoption, and enforces cipher/protocol compliance policies. All analysis operates on handshake metadata extracted by eBPF - no decryption required.
+TLS Intelligence provides deep visibility into TLS handshake metadata across the network. It fingerprints clients using JA4 hashes (the [JA4 method by FoxIO](https://github.com/FoxIO-LLC/ja4), BSD 3-Clause), detects anomalous TLS behavior via statistical rarity scoring, tracks post-quantum cryptography adoption, and enforces cipher/protocol compliance policies. All analysis operates on handshake metadata extracted by eBPF - no decryption required.
 
 Four sub-capabilities:
 
@@ -12,12 +12,12 @@ Four sub-capabilities:
 
 | Capability | Description |
 |-----------|-------------|
-| JA4+ Threat Database | Fingerprint matching against imported intelligence, with a starter sample of 7 sourced built-in signatures |
+| JA4 Threat Database | Fingerprint matching against imported intelligence, with a starter sample of 7 sourced built-in signatures |
 | TLS Behavior Anomaly | Statistical rarity scoring of TLS fingerprints over a sliding window |
 | PQC Compliance Detection | Track ML-KEM and hybrid key exchange adoption per destination |
 | Cipher/Protocol Compliance | Enforce minimum TLS versions, block weak ciphers and signature algorithms |
 
-## JA4+ Threat Database
+## JA4 Threat Database
 
 <!-- feature-count: ja4-builtin-threats -->
 
@@ -62,7 +62,7 @@ Each entry contains:
 
 | Field | Description |
 |-------|-------------|
-| `ja4_hash` | JA4+ fingerprint hash (identity of the entry) |
+| `ja4_hash` | JA4 fingerprint hash (identity of the entry) |
 | `threat_name` | Human-readable threat name |
 | `category` | One of `c2`, `malware`, `exploit_tool`, `scanner`, `botnet`, `custom` |
 | `origin` | `built_in`, `operator` or `feed`: where the row entered the database |
@@ -149,7 +149,7 @@ Statistical rarity scoring detects unusual TLS fingerprints that may indicate no
 
 ### Rarity Score
 
-For each observed JA4+ fingerprint, the rarity score is calculated as:
+For each observed JA4 fingerprint, the rarity score is calculated as:
 
 ```
 rarity = 1.0 - (occurrences / total_handshakes)
@@ -339,19 +339,11 @@ GET /api/v1/enterprise/tls-intelligence/crypto/violations
 
 ## TLS Behavioral Scoring
 
-Advanced behavioral analysis extending the core sub-capabilities with 7 detection engines:
+Advanced behavioral analysis extending the core sub-capabilities with 6 detection engines:
 
 ### Cipher Downgrade Detection
 
 Tracks per-destination cipher baselines. When a client that always used TLS 1.3+AES-GCM to a destination suddenly offers TLS 1.2+RC4, an alert fires. Configurable warmup period (default 10 observations) prevents false positives during baseline learning.
-
-### JA4S ServerHello Fingerprinting
-
-Server-side fingerprinting complements client-side JA4. A destination's first JA4S establishes its baseline, and a later handshake answering with a different JA4S is reported as a change (certificate rotation, compromise, MITM). Baselines expire after seven days without an observation.
-
-The change is tracked only for a submitter that saw both halves of one handshake: the `ja4s` field on the ingest event carries the `ServerHello` hash beside the `ClientHello` that provoked it, and it is keyed by SNI, so an event with no `sni` or no `ja4s` establishes nothing. That is deliberate rather than a limitation of the wire format - whoever parsed the two directions of a conversation knows they belong to the same handshake, and nothing downstream can recover that correlation from two independent submissions. The OSS agent computes JA4S itself (`compute_ja4s()`, served by `/api/v1/fingerprints/ja4s`) and is the expected source of the field.
-
-The change is reported on the response to the event that carried it, listed by `GET /api/v1/enterprise/tls-intelligence/server-fingerprints`, and counted by `ebpfsentinel_ent_tls_intel_server_fingerprint_changes_total`. It raises no alert: a fingerprint moving is a fact worth surfacing, not by itself a verdict, and the deployments where it fires most often are the ones rotating certificates on schedule.
 
 ### SNI / Certificate Mismatch Detection
 
@@ -423,7 +415,6 @@ enterprise:
 
 ```
 GET /api/v1/enterprise/tls-intelligence/cipher-downgrades
-GET /api/v1/enterprise/tls-intelligence/server-fingerprints
 GET /api/v1/enterprise/tls-intelligence/sni-cert-mismatches
 GET /api/v1/enterprise/tls-intelligence/session-anomalies
 GET /api/v1/enterprise/tls-intelligence/ml/status
@@ -453,7 +444,7 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 
 | Capability | Technique | Name | Tactic |
 |-----------|-----------|------|--------|
-| JA4+ Threat DB | T1573.002 | Encrypted Channel: Asymmetric Cryptography | command-and-control |
+| JA4 Threat DB | T1573.002 | Encrypted Channel: Asymmetric Cryptography | command-and-control |
 | Behavior Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
 | PQC Compliance | T1573.001 | Encrypted Channel: Symmetric Cryptography | command-and-control |
 | Cipher Compliance | T1600.001 | Weaken Encryption: Reduce Key Space | defense-evasion |
@@ -479,7 +470,6 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 | `ebpfsentinel_ent_tls_intel_clustering_outliers_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_cipher_downgrades_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_sni_cert_mismatches_total` | Counter | - |
-| `ebpfsentinel_ent_tls_intel_server_fingerprint_changes_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_session_resume_anomalies_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_ml_inferences_total` | Counter | - |
 | `ebpfsentinel_ent_tls_intel_ml_anomalies_total` | Counter | - |
@@ -498,7 +488,6 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 | `GET` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | viewer | tls-intelligence | Current anomaly detector thresholds. |
 | `PUT` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | operator | tls-intelligence | Replace the anomaly detector thresholds. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/server-fingerprints` | viewer | tls-intelligence | List server fingerprint changes. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/pqc/report` | viewer | tls-intelligence | Post-quantum readiness summary for the estate. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/pqc/connections` | viewer | tls-intelligence | Connections carrying post-quantum key exchange. |
 | `GET` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | viewer | tls-intelligence | Current cryptographic policy. |
@@ -524,7 +513,6 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
   "supported_groups": [29, 23, 24],
   "signature_algorithms": [1027, 2052, 1025],
   "sni": "api.example.com",
-  "ja4s": "t130200_1301_234ea6891581",
   "peer_group": "prod/checkout-api",
   "alpn": ["h2", "http/1.1"],
   "handshake_version": 771,
@@ -548,10 +536,9 @@ omitted, so a submitter written against the earlier shape keeps working and a
 caller that genuinely cannot determine the port sends the value the service used
 to assume rather than a zero nothing can interpret.
 
-`ja4s` is optional and carries the fingerprint of the `ServerHello` this
-handshake was answered with. Sent together with `sni`, it feeds the server
-fingerprint baseline described above; omitted, the rest of the event is
-processed exactly as before.
+A `ja4s` field sent by a submitter written against an earlier release is
+ignored: server fingerprints are no longer tracked, and the rest of the event
+is processed as before.
 
 `peer_group` is optional and names the group this client is scored within,
 as described under [Peer-Group Rarity](#peer-group-rarity). Omitted, the
@@ -566,7 +553,7 @@ enterprise:
   tls_intelligence:
     enabled: true
 
-    # JA4+ Threat Database
+    # JA4 Threat Database
     threat_db:
       custom_entries:
         - ja4_hash: "t13d1516h2_8daaf6152771_e5627efa2ab1"
