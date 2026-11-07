@@ -3550,8 +3550,8 @@ Each entry of `processes`:
 |-------|------|-------------|
 | `pid` | integer | The process id |
 | `parent_pid` | integer? | The parent, read by the kernel at the exec or fork, or from `/proc/<pid>/status` where `lineage` is off. Absent where neither could read it |
-| `parent_start_ns` | integer? | When the parent started. With `parent_pid`, a name a reused pid cannot take |
-| `start_ns` | integer? | When this process started, which precedes `started_at_ns` for a process that forked before it exec'd |
+| `parent_start_ns` | integer? | When the parent started, on the kernel's boot clock. With `parent_pid`, a name a reused pid cannot take |
+| `start_ns` | integer? | When this process started, on the kernel's boot clock. It is an identity, compared only with another `start_ns` or `parent_start_ns`, never with `started_at_ns` |
 | `comm` | string | The kernel's 16-byte command name |
 | `identity` | object | `kind` is `path` or `unknown`, `path` carries the executable path where there is one, and `exe_hash` the digest of that file where the agent could open it (`sha256:<hex>` or `fsverity-sha256:<hex>`) |
 | `command_line` | string? | The command line with its recognised secrets removed, only when `process_table.capture_command_line` is on ([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
@@ -3559,7 +3559,7 @@ Each entry of `processes`:
 | `gid` | integer | Effective group id at exec |
 | `cgroup_id` | integer | The kernel cgroup id of the task |
 | `container` | object? | `id`, `runtime`, and `name` and `image` where the runtime answered. Absent for a host process |
-| `started_at_ns` | integer | Kernel monotonic time of the exec, or of the fork for a process that has not exec'd, in nanoseconds |
+| `started_at_ns` | integer | When the exec happened, or the fork for a process that has not exec'd, in nanoseconds since the Unix epoch, the clock file and alert timestamps are on |
 
 `identity.kind` is what makes the strength of the name explicit. A path is
 forgeable: a process can be started from a binary that has since been replaced
