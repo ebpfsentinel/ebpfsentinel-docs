@@ -536,10 +536,6 @@ omitted, so a submitter written against the earlier shape keeps working and a
 caller that genuinely cannot determine the port sends the value the service used
 to assume rather than a zero nothing can interpret.
 
-A `ja4s` field sent by a submitter written against an earlier release is
-ignored: server fingerprints are no longer tracked, and the rest of the event
-is processed as before.
-
 `peer_group` is optional and names the group this client is scored within,
 as described under [Peer-Group Rarity](#peer-group-rarity). Omitted, the
 observation is scored against the estate only.
