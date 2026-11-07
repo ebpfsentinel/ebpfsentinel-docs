@@ -1,6 +1,6 @@
 # L7 Alert Enrichment & MITRE Mapping
 
-> **Edition: Enterprise** | **License Feature: `advanced-dlp`**
+> **Edition: Professional and above** | **License Feature: `advanced-dlp`**
 
 ## Overview
 

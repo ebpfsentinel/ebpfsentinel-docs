@@ -1,6 +1,6 @@
 # Compliance Reports
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** (`compliance-reports`)
 
 ## Overview
 

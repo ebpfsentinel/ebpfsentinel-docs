@@ -1,6 +1,6 @@
 # Per-Protocol L7 Security Policies
 
-> **Edition: Enterprise** | **License Feature: `advanced-dlp`**
+> **Edition: Professional and above** | **License Feature: `advanced-dlp`**
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # Application Attack Detection
 
-> **Edition: Enterprise** | **License Feature: `advanced-dlp`**
+> **Edition: Professional and above** | **License Feature: `advanced-dlp`**
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # High Availability
 
-> **Edition: Enterprise**
+> **Edition: Critical** (`high-availability`)
 
 ## Overview
 

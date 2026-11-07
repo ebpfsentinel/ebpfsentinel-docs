@@ -5,11 +5,11 @@ certification (Hebergeur de Donnees de Sante): the ISO/IEC 27001 controls on com
 cryptography, logging, operational software and incident management, the ISO/IEC 27018 protection of personal data,
 and the access traceability of Art. R.1111-10 of the code de la sante publique.
 
-The [compliance report](../features/enterprise/compliance-reports.md) (Enterprise) judges each
-control below on what the running agent reports about itself when the report is generated. A
-control whose facts the agent cannot read is reported as not evaluated, never as passed. The
-certification is granted by an accredited body after an audit of the host's whole organisation;
-the report evidences the part of it a network agent can carry.
+The [compliance report](../features/enterprise/compliance-reports.md) (Professional and above)
+judges each control below on what the running agent reports about itself when the report is
+generated. A control whose facts the agent cannot read is reported as not evaluated, never as
+passed. The certification is granted by an accredited body after an audit of the host's whole
+organisation; the report evidences the part of it a network agent can carry.
 
 ## Control Mapping
 

@@ -5,12 +5,12 @@ for cloud service providers: access control (chapter 8), network security (chapt
 operations and monitoring (chapter 10), cryptography (chapter 12) and incident management
 (chapter 14).
 
-The [compliance report](../features/enterprise/compliance-reports.md) (Enterprise) judges each
-requirement below on what the running agent reports about itself when the report is generated. A
-requirement whose facts the agent cannot read is reported as not evaluated, never as passed.
-The qualification itself covers the provider's whole organisation and is granted by the ANSSI
-after an audit; the report evidences the part of it a network agent can carry, and does not
-claim the qualification.
+The [compliance report](../features/enterprise/compliance-reports.md) (Professional and above)
+judges each requirement below on what the running agent reports about itself when the report is
+generated. A requirement whose facts the agent cannot read is reported as not evaluated, never
+as passed. The qualification itself covers the provider's whole organisation and is granted by
+the ANSSI after an audit; the report evidences the part of it a network agent can carry, and
+does not claim the qualification.
 
 ## Requirement Mapping
 

@@ -4,12 +4,12 @@ eBPFsentinel carries part of the ICT risk-management, incident-management and te
 requirements the Digital Operational Resilience Act (EU 2022/2554) places on financial entities:
 Chapter II (Articles 6 to 13), Chapter III (Articles 17 to 19) and Chapter IV (Articles 24 and 25).
 
-The [compliance report](../features/enterprise/compliance-reports.md) (Enterprise) judges each
-article below on what the running agent reports about itself when the report is generated. An
-article whose facts the agent cannot read is reported as not evaluated, never as passed. Only
-protection (Art. 9) and detection (Art. 10) are carried by the agent in full; every other article
-is capped at `Partial`, because its framework, classification criteria, reporting to the
-competent authority and testing programme belong to the entity.
+The [compliance report](../features/enterprise/compliance-reports.md) (Professional and above)
+judges each article below on what the running agent reports about itself when the report is
+generated. An article whose facts the agent cannot read is reported as not evaluated, never as
+passed. Only protection (Art. 9) and detection (Art. 10) are carried by the agent in full; every
+other article is capped at `Partial`, because its framework, classification criteria, reporting
+to the competent authority and testing programme belong to the entity.
 
 ## Article Mapping
 

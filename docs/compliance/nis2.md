@@ -4,12 +4,12 @@ eBPFsentinel carries part of the technical measures the NIS2 Directive (EU 2022/
 essential and important entities: the cybersecurity risk-management measures of Article 21(2)
 and the evidence behind the incident notifications of Article 23(4).
 
-The [compliance report](../features/enterprise/compliance-reports.md) (Enterprise) judges each
-point below on what the running agent reports about itself when the report is generated. A point
-whose facts the agent cannot read is reported as not evaluated, never as passed. Most of NIS2 is
-governance, procedure and notification to the CSIRT, which no network agent can carry, so most
-controls are capped at `Partial`: the report says which part is met by the agent and which part
-the entity evidences elsewhere.
+The [compliance report](../features/enterprise/compliance-reports.md) (Professional and above)
+judges each point below on what the running agent reports about itself when the report is
+generated. A point whose facts the agent cannot read is reported as not evaluated, never as
+passed. Most of NIS2 is governance, procedure and notification to the CSIRT, which no network
+agent can carry, so most controls are capped at `Partial`: the report says which part is met by
+the agent and which part the entity evidences elsewhere.
 
 ## Article Mapping
 
