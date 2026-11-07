@@ -1,5 +1,7 @@
 # Packet Trace
 
+> **Edition: OSS** | **Enforcement: eBPF programs, read only** | **Domain: trace**
+
 "Why is this packet dropped" answered by the programs that would drop it. A
 trace crafts one packet from a five-tuple and runs it through the eBPF programs
 the node has loaded, in the order their hooks run them, and each program says
