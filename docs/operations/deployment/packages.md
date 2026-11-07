@@ -203,7 +203,8 @@ NixOS installs nothing through a package manager's imperative path, so it gets a
 module instead of a package. Both files are in the source tree under
 `dist/nix/`.
 
-`package.nix` builds a derivation from the published release tarball. It takes
+`package.nix` builds a derivation from the release tarball published in
+`ebpfsentinel-release`, the one place every artifact is retrieved from. It takes
 the version and the hashes as arguments and has no defaults for either, because
 a module cannot invent which release a host runs, and it deliberately does not
 build from source: the eBPF objects are built by a pinned nightly toolchain for
@@ -219,7 +220,8 @@ nobody signed.
     enable = true;
 
     package = pkgs.callPackage "${ebpfsentinelSrc}/dist/nix/package.nix" {
-      version = "2026.6.1";
+      version = "2026.6.1";   # the agent's version, which names the tarball
+      release = "2026.6.1";   # the release whose tag carries it; defaults to version
       # From the release's ebpfsentinel-SHA256SUMS, as an SRI hash:
       #   nix hash convert --hash-algo sha256 --to sri <the sum of the linux-amd64 tarball>
       hashes.x86_64-linux = "sha256-0000000000000000000000000000000000000000000=";
@@ -261,6 +263,12 @@ What the module does beyond writing that file:
 - asserts the 6.12 kernel floor at evaluation time, so a host on an older kernel
   fails to build rather than failing to load its programs at three in the
   morning.
+
+`dist/nix/check.sh` evaluates both files against the pinned nixpkgs the module
+is written for, with Nix or with the `nixos/nix` image, and the continuous
+integration runs it on every change: the URL the tarball comes from, the units
+beside the ones the packages install, the floor and the exclusive configuration
+sources are each a check.
 
 Removal is `services.ebpfsentinel.enable = false` and a rebuild: the units go,
 the store path is collected, and `/var/lib/ebpfsentinel` stays until it is
