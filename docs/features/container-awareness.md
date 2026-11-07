@@ -205,7 +205,15 @@ who logs in after the agent started is named from their next alert on.
 A rootless socket is owned by its user and is mode `0600` inside a
 `0700` directory, so the agent reaches it only when it can read that
 path, and the runtime only answers while the user's `podman.socket` is
-listening. Neither condition is the agent's to fix, so neither is
+listening. An agent started beside a warden runs as root inside a user
+namespace of its own, which cannot enter another user's directory
+whatever its capabilities, so when its own connect is refused it asks
+the warden instead: the warden connects to
+`/run/user/<uid>/podman/podman.sock` on the host, checks that the
+socket and the process listening on it both belong to that uid, and
+hands the open connection over. The agent names a user and never a
+path, root's runtime is never connected this way, and a warden running
+in a container needs the host's `/run/user` mounted for it. Neither condition is the agent's to fix, so neither is
 hidden: the first time a runtime cannot be reached the agent logs one
 warning naming the user, the socket and the reason, and
 `ebpfsentinel-agent status` lists every Podman runtime it has gone to
@@ -221,7 +229,7 @@ with the same reason:
 |-------|---------|------------|
 | `reachable` | The runtime answers; its containers are named | - |
 | `no_socket` | No socket at that path | `systemctl --user enable --now podman.socket` as that user, and mount `/run/user` when the agent runs in a container |
-| `refused` | The socket exists and refused the agent | Run the agent as root, or as the owning user |
+| `refused` | The socket exists and refused the agent, and no warden connected for it | Run the agent beside a warden, as root, or as the owning user |
 | `unavailable` | The socket accepted nothing in time | Check the user's `podman.socket` unit |
 | `rootless_off` | `container.podman.rootless` is false | Set it to true to name rootless containers |
 
