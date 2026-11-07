@@ -223,6 +223,16 @@ containers read the node's command lines, which is the cost; drop it from both
 services to scope DLP to the agent's own container, or keep it and narrow what
 is inspected with `dlp.scope`.
 
+**The one feature that needs the host pid namespace is the
+[hidden process sweep](../../features/hidden-processes.md)**, which `hidden_checks.processes`
+turns on by default. The warden makes it by sending the null signal to every
+pid and comparing the answers with the `/proc` listing, and a pid only means
+the same thing on both sides when the warden signals in the namespace
+`/host/proc` lists. Neither file shares it, so out of the box the sweep is not
+taken and `last_error` on its route says why, while DLP, the port sweep and everything else run
+unchanged. To have the sweep, add `pid: host` to the **warden** service alone
+(`--pid host` on the warden's `docker run`); the agent never needs it.
+
 ## Without Compose
 
 The same two containers by hand, sharing a named volume, run from the directory
@@ -232,18 +242,20 @@ holding the verified `ebpfsentinel-agent.json` and your `ebpfsentinel.yaml`:
 docker volume create warden-sock
 
 docker run -d --name ebpfsentinel-warden \
-  --network host --pid host \
+  --network host \
   --cap-drop ALL \
   --cap-add SYS_ADMIN --cap-add NET_ADMIN --cap-add NET_RAW \
   --cap-add SYS_PTRACE --cap-add BPF --cap-add PERFMON \
   --cap-add DAC_READ_SEARCH \
   --security-opt apparmor=unconfined --security-opt seccomp=unconfined \
+  -e EBPFSENTINEL_HOST_PROC=/host/proc \
   -v warden-sock:/run/ebpfsentinel \
   -v /proc:/host/proc:ro \
+  -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
   "ghcr.io/ebpfsentinel/ebpfsentinel-warden:${REL}"
 
 docker run -d --name ebpfsentinel \
-  --network host --pid host \
+  --network host \
   --user 65534:65534 --cap-drop ALL \
   --security-opt seccomp=./ebpfsentinel-agent.json \
   --security-opt apparmor=unconfined \
@@ -532,7 +544,8 @@ hosts even though the container uses host networking.
 | tailored seccomp profile | agent | the default profile gates `unshare`/`mount`/`bpf` on a capability the agent does not hold |
 | unprivileged user namespaces enabled on the host | agent | `BPF_TOKEN_CREATE` is only valid inside a user namespace |
 | `--network host` | both | XDP/TC attach to host interfaces; the warden programs the init netns |
-| no `--pid host` | both | the uprobe link carries a path and an offset rather than a pid, so neighbouring containers are reached through the read-only `/host/proc` mount |
+| no `--pid host` | agent | the uprobe link carries a path and an offset rather than a pid, so neighbouring containers are reached through the read-only `/host/proc` mount |
+| `--pid host` only for the hidden process sweep | warden | the sweep signals every pid and compares the answers with the `/proc` listing, so the warden must signal in the pid namespace that `/host/proc` lists. Without it DLP and every other feature are unchanged, and the sweep is not taken: `last_error` on `/api/v1/ebpf/hidden-processes` says the procfs lists another pid namespace |
 | shared socket volume | both | the `warden-proto` control channel |
 
 ## Volumes

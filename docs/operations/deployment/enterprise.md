@@ -90,12 +90,39 @@ infrastructure, `EULA-MSSP.md` for a provider reselling it to the customers it
 manages, each with its French version (`EULA.fr.md`, `EULA-MSSP.fr.md`), which
 prevails for a licensee established in France. The container image carries the
 same four files under `/usr/share/doc/ebpfsentinel-enterprise/`. Each release on the
-[releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases) carries one per architecture, with its signature:
+[releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases) carries one per architecture. The tarball is not signed on its
+own: the release signs `enterprise-SHA256SUMS`, which lists its digest, so
+verify that file's signature first and then check the tarball against it,
+before `install.sh` runs anything as root:
 
 ```bash
-curl -fsSLO https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v<release>/ebpfsentinel-enterprise-<version>-linux-<arch>.tar.gz
-tar xzf ebpfsentinel-enterprise-<version>-linux-<arch>.tar.gz
-cd ebpfsentinel-enterprise-<version>-linux-<arch>
+REL=<release>
+VER=<version>        # the enterprise version that release pins
+ARCH=amd64           # or arm64
+BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
+
+curl -fsSLO "$BASE/ebpfsentinel-enterprise-${VER}-linux-${ARCH}.tar.gz"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS.sig"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS.crt"
+
+cosign verify-blob \
+  --certificate enterprise-SHA256SUMS.crt \
+  --signature enterprise-SHA256SUMS.sig \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
+  enterprise-SHA256SUMS
+
+sha256sum --ignore-missing -c enterprise-SHA256SUMS
+```
+
+`cosign verify-blob` must print `Verified OK` and `sha256sum` must print `OK`
+for the tarball; stop at either failure. Then unpack and install:
+
+```bash
+tar xzf "ebpfsentinel-enterprise-${VER}-linux-${ARCH}.tar.gz"
+cd "ebpfsentinel-enterprise-${VER}-linux-${ARCH}"
 sudo ./install.sh
 sudo install -m 0640 my-license.key /etc/ebpfsentinel/license.key
 sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterprise
