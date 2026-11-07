@@ -195,33 +195,76 @@ node and left out on a standby.
 
 ## Docker Compose
 
-`docker-compose.yml` defines the two services sharing a socket volume:
+The release tarball is also the Docker deployment. Beside the binaries it
+carries `compose.yaml`, which runs the published `ebpfsentinel-enterprise` and
+`ebpfsentinel-enterprise-warden` images at that release's version, and
+`ebpfsentinel-agent.json`, the agent's seccomp profile. Both name their files by
+relative path, the default config `ebpfsentinel.yaml` included, so the unpacked
+directory runs as it is and nothing comes from a source checkout. Fetch the
+tarball for the host's architecture and verify it before unpacking:
 
 ```bash
-# Place a signed license next to the compose file (the file MUST exist - Docker
-# creates a directory in its place if absent), then bring the stack up:
-cp my-license.key ./license.key
-sudo chown 65534:65534 ./config/ebpfsentinel.yaml && sudo chmod 640 ./config/ebpfsentinel.yaml
+REL=<release>
+VER=<version>        # the enterprise version that release pins
+ARCH=amd64           # or arm64
+BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
+
+curl -fsSLO "$BASE/ebpfsentinel-enterprise-${VER}-linux-${ARCH}.tar.gz"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS.sig"
+curl -fsSLO "$BASE/enterprise-SHA256SUMS.crt"
+
+cosign verify-blob \
+  --certificate enterprise-SHA256SUMS.crt \
+  --signature enterprise-SHA256SUMS.sig \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
+  enterprise-SHA256SUMS
+
+sha256sum --ignore-missing -c enterprise-SHA256SUMS
+tar xzf "ebpfsentinel-enterprise-${VER}-linux-${ARCH}.tar.gz"
+cd "ebpfsentinel-enterprise-${VER}-linux-${ARCH}"
+```
+
+Then, in that directory:
+
+```bash
+# The license MUST exist before `up`: Docker creates a directory in its place
+# if it is absent, and the agent then runs in OSS mode.
+cp /path/to/my-license.key ./license.key
+# The agent runs as uid 65534 and rejects a world-readable config.
+sudo chown 65534:65534 ebpfsentinel.yaml && sudo chmod 640 ebpfsentinel.yaml
 docker compose up -d
 docker compose logs -f
 ```
+
+The host prerequisites are the ones listed [above](#prerequisites): the
+user-namespace sysctl has to be set on the host, since nothing inside a
+container lifts it.
 
 The `warden` service holds the host capabilities and bind-mounts host `/proc`
 read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`) for the cross-container
 proc-TLS scan; both services run `network_mode: host` and neither runs
 `pid: host`, because the scan reads that mount and the uprobe link carries a
-path and an offset rather than a pid. The agent
-runs as `65534:65534`, `cap-drop: ALL`, with the tailored
-`dist/seccomp/ebpfsentinel-agent.json` profile (the Docker default plus an
-allow-list for the `unshare`/`mount`/`bpf` syscalls the rootless bootstrap needs).
-The license is mounted at `/etc/ebpfsentinel/license.key`, the path the shipped
-config names in `enterprise.license_path`.
+path and an offset rather than a pid. The agent runs as `65534:65534`,
+`cap-drop: ALL`, with `seccomp=./ebpfsentinel-agent.json`: the Docker default
+plus an allow-list for the `unshare`/`mount`/`bpf` syscalls the rootless
+bootstrap needs. Docker resolves that path from the directory `docker compose`
+runs in, so run it from the unpacked tarball. The profile is the OSS agent's,
+byte for byte, and the release build refuses a tarball where it is not. The
+license is mounted at `/etc/ebpfsentinel/license.key`, the path the shipped
+config names in `enterprise.license_path`. The agent also reads the
+containerd and CRI-O sockets read-only for tenant attribution; on a host
+running neither, it says once at startup that the socket is absent.
 
 The agent's state lives on the `ebpfsentinel-state` volume at
 `/var/lib/ebpfsentinel`, the image's working directory and owned by 65534: the
 redb stores under `data/`, GeoIP databases and the telemetry installation
 identifier. Captures go to the `ebpfsentinel-captures` volume under it. A config
-edit takes `docker compose restart agent`.
+edit takes `docker compose restart agent`. Upgrading is unpacking the next
+release's tarball and moving `ebpfsentinel.yaml` and `license.key` across: its
+`compose.yaml` names the next release's images.
 
 ## Kubernetes (Helm)
 
