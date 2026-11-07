@@ -1,6 +1,6 @@
 # Advanced RBAC
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** (`advanced-rbac`)
 
 ## Overview
 
