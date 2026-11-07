@@ -106,7 +106,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Compliance Reports](enterprise/compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
 | [High Availability](enterprise/high-availability.md) | Active-passive/active-active, state replication, graceful degradation |
 | [Multi-Cluster](enterprise/multicluster.md) | Federation, policy distribution, alert aggregation |
-| [Advanced RBAC](enterprise/advanced-rbac.md) | 17 security domains, custom roles, permission inheritance |
+| [Advanced RBAC](enterprise/advanced-rbac.md) | Per-domain permissions, custom roles, permission inheritance |
 | [Air-Gap Mode](enterprise/airgap.md) | Offline feed bundles with Ed25519-signed import/export |
 | [Advanced Analytics](enterprise/analytics.md) | Top talkers, trends, IOC summaries, flow query API |
 | [Fleet Management](enterprise/fleet-management.md) | Agent registration, heartbeat, identity, config versioning |

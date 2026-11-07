@@ -22,7 +22,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
 | [High Availability](high-availability.md) | Active-passive/active-active clustering, state replication, graceful degradation |
 | [Multi-Cluster](multicluster.md) | Federation, policy distribution, alert aggregation |
-| [Advanced RBAC](advanced-rbac.md) | 17 security domains, custom roles, permission inheritance |
+| [Advanced RBAC](advanced-rbac.md) | Per-domain permissions, custom roles, permission inheritance |
 | [Air-Gap Mode](airgap.md) | Offline feed bundles with Ed25519-signed import/export |
 | [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports |
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph |

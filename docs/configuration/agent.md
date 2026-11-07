@@ -324,7 +324,7 @@ INFO XDP program attached (fallback from native)  mode="auto"
 
 ### Multi-NIC and Bond Interfaces
 
-eBPFsentinel natively supports multiple interfaces. Every eBPF program (XDP and TC) is attached to **each** interface listed in `agent.interfaces`. All 14 security domains work identically across all listed interfaces.
+eBPFsentinel natively supports multiple interfaces. Every eBPF program (XDP and TC) is attached to **each** interface listed in `agent.interfaces`. Every security domain works identically across all listed interfaces.
 
 ```yaml
 # Multi-NIC: attach to all physical interfaces

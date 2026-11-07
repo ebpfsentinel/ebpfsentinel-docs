@@ -4,11 +4,11 @@
 
 ## Overview
 
-Fine-grained per-domain, per-resource permissions with custom roles, inheritance, and subject-to-role assignments. Extends the OSS three-tier model (admin/operator/viewer) with 17 security domains, resource prefix constraints with wildcard support, and automatic HTTP middleware enforcement.
+Fine-grained per-domain, per-resource permissions with custom roles, inheritance, and subject-to-role assignments. Extends the OSS three-tier model (admin/operator/viewer) with one permission domain per area of the API, resource prefix constraints with wildcard support, and automatic HTTP middleware enforcement.
 
 ## Security Domains
 
-Permissions are scoped to 17 individual security domains:
+Permissions are scoped to these domains, one per area of the API:
 
 | Domain | Description |
 |--------|-------------|
@@ -348,7 +348,7 @@ A subject can have multiple roles. Access is granted if **any** assigned role pr
 | `/api/v1/rbac/*`, `/api/v1/config/*`, `/api/v1/license/*` | `Config` |
 | `/api/v1/enterprise/tenants/*`, `/api/v1/ebpf/*` | `Config` |
 | `/swagger-ui`, `/api-docs/*` | `Config` |
-| ... | (all 17 domains mapped) |
+| ... | (every domain mapped) |
 
 ### An unrecognised path is refused
 
