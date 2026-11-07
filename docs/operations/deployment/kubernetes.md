@@ -81,9 +81,22 @@ What makes TLS DLP node-wide is the read-only `/host/proc` mount, not the pid
 namespace: the agent resolves each workload's `libssl` through
 `/host/proc/<pid>` and the warden creates the uprobe link against that path and
 a file offset with `pid = 0`, so it fires for every process mapping the library
-whatever namespace it runs in. `daemonset.hostPID: true` adds the node's
-process table to what the pod can read and buys no coverage, which is why it
-ships off and why the chart refuses to render it under `baseline`.
+whatever namespace it runs in. DLP needs no host pid namespace.
+
+The [hidden process sweep](../../features/hidden-processes.md) does. The warden
+sends the null signal to every pid and compares the answers with the
+`/host/proc` listing, which only agree when it signals in the pid namespace
+that mount lists. With `daemonset.hostPID: false` the sweep is skipped and
+`last_error` on `/api/v1/ebpf/hidden-processes` says the procfs lists another
+pid namespace; everything else runs unchanged.
+
+`hostPID` is a pod field, and the chart runs the warden and the agent in one
+pod, so it cannot give the host pid namespace to the warden alone. Turning it
+on runs the sweep, and puts both containers in the node's pid namespace: the
+rootless agent's own `/proc` becomes the node's process table, and it can
+signal any process on the node running as its uid, 65534. That is why it ships
+off, and why the chart refuses to render it under `baseline`. Set
+`hidden_checks.processes.enabled: false` to stop a sweep that will be skipped.
 
 ### Pod Security Admission
 
@@ -105,7 +118,7 @@ one rather than as a blanket requirement:
 | hostPath volumes (`/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/fs/cgroup`, `/proc`, the state directory, `/etc/machine-id`) | the programs, the pinned maps and the node's procfs live on the node, not in the pod | `baseline` |
 | Host ports 8080, 50051 and 9090 | `hostNetwork` makes every declared port a host port | `baseline` |
 
-Cross-container DLP is no longer on that list, and `hostPID` is in neither the
+Cross-container DLP is not on that list, and `hostPID` is in neither the
 chart's list nor an API server's verdict. The rest of the list stands: a node
 that needs only the DLP path is still not a `baseline` pod, because the
 warden's capabilities, the two `Unconfined` profiles and the hostPath mounts
@@ -236,7 +249,7 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | Key | Default | Description |
 |-----|---------|-------------|
 | `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
-| `daemonset.hostPID` | `false` | Host PID namespace. Off: DLP reads `/host/proc` and the uprobe carries no pid |
+| `daemonset.hostPID` | `false` | Host PID namespace, for the whole pod. DLP never needs it; the hidden process sweep is skipped without it |
 | `daemonset.bpfToken.bpffsPath` | `/sys/fs/bpf/ebpfsentinel` | Drives both `EBPFSENTINEL_BPFFS` and the agent's `bpf_token.bpffs_path`, so the two cannot drift |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | In-pod tmpfs bpffs, for kind and minikube |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |

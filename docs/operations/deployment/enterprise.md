@@ -274,7 +274,12 @@ The `warden` service holds the host capabilities and bind-mounts host `/proc`
 read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`) for the cross-container
 proc-TLS scan; both services run `network_mode: host` and neither runs
 `pid: host`, because the scan reads that mount and the uprobe link carries a
-path and an offset rather than a pid. The agent runs as `65534:65534`,
+path and an offset rather than a pid, so DLP needs no host pid namespace. The
+[hidden process sweep](../../features/hidden-processes.md) does: the warden
+signals every pid and compares the answers with the `/host/proc` listing, so
+as shipped the sweep is skipped and `last_error` on
+`/api/v1/ebpf/hidden-processes` says why. Add `pid: host` to the `warden`
+service alone to run it; the agent never needs it. The agent runs as `65534:65534`,
 `cap-drop: ALL`, with `seccomp=./ebpfsentinel-agent.json`: the Docker default
 plus an allow-list for the `unshare`/`mount`/`bpf` syscalls the rootless
 bootstrap needs. Docker resolves that path from the directory `docker compose`
@@ -340,7 +345,7 @@ Key values:
 | `license.secretName` / `license.key` | `""` | Enterprise license (OSS mode if unset) |
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
 | `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
-| `daemonset.hostPID` | `false` | Host PID namespace. Off: node-wide DLP reads the `/host/proc` mount instead |
+| `daemonset.hostPID` | `false` | Host PID namespace, for the whole pod. DLP never needs it; the hidden process sweep is skipped without it |
 | `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |

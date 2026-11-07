@@ -51,8 +51,20 @@ one the sweep explains is counted under its reason rather than reported:
    its pid and command name.
 
 In the rootless posture the agent runs in a pid namespace of its own and can
-signal nothing outside it, so the sweep is made by the warden, which runs in
-the host's; otherwise the agent sweeps from the host's `/proc` itself.
+signal nothing outside it, so the sweep is made by the warden; otherwise the
+agent sweeps from the host's `/proc` itself. Under systemd the warden runs in
+the host pid namespace and the sweep needs nothing more.
+
+In a container the warden must be given the host pid namespace for the sweep
+to run, because it signals pids and compares them with the read-only
+`/host/proc` listing, and the two only agree inside one namespace. Without it
+the sweep is skipped, and `last_error` on `/api/v1/ebpf/hidden-processes` says
+the procfs lists another pid namespace than the one the warden signals in.
+DLP and every other feature need no host pid namespace. With Docker Compose
+that is `pid: host` on the warden service alone; in Kubernetes it is
+`daemonset.hostPID`, which is a pod field and therefore reaches the agent too,
+as the [Kubernetes guide](../operations/deployment/kubernetes.md#pod-layout)
+describes. Both ship without it.
 
 ## The Alert
 

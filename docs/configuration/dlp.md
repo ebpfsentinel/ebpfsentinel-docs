@@ -23,11 +23,12 @@ level, not in the `dlp` config block:
 | `/host/proc` (read-only) | Helm + compose volume mount | Host `/proc` the agent reads (the warden reads the same path) |
 | `EBPFSENTINEL_HOST_PROC` | Agent env (set to `/host/proc`) | Points DLP discovery at the mounted host proc; defaults to `/proc` |
 
-There is no `hostPID` row. The uprobe is created against a path and a file
-offset with `pid = 0`, so it covers every process mapping that library whatever
-pid namespace it runs in; sharing the node's pid namespace added the node's
-process table to what the pod could see and no coverage, and `baseline` Pod
-Security Admission forbids it. The bundled Helm chart and `docker-compose.yml`
+There is no `hostPID` row: DLP needs no host pid namespace. The uprobe is
+created against a path and a file offset with `pid = 0`, so it covers every
+process mapping that library whatever pid namespace it runs in. The host pid
+namespace matters only to the
+[hidden process sweep](../features/hidden-processes.md), which the warden
+skips without it and says so in `last_error`. The bundled Helm chart and `docker-compose.yml`
 mount the procfs for you and set the variable. On bare metal (systemd) the
 agent reads the node's own `/proc`, so `EBPFSENTINEL_HOST_PROC` keeps its
 `/proc` default and no mount is needed. Coverage is **dynamically-linked

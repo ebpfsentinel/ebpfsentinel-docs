@@ -117,7 +117,7 @@ container on a node (not just the agent's own process), the agent resolves each
 workload's library through the host `/proc` and attaches a uprobe per library.
 
 This requires two privilege expansions, both isolated away from the agent, and
-the host pid namespace is no longer one of them:
+the host pid namespace is not one of them:
 
 - **A read-only `/host/proc` mount**, named by `EBPFSENTINEL_HOST_PROC`. The
   agent and the warden read `/host/proc/<pid>/maps` to find each workload's
@@ -125,7 +125,11 @@ the host pid namespace is no longer one of them:
   process actually mapped. The pod does **not** share the node's pid namespace:
   a uprobe link is created against a path and a file offset with `pid = 0`, so
   it fires for every process that maps the library whatever namespace it runs
-  in, and `hostPID` bought visibility rather than coverage. The mount is what
+  in, so DLP needs no host pid namespace. The one feature that does is the
+  [hidden process sweep](../features/hidden-processes.md): the warden signals
+  every pid and compares the answers with the `/host/proc` listing, so it must
+  signal in the namespace that mount lists, and without it the sweep is skipped
+  and `last_error` on its route says why. The mount is what
   the node-wide scan costs, and it is a read of `/proc`, not a shared process
   table: the pod sees the node's command lines through it, which is why it is
   mounted read-only and why `dlp.scope` exists. Without the mount, DLP covers
