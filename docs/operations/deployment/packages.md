@@ -172,19 +172,30 @@ detached from every interface and nothing of the datapath outlives the package.
 What survives a plain removal is the configuration and the state directory, on
 purpose: the state holds the alerts, the flows, the captures and the API key.
 
-`rpm` has no purge, and a tarball install has no package manager, so both reach
-the same end through the script the package also ships:
+`rpm` has no purge. An erase saves an edited configuration as
+`/etc/ebpfsentinel/config.yaml.rpmsave`, leaves `/var/lib/ebpfsentinel` and
+says so, and the uninstall script goes with the package, so what finishes the
+job is one command:
+
+```bash
+sudo dnf remove ebpfsentinel
+sudo rm -rf /etc/ebpfsentinel /var/lib/ebpfsentinel
+```
+
+A tarball install has no package manager, and the script the package also
+ships is what removes it:
 
 ```bash
 sudo /usr/share/ebpfsentinel/uninstall.sh            # stop, detach, unpin, report what is left
 sudo /usr/share/ebpfsentinel/uninstall.sh --purge    # and remove the configuration and the state
 ```
 
-It detects a packaged install and refuses to delete files the package manager
-owns, printing the `apt-get` or `dnf` command instead. On a tarball install it
-removes what `install.sh` wrote under `/usr/local`. In both cases it ends by
-listing what it left behind and why, including the journal, which no uninstall
-touches.
+On a packaged host it deletes no file at all, `--purge` included: it stops and
+unpins, then prints the `apt-get` or `dnf` command, because a configuration
+deleted behind dpkg's or rpm's back is one the next upgrade puts back. On a
+tarball install it removes what `install.sh` wrote under `/usr/local`. In both
+cases it ends by listing what it left behind and why, including the journal,
+which no uninstall touches.
 
 ## NixOS
 
