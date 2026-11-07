@@ -107,15 +107,17 @@ own user namespace, has the warden delegate a bpffs over a shared socket and
 loads its eBPF through a BPF token.
 
 ```bash
-docker compose up -d       # docker-compose.yml wires both services and the shared socket volume
+docker compose up -d       # compose.yaml wires both services and the shared socket volume
 docker compose logs -f
 docker compose down
 ```
 
-Both images are published by the release and cosign-signed. See
-[Docker deployment](../operations/deployment/docker.md) for the host
-prerequisites (config ownership, AppArmor user namespaces), the image names and
-a two-container `docker run` equivalent.
+Both images are published by the release and cosign-signed, and so are the two
+files that run them: `compose.yaml` and the agent's seccomp profile
+`ebpfsentinel-agent.json`, release assets listed in `ebpfsentinel-SHA256SUMS`.
+See [Docker deployment](../operations/deployment/docker.md#docker-compose) for
+fetching and verifying them, the host prerequisites (config ownership,
+AppArmor user namespaces) and a two-container `docker run` equivalent.
 
 ## Kubernetes
 

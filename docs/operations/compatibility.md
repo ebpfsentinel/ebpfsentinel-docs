@@ -70,7 +70,7 @@ The agent is split in two containers, both on the host network:
 | Container | User | Privileges |
 |-----------|------|------------|
 | Warden | root | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`; AppArmor and seccomp unconfined |
-| Agent | `65534` | `cap_drop: ALL`; AppArmor unconfined; seccomp either unconfined or the tailored profile `dist/seccomp/ebpfsentinel-agent.json` |
+| Agent | `65534` | `cap_drop: ALL`; AppArmor unconfined; seccomp either unconfined or the tailored profile `ebpfsentinel-agent.json`, a release asset |
 
 Neither runs `--privileged`. The warden delegates a bpffs to the agent, which
 unshares a user namespace and loads its own programs through a BPF token; the
@@ -84,7 +84,7 @@ unprivileged user namespaces enabled. See the
 | Orchestrator | Deployment |
 |-------------|-----------|
 | Kubernetes 1.29+ | DaemonSet with `hostNetwork: true`; the warden runs as a native sidecar (init container with `restartPolicy: Always`), the agent as uid 65534 with every capability dropped. The chart refuses an older cluster: native sidecars are behind an alpha feature gate, off by default, on 1.28. See [Kubernetes](deployment/kubernetes.md) |
-| Docker Compose | `docker-compose.yml` at the repository root: warden and agent services, `network_mode: host` |
+| Docker Compose | `compose.yaml`, a release asset beside the seccomp profile it names: warden and agent services, `network_mode: host`. See [Docker](deployment/docker.md#docker-compose) |
 
 ## Kernel Feature Matrix
 

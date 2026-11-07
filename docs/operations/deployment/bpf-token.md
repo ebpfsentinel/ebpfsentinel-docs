@@ -162,10 +162,14 @@ curl -s localhost:9090/metrics | grep bpf_token_used   # expect value 1
 `docker compose up` runs two containers - the `warden` broker (image
 `ebpfsentinel-warden`, holding the capabilities) and the rootless `agent` (image
 `ebpfsentinel`, uid 65534, `cap_drop: ALL`) - sharing the control-socket volume.
+The compose file and the agent's seccomp profile are release assets of their
+own, `compose.yaml` and `ebpfsentinel-agent.json`, signed and listed in
+`ebpfsentinel-SHA256SUMS`; the [Docker guide](docker.md#docker-compose) fetches
+and verifies them. From the directory holding both and your configuration:
 
 ```bash
 # The agent runs as uid 65534 and rejects a world-readable config:
-sudo chown 65534:65534 config/ebpfsentinel.yaml && sudo chmod 640 config/ebpfsentinel.yaml
+sudo chown 65534:65534 ebpfsentinel.yaml && sudo chmod 640 ebpfsentinel.yaml
 docker compose up -d
 docker compose logs -f
 ```
@@ -175,7 +179,7 @@ The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` /
 `apparmor=unconfined` + `seccomp=unconfined` (it does `fsconfig` + netlink +
 `AF_PACKET` + the DLP uprobe link). The agent container holds **no** capabilities but still runs
 `apparmor=unconfined` and a tailored seccomp profile
-(`dist/seccomp/ebpfsentinel-agent.json`, the Docker default plus an
+(`ebpfsentinel-agent.json`, published with every release: the Docker default plus an
 unconditional allow for `unshare` / the `mount` family / `bpf`): it self-unshares
 a user namespace and issues those syscalls, and without `CAP_SYS_ADMIN` the
 default profile (which gates them on `CAP_SYS_ADMIN`) would block them.

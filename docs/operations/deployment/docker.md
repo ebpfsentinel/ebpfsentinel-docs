@@ -18,13 +18,10 @@
 | `ghcr.io/ebpfsentinel/ebpfsentinel` | the agent and the compiled eBPF programs |
 | `ghcr.io/ebpfsentinel/ebpfsentinel-warden` | the warden broker, static binary on distroless |
 
-Both are multi-arch (`linux/amd64`, `linux/arm64`) and cosign-signed. To build
-them from a checkout instead:
-
-```bash
-docker build -f Dockerfile.agent  -t ebpfsentinel .
-docker build -f Dockerfile.warden -t ebpfsentinel-warden .
-```
+Both are multi-arch (`linux/amd64`, `linux/arm64`) and cosign-signed, and each
+release tags them with its version. The two files that run them, a compose file
+and the agent's seccomp profile, are published beside the binaries in the same
+release: [Docker Compose](#docker-compose) below fetches and verifies them.
 
 ## What the split does at startup
 
@@ -68,36 +65,87 @@ again; a container started without it draws a new one. Naming your own under
 
 ## Docker Compose
 
-`docker-compose.yml` in the repository root wires both services and the shared
-socket volume. Three host-level prerequisites first:
+Every release publishes the deployment as two files of its own, signed and
+listed in its checksum file like the tarballs:
+
+| Release asset | What it is |
+|---------------|------------|
+| `compose.yaml` | the warden and agent services, naming the images of that release by version |
+| `ebpfsentinel-agent.json` | the agent's seccomp profile, which `compose.yaml` names as `./ebpfsentinel-agent.json` |
+
+Fetch both into a directory of their own and verify them before anything runs:
+
+```bash
+REL=<release>
+BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
+
+mkdir ebpfsentinel && cd ebpfsentinel
+curl -fsSLO "$BASE/compose.yaml"
+curl -fsSLO "$BASE/ebpfsentinel-agent.json"
+curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS"
+curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.sig"
+curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.crt"
+
+cosign verify-blob \
+  --certificate ebpfsentinel-SHA256SUMS.crt \
+  --signature ebpfsentinel-SHA256SUMS.sig \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
+  ebpfsentinel-SHA256SUMS
+
+sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS
+```
+
+`cosign verify-blob` says the checksum file came from this project's release
+workflow at a tag; `sha256sum -c` says both files on disk are the ones it
+names, and `--ignore-missing` skips the tarballs you did not download. A
+compose file from release N runs the images of release N, so there is no tag to
+choose: upgrading is fetching the next release's two files.
+
+The third file is yours: the agent configuration, at `./ebpfsentinel.yaml`. The
+agent image carries the default one, and copying it out needs no container to
+run:
+
+```bash
+docker create --name ebpfsentinel-config "ghcr.io/ebpfsentinel/ebpfsentinel:${REL}"
+docker cp ebpfsentinel-config:/etc/ebpfsentinel/config.yaml ebpfsentinel.yaml
+docker rm ebpfsentinel-config
+```
+
+It must exist before the first `up`, or Docker creates an empty directory at
+that path and the agent finds no configuration. Then three host-level
+prerequisites:
 
 ```bash
 # 1. The agent runs as uid 65534 and rejects a world-readable config.
-sudo chown 65534:65534 config/ebpfsentinel.yaml
-sudo chmod 640 config/ebpfsentinel.yaml
+sudo chown 65534:65534 ebpfsentinel.yaml
+sudo chmod 640 ebpfsentinel.yaml
 
 # 2. On Ubuntu 24.04+ (any host with kernel.apparmor_restrict_unprivileged_userns=1),
 #    a non-root process cannot create a user namespace. Allow it host-wide:
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-#    or scope it to the binary with dist/apparmor.d/ebpfsentinel-agent.
+#    and persist it in /etc/sysctl.d/ so it survives a reboot.
 
 # 3. SYN-cookie DDoS protection, if enabled, reads a host sysctl.
 sudo sysctl -w net.ipv4.tcp_syncookies=2
 ```
 
+From that directory:
+
 ```bash
 docker compose up -d
 docker compose logs -f
-docker compose kill -s HUP ebpfsentinel   # reload config
+docker compose kill -s HUP agent   # reload config
 docker compose down
 ```
 
-The shape of the two services:
+The shape of the two services, as `compose.yaml` writes them:
 
 ```yaml
 services:
   warden:
-    image: ghcr.io/ebpfsentinel/ebpfsentinel-warden
+    image: ghcr.io/ebpfsentinel/ebpfsentinel-warden:<release>
     command: ["serve", "/run/ebpfsentinel/warden.sock", "--uid", "65534"]
     network_mode: host           # conntrack, routes, ARP in the init netns
     cap_drop: [ALL]
@@ -108,9 +156,10 @@ services:
     volumes:
       - warden-sock:/run/ebpfsentinel
       - /proc:/host/proc:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
 
   agent:
-    image: ghcr.io/ebpfsentinel/ebpfsentinel
+    image: ghcr.io/ebpfsentinel/ebpfsentinel:<release>
     depends_on: [warden]
     environment:
       EBPFSENTINEL_WARDEN_SOCK: /run/ebpfsentinel/warden.sock
@@ -119,15 +168,17 @@ services:
     user: "65534:65534"
     cap_drop: [ALL]              # the warden holds every host capability
     security_opt:
-      - seccomp=./dist/seccomp/ebpfsentinel-agent.json
+      - seccomp=./ebpfsentinel-agent.json
       - apparmor=unconfined
     volumes:
-      - ./config/ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml
+      - ./ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
       - warden-sock:/run/ebpfsentinel:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ebpfsentinel-state:/var/lib/ebpfsentinel
       - ebpfsentinel-captures:/var/lib/ebpfsentinel/captures
+      - /etc/machine-id:/etc/machine-id:ro
       - type: tmpfs              # a container's /sys is read-only
         target: /sys/fs/bpf
         tmpfs:
@@ -152,12 +203,13 @@ volume.
 
 Two of those lines are easy to get wrong:
 
-- **`seccomp=./dist/seccomp/ebpfsentinel-agent.json`** is the Docker default
-  profile plus an unconditional allow for the `unshare` / `mount` family / `bpf`
-  syscalls. The agent issues them while holding no `CAP_SYS_ADMIN`, and the
-  default profile gates exactly those on that capability. This is strictly
-  tighter than `seccomp=unconfined`; the path resolves from the compose working
-  directory, so run `docker compose` from the repository root.
+- **`seccomp=./ebpfsentinel-agent.json`** is the Docker default profile plus an
+  unconditional allow for the `unshare` / `mount` family / `bpf` syscalls. The
+  agent issues them while holding no `CAP_SYS_ADMIN`, and the default profile
+  gates exactly those on that capability. This is strictly tighter than
+  `seccomp=unconfined`. Docker resolves the path from the directory
+  `docker compose` runs in, so keep the profile beside `compose.yaml` and run
+  from there.
 - **The `tmpfs` at `/sys/fs/bpf`** is mandatory. A container's `/sys` is
   read-only, so without a writable mountpoint the agent cannot mount the
   delegated bpffs and falls back to API-only mode.
@@ -173,7 +225,8 @@ is inspected with `dlp.scope`.
 
 ## Without Compose
 
-The same two containers by hand, sharing a named volume:
+The same two containers by hand, sharing a named volume, run from the directory
+holding the verified `ebpfsentinel-agent.json` and your `ebpfsentinel.yaml`:
 
 ```bash
 docker volume create warden-sock
@@ -187,23 +240,23 @@ docker run -d --name ebpfsentinel-warden \
   --security-opt apparmor=unconfined --security-opt seccomp=unconfined \
   -v warden-sock:/run/ebpfsentinel \
   -v /proc:/host/proc:ro \
-  ghcr.io/ebpfsentinel/ebpfsentinel-warden
+  "ghcr.io/ebpfsentinel/ebpfsentinel-warden:${REL}"
 
 docker run -d --name ebpfsentinel \
   --network host --pid host \
   --user 65534:65534 --cap-drop ALL \
-  --security-opt seccomp=./dist/seccomp/ebpfsentinel-agent.json \
+  --security-opt seccomp=./ebpfsentinel-agent.json \
   --security-opt apparmor=unconfined \
   -e EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
   -e EBPFSENTINEL_HOST_PROC=/host/proc \
-  -v ./config/ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml \
+  -v ./ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml \
   -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
   -v /proc:/host/proc:ro \
   -v warden-sock:/run/ebpfsentinel:ro \
   -v ebpfsentinel-state:/var/lib/ebpfsentinel \
   -v ebpfsentinel-captures:/var/lib/ebpfsentinel/captures \
   --tmpfs /sys/fs/bpf:mode=1777 \
-  ghcr.io/ebpfsentinel/ebpfsentinel
+  "ghcr.io/ebpfsentinel/ebpfsentinel:${REL}"
 ```
 
 > **conntrack flow-kill, Multi-WAN and VIP gratuitous-ARP** are not lost in this
@@ -235,8 +288,7 @@ container:
 ```
 
 The Docker enricher is off in the agent's own defaults and on in the
-`docker-compose.yml` and `config/ebpfsentinel.yaml` this repository ships,
-because the compose file is the Docker deployment and an alert carrying a
+`compose.yaml` and the default configuration the release ships, because the compose file is the Docker deployment and an alert carrying a
 64-hex id there is an alert nobody reads. It needs the daemon socket mounted
 read-only into the agent container
 (`-v /var/run/docker.sock:/var/run/docker.sock:ro`).
@@ -488,13 +540,14 @@ hosts even though the container uses host networking.
 | Host Path | Container Path | Container | Purpose |
 |-----------|---------------|-----------|---------|
 | `warden-sock` (named volume) | `/run/ebpfsentinel` | warden (rw), agent (ro) | warden control socket |
-| `./config/ebpfsentinel.yaml` | `/etc/ebpfsentinel/config.yaml` | agent | configuration, hot-reloaded on write |
+| `./ebpfsentinel.yaml` | `/etc/ebpfsentinel/config.yaml` | agent | configuration, hot-reloaded on write |
 | `ebpfsentinel-state` (named volume) | `/var/lib/ebpfsentinel` | agent | redb stores under `data/`, GeoIP databases, telemetry installation identifier |
 | `ebpfsentinel-captures` (named volume) | `/var/lib/ebpfsentinel/captures` | agent | packet capture files (`{id}.pcap`) |
 | `tmpfs` | `/sys/fs/bpf` | agent | mountpoint for the delegated bpffs |
 | `/proc` | `/host/proc` (ro) | both | container resolver and DLP library discovery |
 | `/sys/fs/cgroup` | `/sys/fs/cgroup` (ro) | agent | cgroup-id to container attribution |
 | `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | agent | Docker enricher: the `/events` stream and the inspect fallback. Removable, and the section above says what that costs |
+| `/etc/machine-id` | `/etc/machine-id` (ro) | agent | the telemetry installation identifier is derived from it |
 
 ## Health Check
 
@@ -504,7 +557,7 @@ The image ships its own health check, so no `curl` is needed in the container:
 docker exec ebpfsentinel ebpfsentinel-agent health
 ```
 
-`Dockerfile.agent` already declares it:
+The agent image declares it, and `compose.yaml` repeats it:
 
 ```yaml
 healthcheck:
