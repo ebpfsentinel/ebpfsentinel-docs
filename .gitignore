@@ -13,3 +13,7 @@ yarn-error.log*
 *.swo
 *~
 .DS_Store
+
+# IA
+CLAUDE.*
+.claude
