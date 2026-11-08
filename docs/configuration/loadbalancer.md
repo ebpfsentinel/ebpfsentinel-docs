@@ -7,6 +7,8 @@ The `loadbalancer` section configures L4 (TCP/UDP/TLS passthrough) load balancin
 ```yaml
 loadbalancer:
   enabled: true                          # Enable/disable load balancer
+  max_maglev_services: 8                 # Optional: Maglev rings reserved at start (1-256)
+  max_backends: 1024                     # Optional: backend slots reserved at start (1-65536)
   services:
     - id: "service-id"                   # Unique service identifier (max 64 chars)
       name: "human-readable-name"        # Display name
@@ -39,6 +41,10 @@ loadbalancer:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable load balancer |
 | `services` | `[LbService]` | `[]` | List of load balancer service definitions |
+| `max_maglev_services` | `integer` | derived | Maglev rings the kernel table reserves, 1 to 256. Unset, it is the number of enabled `maglev` services the file lists, with a floor of 1. Each ring is 128 KiB, so this is the one capacity worth setting when Maglev services are added through the API rather than the file. Applies at the next agent start |
+| `max_backends` | `integer` | derived | Backend slots the backend and backend-MAC tables reserve, 1 to 65,536. Unset, it is the backends the file lists across every service, with a floor of 256 so one full service always fits. Applies at the next agent start |
+
+The kernel tables are created once, when the agent starts. A service added through the API or a configuration reload that needs more Maglev rings or backend slots than were reserved is refused with an error naming the key to raise, and the running services stay as they were. With the load balancer off, its program is not loaded and the tables do not exist.
 
 ### LbService
 
@@ -95,6 +101,7 @@ probed.
 
 - Maximum **64 services**
 - Each service must have at least **1 backend**
+- An explicit `max_maglev_services` or `max_backends` must hold at least the Maglev services or backends the file lists
 - Service and backend IDs: max **64 characters**, must not be empty
 - Backend weight must be **> 0**
 - Listen port must be **> 0**

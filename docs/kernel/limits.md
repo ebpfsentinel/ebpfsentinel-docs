@@ -23,8 +23,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | xdp-ratelimit | Amplification protection ports | 64 |
 | xdp-loadbalancer | Services | 4,096 |
 | xdp-loadbalancer | Backends per service | 256 |
-| xdp-loadbalancer | Backends total | 65,536 |
-| xdp-loadbalancer | Maglev services | 256 |
+| xdp-loadbalancer | Backends total | `loadbalancer.max_backends`, at most 65,536 |
+| xdp-loadbalancer | Maglev services | `loadbalancer.max_maglev_services`, at most 256 |
 | xdp-vip-announcer | Virtual IPs | 256 |
 | tc-conntrack | Connections | Kernel netfilter table (`nf_conntrack_max`) |
 | tc-nat-ingress | DNAT rules (IPv4) | 256 |
@@ -101,7 +101,7 @@ No RingBuf. Reads the parsed offsets from `PKT_CTX`, shared with `xdp-firewall`.
 | 32 | ~140 MB | ~240 MB |
 | 64 | ~274 MB | ~462 MB |
 
-The rows for 4 and 8 CPUs are measured, the others follow from them at 4.2 MB per CPU for `RL_BUCKETS` and 6.9 MB per CPU for the seven. The per-CPU part is what moves with the machine. With every feature enabled the agent locked 229 MB in total on 4 CPUs and 265 MB on 8, so the rest of the loaded maps is about 184 MB on 4 CPUs and 192 MB on 8, the difference being the other per-CPU tables (QoS flow state, socket attribution, TCP health, drop counters). The per-CPU values are node memory charged to no cgroup, so they sit outside the agent container's memory limit; see [Performance tuning](../operations/performance-tuning.md#resource-limits) for what that means when sizing a node. SYN cookies use the kernel's own secret through the raw SYN cookie helpers; there is no cookie secret map. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
+The rows for 4 and 8 CPUs are measured, the others follow from them at 4.2 MB per CPU for `RL_BUCKETS` and 6.9 MB per CPU for the seven. The per-CPU part is what moves with the machine. With every feature enabled the agent locked 184 MB in total on 4 CPUs and 220 MB on 8, so the rest of the loaded maps is about 139 MB on 4 CPUs and 147 MB on 8, the difference being the other per-CPU tables (QoS flow state, socket attribution, TCP health, drop counters). The per-CPU values are node memory charged to no cgroup, so they sit outside the agent container's memory limit; see [Performance tuning](../operations/performance-tuning.md#resource-limits) for what that means when sizing a node. SYN cookies use the kernel's own secret through the raw SYN cookie helpers; there is no cookie secret map. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 ### xdp-loadbalancer
 
@@ -109,10 +109,10 @@ The rows for 4 and 8 CPUs are measured, the others follow from them at 4.2 MB pe
 |----------|-------|----------------|
 | Services | 4,096 | `LB_SERVICES` (HashMap, `MAX_LB_SERVICES`) |
 | Backends per service | 256 | `LB_MAX_BACKENDS_V2` (slot: `service_id × 256 + [0..255]`) |
-| Backends total | 65,536 | `LB_BACKENDS` (HashMap, `MAX_LB_BACKENDS_TOTAL`) |
+| Backends total | `loadbalancer.max_backends` (at most 65,536) | `LB_BACKENDS` (HashMap, sized at load) |
 | Round-robin state entries | 4,096 | `LB_RR_STATE` (PerCpuArray, `MAX_LB_SERVICES`) |
-| Maglev services | 256 | `LB_MAGLEV` (HashMap, `MAX_MAGLEV_SERVICES`) |
-| Backend MAC entries | 65,536 | `LB_BACKEND_MAC` (HashMap, `MAX_LB_BACKEND_MAC`) |
+| Maglev services | `loadbalancer.max_maglev_services` (at most 256) | `LB_MAGLEV` (HashMap, sized at load) |
+| Backend MAC entries | as `LB_BACKENDS` | `LB_BACKEND_MAC` (HashMap, sized at load) |
 | DEVMAP redirect targets | 256 | `LB_DEVMAP` (DevMap) |
 | RingBuf size | 1 MB | `EVENTS` |
 

@@ -70,7 +70,11 @@ stateDiagram-v2
 
 - Maximum 64 services
 - Maximum 256 backends per service, and 65,536 backends across every service
-  (the size of the shared `LB_BACKENDS` map)
+  (the most the shared `LB_BACKENDS` map can hold). The tables reserve what
+  `loadbalancer.max_backends` and `loadbalancer.max_maglev_services` ask for,
+  or what the file lists, when the agent starts; a service added later that
+  does not fit is refused with the key to raise. See
+  [Load balancer configuration](../configuration/loadbalancer.md#top-level)
 - Backend IDs and service IDs: max 256 characters
 
 A service configured above either backend limit is refused at load, with the

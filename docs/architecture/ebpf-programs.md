@@ -152,7 +152,11 @@ object is loaded:
 | `CONN_TABLE` | `ddos.connection_tracking.max_entries` |
 | `CT_SRC_COUNTERS` | `conntrack.max_src_states` |
 | `NAT_HAIRPIN_CT` | `nat.hairpin.enabled` |
+| `NAT_DNAT_REVERSE`, `NAT_DNAT_REVERSE_V6`, `NAT_SNAT_REVERSE`, `NAT_SNAT_REVERSE_V6` | `nat.enabled` |
 | `REJECT_RATELIMIT` | whether any firewall rule uses `reject` |
+| `SOCKET_IDENTITY`, `SOCKET_FLOW` | `attribution.max_sockets` |
+| `LB_MAGLEV` | `loadbalancer.max_maglev_services`, or the Maglev services listed |
+| `LB_BACKENDS`, `LB_BACKEND_MAC` | `loadbalancer.max_backends`, or the backends listed |
 
 A table belonging to a feature that is off is created small rather than empty,
 so a reload that turns the feature on can still insert until the next start. A
