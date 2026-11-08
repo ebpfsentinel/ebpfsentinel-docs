@@ -312,7 +312,7 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | `daemonset.securityContext` | uid/gid 65534, `drop: [ALL]`, Unconfined | Agent security context |
 | `daemonset.tailoredSeccomp.enabled` | `false` | Confine the agent with its tailored seccomp profile, installed on each node (see above) |
 | `daemonset.tailoredSeccomp.kubeletRootDir` | `/var/lib/kubelet` | The kubelet's root directory on the nodes |
-| `daemonset.resources` | 256Mi/100m requests, 1Gi/1 CPU limits | Agent resources; the limit covers the startup peak, see [Resource Limits](../performance-tuning.md#resource-limits) |
+| `daemonset.resources` | 256Mi/100m requests, 512Mi/1 CPU limits | Agent resources; the limit covers the startup peak, see [Resource Limits](../performance-tuning.md#resource-limits) |
 | `daemonset.updateStrategy` | `RollingUpdate`, `maxUnavailable: 1` | |
 | `daemonset.tolerations` | `[{operator: Exists}]` | Schedules on every node, control plane included |
 | `daemonset.nodeSelector`, `affinity`, `priorityClassName` | empty | Scheduling |

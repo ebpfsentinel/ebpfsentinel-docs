@@ -351,7 +351,7 @@ Key values:
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
 | `daemonset.preStopSleepSeconds` | `5` | Seconds the agent is held before `SIGTERM`, so the endpoint leaves every node's rules first; `0` removes the hook |
 | `daemonset.terminationGracePeriodSeconds` | `30` | Covers that hook and the agent's 20s stop budget together |
-| `daemonset.resources` | `384Mi`/`100m` requests, `1536Mi`/`2` CPU limits | The agent settles at about 430 MiB with every feature on and peaks at about 930 MiB while it loads its programs; per-CPU map memory sits outside the limit, see [Resource Limits](../performance-tuning.md#resource-limits) |
+| `daemonset.resources` | `384Mi`/`100m` requests, `640Mi`/`2` CPU limits | The agent settles at about 429 MiB with every feature on and peaks at about 450 MiB while it loads its programs; per-CPU map memory sits outside the limit, see [Resource Limits](../performance-tuning.md#resource-limits) |
 | `portal.enabled` | `false` | Enrol with the vendor portal and report in |
 | `portal.baseUrl` | `""` | Where the portal answers (required when enabled) |
 | `portal.agentName` | `""` | Name each agent reports under; empty means the node's host name |
