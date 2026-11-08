@@ -136,10 +136,10 @@ The Helm chart runs two containers per node and sets requests and limits for bot
 daemonset:
   resources:            # the agent
     requests:
-      memory: "128Mi"
+      memory: "256Mi"
       cpu: "100m"
     limits:
-      memory: "512Mi"
+      memory: "1Gi"
       cpu: "1000m"
   warden:
     resources:          # the warden
@@ -151,6 +151,6 @@ daemonset:
         cpu: "1000m"
 ```
 
-These are the chart defaults. The agent's memory limit has to hold its resident size plus the locked map memory charged to its cgroup, which with every feature on is already about 99 MB on 4 CPUs and grows with the CPU count (see [eBPF Map Sizes](#ebpf-map-sizes)). On a large node raise the agent's limit or shrink the per-CPU tables.
+These are the chart defaults. The agent's memory limit has to hold its resident size plus the locked map memory charged to its cgroup, which with every feature on is already about 99 MB on 4 CPUs and grows with the CPU count (see [eBPF Map Sizes](#ebpf-map-sizes)). It also has to hold the peak while the agent loads and verifies its programs at start, which is far above the steady figure: under the default configuration on a 4 vCPU node the agent container settles at about 120 MiB but peaks at about 830 MiB while loading, and a limit of 512Mi gets it OOMKilled before it is ever Ready. That peak is what sets the 1Gi default; the request is about twice the steady figure. On a large node, or with large tables, raise the agent's limit or shrink the per-CPU tables, and read the container's `memory.peak` in its cgroup after a start to see how much room is left.
 
 Monitor `ebpfsentinel_memory_usage_bytes` and `ebpfsentinel_cpu_usage_percent` to right-size; the first is the process's resident set and does not include the maps.
