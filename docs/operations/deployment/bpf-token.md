@@ -215,6 +215,12 @@ daemonset:
     seccompProfile: { type: Unconfined }
 ```
 
+The agent's `Unconfined` seccomp profile is the chart's default only.
+`daemonset.tailoredSeccomp.enabled=true` installs the same tailored profile the
+compose deployment uses on each node and runs the agent under it as
+`Localhost`; see
+[Kubernetes deployment](kubernetes.md#tailored-seccomp-profile-for-the-agent).
+
 `daemonset.bpfToken.bpffsPath` drives both the agent's `EBPFSENTINEL_BPFFS` mount
 target and its `agent.bpf_token.bpffs_path` config. The pod needs a writable
 `/sys/fs/bpf` (host `hostPath` with `mountPropagation: HostToContainer`, or

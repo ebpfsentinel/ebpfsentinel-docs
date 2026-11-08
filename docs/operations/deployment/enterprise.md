@@ -407,6 +407,14 @@ so every node drops this endpoint first, the agent's own stop budget is 20s, and
 `daemonset.terminationGracePeriodSeconds` (30) has to cover both. The sleep
 action needs Kubernetes 1.30, which is the chart's floor.
 
+The agent container's seccomp profile works as it does in the community chart
+too: `Unconfined` by default, and
+`daemonset.tailoredSeccomp.enabled=true` writes the tailored profile to the
+kubelet's directory on each node from an init container on the enterprise
+warden image, then runs the agent under it as `Localhost`. See
+[Kubernetes deployment](kubernetes.md#tailored-seccomp-profile-for-the-agent)
+for `kubeletRootDir` and what the option does not change.
+
 > On Ubuntu 24.04+ nodes, set `kernel.apparmor_restrict_unprivileged_userns=0`
 > per node (a privileged init DaemonSet, a node-bootstrap MachineConfig, or
 > `/etc/sysctl.d/`) - the in-pod Unconfined profiles do not lift that host gate.

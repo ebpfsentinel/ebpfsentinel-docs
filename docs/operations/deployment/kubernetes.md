@@ -132,10 +132,63 @@ either side names `hostPID`, or when the declared level refuses the pod. It was
 last run against Kubernetes v1.35.0 on 2026-10-18, for both the community and
 the enterprise chart.
 
-Both containers run with AppArmor and seccomp `Unconfined`: the agent issues
-`unshare`, `mount` and `bpf` without holding `CAP_SYS_ADMIN`, which the default
-seccomp profile would refuse, and the warden issues `fsconfig`, netlink,
-`AF_PACKET` and `bpf`.
+Both containers run with AppArmor and seccomp `Unconfined` unless told
+otherwise: the agent issues `unshare`, `mount` and `bpf` without holding
+`CAP_SYS_ADMIN`, which the runtime's default seccomp profile only grants to a
+container holding that capability, so `RuntimeDefault` would keep it from
+creating its user namespace and loading a single program; the warden issues
+`fsconfig`, netlink, `AF_PACKET` and `bpf`.
+
+### Tailored seccomp profile for the agent
+
+The agent container can be confined instead, with the profile the compose
+deployment already uses: the runtime's default profile plus an unconditional
+allow for `unshare`, `mount`, `umount2`, `move_mount`, `open_tree`, `fsopen`,
+`fsconfig`, `fsmount`, `mount_setattr` and `bpf`. It is off by default,
+because turning it on writes a file into the kubelet's directory on every node
+the pod lands on.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `daemonset.tailoredSeccomp.enabled` | `false` | Install the profile on the node and run the agent container under `seccompProfile.type: Localhost` |
+| `daemonset.tailoredSeccomp.kubeletRootDir` | `/var/lib/kubelet` | The kubelet's `--root-dir` on the nodes, under which it resolves `Localhost` profiles from `seccomp/` |
+
+The kubelet reads a `Localhost` profile from a file on the node, so the chart
+adds a `seccomp-profile` init container on the warden image, which carries the
+profile compiled in. It runs before the warden and the agent, as root with
+every capability dropped and its own `RuntimeDefault` profile, writes
+`<kubeletRootDir>/seccomp/ebpfsentinel/ebpfsentinel-agent.json` through a
+`hostPath` mount, and leaves a file that already holds the same bytes alone.
+The agent container then runs with
+`localhostProfile: ebpfsentinel/ebpfsentinel-agent.json`. The bytes on the node
+are those of the release the pod runs, and no ConfigMap copy can drift from
+them; no extra image is pulled and nothing else has to be installed in the
+cluster, so it works the same air-gapped.
+
+```sh
+helm upgrade --install ebpfsentinel <chart> \
+  --set daemonset.tailoredSeccomp.enabled=true
+```
+
+`/var/lib/kubelet` is where kubeadm, kind, minikube, EKS, GKE and AKS keep it.
+k0s keeps it at `/var/lib/k0s/kubelet` and MicroK8s at
+`/var/snap/microk8s/common/var/lib/kubelet`; on those set `kubeletRootDir`, or
+the profile lands where the kubelet does not look and the agent container
+fails to start with a `CreateContainerError` naming the missing profile.
+
+What the option changes and what it does not:
+
+- The agent's seccomp line leaves the Pod Security Admission list above, and
+  the kubelet's seccomp directory joins the hostPath volumes on it. The pod
+  stays `privileged`: the warden keeps its capabilities and its own
+  `Unconfined` profile, written for the netlink, `AF_PACKET` and mount
+  operations the agent's profile does not cover.
+- `daemonset.securityContext.seccompProfile` is overridden on the agent while
+  the option is on.
+- Turned off again, the profile file stays on the node, unused.
+
+The operator carries the same option as `spec.host.tailoredSeccomp`, with the
+same `enabled` and `kubeletRootDir` fields and the same defaults.
 
 Environment set on the agent:
 
@@ -257,6 +310,8 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | `daemonset.warden.securityContext` | uid 0, the six capabilities above, Unconfined | Warden security context |
 | `daemonset.warden.resources` | 64Mi/50m requests, 256Mi/1 CPU limits | Warden resources |
 | `daemonset.securityContext` | uid/gid 65534, `drop: [ALL]`, Unconfined | Agent security context |
+| `daemonset.tailoredSeccomp.enabled` | `false` | Confine the agent with its tailored seccomp profile, installed on each node (see above) |
+| `daemonset.tailoredSeccomp.kubeletRootDir` | `/var/lib/kubelet` | The kubelet's root directory on the nodes |
 | `daemonset.resources` | 128Mi/100m requests, 512Mi/1 CPU limits | Agent resources |
 | `daemonset.updateStrategy` | `RollingUpdate`, `maxUnavailable: 1` | |
 | `daemonset.tolerations` | `[{operator: Exists}]` | Schedules on every node, control plane included |
