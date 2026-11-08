@@ -5,7 +5,9 @@ the wire is readable, yet the agent reads the request where it is still clear
 text: inside OpenSSL, as the client writes it and as the server reads it. It
 raises an alert and writes the finding to the audit trail.
 
-<video controls preload="metadata" poster="/video/dlp-over-tls.jpg" src="/video/dlp-over-tls.mp4" width="100%"></video>
+<video controls preload="none" poster="/media/dlp-over-tls.avif" src="/media/dlp-over-tls.mp4" width="100%">
+  <track kind="captions" srclang="en" label="English" src="/media/dlp-over-tls.vtt" default />
+</video>
 
 Recorded on Linux 7.0 against the [Compose lab](./index.md#the-lab). Every
 output below is what that run printed.

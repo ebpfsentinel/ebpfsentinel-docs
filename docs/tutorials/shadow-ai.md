@@ -6,7 +6,9 @@ encryption. An L7 rule matches that name, raises an alert, and an automated
 response blocks the workload for two minutes. The block is recorded in the
 audit trail under the policy that took it.
 
-<video controls preload="metadata" poster="/video/shadow-ai.jpg" src="/video/shadow-ai.mp4" width="100%"></video>
+<video controls preload="none" poster="/media/ai-call-cut-off.avif" src="/media/ai-call-cut-off.mp4" width="100%">
+  <track kind="captions" srclang="en" label="English" src="/media/ai-call-cut-off.vtt" default />
+</video>
 
 Recorded on Linux 7.0 against the [Compose lab](./index.md#the-lab). Every
 output below is what that run printed. In the lab, `api.openai.com` resolves

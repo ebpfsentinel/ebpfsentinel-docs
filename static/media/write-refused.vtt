@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:03.103
+A process writing too many files is refused from the next write.
+
+00:00:03.103 --> 00:00:06.983
+Needs the BPF LSM active at boot, with bpf listed in the lsm= kernel parameter.
+
+00:00:06.983 --> 00:00:13.707
+Without it, a fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain.
+
+00:00:13.707 --> 00:00:15.000
+Check yours: ebpfsentinel-agent ebpf host-check
+
+00:00:15.000 --> 00:00:22.000
+A loop writes twelve files under a watched directory. Past the count, each write is refused.
+
+00:00:22.000 --> 00:00:28.000
+The agent raises an alert on the refused process.
+
+00:00:28.000 --> 00:00:34.000
+The rule runs in enforce mode, so the writes are refused rather than counted.

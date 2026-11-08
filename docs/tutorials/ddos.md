@@ -6,7 +6,9 @@ automated response blacklists the source for five minutes. The flood's source
 can no longer reach the service; every other client still can. The block is
 recorded in the audit trail under the policy that took it.
 
-<video controls preload="metadata" poster="/video/ddos.jpg" src="/video/ddos.mp4" width="100%"></video>
+<video controls preload="none" poster="/media/syn-flood.avif" src="/media/syn-flood.mp4" width="100%">
+  <track kind="captions" srclang="en" label="English" src="/media/syn-flood.vtt" default />
+</video>
 
 Recorded on Linux 7.0 against the [Compose lab](./index.md#the-lab). Every
 output below is what that run printed.

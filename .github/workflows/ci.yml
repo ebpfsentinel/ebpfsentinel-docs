@@ -59,6 +59,18 @@ jobs:
           path: ebpfsentinel-operator
           token: ${{ secrets.SIBLING_READ_TOKEN }}
 
+      # The tutorials play the website's clips from a copy under
+      # `static/media/`, held to the hashes the website's render recorded.
+      # The website is private like the enterprise agent.
+      - name: Check out the website
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-website
+          path: ebpfsentinel-website
+          token: ${{ secrets.SIBLING_READ_TOKEN }}
+          sparse-checkout: media/manifest.json
+          sparse-checkout-cone-mode: false
+
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -91,6 +103,13 @@ jobs:
       - name: Check the vendored OpenAPI document
         working-directory: ebpfsentinel-docs
         run: npm run check:vendored-openapi
+
+      # The same rule for the clips: a clip rendered again on the website
+      # fails here until its copy is replaced, and a page naming a clip that
+      # is not there fails rather than shipping an empty player.
+      - name: Check the copied clips
+        working-directory: ebpfsentinel-docs
+        run: npm run check:media-copy
 
       - name: Check the gRPC reference
         working-directory: ebpfsentinel-docs

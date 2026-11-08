@@ -1,0 +1,19 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.500
+Two rules refuse TLS traffic to AI providers.
+
+00:00:04.500 --> 00:00:10.500
+The app host reaches its own site. Its call to an AI provider gets no answer.
+
+00:00:10.500 --> 00:00:16.500
+The agent refused the call under the rule it matched and raised an alert.
+
+00:00:16.500 --> 00:00:22.000
+Its response then blocks the host that made the call, so its next request fails too.
+
+00:00:22.000 --> 00:00:26.000
+The block is written to the audit log.
+
+00:00:26.000 --> 00:00:31.000
+In the console, in its standalone demo mode with sample data, an alert opens on the process tree behind it.

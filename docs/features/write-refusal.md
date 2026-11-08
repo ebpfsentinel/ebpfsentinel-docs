@@ -22,6 +22,15 @@ reaches no verdict, which is what makes it fast and what makes it blunt: the
 [mass encryption](mass-encryption.md) verdict beside it is the careful reading
 and acts once files are written, the refusal is the count and acts before.
 
+<video controls preload="none" poster="/media/write-refused.avif" src="/media/write-refused.mp4" width="100%">
+  <track kind="captions" srclang="en" label="English" src="/media/write-refused.vtt" default />
+</video>
+
+Recorded on Linux 7.0 by the integration lane, on a host booted with `bpf` in
+`lsm=`. A host without it takes the fallback described under
+[What it needs](#what-it-needs), and `ebpfsentinel-agent ebpf host-check`
+answers for yours.
+
 ## What it costs
 
 **A bound is not zero.** A run loses the files it writes before the threshold,

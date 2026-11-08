@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.500
+Data loss prevention is enabled on the agent.
+
+00:00:04.500 --> 00:00:09.500
+The app host posts a test card number over HTTPS.
+
+00:00:09.500 --> 00:00:16.000
+The agent reads it before encryption and raises a critical alert.
+
+00:00:16.000 --> 00:00:21.000
+The audit log names the pattern and the process that sent it.
+
+00:00:21.000 --> 00:00:26.000
+In the console, in its standalone demo mode with sample data, an alert names the binary, the user and the workload.

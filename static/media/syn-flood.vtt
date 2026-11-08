@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.500
+The agent is running on the host. No attack so far.
+
+00:00:04.500 --> 00:00:10.500
+From another host the site answers. Then a SYN flood starts.
+
+00:00:10.500 --> 00:00:16.500
+The agent detects the SYN flood and raises a critical alert.
+
+00:00:16.500 --> 00:00:21.000
+Its response puts the flooding address on the block list.
+
+00:00:21.000 --> 00:00:26.500
+The flooding host now gets no answer. The app host is still served.
+
+00:00:26.500 --> 00:00:31.000
+The block is written to the audit log with the rule that took it.
+
+00:00:31.000 --> 00:00:36.000
+The alert queue of the console, in its standalone demo mode with sample data.
