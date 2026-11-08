@@ -89,7 +89,7 @@ Monitor `ebpfsentinel_dns_cache_entries` against `max_entries`, and `ebpfsentine
 
 ## eBPF Map Sizes
 
-The kernel allocates every map's memory at load time and locks it, whether the slots are used or not. That memory is charged to the cgroup that created the maps, so a container limit has to hold the agent's resident size plus the maps, and it is not visible in the process's RSS:
+The kernel allocates every map's memory at load time and locks it, whether the slots are used or not. It is not visible in the process's RSS. Most of it is charged to the cgroup that created the maps, so the agent container's memory limit holds it; the per-CPU copies of per-CPU map values are the exception, charged to no cgroup at all (see [Resource Limits](#resource-limits)):
 
 ```bash
 # Kernel map memory, per map and in total
@@ -98,10 +98,10 @@ sudo bpftool map show -j | python3 -c 'import json,sys; m=json.load(sys.stdin); 
 
 Map memory has two parts:
 
-- **A fixed part** that does not depend on the machine: rule arrays, the conntrack source counters, the DNS and IDS pattern tables, the ring buffers. About 56 MB with every feature on.
-- **A per-CPU part** that is paid once per possible CPU: the tables the kernel fills on its own are per-CPU LRU hashes, so a table of 65,536 slots costs 65,536 slots on every CPU the kernel could ever bring online, which is `/sys/devices/system/cpu/possible` rather than the CPUs running now. A configuration that fits a 4-vCPU test VM is sixteen times larger on a 64-core node, and a VM whose hypervisor reserves CPUs for hotplug pays for those too: a 4-vCPU KubeVirt guest declares 16 possible CPUs and locks four times what the same guest would without hotplug.
+- **A fixed part** that does not depend on the machine: the hash, array, LRU and ring buffer maps, and the keys of the per-CPU tables. About 193 MB with every feature on.
+- **A per-CPU part** that is paid once per possible CPU: the tables the kernel fills on its own are per-CPU LRU hashes, so a table of 65,536 slots holds a value for each slot on every CPU the kernel could ever bring online, which is `/sys/devices/system/cpu/possible` rather than the CPUs running now. That part of a configuration that fits a 4-vCPU test VM is sixteen times larger on a 64-core node, and a VM whose hypervisor reserves CPUs for hotplug pays for those too: a 4-vCPU KubeVirt guest that declares 16 possible CPUs pays the per-CPU part sixteen times, not four.
 
-The per-CPU tables take their capacity from the configuration at agent start, at 40 to 90 bytes a slot per CPU depending on the table:
+The per-CPU tables take their capacity from the configuration at agent start, at the value's size per slot per CPU, 8 to 64 bytes depending on the table:
 
 | Key | Default | Tables it sizes |
 |---|---|---|
@@ -110,7 +110,9 @@ The per-CPU tables take their capacity from the configuration at agent start, at
 | `ddos.connection_tracking.max_entries` | 65,536 | the DDoS connection table |
 | `threatintel.max_entries` | derived | the IOC tables (IPv4, IPv6, and a bloom filter for each); not per CPU. Unset, it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor of 4,096 |
 
-With the defaults and every feature on, the maps lock about 99 MB on 4 CPUs, of which about 43 MB is the per-CPU part, so about 11 MB more per additional CPU: about 230 MB on 16. The agent logs the plan it applied at start (`eBPF table capacities`, at info level), and a capacity changed by a configuration reload is reported and applied at the next start, because a pinned map keeps the size it was created with.
+QoS keeps a per-CPU flow table of a fixed 65,536 slots, 16 bytes a slot per CPU.
+
+With the defaults and every feature on, measured on kernel 7.0.0-42-generic, the maps lock 229 MB on 4 CPUs and 265 MB on 8: about 9 MB more per additional CPU, so about 337 MB on 16, 481 MB on 32 and 769 MB on 64. Rate limiting and the DDoS tables account for 6.9 MB of each CPU's share and QoS for 1.1 MB; with all three off, the programs that load whatever the configuration (socket attribution, TCP health, the drop counter) keep about 0.7 MB per CPU. The agent logs the plan it applied at start (`eBPF table capacities`, at info level), and a capacity changed by a configuration reload is reported and applied at the next start, because a pinned map keeps the size it was created with.
 
 Size the tables for the estate rather than the worst case: `max_tracked_sources` is how many distinct source addresses the DDoS guards need to remember at once, `max_buckets` how many sources the rate limiter tracks, and each evicts its least recently seen entry when full. A rate-limit rule keyed on one address needs one slot per CPU, not 65,536.
 
@@ -151,6 +153,10 @@ daemonset:
         cpu: "1000m"
 ```
 
-These are the chart defaults. The agent's memory limit has to hold its resident size plus the locked map memory charged to its cgroup, which with every feature on is already about 99 MB on 4 CPUs and grows with the CPU count (see [eBPF Map Sizes](#ebpf-map-sizes)). It also has to hold the peak while the agent loads and verifies its programs at start, which is far above the steady figure: under the default configuration on a 4 vCPU node the agent container settles at about 120 MiB but peaks at about 830 MiB while loading, and a limit of 512Mi gets it OOMKilled before it is ever Ready. That peak is what sets the 1Gi default; the request is about twice the steady figure. On a large node, or with large tables, raise the agent's limit or shrink the per-CPU tables, and read the container's `memory.peak` in its cgroup after a start to see how much room is left.
+These are the chart defaults. The agent's memory falls in two places, and only one of them is inside its container.
+
+**What the container limit sees.** Measured on kernel 7.0.0-42-generic, the agent container settles at about 167 MiB with no feature enabled, 240 MiB under the benchmark configuration (firewall, IDS, IPS, rate limiting, connection tracking, NAT, threat intelligence) and 336 MiB (352 MB) with every feature on. Most of it is kernel memory for the maps and the programs, charged to the container's cgroup; the agent's own resident set is 120 to 150 MB of it. The limit also has to hold the peak while the agent loads and verifies its programs, which is far above the steady figure: as soon as an XDP program loads, the container peaks at about 870 MiB, and a limit of 512Mi gets it OOMKilled before it is ever Ready. Neither figure moves with the CPU count, measured at 4 and 8 vCPUs. That peak is what sets the 1Gi default and the 256Mi request covers the benchmark configuration; with every feature on, raise the request to the 336 MiB the agent then settles at. Read the container's `memory.peak` in its cgroup after a start to see how much room is left. The enterprise agent settles at 429 MiB with every feature on and peaks at 928 MiB, and its chart defaults to a 1536Mi limit.
+
+**What the node pays outside it.** The per-CPU copies of per-CPU map values come from the kernel's per-CPU allocator and are charged to no cgroup: they show in the node's `Percpu` line of `/proc/meminfo` and in no container's `memory.stat`. No pod limit holds them and the scheduler, which counts requests, does not see them. With every feature on at the default capacities that is about 7.9 MiB per possible CPU, measured as 31.7 MiB on 4 vCPUs and 63.0 MiB on 8, so about 250 MiB on a 32-CPU node and about 500 MiB on a 64-CPU node. Almost all of it comes from rate limiting, the DDoS guards and QoS: with those three off, about 0.7 MB per CPU remains, from the programs that load whatever the configuration. On large nodes, reserve it through the kubelet's `kube-reserved` or `system-reserved` memory so the scheduler does not hand it to pods; shrinking `ratelimit.max_buckets`, `ddos.max_tracked_sources` and `ddos.connection_tracking.max_entries` (see [eBPF Map Sizes](#ebpf-map-sizes)) shrinks it in proportion.
 
 Monitor `ebpfsentinel_memory_usage_bytes` and `ebpfsentinel_cpu_usage_percent` to right-size; the first is the process's resident set and does not include the maps.

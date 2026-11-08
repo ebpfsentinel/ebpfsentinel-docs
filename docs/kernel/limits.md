@@ -91,15 +91,17 @@ No RingBuf. Reads the parsed offsets from `PKT_CTX`, shared with `xdp-firewall`.
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 1 MB | `EVENTS` |
 
-**Memory footprint** at the defaults, measured on kernel 7.0.0-28-generic: 84 bytes of locked memory per slot per CPU for `RL_BUCKETS`, 46 for `CONN_TABLE` and 37 for the five per-source tables (`bytes_memlock`, key, value and hash overhead included):
+**Memory footprint** at the defaults, measured on kernel 7.0.0-42-generic at 4 and at 8 vCPUs (`bytes_memlock`). Each additional CPU costs a slot's value once more: 64 bytes per slot for `RL_BUCKETS`, 24 for `CONN_TABLE`, 16 for the SYN, ICMP, amplification and flood tables and 8 for the half-open counters. The key, the LRU node and the hash bucket are paid once whatever the CPU count, which on 4 CPUs makes 84 bytes a slot per CPU for `RL_BUCKETS`, 46 for `CONN_TABLE` and 36 for the per-source tables:
 
 | CPUs | `RL_BUCKETS` only | All seven LruPerCpuHash tables combined |
 |------|-------------------|-----------------------------------------|
-| 4 | ~21 MB | ~43 MB |
-| 8 | ~42 MB | ~87 MB |
-| 16 | ~84 MB | ~174 MB |
+| 4 | 22.0 MB | 45.4 MB |
+| 8 | 38.8 MB | 73.1 MB |
+| 16 | ~72 MB | ~129 MB |
+| 32 | ~140 MB | ~240 MB |
+| 64 | ~274 MB | ~462 MB |
 
-The per-CPU part is what moves with the machine. With every feature enabled the agent locked 71 MB in total on 4 CPUs, so the rest of the loaded maps is about 28 MB. SYN cookies use the kernel's own secret through the raw SYN cookie helpers; there is no cookie secret map. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
+The rows for 4 and 8 CPUs are measured, the others follow from them at 4.2 MB per CPU for `RL_BUCKETS` and 6.9 MB per CPU for the seven. The per-CPU part is what moves with the machine. With every feature enabled the agent locked 229 MB in total on 4 CPUs and 265 MB on 8, so the rest of the loaded maps is about 184 MB on 4 CPUs and 192 MB on 8, the difference being the other per-CPU tables (QoS flow state, socket attribution, TCP health, drop counters). The per-CPU values are node memory charged to no cgroup, so they sit outside the agent container's memory limit; see [Performance tuning](../operations/performance-tuning.md#resource-limits) for what that means when sizing a node. SYN cookies use the kernel's own secret through the raw SYN cookie helpers; there is no cookie secret map. Every one of these capacities is a configuration key applied at agent start, see [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 ### xdp-loadbalancer
 
