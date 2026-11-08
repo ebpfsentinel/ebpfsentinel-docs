@@ -1,10 +1,10 @@
 # L7 Firewall
 
-> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols)** | **Enforcement: Userspace**
+> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols, licence feature `extended-l7-protocols`)** | **Enforcement: Userspace**
 
 ## Overview
 
-The L7 firewall provides application-layer filtering with protocol-aware rules. The OSS edition ships detection and parsing for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB, SSH, Redis, MySQL, PostgreSQL, DNS-over-TCP, IMAP, and POP3. The enterprise edition plugs MQTT, AMQP 0-9-1, NATS, and Cassandra CQL detection into the same dispatcher via a pluggable `L7ExtendedParser` port. Rules are evaluated in priority order (first-match-wins) against parsed protocol fields.
+The L7 firewall provides application-layer filtering with protocol-aware rules. The OSS edition ships detection and parsing for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB, SSH, Redis, MySQL, PostgreSQL, DNS-over-TCP, IMAP, and POP3. The Enterprise edition, under the licence feature `extended-l7-protocols`, plugs MQTT, AMQP 0-9-1, NATS, and Cassandra CQL detection and rules on their parsed fields into the same dispatcher via a pluggable `L7ExtendedParser` port. Rules are evaluated in priority order (first-match-wins) against parsed protocol fields.
 
 ## How It Works
 
@@ -41,16 +41,84 @@ traffic at line rate is the job of the L3/L4 firewall and the IPS.
 
 ### Supported Protocols - Enterprise (extension port)
 
-The enterprise edition registers an `L7ExtendedParser` on the dispatcher. It is consulted when the built-in detector returns `Unknown`, so enabling the enterprise crate never shadows an OSS protocol.
+An Enterprise agent whose licence carries `extended-l7-protocols` registers an `L7ExtendedParser` on the dispatcher at startup. It is consulted when the built-in detector returns `Unknown`, so it never shadows an OSS protocol. Without that licence feature, and on an OSS agent, nothing is registered: the four protocols below are neither named nor matched.
 
 | Protocol | Detection | Parsed fields |
 |----------|-----------|---------------|
-| **MQTT** (v3.1.1 / v5) | CONNECT packet with literal `MQTT` or `MQIsdp` protocol name | Packet type, remaining length, client id (CONNECT), topic (PUBLISH) |
+| **MQTT** (v3.1.1 / v5) | CONNECT packet with literal `MQTT` or `MQIsdp` protocol name; later packets of a connection already seen to speak MQTT | Packet type, remaining length, client id (CONNECT), topic (PUBLISH) |
 | **AMQP 0-9-1** | 8-byte literal `AMQP\x00\x00\x09\x01` header | Major / minor / revision |
 | **NATS** | Line-prefixed verb (CONNECT / INFO / PUB / HPUB / SUB / UNSUB / MSG / HMSG / PING / PONG / +OK / -ERR) | Command verb, first subject |
-| **Cassandra CQL v3/v4/v5** | 9-byte frame header with version 0x03-0x05 and opcode ≤ 0x10 | Version, opcode, stream, body length, CQL query text (opcode QUERY) |
+| **Cassandra CQL v3/v4/v5** | 9-byte frame header with version 0x03-0x05 and opcode at most 0x10 | Version, opcode, stream, body length, CQL query text and the keyspace it names (QUERY, PREPARE) |
 
-Only label detection is wired today (enterprise tier). Per-protocol matcher evaluation for MQTT/AMQP/NATS/Cassandra rules ships in a follow-up release.
+A NATS `CONNECT` line is recognised by the built-in HTTP detection first, so a rule on the `CONNECT` verb does not match; every other verb does.
+
+#### Rules on the extended protocols
+
+The rules live in the enterprise section, `enterprise.extended_l7`, and are written the way an `l7.rules` entry is: an `id`, a `priority` (at least 1, lowest first, first match wins), an `action` (`allow`, `deny`, `log` or `reject`), a `protocol`, the fields that protocol is matched on, and optional `src_ip`, `dst_ip` (address or CIDR), `dst_port` (a port or a range) and `enabled`. Every field a rule sets must agree for the rule to match; a field left out matches anything.
+
+| Protocol | Field | Matches |
+|----------|-------|---------|
+| `mqtt` | `packet_type` | The control packet, by its name in the specification: `connect`, `connack`, `publish`, `puback`, `pubrec`, `pubrel`, `pubcomp`, `subscribe`, `suback`, `unsubscribe`, `unsuback`, `pingreq`, `pingresp`, `disconnect`, `auth` |
+| `mqtt` | `client_id` | Substring of the client id. The id is sent only in `CONNECT`, so the agent remembers it for the rest of the connection and a rule naming both a client and a topic matches the later `PUBLISH` |
+| `mqtt` | `topic` | Substring of the topic a `PUBLISH` names |
+| `amqp` | `version` | Protocol version from the header, such as `0.9.1`; written without a revision (`0.9`), it matches any revision |
+| `nats` | `verb` | The whole verb, one of the verbs listed above |
+| `nats` | `subject` | Substring of the first subject |
+| `cassandra` | `opcode` | The frame opcode by name: `error`, `startup`, `ready`, `authenticate`, `options`, `supported`, `query`, `result`, `prepare`, `execute`, `register`, `event`, `batch`, `auth_challenge`, `auth_response`, `auth_success` |
+| `cassandra` | `keyspace` | The whole keyspace name a statement names (`USE`, `KEYSPACE`, or the qualifier of `keyspace.table` after `FROM`, `INTO`, `UPDATE`, `TABLE` or `TRUNCATE`). A session that ran `USE` keeps that keyspace for its unqualified statements |
+
+Patterns are case-insensitive substrings, as everywhere else in the L7 rules. They are not the protocols' own wildcards: an MQTT `+` or `#` and a NATS `*` or `>` are compared as the literal character, so `topic: "plant/+/temp"` matches only a topic that contains those exact characters. To cover every line of a plant, write the part all of them share (`topic: "plant/"`) and narrow with a second field. Verbs and keyspaces are compared whole, ignoring case; packet types and opcodes by name, ignoring case.
+
+```yaml
+l7:
+  enabled: true
+  # The extended protocols are read from the same payloads as the built-in
+  # ones, so their ports belong in this list.
+  ports: [1883, 5672, 4222, 9042]
+
+enterprise:
+  extended_l7:
+    enabled: true             # default; false keeps the four parsers off
+    rules:
+      - id: mqtt-firmware-push
+        priority: 10
+        action: deny
+        protocol: mqtt
+        packet_type: publish
+        client_id: "sensor-"
+        topic: "/firmware/"
+      - id: amqp-legacy-version
+        priority: 20
+        action: log
+        protocol: amqp
+        version: "0.9.1"
+      - id: nats-secrets-subscribe
+        priority: 30
+        action: deny
+        protocol: nats
+        verb: SUB
+        subject: "$KV.secrets"
+        dst_port: 4222
+      - id: cql-billing-batch
+        priority: 40
+        action: deny
+        protocol: cassandra
+        opcode: batch
+        keyspace: billing
+        src_ip: 10.0.0.0/8
+```
+
+A match is handled the way any L7 rule match is: logged, audited, and for `deny` and `reject` recorded as a drop with an alert an automated response can act on. A built-in L7 rule that matched the same payload decides first; the extended rules are consulted when none did.
+
+The section is refused at startup, and the agent does not start, when:
+
+- it holds more than 4096 rules;
+- a rule sets a field of another protocol (an MQTT rule with `subject`, say), rather than that field being ignored;
+- a `protocol`, `packet_type`, `verb`, `opcode` or `action` is not a known name, the message listing the names that are;
+- a `version` is not a version such as `0.9.1` or `1.0`, an address or range does not parse, or a port range is inverted;
+- a pattern or name is empty, a priority is 0, or two rules share an id.
+
+Rules are read at startup only. A configuration reload does not re-read `enterprise.extended_l7`; restart the agent to apply a change. A licence that lacks `extended-l7-protocols` mounts nothing, and the agent logs a warning when the section carries rules it will not apply.
 
 ### GeoIP Country Matching
 

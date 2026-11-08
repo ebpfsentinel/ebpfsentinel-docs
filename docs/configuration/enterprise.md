@@ -425,6 +425,17 @@ enterprise:
       - /etc/ebpfsentinel/sigma
     max_refused_share: 0.5
 
+  # ── Extended L7 rules ───────────────────────────────────────────
+  extended_l7:
+    enabled: true
+    rules:
+      - id: mqtt-firmware-push
+        priority: 10
+        action: deny
+        protocol: mqtt
+        packet_type: publish
+        topic: "/firmware/"
+
   # ── Investigations ──────────────────────────────────────────────
   investigation:
     enabled: true
@@ -611,6 +622,34 @@ startup. It loads nothing without the `sigma-rules` licence feature.
 `ebpfsentinel-enterprise-agent sigma check` compiles the same files without
 starting the agent. [Sigma Rules](../features/enterprise/sigma-rules.md) lists
 every field the compiler takes and refuses.
+
+### Extended L7 rules
+
+The `extended_l7` block holds the rules on the parsed fields of MQTT, AMQP
+0-9-1, NATS and Cassandra CQL. The parsers are mounted when the licence
+carries `extended-l7-protocols`, whether the block is written or not, and
+never otherwise; their ports belong in the community `l7.ports` list.
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `enabled` | bool | `true` | `false` keeps the four parsers off under a licence that carries the feature |
+| `rules` | list | empty | At most 4096 rules, evaluated from the lowest priority up, first match wins |
+| `rules[].id` | string | required | Unique across the block |
+| `rules[].priority` | integer | required | At least 1 |
+| `rules[].action` | string | required | `allow`, `deny`, `log` or `reject` |
+| `rules[].protocol` | string | required | `mqtt`, `amqp`, `nats` or `cassandra` |
+| `rules[].packet_type`, `client_id`, `topic` | string | absent | MQTT only: control packet name, client id substring, topic substring |
+| `rules[].version` | string | absent | AMQP only: `0.9.1`, or `0.9` for any revision |
+| `rules[].verb`, `subject` | string | absent | NATS only: whole verb, subject substring |
+| `rules[].opcode`, `keyspace` | string | absent | Cassandra only: frame opcode name, whole keyspace name |
+| `rules[].src_ip`, `dst_ip` | string | absent | Address or CIDR |
+| `rules[].dst_port` | port or range | absent | Destination port |
+| `rules[].enabled` | bool | `true` | Whether the rule is evaluated |
+
+Patterns are case-insensitive substrings, not MQTT or NATS wildcards. The
+block is read at startup only; a reload does not re-read it.
+[L7 Firewall](../features/l7-firewall.md#rules-on-the-extended-protocols)
+lists every name each field accepts.
 
 ### Investigations
 
@@ -865,6 +904,7 @@ collected fields predates it, as it does the inventory, and keeps the counters.
 - `l7_advanced.tls_plaintext_workloads` selectors must name at least one of `container`, `cgroup` or `exe`, and no `tenant`, `namespace`, `pod` or `unit`
 - `l7_advanced.block_source` must name a known `min_severity`, a `duration_secs` from 1 to 86400, a `max_active` from 1 to 65536, and `allow` entries that are addresses or CIDRs
 - `l7_advanced.custom_inspect_patterns` entries need a unique id (no collision with a built-in pattern), a non-empty name, a regex Vectorscan accepts, and a known category and severity
+- `extended_l7.rules` holds at most 4096 rules with unique ids and priorities of at least 1, each naming a known `protocol` and `action` and only that protocol's fields, with no empty pattern, a known MQTT packet type, NATS verb or CQL opcode, an AMQP version such as `0.9.1`, and addresses, CIDRs and port ranges that parse
 - `ml_detection.anomaly_threshold` must be positive
 - Tenant IDs must be unique, namespaces cannot overlap between tenants
 - `ha.heartbeat_ms` and `ha.failure_threshold` must be > 0
