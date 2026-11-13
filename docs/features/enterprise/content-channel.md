@@ -9,7 +9,7 @@ data patterns, client fingerprints, provider definitions, trained models and
 the offsets of stripped TLS builds all change faster than a release does, and an estate that upgrades once a quarter
 should still be detecting what appeared last week.
 
-The channel delivers eight typed content sets in one versioned bundle, each set
+The channel carries eight typed content sets in one versioned bundle, each set
 carrying its own version, its own provenance and the oldest agent version that
 can read it. Every bundle is signed, and the agent verifies the signature before
 a single file is applied, because content that arrives over the wire and changes
@@ -38,6 +38,19 @@ the two are separate acts: the engine can refuse what was written, in which case
 it keeps the version it held, and a set whose engine is not licensed or not
 configured on this agent is written and never read. The status says which, per
 kind, rather than reporting a version nothing matches on.
+
+### What Is Published Today
+
+Nothing yet. The agent reads all eight kinds, verifies and applies a bundle, and
+rolls a set back, but no signed bundle has been published, so an agent today runs
+on what ships in its image and on what you load yourself. Four kinds have a
+source the first bundles will be cut from: `ids-rules`, `dlp-patterns`,
+`ai-providers` and `ml-models`. The other four have no publisher yet:
+`ja4-fingerprints` has no source whose licence allows redistributing it,
+`tls-offsets` waits on each image being probed, and `host-rules` and
+`file-profiles` ship in the image rather than as content. The outputs further
+down this page show what an agent prints once bundles exist; the versions and
+counts in them are examples.
 
 A set the licence does not entitle is not served, and a set this build is too
 old to read is skipped rather than applied: the agent keeps what it already has
@@ -175,9 +188,8 @@ and says what happened to each set:
 Bundle version 142 verified
 ids-rules: applied version 118
 dlp-patterns: applied version 64
-ja4-fingerprints: left alone (agent_too_old)
+ml-models: left alone (agent_too_old)
 ai-providers: left alone (already_in_force)
-ml-models: applied version 7
 ```
 
 The licence tool verifies the same bundle without running an agent, and it is
@@ -358,7 +370,6 @@ Bundle version: 142
 Attestation:    9f2c4ab1d0e7...  kept in /var/lib/ebpfsentinel/content/attestation for cosign
 ids-rules: version 118 published 2026-10-18T22:14:00Z (1842 entries, rollback to 117)
 dlp-patterns: version 64 published 2026-10-17T11:02:00Z (312 entries, rollback to 63)
-ja4-fingerprints: version 91 published 2026-10-18T22:14:00Z (8104 entries, rollback to 90)
 ai-providers: version 22 published 2026-10-11T08:40:00Z (48 entries, rollback to none kept)
 ml-models: version 7 published 2026-10-11T08:40:00Z (3 entries, rollback to 6, pinned)
 ```
