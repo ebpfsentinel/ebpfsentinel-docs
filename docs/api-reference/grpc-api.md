@@ -427,7 +427,7 @@ A follower's request for a full snapshot of one category.
 
 The slice of runtime state a replication message carries. One category is replicated independently of the others, with its own sequence numbers.
 
-14 values. The number is the wire value and never changes.
+15 values. The number is the wire value and never changes.
 
 | # | Value | Description |
 |---|-------|-------------|
@@ -445,6 +445,7 @@ The slice of runtime state a replication message carries. One category is replic
 | 11 | `STATE_CATEGORY_LB_SERVICES` |  |
 | 12 | `STATE_CATEGORY_QOS_CONFIG` |  |
 | 13 | `STATE_CATEGORY_ROUTING_GATEWAYS` |  |
+| 14 | `STATE_CATEGORY_FLOW_STATE` | Established TCP entries and NAT reverse records of the active node. |
 
 ### SplitBrainPolicyProto
 

@@ -4,7 +4,7 @@
 
 ## Overview
 
-Leader-based clustering with state replication for failover. Agents form a cluster with one leader and N followers using a modified Bully election algorithm. The leader owns eBPF programs and coordinates state replication across 13 domain categories over unary gRPC calls. Split-brain detection and resolution ensure consistent behavior during network partitions.
+Leader-based clustering with state replication for failover. Agents form a cluster with one leader and N followers using a modified Bully election algorithm. The leader owns eBPF programs and coordinates state replication across 14 categories over unary gRPC calls. Split-brain detection and resolution ensure consistent behavior during network partitions.
 
 ## Cluster Roles
 
@@ -50,7 +50,7 @@ Modified **Bully algorithm** with monotonic `Term(u64)` counter:
 
 ## State Replication
 
-The leader replicates state to followers across **13 domain categories**. Every
+The leader replicates state to followers across **14 categories**. Every
 call on the peer service is unary - a delta or a snapshot goes out as one request
 and the follower answers with one acknowledgement - so a replication round is a
 sequence of calls rather than an open stream, and a follower that dropped off
@@ -71,6 +71,7 @@ rejoins by asking for a snapshot rather than by resuming a channel:
 | `LbServices` | Load balancer services |
 | `QosConfig` | QoS pipes/queues/classifiers |
 | `RoutingGateways` | Routing gateways |
+| `FlowState` | Established TCP connections and NAT reverse records of the datapath (see [Connections across a takeover](#connections-across-a-takeover)) |
 
 ### Replication Model
 
@@ -174,6 +175,61 @@ Two consequences are visible to an operator:
 - A configuration reload follows the leadership. A standby stores the new file
   and loads from it at its next promotion; a leader applies it as described in
   [Hot Reload](../../operations/hot-reload.md#enterprise-agent).
+
+### Connections across a takeover
+
+A connection crossing the leader survives the leader's death. The agent turns
+off the kernel's mid-stream pickup (`nf_conntrack_tcp_loose=0`), because a
+firewall that adopts a TCP flow whose opening it never saw can be walked around;
+the price is that a standby taking over traffic it never carried would treat
+every packet of every open connection as invalid and reset them all. So the
+leader hands its connection state to its standby as one more replication
+category, `FlowState`, and the standby writes it back at its promotion.
+
+What is handed over:
+
+- the kernel's established TCP entries on the leader, both tuples of each, up to
+  2048 per copy;
+- the datapath's NAT reverse records (the tables that turn an answer to a
+  translated flow back into the address the client used), up to 4096 per copy.
+
+The copy is taken at most once a second and only when it changed; the standby
+keeps the latest one and consumes it at its next promotion. The TCP entries are
+inserted into the kernel table on a blocking thread while the new datapath
+loads, as established and assured, with a 120 second timeout that the next
+packet of the connection refreshes. The NAT records are written into the new
+generation's maps before it starts serving. One line in the promoted node's log
+counts what was restored, what the kernel already tracked, and what failed.
+
+What does not survive:
+
+- a connection opened in the last second before the leader died, which no copy
+  has carried yet;
+- past 2048 established connections, the ones the copy left out: it keeps the
+  first 2048 in address order, so which ones is stable from one copy to the next;
+- a flow masqueraded to the failed node's own address: its answers come back to
+  an address the survivor does not hold;
+- UDP and ICMP state, which needs no handover: the kernel picks those up from
+  the next packet.
+
+Restoring needs `conntrack` (conntrack-tools) on every member, the tool the
+agent already uses to read the table where `/proc/net/nf_conntrack` is absent.
+Without it the promoted node logs the flows it could not restore and they are
+reset.
+
+Measured end to end in the two-node lab of the enterprise integration tests: a
+TCP stream sending a line every 50 ms through the leader, the leader's agent
+killed outright and its forwarding stopped in the same instant, heartbeats
+every 500 ms with three missed declaring the peer dead, and the route moved to
+the survivor once it leads. The survivor led 1.4 to 2.1 seconds after the kill,
+the connection state was back in its kernel half a second later, and the stream
+carried on over the same socket with no line lost. The longest silence the
+stream saw was 3.4 seconds over three runs, most of it TCP's own retransmission
+timer, which had backed off to its next attempt at 3 seconds by the time the
+path was back. With the default heartbeat of one second, detection alone takes
+three seconds and the silence grows accordingly. A second stream whose entry was
+removed from the survivor before the move stalled, which is what any open
+connection does without this handover.
 
 ### State Bridge
 
