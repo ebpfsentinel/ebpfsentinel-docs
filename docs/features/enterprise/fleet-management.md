@@ -1102,7 +1102,11 @@ priority falls in its band, deleting one of its rules
 (`POST /api/v1/firewall/shadow/{id}/promote`). The caller must hold the owner
 role itself: the customer's administrator holds a role above it and is still
 refused, and so is a request carrying no identity. A refusal is a `403` whose
-body names the code `PROVIDER_TIER`. Reading is not fenced, and the customer's
+body names the code `PROVIDER_TIER`. The owner role needs no administrator
+rights elsewhere: a write the fence has found to be the owner's, on its own
+tier, passes the agent's scope check as an administrator's would, so a custom
+role or the `operator` role can delete a provider rule of global scope, while
+the same role writing outside the tier is held to its own rights. Reading is not fenced, and the customer's
 console marks each of the tier's rules as the provider's.
 
 `GET /api/v1/firewall/tiers` lists the tiers the agent runs, in evaluation

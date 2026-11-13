@@ -52,3 +52,5 @@ Enforced by `xdp-firewall` on new connections that matched an allow rule, per so
 A source that exceeds `max_src_conn_rate` is marked overloaded and refused on the XDP fast path, before any rule is evaluated, until `overload_ttl_secs` has passed. Setting `max_src_conn_rate` without a window is refused at startup.
 
 > **Note:** TCP/UDP/ICMP timeouts and the kernel connection table are managed by kernel netfilter, not by the agent. Use `sysctl net.netfilter.nf_conntrack_*` to tune kernel-side timeouts.
+>
+> The kernel only follows a connection once something hooks its state: a stateful netfilter rule, NAT, or a container runtime's rules. On a host with none of these the table stays empty and so does every reading built on it; a single rule such as `nft add rule inet filter output ct state new accept` in an output chain is enough.

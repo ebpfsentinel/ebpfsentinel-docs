@@ -396,8 +396,14 @@ workload listens on, otherwise the side that opened it.
 Each of the other three reads what the agent already counts, or loads what it
 needs for the investigation's life alone:
 
-- **`top-tcp`** reads connection tracking for the bytes, which needs workload
-  attribution on like `sockets`, and the TCP health counter
+- **`top-tcp`** reads connection tracking for the bytes, which needs
+  `conntrack.enabled`, a kernel that tracks the workload's connections (the
+  kernel table only follows a connection once a netfilter rule asks for its
+  state; a host with no stateful rule, no NAT and no container runtime
+  tracks nothing, and `by_bytes` then stays empty; with investigations on,
+  the agent sets `net.netfilter.nf_conntrack_acct` to `1` so the kernel counts
+  bytes, for connections opened from then on), workload attribution on
+  like `sockets`, and the TCP health counter
   (`tcp_health.enabled` in the agent configuration) for the retransmits. The
   kernel counts retransmits per peer and service port rather than per
   connection, so every connection to one service on one peer shares a row.
