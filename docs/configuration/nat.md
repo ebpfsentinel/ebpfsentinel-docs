@@ -6,7 +6,7 @@ Network Address Translation rules for SNAT and DNAT. See [NAT](../features/nat.m
 
 ```yaml
 nat:
-  enabled: false
+  enabled: true
   snat_rules:
     - id: masq-lan
       type: masquerade
