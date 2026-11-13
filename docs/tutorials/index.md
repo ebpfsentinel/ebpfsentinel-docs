@@ -38,8 +38,19 @@ agent repository, where `sudo ./demo.sh up --local` runs it against an agent
 built from your working tree instead of the published image.
 
 The host needs Linux 6.12 or later with BTF (`/sys/kernel/btf/vmlinux`),
-Docker with the compose plugin, and on Ubuntu 24.04 and later unprivileged
-user namespaces allowed for the session:
+Docker with the compose plugin, and on Ubuntu 24.04 and later
+(`kernel.apparmor_restrict_unprivileged_userns=1`) the agent allowed a user
+namespace. Load the agent's AppArmor profile, which the lab carries: it grants
+`userns` to `/usr/local/bin/ebpfsentinel-agent`, the path the agent image runs,
+and leaves the restriction in force for everything else. From the lab
+directory:
+
+```bash
+sudo apparmor_parser -r "$PWD/apparmor.d/ebpfsentinel-agent"
+```
+
+Only where `apparmor_parser` is unavailable, lift the restriction host-wide
+for the session instead:
 
 ```bash
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
