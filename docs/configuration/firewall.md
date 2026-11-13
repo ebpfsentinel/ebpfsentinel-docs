@@ -194,6 +194,7 @@ Scrub runs as a TC program (`tc-scrub`) after XDP processing. IPv4 uses `bpf_l3_
 ## Limits
 
 - Maximum **4096 rules** per address family (IPv4/IPv6)
+- A rule naming no address (no `src_ip`, `dst_ip` or alias) matches both families, so it is held once per family and counts against both limits
 - CIDR-only rules use LPM trie maps (O(log n) lookup)
 - Rules with port/protocol/VLAN/flags/ICMP/MAC/DSCP are evaluated in priority order (linear scan)
 - Maximum 65536 per-source state counters
