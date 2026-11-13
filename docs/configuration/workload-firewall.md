@@ -475,6 +475,13 @@ The prefix is part of the value and the two never match each other, because they
 
 The rule that matters is the first semantic above: **a task the agent could not hash is not matched**. That happens where the file was larger than the bound, where the process exited before the read, and on a rootless agent for any process it may not open: the warden hands it the path and the inode of another user's executable but not a descriptor on it, so such a task carries a path and no digest. A rule allowing by digest then refuses rather than opens, and an alert or a flow carries `exe_hash` only where a digest was obtained, so a reader can always see which identity matched.
 
+What each one holds against somebody who can write files on the node:
+
+- **Other bytes under an allowed name** fail a rule carrying `exe_hash`: replacing `/usr/bin/curl`, copying another program to that path or bind-mounting over it changes the digest, and the task is no longer matched.
+- **An allowed binary under another name** keeps its digest, because renaming or copying a file does not change its bytes. A rule naming `exe_hash` alone still matches that copy wherever it runs from; a rule naming both `exe` and `exe_hash` requires the path and the bytes together, which is the form to use where the location matters too.
+- **A digest says what the bytes are, not what they are made to do.** An allowed interpreter or a general client such as `curl` reaches whatever its arguments and its script tell it to, so a pinned digest narrows who may connect and the destination fields of the rule still decide where.
+- **The executables allowed to reach the network** compare the device and the inode rather than a path or a digest. A copy elsewhere is outside the set, but a hard link to a listed file is the same inode and inside it, and a listed file rewritten in place keeps its inode and stays in the set with whatever bytes it now holds. That list is therefore as strong as the write permissions on the files it names, which is what a read-only or fs-verity root filesystem settles.
+
 IMA is not read. Its measurement list is a log of what the host's own policy chose to measure, readable as root from securityfs, keyed by path and appended to for the whole boot; answering "what is this process running" from it would mean a policy the agent does not control and a path to join on, which is the very thing a digest is meant to stop trusting.
 
 The `unit`, `cgroup` and `container` matchers are not paths and do not share the forging weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.

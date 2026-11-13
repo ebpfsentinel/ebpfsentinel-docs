@@ -1230,12 +1230,17 @@ ebpfsentinel-agent ebpf hidden-processes
 
 `ebpf host-check` answers for the machine it runs on and talks to no agent, so
 it is the command to run before buying or installing anything: download the
-binary from the release, run it as any user, and read one block. It reads the
+binary from the release, run it as any user, and read its first line. It reads the
 active security modules from `/sys/kernel/security/lsm` and whether the kernel
 was built with the BPF LSM from `/sys/kernel/btf/vmlinux`, installs nothing and
 changes nothing.
 
 ```text
+Executables allowed to reach the network: will not load on this host.
+  Why:        bpf is not among the active security modules
+  To change:  add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=lockdown,landlock,yama,apparmor,bpf
+  Until then: an observing list is skipped with the reason and an enforcing list refuses to start the agent.
+
 BPF LSM
   Active:     no
   Built in:   yes
@@ -1244,9 +1249,14 @@ BPF LSM
   Remedy:     add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=lockdown,landlock,yama,apparmor,bpf
 ```
 
-`Active: yes` means the executables allowed to reach the network can be
-enforced on this host. Anything else comes with the reason and the one change
-that would fix it. `--output json` gives the same fields as the `bpf_lsm` block
+The first line is the answer: `will load on this host` means the executables
+allowed to reach the network can be enforced here, and `will not load` comes
+with the reason, the one change that would fix it and what the agent does until
+then. A kernel below the 6.12 floor is named there too, even where the BPF LSM
+is active, because the agent refuses that kernel before any list matters. The
+`BPF LSM` block below it is the detail the answer rests on, and
+`ebpf kernel-features` prints the same first line above its own `BPF LSM`
+block. `--output json` gives the same fields as the `bpf_lsm` block
 of [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md#get-apiv1ebpfkernel-features),
 which a running agent fills from the same two files, so the two cannot
 disagree.
