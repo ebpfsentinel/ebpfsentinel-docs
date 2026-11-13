@@ -24,7 +24,7 @@ Wire
 ```
 
 1. **Classifiers** match packets by 5-tuple (src/dst IP, src/dst port, protocol), DSCP value, and optionally VLAN ID. The lookup is by specificity, not by list order (see below).
-2. **Queues** exist so that a set of classifiers can be moved between pipes, or switched off, in one edit. A queue carries no shaping parameters of its own.
+2. **Queues** carry a weight: the queues of one pipe split it in proportion to their weights when it is saturated. A queue is also the level that moves a set of classifiers between pipes, or switches them off, in one edit.
 3. **Pipes** do the shaping: bandwidth limiting (token bucket), delay (EDT pacing), random packet loss, and burst allowance. Each pipe declares which hook it shapes.
 
 ### Pipe Features
@@ -39,22 +39,25 @@ Each pipe defines a traffic shaping profile:
 | `loss` | Random packet drop probability (0.0-100.0), for link degradation simulation |
 | `direction` | Hook the pipe shapes: `egress`, `ingress`, or `both` |
 
-**One bucket per pipe.** The token bucket belongs to the pipe, not to the flow: a pipe declaring 100 Mbps caps everything classified into it at 100 Mbps in total, however many flows there are. Reserving bandwidth for a class of traffic therefore means giving it its own pipe, not its own queue. The bucket entry is shared by every CPU, so accounting under a multi-queue NIC is approximate at the individual packet level and exact over any meaningful interval.
+**One cap per pipe.** The token bucket belongs to the pipe, not to the flow: a pipe declaring 100 Mbps caps everything classified into it at 100 Mbps in total, however many flows there are. The bucket entry is shared by every CPU, so accounting under a multi-queue NIC is approximate at the individual packet level and exact over any meaningful interval.
 
-Tokens are refilled from `bpf_ktime_get_boot_ns` timestamps: one byte of credit per `ns_per_byte` elapsed, capped at the burst size. A packet that finds insufficient credit is dropped.
+**A share per queue.** Each enabled queue of a pipe also owns a bucket, refilled at `weight / sum of the pipe's enabled weights` of the pipe's rate and holding the same part of its burst (never less than one 1514-byte frame). A packet the queue's bucket covers passes and is charged to the pipe as well; one it does not cover passes only on credit the pipe has to spare, which is credit the other queues are not using. So a saturated pipe splits by weight, and a queue sending less than its share leaves the rest to whoever is sending: a queue alone on its pipe has all of it. A queue owed its share may run the pipe's bucket into debt by at most one burst, which the next refills pay back, so a pipe passes its rate plus at most two bursts over any interval.
+
+Tokens are refilled from `bpf_ktime_get_boot_ns` timestamps: one byte of credit per `ns_per_byte` elapsed, capped at the burst size. A packet that neither its queue's share nor the pipe's spare credit covers is dropped. The shaper drops rather than queues, so it keeps no backlog and runs no queue management: what exceeds the rate is shed at once, and ECN marking below is the only early signal a sender gets.
 
 **Both hooks, one program.** `tc-qos` is attached to TC ingress and TC egress. A forwarded packet crosses both, so a pipe only accounts for a packet on the hook it declares - without that, a pipe would be charged twice for every forwarded packet and would enforce half its configured rate.
 
-**ECN before drops.** While a bucket holds less than a quarter of its burst, packets passing through it are marked with ECN Congestion Experienced (`bpf_skb_ecn_set_ce`). An ECN-capable sender slows down before the bucket empties, which avoids the drop entirely.
+**ECN before drops.** While the bucket a packet is passed on holds less than a quarter of its burst (the queue's for a packet within its share, the pipe's for one passed on spare credit), the packet is marked with ECN Congestion Experienced (`bpf_skb_ecn_set_ce`). An ECN-capable sender slows down before the bucket empties, which avoids the drop entirely.
 
 ### Queue Features
 
 | Parameter | Description |
 |-----------|-------------|
 | `pipe_id` | Pipe this queue is attached to |
-| `enabled` | Whether the queue is active |
+| `weight` | Relative share of the pipe once it is saturated, at least 1 (default 1). Two queues weighted 3 and 1 get three quarters and one quarter |
+| `enabled` | Whether the queue is active. A disabled queue's weight is left out of the split |
 
-Disabling a queue stops every classifier pointing at it in one move, without editing them. That is the queue's whole purpose: it is the level of indirection between the match rules and the shaper.
+Disabling a queue stops every classifier pointing at it in one move, without editing them. Guaranteeing a class of traffic a part of a link is a weight on its queue; capping it below what the link could give it, whatever else is idle, is a pipe of its own.
 
 ### Classifier Features
 
@@ -132,12 +135,17 @@ qos:
       enabled: false           # For link-emulation testing
 
   queues:
-    # Realtime traffic gets its own pipe: sharing one with bulk traffic would
-    # mean sharing its token bucket.
+    # Realtime traffic gets its own pipe, a hard cap of its own. Interactive
+    # and bulk share the uplink, interactive owed three quarters of it when
+    # both are sending.
     - id: realtime
       pipe_id: voip-reserved
+    - id: interactive
+      pipe_id: wan-uplink
+      weight: 3
     - id: best-effort
       pipe_id: wan-uplink
+      weight: 1
 
   classifiers:
     - id: sip-signalling
@@ -149,6 +157,11 @@ qos:
       queue_id: realtime
       match:
         dscp: 46               # EF (Expedited Forwarding)
+    - id: ssh
+      queue_id: interactive
+      match:
+        protocol: tcp
+        dst_port: 22
     - id: catch-all
       queue_id: best-effort
       match: {}                # Everything not matched above
@@ -187,7 +200,8 @@ ebpfsentinel-agent qos add-pipe --json '{
 # Add a queue
 ebpfsentinel-agent qos add-queue --json '{
   "id": "best-effort",
-  "pipe_id": "wan-uplink"
+  "pipe_id": "wan-uplink",
+  "weight": 1
 }'
 
 # Add a classifier
@@ -248,7 +262,7 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 2. **Classify** - Progressive wildcard lookup in `QOS_CLASSIFIERS`, run first within the packet's VLAN scope and then within the any-VLAN scope
 3. **Scope** - Skip the pipe if it does not shape this hook, does not cover this interface group, or belongs to another tenant
 4. **Loss** - If `loss > 0`, draw from `bpf_get_prandom_u32` and drop with the configured probability
-5. **Token bucket** - Refill the pipe's bucket in `QOS_PIPE_STATE` from the elapsed time, deduct the packet size, mark ECN CE if the bucket is running low, drop if there is no credit
+5. **Token buckets** - Refill the queue's bucket in `QOS_QUEUE_STATE` and the pipe's in `QOS_PIPE_STATE` from the elapsed time; pass the packet on the queue's share or on the pipe's spare credit, mark ECN CE if the bucket it passed on is running low, drop if neither covers it
 6. **Pace** - If `delay > 0`, set the packet's departure timestamp in `skb->tstamp` to `now + delay`, held back behind the flow's previous departure in `QOS_FLOW_STATE`
 7. **Emit** - Send an event to the RingBuf with the shaping decision (shaped, dropped)
 
@@ -257,7 +271,8 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | Map | Type | Max Entries | Description |
 |-----|------|-------------|-------------|
 | `QOS_PIPE_CONFIG` | Array | 64 | Pipe definitions (rate, burst, delay, loss, direction, scoping) |
-| `QOS_QUEUE_CONFIG` | Array | 256 | Queue definitions (pipe_id, enabled) |
+| `QOS_QUEUE_CONFIG` | Array | 256 | Queue definitions (pipe_id, enabled, weight, and the share's rate and burst computed from it) |
+| `QOS_QUEUE_STATE` | Array | 256 | Per-queue share bucket (tokens, last_refill_ns), shared across CPUs |
 | `QOS_CLASSIFIERS` | HashMap | 1024 | Classifier rules (5-tuple + DSCP + VLAN → queue_id) |
 | `QOS_PIPE_STATE` | Array | 64 | Per-pipe token bucket (tokens, last_refill_ns), shared across CPUs |
 | `QOS_FLOW_STATE` | LruPerCpuHashMap | 65536 | Per-flow pacing state (last departure time) |

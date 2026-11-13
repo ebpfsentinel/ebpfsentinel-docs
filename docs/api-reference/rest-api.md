@@ -3342,7 +3342,7 @@ Create a QoS queue. Requires `admin` role.
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/qos/queues \
   -H "Content-Type: application/json" \
-  -d '{"id":"q-web","pipe_id":"p-wan"}'
+  -d '{"id":"q-web","pipe_id":"p-wan","weight":3}'
 ```
 
 **Request body:**
@@ -3351,6 +3351,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 |-------|------|----------|-------------|
 | `id` | string | Yes | Unique queue identifier (max 64 chars) |
 | `pipe_id` | string | Yes | Parent pipe identifier |
+| `weight` | u16 | No | Relative share of the pipe once it is saturated, at least 1 (default 1). A weight of 0 is refused with 400 |
 
 #### DELETE /api/v1/qos/queues/{id}
 

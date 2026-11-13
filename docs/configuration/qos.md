@@ -49,7 +49,7 @@ qos:
 
 ### Pipes
 
-A pipe is the shaper: it owns the rate cap, the burst allowance, the added latency and the loss rate. Every queue underneath it draws from the same token bucket, so a pipe's capacity is contended for, not divided.
+A pipe is the shaper: it owns the rate cap, the burst allowance, the added latency and the loss rate. Every queue underneath it draws from the same token bucket, so the pipe's rate caps them all together; how a saturated pipe is divided between them is set by each queue's `weight`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -67,12 +67,13 @@ Maximum 64 pipes.
 
 ### Queues
 
-A queue names the pipe that shapes it, and nothing else. It exists so that a set of classifiers can be moved to another pipe, or detached altogether, in one edit: disabling a queue stops every classifier pointing at it without touching them.
+A queue names the pipe that shapes it and its weight on that pipe. When the pipe is saturated, its enabled queues split it in proportion to their weights; a share a queue leaves unused goes to the queues that are sending, so a queue alone on its pipe has all of it. A queue is also how a set of classifiers is moved to another pipe, or detached altogether, in one edit: disabling a queue stops every classifier pointing at it without touching them, and takes its weight out of the split.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `id` | string | required | Unique queue identifier |
 | `pipe_id` | string | required | ID of the pipe this queue is attached to (must exist) |
+| `weight` | u16 | `1` | Relative share of the pipe once it is saturated, at least 1. Each enabled queue is owed `weight / sum of the pipe's enabled weights` of its rate |
 | `enabled` | bool | `true` | Whether this queue is active |
 
 Maximum 256 queues.
@@ -134,7 +135,7 @@ Shaping acts only on interfaces whose qdisc honours a departure time: `fq` as th
 
 The configuration enforces referential integrity at load time:
 
-- Every queue must reference an existing pipe via `pipe_id`.
+- Every queue must reference an existing pipe via `pipe_id`, with a `weight` of at least 1.
 - Every classifier must reference an existing queue via `queue_id`.
 - Duplicate IDs within pipes, queues, or classifiers are rejected.
 
@@ -158,12 +159,17 @@ qos:
       direction: both
       interfaces: ["lan"]
   queues:
-    # Reserving bandwidth for realtime traffic means giving it its own pipe:
-    # sharing one pipe with bulk traffic would mean sharing its token bucket.
+    # Realtime traffic gets a pipe of its own, a hard cap independent of the
+    # uplink. Bulk shares the uplink with interactive, which is owed four
+    # parts in five of it when both are sending.
     - id: realtime
       pipe_id: realtime-reserved
+    - id: interactive
+      pipe_id: wan-uplink
+      weight: 4
     - id: bulk
       pipe_id: wan-uplink
+      weight: 1
     - id: lan-default
       pipe_id: lan-shaped
   classifiers:
@@ -178,6 +184,11 @@ qos:
       match:
         protocol: udp
         dscp: 34
+    - id: ssh-traffic
+      queue_id: interactive
+      match:
+        protocol: tcp
+        dst_port: 22
     # No criteria at all: the catch-all every unmatched packet falls into.
     - id: default-traffic
       queue_id: bulk

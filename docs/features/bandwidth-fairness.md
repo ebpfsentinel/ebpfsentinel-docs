@@ -6,7 +6,7 @@
 
 Workloads on one node share its links, and without an arbiter the loudest one sets everybody's latency. This page says what the agent arbitrates today, what it promises, what it does not, the kernel conditions it depends on, and how to check the behaviour on your own node.
 
-The short version: the agent can hold each selected workload to an **egress ceiling**, measured per cgroup and paced rather than dropped. It does **not** divide a link into shares, it does not give any workload a floor, and it does not shape ingress.
+The short version: the agent can hold each selected workload to an **egress ceiling**, measured per cgroup and paced rather than dropped. A workload rule does **not** divide a link into shares, gives no workload a floor, and does not shape ingress. Dividing a link by weight is done by traffic class rather than by workload: the queues of a [QoS pipe](qos.md) split it in proportion to their weights when it is saturated, by dropping rather than pacing.
 
 ## What Is Shared
 
@@ -22,7 +22,7 @@ Everything leaving the node through an interface the agent is attached to. A wor
 
 ## What Is Not Guaranteed
 
-- **No floor and no share.** A ceiling stops one workload taking too much; it does not reserve anything for another. Two unshaped workloads still compete for whatever is left, and an idle link is not lent to a capped workload. There is no work-conserving scheduler dividing the link between tenants in this build.
+- **No floor and no share.** A ceiling stops one workload taking too much; it does not reserve anything for another. Two unshaped workloads still compete for whatever is left, and an idle link is not lent to a capped workload. No scheduler divides the link between workloads. A weighted split exists between the queues of a [QoS pipe](qos.md), which classifies by address, port and marking rather than by cgroup, and enforces by dropping.
 - **The rate is per cgroup, not per rule or per tenant.** A rule matching ten containers holds each of them to the rate, so together they may send ten times it. A selector over a tenant's cgroup subtree caps each workload of the tenant, not the tenant as a whole.
 - **Egress only.** Traffic arriving at the node has already crossed the link; there is no departure time to set. Ingress limits are a pipe with `direction: ingress`, which drops rather than paces.
 - **Forwarded container traffic pays in drops past the horizon.** A local socket feels the queue through TCP small queues and slows down early. A packet that crossed from a container network namespace no longer belongs to the sender's socket on the host, so the sender learns about the queue only from delay and, past the horizon, from a drop.
