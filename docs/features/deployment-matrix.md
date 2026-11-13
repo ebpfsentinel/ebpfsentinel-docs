@@ -315,6 +315,7 @@ and the tree the console draws from it, is therefore as complete as that read.
 | **K8s DaemonSet** (`/host/proc` mounted) | Complete | The same, each process named with its pod, namespace and owner. This is what the Helm chart ships, with `daemonset.hostPID` left `false` |
 | **K8s DaemonSet** (no `/host/proc` mount) | Partial | As for a container without the mount |
 | **Sidecar** (`profile: pod`) | None | The pod profile does not load the process table; a configuration enabling it there is refused at startup. The node agent of that node draws the pod's processes |
+| **Hypervisor guest** | None | The guest's processes run under its own kernel, which the host agent does not see into; the guest is named on its tap device and nothing below it. An LXC container shares the host kernel and is drawn like any other container |
 
 Three limits hold in every mode, and each is said on the chain rather than left
 for a reader to infer:

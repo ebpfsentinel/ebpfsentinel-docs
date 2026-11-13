@@ -140,7 +140,7 @@ This table is generated from the same requirement table the agent probes with (`
 
 ### KFuncs
 
-KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya still has no kfunc infrastructure as of 0.14. See [KFuncs](kfuncs.md) for full per-kfunc semantics and safe-wrapper coverage.
+KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya 0.16 relocates none of them, so the agent loads every program that calls one with its own loader. See [KFuncs](kfuncs.md) for full per-kfunc semantics and safe-wrapper coverage.
 
 | Feature | Min Kernel | Used By | Reference |
 |---------|-----------|---------|-----------|
