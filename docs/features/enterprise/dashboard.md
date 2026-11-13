@@ -16,7 +16,18 @@ configuration file and its own release:
 | Image | `ghcr.io/ebpfsentinel/ebpfsentinel-dashboard`, multi-arch (`linux/amd64`, `linux/arm64`), tagged with the release version and cosign-signed |
 | Helm chart | `oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-dashboard`, published and signed with the image |
 
-It is stateless and multi-tenant: tenant scope is enforced on the server for
+It runs on your own infrastructure, never ours: there is no hosted console. It
+reads Enterprise agents only, admitting none without a signed licence token,
+and sends us nothing. The only data that ever leaves your network is the
+anonymised counters your agents send to the customer portal when you opt in,
+and the portal shows you what they were.
+
+What operators do in it - sessions, boards, notifications, the audit trail,
+compliance reports, rollouts - lives in a PostgreSQL database you run, which
+is what lets it run as several replicas; see
+[State store](../../configuration/dashboard.md#state-store).
+
+It is multi-tenant: tenant scope is enforced on the server for
 every proxied call rather than in the browser, and agents whose licence does not
 carry a feature are filtered out at discovery, so an operator is not shown a
 screen that would answer 404.

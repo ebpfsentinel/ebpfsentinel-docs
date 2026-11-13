@@ -12,6 +12,7 @@ fast at startup with a structured error pointing at the offending field.
 |---|---|---|
 | `--config <path>` / `-c` | `/etc/ebpfsentinel-dashboard/dashboard.yaml` | Path to the YAML configuration. Also reads `DASHBOARD_CONFIG`. |
 | `--config-check` | off | Parse + validate the config and exit `0` (success) or `1` (any structured error). Useful in CI / pre-deploy gates. |
+| `--standalone` | off | UI development only: serves the bundled screens from synthetic data with no sign-in. Present only in a build made with the `standalone` cargo feature; the released image and chart are built without it and refuse to start when this flag, `server.standalone: true` or `EBPFSENTINEL_STANDALONE=1` asks for it. |
 
 ## Schema
 
@@ -115,8 +116,9 @@ History store. When omitted, the dashboard runs with live data only.
 
 ### `state_store` (optional)
 
-The PostgreSQL database holding what operators did: their preferences,
-rollouts waiting on an approver, sessions and revoked tokens. When omitted,
+The PostgreSQL database holding what operators did: sessions and revoked
+tokens, preferences, custom boards, auditor tokens, notifications, the audit
+trail, compliance reports and rollouts waiting on an approver. When omitted,
 that state lives in the process's memory. See [State store](#state-store).
 
 | Field | Type | Default | Validation |
@@ -274,9 +276,12 @@ expires:
   targeted, and only a platform administrator can sign out another platform
   administrator. Each sign-out, and each one refused for the target's role
   or a full list, is written to the audit log.
-- **Propagation:** a revocation takes effect at once on the replica that made
-  it and within five seconds on the others, which re-read the list from the
-  state store on that interval.
+- **Propagation:** a revocation takes effect at once on every replica. The
+  replica that files it notifies the others through PostgreSQL
+  `LISTEN`/`NOTIFY` in the same transaction, and each one re-reads the list
+  when told. Every replica also re-reads it every five seconds whatever it was
+  told, so a notification lost with a dropped database connection costs five
+  seconds at most.
 - **Bound:** the list holds at most 10 000 live entries. Past that a new
   revocation is refused (`409`, `revocation_list_full`) rather than evicting
   an older one, because an evicted entry would bring a withdrawn token back.
@@ -717,14 +722,19 @@ DDL source files live in `crates/dashboard-server/migrations/`.
 
 The dashboard keeps two kinds of data. What the agents report - alerts,
 flows, posture - is rebuilt by asking them again, and its long-term copy is
-the optional ClickHouse store above. What operators did is not: a rollout
-waiting on its second approver, a preference, a session, a revoked token.
+the optional ClickHouse store above. What operators did is not: a session,
+a revoked token, a preference, a custom board, an auditor token and whether
+it was redeemed, a notification and whether it was read, the audit trail, a
+generated compliance report, a rollout waiting on its second approver.
 Nothing can reconstruct those after the process that held them is gone, so
 they belong in `state_store`.
 
+The dashboard runs on your own infrastructure, beside your fleet, and the
+store is a database you run: nothing the console holds is sent to us.
+
 ### Why PostgreSQL
 
-The chart runs three replicas by default. A file embedded in each pod would
+Running more than one replica is what the store is for. A file embedded in each pod would
 give each replica its own copy, so a change proposed on one pod could not be
 approved on another and an operator would be signed out whenever the load
 balancer picked a different one. One PostgreSQL database shared by every
@@ -754,12 +764,49 @@ CloudNativePG operator in the same cluster.
 With no `state_store` block the server logs `state store: none configured -
 preferences, rollouts and sessions live in this process, a restart loses them
 and replicas do not share them` and keeps that state in the process. That is fine for one replica you
-are happy to restart; run more than one only with a store. The chart prints
-the same warning when `replicaCount` is above one and `stateStore.enabled`
-is false.
+are happy to restart; run more than one only with a store. The chart
+defaults to one replica and refuses to render more, or autoscaling, while
+`stateStore.enabled` is false.
 
 A store that stops answering after startup is reported on the requests that
 need it (`503`), never answered from an empty default.
+
+### Running several replicas
+
+1. Create a database and a role owning it on a PostgreSQL 14 or later you
+   run: a managed service, the CloudNativePG operator in the same cluster, or
+   a VM. The dashboard creates its own tables in it at startup.
+2. Put the role's password in a Secret with the key `password`.
+3. Install or upgrade the chart with the store on, then scale:
+
+```bash
+kubectl -n ebpfsentinel-dashboard create secret generic dashboard-state-store \
+  --from-literal=password=<postgres-password>
+
+helm upgrade dashboard oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-dashboard \
+  -n ebpfsentinel-dashboard --reuse-values \
+  --set stateStore.enabled=true \
+  --set stateStore.host=postgres.example.com \
+  --set stateStore.existingSecret=dashboard-state-store \
+  --set replicaCount=3
+```
+
+Any host but loopback is reached over verified TLS; set
+`stateStore.tlsCaPath` to a CA bundle mounted in the pod when the server's
+certificate is not signed by a public root. The chart's NetworkPolicy opens
+egress to `networkPolicy.stateStorePort` (5432) when the store is on.
+
+Compliance reports follow the store when `compliance.storage_type` is
+`in_memory`, the default: they are kept there for `in_memory_ttl_seconds`
+and any replica can serve the download. `filesystem` writes them to
+`storage_dir` on one pod's disk, so the chart refuses it with more than one
+replica.
+
+What each replica still keeps to itself, by design: the sign-in rate limiter
+and the cooldowns on IOC search, rule replay and hunt export, so N replicas
+allow up to N times the configured rate; the cap on hunts running at once;
+and the book of clusters. The scheduled summaries, the hunt scheduler and the
+notification rules run on every replica.
 
 ### A rollout across a restart
 
