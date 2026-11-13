@@ -52,10 +52,11 @@ feature each one requires in
 license does not carry is never mounted, so a call to one of its paths answers
 `404 Not Found` rather than `403 Forbidden`.
 
-Eleven of this edition's own routes are mounted whatever the license carries:
+Twelve of this edition's own routes are mounted whatever the license carries:
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
+| `POST` | `/api/v1/alerts/{id}/false-positive` | operator | none | Mark an alert as false positive. |
 | `GET` | `/api/v1/license` | viewer | none | What the license itself says. Gating this on a feature would leave an expired deployment with no way to read why it had stopped working. |
 | `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
 | `GET` | `/api/v1/alerts/{id}` | viewer | none | Read one stored alert by identifier. |
@@ -95,11 +96,17 @@ and a note is written under the identity the agent authenticated, not under the
 
 ### The open-source surface
 
-The enterprise agent also serves 110 operations of the open-source agent, with
+The enterprise agent also serves 127 operations of the open-source agent, with
 the open-source handlers and bodies: the firewall, IDS, IPS, rate-limit,
 DDoS, NAT, routing, load-balancer, QoS, zone and alias rules, connection
-tracking, DNS, GeoIP, threat-intel indicators, the configuration and its
-reload, the eBPF program status and the host surface. They are mounted
+tracking, DNS, GeoIP, threat-intel indicators, L7 rules, DLP, TLS handshakes
+and posture, JA4 fingerprints, the service graph, the audit trail, manual
+responses, flow export status, the configuration and its reload, the eBPF
+program status and the host surface. Packet capture and the TLS library
+probes are the two open-source surfaces it does not serve: they answer
+`404 Not Found`, and this edition captures through
+[network forensics](network-forensics.md) and probes TLS libraries under
+`/api/v1/enterprise/tls-probes`. They are mounted
 whatever the license carries, once the open-source datapath services are built
 from the configuration, and `POST /api/v1/config/reload` runs the same reload
 as a changed configuration file, datapath included. Each is described in
@@ -112,6 +119,8 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/alerts/stream` | viewer | none | Server-Sent Events live alert feed. |
 | `GET` | `/api/v1/aliases/status` | viewer | none | Alias service status. |
 | `PUT` | `/api/v1/aliases/{id}/content` | operator | none | Push content for an External alias. |
+| `GET` | `/api/v1/audit/logs` | viewer | none | Query stored audit log entries. |
+| `GET` | `/api/v1/audit/rules/{id}/history` | viewer | none | Query rule version history. |
 | `GET` | `/api/v1/config` | viewer | none | Return the current (sanitized) agent configuration. |
 | `POST` | `/api/v1/config/reload` | operator | none | Trigger a configuration reload via the API. |
 | `PUT` | `/api/v1/config/{section}` | operator | none | Write one section of the agent configuration file and reload. |
@@ -125,6 +134,9 @@ as a changed configuration file, datapath included. Each is described in
 | `POST` | `/api/v1/ddos/policies` | operator | none | Create a `DDoS` policy. |
 | `DELETE` | `/api/v1/ddos/policies/{id}` | operator | none | Delete a `DDoS` policy. |
 | `GET` | `/api/v1/ddos/status` | viewer | none | `DDoS` protection status. |
+| `GET` | `/api/v1/dlp/patterns` | viewer | none | List DLP patterns. |
+| `GET` | `/api/v1/dlp/scope` | viewer | none | Which workloads DLP is reading. |
+| `GET` | `/api/v1/dlp/status` | viewer | none | DLP status. |
 | `GET` | `/api/v1/dns/blocklist` | viewer | none | List loaded blocklist rules. |
 | `GET` | `/api/v1/dns/cache` | viewer | none | List DNS cache entries. |
 | `DELETE` | `/api/v1/dns/cache` | operator | none | Flush the DNS cache. |
@@ -139,6 +151,10 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/ebpf/guests` | viewer | none | The virtual machines and KubeVirt guests whose links the agent holds, named or reported unnamed with the reason. |
 | `GET` | `/api/v1/ebpf/raw-sockets` | viewer | none | Who else reads the node's traffic. |
 | `GET` | `/api/v1/ebpf/status` | viewer | none | Return the load status of each eBPF program. |
+| `GET` | `/api/v1/fingerprints/summary` | viewer | none | Fingerprint cache status. |
+| `GET` | `/api/v1/firewall/l7-rules` | viewer | none | List all L7 rules. |
+| `POST` | `/api/v1/firewall/l7-rules` | operator | none | Create a new L7 rule. |
+| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | operator | none | Delete an L7 rule by ID. |
 | `GET` | `/api/v1/firewall/rules` | viewer | none | List all active rules. |
 | `POST` | `/api/v1/firewall/rules` | operator | none | Create a new rule. |
 | `DELETE` | `/api/v1/firewall/rules/{id}` | operator | none | Delete a rule by ID. |
@@ -146,6 +162,7 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/firewall/workload/labels` | viewer | none | The containers whose labels carry policy, the rules each produced and any label refused. |
 | `GET` | `/api/v1/firewall/workload/reach` | viewer | none | What the workload policy lets a workload reach. |
 | `GET` | `/api/v1/firewall/workload/rules` | viewer | none | The workload rules in force and what each has refused. |
+| `GET` | `/api/v1/flows/export` | viewer | none | Flow export status. |
 | `GET` | `/api/v1/geoip/lookup` | viewer | none | Resolve an IP to `GeoIP` info. |
 | `GET` | `/api/v1/geoip/status` | viewer | none | `GeoIP` enrichment status. |
 | `GET` | `/api/v1/ids/rules` | viewer | none | List all IDS rules. |
@@ -196,11 +213,15 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/ratelimit/rules` | viewer | none | List all rate limit rules. |
 | `POST` | `/api/v1/ratelimit/rules` | operator | none | Create a new rate limit rule. |
 | `DELETE` | `/api/v1/ratelimit/rules/{id}` | operator | none | Delete a rate limit rule. |
+| `GET` | `/api/v1/responses` | viewer | none | List active response actions. |
+| `POST` | `/api/v1/responses/manual` | operator | none | Create a time-bounded response action. |
+| `DELETE` | `/api/v1/responses/{id}` | operator | none | Revoke a response action early. |
 | `GET` | `/api/v1/routing/gateways` | viewer | none | List routing gateways. |
 | `POST` | `/api/v1/routing/gateways` | operator | none | Add a routing gateway. |
 | `DELETE` | `/api/v1/routing/gateways/{id}` | operator | none | Remove a routing gateway. |
 | `GET` | `/api/v1/routing/routes` | viewer | none | Effective default route(s) from gateway selection. |
 | `GET` | `/api/v1/routing/status` | viewer | none | Routing status. |
+| `GET` | `/api/v1/services/graph` | viewer | none | Who called whom over the last minutes. |
 | `GET` | `/api/v1/surface` | viewer | none | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks. |
 | `GET` | `/api/v1/surface/listening` | viewer | none | Every listener with the packages its process maps, the traffic it took and who may reach it. |
 | `GET` | `/api/v1/surface/loaded` | viewer | none | Every file live processes map executable, once per root, and the package owning it. |
@@ -210,6 +231,9 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/threatintel/iocs` | viewer | none | List loaded IOCs. |
 | `GET` | `/api/v1/threatintel/status` | viewer | none | Threat intel subsystem status. |
 | `GET` | `/api/v1/threatintel/urls` | viewer | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
+| `GET` | `/api/v1/tls/handshakes` | viewer | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
+| `GET` | `/api/v1/tls/posture` | viewer | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
+| `GET` | `/api/v1/tls/status` | viewer | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | operator | none | What the loaded programs decide for one packet. |
 | `GET` | `/api/v1/zones` | viewer | none | List security zones. |
 | `POST` | `/api/v1/zones` | operator | none | Create a security zone. |

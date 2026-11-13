@@ -161,8 +161,8 @@ not from the request.
 
 | Feature | Endpoints | Feature guide |
 |---------|-----------|---------------|
-| [Always mounted](#always-mounted) | 3 | n/a |
-| [Open-source surface](#open-source-surface) | 110 | [Enterprise overview](../features/enterprise/overview.md#the-open-source-surface) |
+| [Always mounted](#always-mounted) | 11 | n/a |
+| [Open-source surface](#open-source-surface) | 127 | [Enterprise overview](../features/enterprise/overview.md#the-open-source-surface) |
 | [Advanced RBAC](#advanced-rbac) | 12 | [Advanced RBAC](../features/enterprise/advanced-rbac.md) |
 | [AI and LLM security](#ai-and-llm-security) | 20 | [AI and LLM security](../features/enterprise/ai-security.md) |
 | [Air-gap](#air-gap) | 4 | [Air-gap](../features/enterprise/airgap.md) |
@@ -193,6 +193,7 @@ Mounted whatever the license carries, on every enterprise agent.
 |--------|------|------|-------|-----------------|-------------|
 | `GET` | `/api/v1/alerts` | viewer | `alerts:read` | none | Query the OSS datapath alert store. |
 | `GET` | `/api/v1/alerts/{id}` | viewer | `alerts:read` | none | Read one stored alert by identifier. |
+| `POST` | `/api/v1/alerts/{id}/false-positive` | operator | `alerts:write` | none | Mark an alert as false positive. |
 | `PATCH` | `/api/v1/alerts/{id}/triage` | operator | `alerts:write` | none | Set one alert's status or assignee, or append a note. |
 | `POST` | `/api/v1/alerts/triage` | operator | `alerts:write` | none | Apply one triage change to at most 1000 alerts. |
 | `GET` | `/api/v1/ebpf/kernel-features` | viewer | `config:read` | none | Return what the startup helper probe learned about this kernel. |
@@ -241,6 +242,8 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/alerts/stream` | viewer | `alerts:read` | none | Server-Sent Events live alert feed. |
 | `GET` | `/api/v1/aliases/status` | viewer | `firewall:read` | none | Alias service status. |
 | `PUT` | `/api/v1/aliases/{id}/content` | operator | `firewall:write` | none | Push content for an External alias. |
+| `GET` | `/api/v1/audit/logs` | viewer | `audit:read` | none | Query stored audit log entries. |
+| `GET` | `/api/v1/audit/rules/{id}/history` | viewer | `audit:read` | none | Query rule version history. |
 | `GET` | `/api/v1/config` | viewer | `config:read` | none | Return the current (sanitized) agent configuration. |
 | `POST` | `/api/v1/config/reload` | operator | `config:write` | none | Trigger a configuration reload via the API. |
 | `PUT` | `/api/v1/config/{section}` | operator | `config:write` | none | Write one section of the agent configuration file and reload. |
@@ -254,6 +257,9 @@ are this edition's, decided by the same middleware as every other route.
 | `POST` | `/api/v1/ddos/policies` | operator | `ddos:write` | none | Create a `DDoS` policy. |
 | `DELETE` | `/api/v1/ddos/policies/{id}` | operator | `ddos:write` | none | Delete a `DDoS` policy. |
 | `GET` | `/api/v1/ddos/status` | viewer | `ddos:read` | none | `DDoS` protection status. |
+| `GET` | `/api/v1/dlp/patterns` | viewer | `dlp:read` | none | List DLP patterns. |
+| `GET` | `/api/v1/dlp/scope` | viewer | `dlp:read` | none | Which workloads DLP is reading. |
+| `GET` | `/api/v1/dlp/status` | viewer | `dlp:read` | none | DLP status. |
 | `GET` | `/api/v1/dns/blocklist` | viewer | `dns:read` | none | List loaded blocklist rules. |
 | `GET` | `/api/v1/dns/cache` | viewer | `dns:read` | none | List DNS cache entries. |
 | `DELETE` | `/api/v1/dns/cache` | operator | `dns:write` | none | Flush the DNS cache. |
@@ -268,6 +274,10 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/ebpf/guests` | viewer | `config:read` | none | The virtual machines and KubeVirt guests whose links the agent holds, named or reported unnamed with the reason. |
 | `GET` | `/api/v1/ebpf/raw-sockets` | viewer | `config:read` | none | Who else reads the node's traffic. |
 | `GET` | `/api/v1/ebpf/status` | viewer | `config:read` | none | Return the load status of each eBPF program. |
+| `GET` | `/api/v1/fingerprints/summary` | viewer | `l7:read` | none | Fingerprint cache status. |
+| `GET` | `/api/v1/firewall/l7-rules` | viewer | `firewall:read` | none | List all L7 rules. |
+| `POST` | `/api/v1/firewall/l7-rules` | operator | `firewall:write` | none | Create a new L7 rule. |
+| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | operator | `firewall:write` | none | Delete an L7 rule by ID. |
 | `GET` | `/api/v1/firewall/rules` | viewer | `firewall:read` | none | List all active rules. |
 | `POST` | `/api/v1/firewall/rules` | operator | `firewall:write` | none | Create a new rule. |
 | `DELETE` | `/api/v1/firewall/rules/{id}` | operator | `firewall:write` | none | Delete a rule by ID. |
@@ -275,6 +285,7 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/firewall/workload/labels` | viewer | `firewall:read` | none | The containers whose labels carry policy, the rules each produced and any label refused. |
 | `GET` | `/api/v1/firewall/workload/reach` | viewer | `firewall:read` | none | What the workload policy lets a workload reach. |
 | `GET` | `/api/v1/firewall/workload/rules` | viewer | `firewall:read` | none | The workload rules in force and what each has refused. |
+| `GET` | `/api/v1/flows/export` | viewer | `config:read` | none | Flow export status. |
 | `GET` | `/api/v1/geoip/lookup` | viewer | `config:read` | none | Resolve an IP to `GeoIP` info. |
 | `GET` | `/api/v1/geoip/status` | viewer | `config:read` | none | `GeoIP` enrichment status. |
 | `GET` | `/api/v1/ids/rules` | viewer | `ids:read` | none | List all IDS rules. |
@@ -325,11 +336,15 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/ratelimit/rules` | viewer | `ratelimit:read` | none | List all rate limit rules. |
 | `POST` | `/api/v1/ratelimit/rules` | operator | `ratelimit:write` | none | Create a new rate limit rule. |
 | `DELETE` | `/api/v1/ratelimit/rules/{id}` | operator | `ratelimit:write` | none | Delete a rate limit rule. |
+| `GET` | `/api/v1/responses` | viewer | `ips:read` | none | List active response actions. |
+| `POST` | `/api/v1/responses/manual` | operator | `ips:write` | none | Create a time-bounded response action. |
+| `DELETE` | `/api/v1/responses/{id}` | operator | `ips:write` | none | Revoke a response action early. |
 | `GET` | `/api/v1/routing/gateways` | viewer | `routing:read` | none | List routing gateways. |
 | `POST` | `/api/v1/routing/gateways` | operator | `routing:write` | none | Add a routing gateway. |
 | `DELETE` | `/api/v1/routing/gateways/{id}` | operator | `routing:write` | none | Remove a routing gateway. |
 | `GET` | `/api/v1/routing/routes` | viewer | `routing:read` | none | Effective default route(s) from gateway selection. |
 | `GET` | `/api/v1/routing/status` | viewer | `routing:read` | none | Routing status. |
+| `GET` | `/api/v1/services/graph` | viewer | `l7:read` | none | Who called whom over the last minutes. |
 | `GET` | `/api/v1/surface` | viewer | `config:read` | none | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks. |
 | `GET` | `/api/v1/surface/listening` | viewer | `config:read` | none | Every listener with the packages its process maps, the traffic it took and who may reach it. |
 | `GET` | `/api/v1/surface/loaded` | viewer | `config:read` | none | Every file live processes map executable, once per root, and the package owning it. |
@@ -339,6 +354,9 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/threatintel/iocs` | viewer | `threatintel:read` | none | List loaded IOCs. |
 | `GET` | `/api/v1/threatintel/status` | viewer | `threatintel:read` | none | Threat intel subsystem status. |
 | `GET` | `/api/v1/threatintel/urls` | viewer | `threatintel:read` | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
+| `GET` | `/api/v1/tls/handshakes` | viewer | `l7:read` | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
+| `GET` | `/api/v1/tls/posture` | viewer | `l7:read` | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
+| `GET` | `/api/v1/tls/status` | viewer | `l7:read` | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | operator | `trace:write` | none | What the loaded programs decide for one packet. |
 | `GET` | `/api/v1/zones` | viewer | `firewall:read` | none | List security zones. |
 | `POST` | `/api/v1/zones` | operator | `firewall:write` | none | Create a security zone. |
@@ -349,14 +367,9 @@ are this edition's, decided by the same middleware as every other route.
 | `DELETE` | `/api/v1/zones/{id}` | operator | `firewall:write` | none | Remove a security zone. |
 
 The open-source routes not listed here answer `404 Not Found`, each replaced
-by a surface of this edition: false-positive marking by
-`PATCH /api/v1/alerts/{id}/triage`, the audit trail by
-`/api/v1/enterprise/audit`, packet capture by `/api/v1/enterprise/forensics`,
-DLP by `/api/v1/enterprise/dlp`, TLS probes, fingerprints and TLS posture by
-`/api/v1/enterprise/tls-probes` and `/api/v1/enterprise/tls-intelligence`,
-L7 rules by `/api/v1/enterprise/l7`, responses by
-`/api/v1/enterprise/response`, flow export by the analytics store and the SIEM
-exporters, and the service graph by `/api/v1/flows/graph`.
+by a surface of this edition: packet capture by
+`/api/v1/enterprise/forensics`, and the TLS library probes by
+`/api/v1/enterprise/tls-probes`.
 
 ## Advanced RBAC
 
