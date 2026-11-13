@@ -870,9 +870,11 @@ spec:
       minNewPeers: 5
 ```
 
-The warden opens the watch, so the operator mounts each entry of `filesystems`
-read-only into the warden at the node's own path, and only while the watch is
-enabled. An enabled watch naming no filesystem is refused at admission, and so
+The watch reports a change once it is on disk and never holds the write back;
+refusing a write is `writeRefusal`. The warden opens the watch, so the
+operator mounts each entry of `filesystems` read-only into the warden at the
+node's own path, and adds `DAC_READ_SEARCH` to the warden's capabilities, only
+while the watch is enabled. An enabled watch naming no filesystem is refused at admission, and so
 is `/`: inside a pod `/` is the warden's own image, not the node's. A path in
 `paths` must sit on one of the listed filesystems to be seen. `massEncryption.stop`
 is refused unless the mode is `enforce`, `response.killProcess.enabled` is on

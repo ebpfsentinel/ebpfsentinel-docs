@@ -78,6 +78,21 @@ An agent holding both capabilities opens the watch itself.
 When the warden restarts, the watch ends with its connection and the agent
 opens it again on the next connection, within thirty seconds.
 
+Since the paths are read where the warden runs, a containerized warden only
+sees the node directories mounted into it, read-only and at the node's own
+path, and it needs `CAP_DAC_READ_SEARCH` on top of the capabilities it holds
+for loading. Each packaging path does this differently:
+
+| Packaging | The directories | The capability |
+|-----------|-----------------|----------------|
+| Helm chart, either edition | `daemonset.warden.fileWatchHostPaths`, one absolute node directory per entry, `/` refused at render time | In the chart's default warden set |
+| Compose file, either edition | A read-only bind per directory under the `warden` service, commented examples in the shipped file | In the shipped `cap_add` list |
+| Kubernetes operator | Derived from `config.fileWatch.filesystems` while the watch is enabled, nothing to mount by hand | Added to the warden while the watch is enabled, whatever `host.capabilities` names |
+| Bare metal (systemd) | The host's own, nothing to mount | The warden runs as root |
+
+Without `CAP_DAC_READ_SEARCH` the watch still opens and reports each change,
+with no directory name.
+
 ## Filesystems that refuse
 
 A path whose filesystem cannot be watched is logged at startup with the reason,
