@@ -2,9 +2,9 @@
 
 > **Edition: any plan, including open source**
 
-Support is written. You open a ticket in the portal, somebody at our end answers
-it in writing, and the whole exchange stays on the ticket. There is no call to
-book and nothing to wait for on the phone. How quickly the first answer arrives
+Support is written. You open a ticket in the portal, a person at our end answers
+it in writing, and the whole exchange stays on the ticket, logs and commands
+included. How quickly the first answer arrives
 depends on your plan, and the [pricing page](https://ebpfsentinel.io/pricing)
 states each target.
 
