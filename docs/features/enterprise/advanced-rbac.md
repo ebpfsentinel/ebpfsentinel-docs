@@ -204,7 +204,11 @@ licence expiry widening somebody's access.
 
 ## Built-in Roles
 
-Three non-deletable built-in roles:
+Three non-deletable built-in roles. They are enforced on every request to
+the enterprise API whatever the licence carries: without `advanced-rbac`
+the same check runs against these three roles only, so a `viewer`
+credential is refused every write. The licence feature adds custom roles,
+assignments and conditions, never the check itself.
 
 | Role | Grants | Description |
 |------|--------|-------------|
