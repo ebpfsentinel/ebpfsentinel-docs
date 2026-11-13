@@ -45,7 +45,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Write Refusal](write-refusal.md) | OSS | BPF LSM, fanotify fallback | The kernel refuses a writer's write-open past a threshold under a data path, or the first unexpected one under a system path, before a byte is written. Needs `lsm=bpf` at boot for the BPF LSM route; ships in shadow; a run still loses `threshold - 1` files per writer |
 | [IDS](ids.md) | OSS | TC classifier | Regex pattern matching, kernel-side sampling, payload shipped to the userspace L7 engine |
 | [IPS](ips.md) | OSS | Shared with IDS | Automatic IP blacklisting, threshold detection |
-| [DLP](dlp.md) | OSS | uprobe (SSL) | Pattern scanning for credit cards, SSN, API keys, etc. |
+| [DLP](dlp.md) | OSS | uprobe (SSL) | TLS traffic read before encryption; built-in payment, personal and credential patterns, alert mode (Enterprise: custom patterns in one Vectorscan pass, block mode) |
 <!-- feature-count: ratelimit-algorithms -->
 | [Rate Limiting](ratelimit.md) | OSS | XDP | 4 algorithms, per-CPU lock-free, SYN cookie protection |
 | [DDoS Protection](ddos.md) | OSS | XDP + Userspace | SYN/ICMP/UDP flood detection, connection tracking, EWMA state machine |
@@ -80,7 +80,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | Feature | Edition | Description |
 |---------|---------|-------------|
 <!-- feature-count: rest-surface -->
-| REST API (132 paths, 149 operations) | OSS | OpenAPI 3.0 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
+| REST API (132 paths, 149 operations) | OSS | OpenAPI 3.1 with SecurityScheme (JWT + API Key), Swagger UI, Axum |
 | gRPC Streaming | OSS | Real-time alert subscriptions via tonic |
 | Prometheus Metrics | OSS | Per-domain counters, histograms, gauges |
 | [Post-Quantum TLS](pq-tls.md) | OSS | X25519MLKEM768 hybrid key exchange (inbound + outbound) |

@@ -20,7 +20,7 @@ One agent binary carries every security domain. Its packet engines:
 | **Firewall** | L3/L4 stateful filtering with LPM trie CIDR, port ranges, GeoIP blocking, VLAN/QinQ 802.1ad, security zones, schedule-based rules, reject action (TCP RST / ICMP Unreachable) | XDP |
 | **IDS** | Intrusion detection with regex patterns, kernel-side sampling, L7 protocol detection, MITRE ATT&CK mapping | TC classifier |
 | **IPS** | Intrusion prevention with automatic IP and /24 subnet blacklisting | Shared with IDS |
-| **DLP** | Data loss prevention - PCI card numbers, PII, credential patterns via SSL/TLS uprobe interception | uprobe (SSL) |
+| **DLP** | Data loss prevention on TLS traffic read before encryption, no proxy and no key: built-in payment, personal and credential patterns in OSS, Enterprise adds your own patterns matched in one pass by Vectorscan and blocking | uprobe (SSL) |
 | **Rate Limiting** | Per-IP/subnet rate limiting with 4 algorithms (token bucket, fixed/sliding window, leaky bucket), per-country tiers, SYN cookie generation | XDP |
 | **DDoS Mitigation** | SYN cookie forging (XDP_TX), ICMP/UDP/RST/FIN/ACK flood detection, volumetric thresholds, EWMA state machine, auto-CIDR blocking | XDP + Userspace |
 | **Traffic Shaping / QoS** | Dummynet-inspired pipes (bandwidth/delay/loss), queues, 5-tuple+DSCP classifiers, per-pipe token bucket with ECN CE marking, EDT pacing (egress, needs `fq`), random loss | TC ingress + egress |
@@ -47,7 +47,8 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **Shared `ebpf-helpers` crate** - deduplicated network helpers, header parsing, metrics macros across all eBPF programs
 - **Container link hot-plug** - auto-attach TC programs to every container and pod link as it appears (veth, netkit, macvlan, ipvlan, bridge members)
 - **RingBuf adaptive backpressure** - skip event emission when buffer >75% full
-- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 89 paths and 105 operations
+<!-- feature-count: rest-surface -->
+- **REST API** (Axum) with OpenAPI 3.1, Swagger UI, CORS (132 paths, 149 operations)
 - **gRPC streaming** (tonic) for real-time alert subscriptions with severity, component, MITRE filters
 - **JWT / OIDC / API key authentication** with role-based access control (Admin, Operator, Viewer)
 - **TLS 1.3** via rustls + aws-lc-rs, post-quantum ready (X25519MLKEM768 hybrid)

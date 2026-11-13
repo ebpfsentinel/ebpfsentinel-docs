@@ -21,7 +21,7 @@ The open-source agent serves plain HTTP on `8080` unless TLS is configured, in w
 
 The open-source document covers the datapath and its control surface: health, agent, firewall, L7 firewall, IPS, IDS, rate limiting, alerts, audit, threat intelligence, ops, DNS, domains, DDoS, conntrack, DLP, NAT, aliases, routing, load balancer, QoS, zones, MITRE ATT&CK, fingerprints, captures and responses.
 
-The Enterprise document covers what the Enterprise layer adds: licensing, enterprise DLP, ML detection, RBAC, tenants and tenant management, tenant events, SIEM, analytics, compliance, air-gap, federation, high availability, fleet, AI security, TLS intelligence, TLS probes, advanced L7, forensics, DNS entropy and automated response. It also describes the two open-source routes the Enterprise binary re-mounts on its own port: the datapath alert store and the kernel feature probe.
+The Enterprise document covers what the Enterprise layer adds: licensing, enterprise DLP, ML detection, RBAC, tenants and tenant management, tenant events, SIEM, analytics, compliance, air-gap, federation, high availability, fleet, AI security, TLS intelligence, TLS probes, advanced L7, forensics, DNS entropy and automated response. It also describes the 110 open-source operations the Enterprise binary mounts on its own port, from the open-source handlers; a node that could read no agent configuration mounts none of them, and the document it serves then leaves them out.
 
 ## Common to both
 
