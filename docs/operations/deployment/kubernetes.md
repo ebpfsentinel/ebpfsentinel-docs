@@ -247,10 +247,14 @@ The preStop sleep action needs Kubernetes 1.30, which is the chart's floor.
 
 These kernels set `kernel.apparmor_restrict_unprivileged_userns=1`. The agent
 runs as uid 65534 and must create a user namespace, and the pod's own
-`appArmorProfile: Unconfined` does not lift a host-level gate. On each such node
-either set the sysctl to `0` (a node bootstrap step, a `/etc/sysctl.d/` drop-in
-or a privileged init DaemonSet), or load a per-binary AppArmor profile granting
-`userns`. Nodes without the restriction (most non-Ubuntu kernels, Talos) need
+`appArmorProfile: Unconfined` does not lift a host-level gate. On each such node,
+load the agent's own AppArmor profile (`apparmor.d/ebpfsentinel-agent` in the
+release tarball, loaded with `apparmor_parser -r -W` from a node bootstrap step):
+it grants `userns` to `/usr/local/bin/ebpfsentinel-agent`, the path the image
+runs, and keeps the restriction for every other binary on the node. Setting the
+sysctl to `0` (a `/etc/sysctl.d/` drop-in or a privileged init DaemonSet) is the
+fallback for a node that cannot load a profile, and it lifts the restriction for
+everything. Nodes without the restriction (most non-Ubuntu kernels, Talos) need
 nothing.
 
 ### Kernel version matrix

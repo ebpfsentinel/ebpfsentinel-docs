@@ -123,9 +123,15 @@ sudo chown 65534:65534 ebpfsentinel.yaml
 sudo chmod 640 ebpfsentinel.yaml
 
 # 2. On Ubuntu 24.04+ (any host with kernel.apparmor_restrict_unprivileged_userns=1),
-#    a non-root process cannot create a user namespace. Allow it host-wide:
-sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-#    and persist it in /etc/sysctl.d/ so it survives a reboot.
+#    a non-root process cannot create a user namespace. Load the agent's own
+#    AppArmor profile, shipped as apparmor.d/ebpfsentinel-agent in the release
+#    tarball: it grants `userns` to /usr/local/bin/ebpfsentinel-agent, the path
+#    the image runs, and leaves the restriction in force for everything else.
+sudo install -Dm644 apparmor.d/ebpfsentinel-agent /etc/apparmor.d/ebpfsentinel-agent
+sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent
+#    Only where apparmor_parser is unavailable, lift the restriction host-wide
+#    instead, and persist it in /etc/sysctl.d/:
+#    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
 # 3. SYN-cookie DDoS protection, if enabled, reads a host sysctl.
 sudo sysctl -w net.ipv4.tcp_syncookies=2

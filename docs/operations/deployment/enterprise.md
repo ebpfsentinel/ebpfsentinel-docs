@@ -28,10 +28,12 @@ confirm afterwards that every node is reporting, is walked in
   (`kernel.apparmor_restrict_unprivileged_userns=1`, the Ubuntu 24.04+ default)
   the agent (uid 65534) cannot self-unshare a userns. This is a **host-level**
   gate - an in-container/in-pod Unconfined profile does **not** lift it. Either:
-  - set `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`
-    (persist via `/etc/sysctl.d/`), or
-  - load a per-binary AppArmor profile granting `userns` (the bundled
-    `dist/apparmor.d/ebpfsentinel-enterprise-agent`).
+  - load the per-binary AppArmor profile granting `userns` (the bundled
+    `apparmor.d/ebpfsentinel-enterprise-agent`, which `install.sh` loads for
+    you), keeping the restriction for every other binary, or
+  - where no profile can be loaded, set
+    `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`
+    (persist via `/etc/sysctl.d/`), which lifts it host-wide.
 - A signed **license**. Without one the agent runs in OSS mode (every enterprise
   feature inert). Provide it at `/etc/ebpfsentinel/license.key`, via
   `EBPFSENTINEL_LICENSE`, or `enterprise.license_path` in the config.
@@ -416,6 +418,9 @@ warden image, then runs the agent under it as `Localhost`. See
 [Kubernetes deployment](kubernetes.md#tailored-seccomp-profile-for-the-agent)
 for `kubeletRootDir` and what the option does not change.
 
-> On Ubuntu 24.04+ nodes, set `kernel.apparmor_restrict_unprivileged_userns=0`
-> per node (a privileged init DaemonSet, a node-bootstrap MachineConfig, or
-> `/etc/sysctl.d/`) - the in-pod Unconfined profiles do not lift that host gate.
+> On Ubuntu 24.04+ nodes, load the agent's per-binary AppArmor profile
+> (`apparmor.d/ebpfsentinel-enterprise-agent` from the release tarball) on each
+> node from a bootstrap step, or, where no profile can be loaded, set
+> `kernel.apparmor_restrict_unprivileged_userns=0` per node (a privileged init
+> DaemonSet, a node-bootstrap MachineConfig, or `/etc/sysctl.d/`) - the in-pod
+> Unconfined profiles do not lift that host gate.

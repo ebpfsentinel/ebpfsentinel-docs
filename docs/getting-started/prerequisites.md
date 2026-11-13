@@ -55,14 +55,16 @@ the host. The host must allow unprivileged user namespaces:
 ```bash
 sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &
 sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
-  ./ebpfsentinel-agent --config config/ebpfsentinel.yaml
+  ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
-The release tarball installs both as systemd units (`ebpfsentinel-warden` and
+The package and the release tarball install both as systemd units (`ebpfsentinel-warden` and
 `ebpfsentinel`). Without `EBPFSENTINEL_WARDEN_SOCK` the agent cannot create a
 token and starts in API-only mode with no eBPF loaded. On Ubuntu 24.04 and later,
 `kernel.apparmor_restrict_unprivileged_userns=1` blocks the namespace unless the
-shipped AppArmor profile is loaded. See the
+shipped AppArmor profile, `/etc/apparmor.d/ebpfsentinel-agent`, is loaded; the
+package and `install.sh` load it, and it grants the namespace to the agent alone
+rather than lifting the restriction host-wide. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
 ### Supported Distributions

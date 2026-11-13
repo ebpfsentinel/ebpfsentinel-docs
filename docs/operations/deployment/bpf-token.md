@@ -253,9 +253,14 @@ before the agent starts.
 
 **Agent logs `warden self-bootstrap failed` / `fsopen` / `unshare USER` errors.**
 The host disallows unprivileged user namespaces, or (the warden) lacks
-`CAP_SYS_ADMIN`. Enable user namespaces (`kernel.unprivileged_userns_clone=1`
-where applicable; `kernel.apparmor_restrict_unprivileged_userns=0` on AppArmor
-hosts) and grant the warden `CAP_SYS_ADMIN`.
+`CAP_SYS_ADMIN`. On an AppArmor host that restricts them
+(`kernel.apparmor_restrict_unprivileged_userns=1`, Ubuntu 24.04 and later), load
+the agent's own profile, `/etc/apparmor.d/ebpfsentinel-agent`, which the package
+and `install.sh` install: `sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent`.
+It grants `userns` to the agent alone. Setting the sysctl to `0` is the fallback
+where no profile can be loaded, and lifts the restriction for every binary.
+Elsewhere enable user namespaces (`kernel.unprivileged_userns_clone=1` where
+applicable), and grant the warden `CAP_SYS_ADMIN`.
 
 **Agent logs `move_mount: No such file or directory` or "bpffs path does not
 exist" (container only).**
