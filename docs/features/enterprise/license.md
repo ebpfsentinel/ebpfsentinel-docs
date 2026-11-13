@@ -66,7 +66,7 @@ is answered here rather than in a changelog.
 
 | Feature Flag | What it covers | What it gained, and when |
 |-------------|----------------|--------------------------|
-| `advanced-dlp` | Hyperscan DLP, custom patterns, block mode | - |
+| `advanced-dlp` | Hyperscan DLP, custom patterns, block mode, the [TLS inspection proxy](dlp.md#tls-deep-inspection) and the connection redirect that feeds it | - |
 | `ml-detection` | The anomaly engines: baseline, streaming, change point, ONNX model, heavy hitters, DGA and tunnelling, TLS fingerprint clustering and beaconing | The learned [mass encryption thresholds](ml-detection.md#mass-encryption-thresholds), per executable and per host, from the first release carrying the host capabilities |
 | `multi-tenancy` | Namespace-scoped policy isolation | - |
 | `siem-integration` | SIEM export connectors | - |
@@ -78,13 +78,14 @@ is answered here rather than in a changelog.
 | `advanced-analytics` | Historical traffic analytics | - |
 | `fleet-management` | Fleet agent management, SBOMs, host rules and their promotion | The host verdicts read across the fleet: file drift between nodes, the mass encryption and write refusal readings by workload and their promotion, and [reachable vulnerabilities](reachable-vulnerabilities.md), from the first release carrying the host capabilities |
 | `ai-llm-security` | AI/LLM traffic security | - |
-| `tls-intelligence` | TLS threat intelligence & PQC compliance | - |
+| `tls-intelligence` | TLS threat intelligence & PQC compliance, the TLS library probes beyond OpenSSL, and on them which processes a configured redirect covers | - |
 | `network-forensics` | Event ring buffer, context freezes, flow timeline and the investigation graph | The campaign: the beacon and the exfiltration an actor raised before a mass encryption, gathered with it, including an encryption written for a client on another host, from the first release carrying the host capabilities |
 | `automated-response` | Policy engine, approvals and SOAR webhooks; blocking, rate limiting, isolating a flow, killing a process | Stopping a mass encryption run, the process and every process it started, from the first release carrying the host capabilities. **Not** the write refusal: see below |
 | `kubernetes-operator` | The Kubernetes operator, which refuses to start without it | - |
 | `content-channel` | Signed detection content delivered on an interval: rules, patterns, fingerprints, provider definitions and models | - |
 | `threat-intel-platforms` | TAXII 2.1 collections and MISP instances, read on an interval | - |
 | `sigma-rules` | Sigma rules over network connections compiled into IDS rules | - |
+| `extended-l7-protocols` | MQTT, AMQP 0-9-1, NATS and Cassandra CQL named on a flow and [matched by rules](../l7-firewall.md#rules-on-the-extended-protocols) on their parsed fields; Kafka, MongoDB and LDAP named on a flow, with no rule reading them | - |
 
 ### The write refusal is a configuration, not a licence
 

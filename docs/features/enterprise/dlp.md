@@ -715,7 +715,7 @@ within one interval rather than at the next agent restart.
 | `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
 | `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
 | `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, the build ids to send, and the state of the [offset catalogue](#the-offset-catalogue) the verdicts were reached with. |
-| `GET` | `/api/v1/enterprise/tls-probes/redirect` | viewer | tls-intelligence | What the [connection redirect](#dry-run-what-would-be-redirected-and-who-would-refuse) selects, in dry run or in force: the mode, the authority to install, and per selected process whether it trusts that authority, whether its binary carries traces of a pin, and the verdict. Mounted only when `redirect` is configured. |
+| `GET` | `/api/v1/enterprise/tls-probes/redirect` | viewer | advanced-dlp | What the [connection redirect](#dry-run-what-would-be-redirected-and-who-would-refuse) selects, in dry run or in force: the mode, the authority to install, and per selected process whether it trusts that authority, whether its binary carries traces of a pin, and the verdict. Mounted only when `redirect` is configured. |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the
@@ -729,8 +729,10 @@ replacement file is a plan of its own. `binary_dev` and `binary_ino` are that
 inode as the scanned process's own namespace resolves it, and are `null` only
 when the scan could not stat the file.
 
-All four endpoints are read-only and gated behind the `tls-intelligence`
-license feature, which Enterprise and above carry. Configuration is managed via the enterprise YAML
+All five endpoints are read-only. The first four are gated behind the
+`tls-intelligence` license feature, which Enterprise and above carry; the
+redirect report rides the redirect itself, which is part of `advanced-dlp`, and
+is mounted whenever `redirect` is configured. Configuration is managed via the enterprise YAML
 (`enterprise.advanced_dlp.extended_tls`), not via the API.
 
 ### Requirements

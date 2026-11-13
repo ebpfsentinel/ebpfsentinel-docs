@@ -1,6 +1,6 @@
 # L7 Firewall
 
-> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols, licence feature `extended-l7-protocols`)** | **Enforcement: Userspace**
+> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols with rules, 3 more named, licence feature `extended-l7-protocols`)** | **Enforcement: Userspace**
 
 ## Overview
 
@@ -42,6 +42,8 @@ traffic at line rate is the job of the L3/L4 firewall and the IPS.
 ### Supported Protocols - Enterprise (extension port)
 
 An Enterprise agent whose licence carries `extended-l7-protocols` registers an `L7ExtendedParser` on the dispatcher at startup. It is consulted when the built-in detector returns `Unknown`, so it never shadows an OSS protocol. Without that licence feature, and on an OSS agent, nothing is registered: the four protocols below are neither named nor matched.
+
+The same parser also names Kafka (a request frame whose size, API key and client id are plausible), MongoDB (an `OP_MSG` or `OP_QUERY` header) and LDAP v3 (a BER message carrying a known protocol operation) on the flow it reads them on. No rule reads them: a rule naming `kafka`, `mongodb` or `ldap` is refused at load.
 
 | Protocol | Detection | Parsed fields |
 |----------|-----------|---------------|
