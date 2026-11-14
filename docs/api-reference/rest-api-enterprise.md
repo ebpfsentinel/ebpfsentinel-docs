@@ -151,11 +151,13 @@ unauthenticated call gets `401`. That covers `/metrics`, the Swagger UI
 and every endpoint below, so a Prometheus scrape or a fleet agent needs a
 credential of its own.
 
-With `auth.enabled: false` the port is open, but nothing can then prove a
-role: every caller is treated as an anonymous viewer, and the role-gated
-endpoints (tenant administration in particular) stay unavailable. Role
-headers are never trusted - the role comes from the verified credential,
-not from the request.
+With `auth.enabled: false` the port is open: whoever reaches it reads and
+writes what the licence mounts, and the role model is not consulted because
+nothing can prove a role. Every caller is then anonymous, so an endpoint
+reserved to a named role refuses it, the provider tier's rules in
+particular. Role headers are never trusted, with authentication on or off:
+the role comes from the verified credential, not from the request, and a
+deployment that needs roles turns authentication on.
 
 ## Index by feature
 

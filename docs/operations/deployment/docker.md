@@ -155,7 +155,7 @@ services:
     command: ["serve", "/run/ebpfsentinel/warden.sock", "--uid", "65534"]
     network_mode: host           # conntrack, routes, ARP in the init netns
     cap_drop: [ALL]
-    cap_add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH]
+    cap_add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH, NET_BIND_SERVICE]
     security_opt:
       - apparmor=unconfined      # delegation does fsconfig/move_mount
       - seccomp=unconfined       # mount/bpf/netlink syscalls
@@ -252,7 +252,7 @@ docker run -d --name ebpfsentinel-warden \
   --cap-drop ALL \
   --cap-add SYS_ADMIN --cap-add NET_ADMIN --cap-add NET_RAW \
   --cap-add SYS_PTRACE --cap-add BPF --cap-add PERFMON \
-  --cap-add DAC_READ_SEARCH \
+  --cap-add DAC_READ_SEARCH --cap-add NET_BIND_SERVICE \
   --security-opt apparmor=unconfined --security-opt seccomp=unconfined \
   -e EBPFSENTINEL_HOST_PROC=/host/proc \
   -v warden-sock:/run/ebpfsentinel \
@@ -547,6 +547,7 @@ hosts even though the container uses host networking.
 | `CAP_NET_RAW` | warden | `AF_PACKET` pcap sockets and gratuitous ARP |
 | `CAP_SYS_PTRACE`, `CAP_BPF`, `CAP_PERFMON` | warden | read a neighbour container's `/proc/<pid>/root` and create the DLP uprobe link |
 | `CAP_DAC_READ_SEARCH` | warden | name the directory a watched file changed in, from the handle the kernel reports, and read a changed file for its baseline whatever its permissions ([file watch](../../configuration/file-watch.md)) |
+| `CAP_NET_BIND_SERVICE` | warden | bind port 53 on the bridge gateway for the [DNS allow-list](../../configuration/dns.md#allowlist) resolver and hand both sockets to the agent; port 53 is the only one it binds |
 | `apparmor=unconfined`, `seccomp=unconfined` | warden | the default profiles block the `mount` family and netlink |
 | no capability at all | agent | the whole point of the split; the token authorises every eBPF syscall |
 | tailored seccomp profile | agent | the default profile gates `unshare`/`mount`/`bpf` on a capability the agent does not hold |
