@@ -517,7 +517,9 @@ rule id `dns-allowlist:<container>` and counts in
 A container can ignore the resolver it was given and send queries anywhere,
 so the list holds only with a rule refusing port 53, and 853 for DNS over
 TLS, to everything but the agent. The agent's port 53 needs
-`CAP_NET_BIND_SERVICE`, and a bind that fails stops the agent at startup. The
+`CAP_NET_BIND_SERVICE`: the rootless agent asks the warden to bind it, which
+binds port 53 and no other, and a root agent binds it itself. A bind that
+fails stops the agent at startup. The
 fields are on the [DNS configuration page](../../configuration/dns.md#allowlist).
 
 ## Bind Address and Host Networking

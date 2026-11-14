@@ -128,7 +128,7 @@ must be true.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Run the resolver. Startup stops if the address cannot be bound, since a container pointed at a resolver that is not there resolves nothing |
-| `listen` | `socket address` | none | Required when enabled. An address the containers reach directly, usually the bridge gateway on port 53. Loopback is refused, because a query relayed through the host arrives from the host and no container could be told apart; the unspecified address is refused too. Binding port 53 needs `CAP_NET_BIND_SERVICE` |
+| `listen` | `socket address` | none | Required when enabled. An address the containers reach directly, usually the bridge gateway on port 53. Loopback is refused, because a query relayed through the host arrives from the host and no container could be told apart; the unspecified address is refused too. Binding port 53 needs `CAP_NET_BIND_SERVICE`; a rootless agent has the warden bind it, and the warden binds port 53 alone |
 | `upstream` | `[socket address]` | `[]` | Required when enabled, at most 8, tried in order with a 2 second deadline each. May not include `listen` |
 | `containers` | `[Container]` | `[]` | At most 256 entries |
 

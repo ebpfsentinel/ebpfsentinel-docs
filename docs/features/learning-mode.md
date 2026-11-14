@@ -14,6 +14,8 @@ Open source, in every tier, and part of the firewall rather than a tool beside i
 
 A window is opened with a duration and a scope. While it is open the agent reads the connection table every `sample_interval_secs` and folds each reading into a bounded aggregate keyed by destination address, port, protocol and workload. A thousand connections from one service to one database on one port are one entry, counted; that is what makes a window of several hours affordable.
 
+The connection table is the host's, and a connection between two containers on one bridge never reaches it unless the bridge hands its frames to netfilter. Each reading therefore also takes the kernel's own index of the connections tasks on this node opened, whatever namespace their socket lived in, keeping only those opened since the window did. A container is named from the cgroup the connection was opened in, so a short-lived command run inside it, such as a `docker exec`, still counts as the container's.
+
 Three scopes:
 
 | Scope | What it watches |
@@ -48,6 +50,8 @@ The header states the window, the scope, how much of it was really watched, how 
 - **A closing deny for the rest of the bridge's subnet.**
 
 Destinations off the bridge are left to the allow-list, and the two documents load together: segmentation rules take priorities from 100 and the allow-list from 1000, so a bridge's closing deny is evaluated before an allow-list rule could let a peer through. Every rule comes out in `observe` mode, like the allow-list.
+
+The workload firewall's hooks attach when the agent starts. An agent with `learning.enabled` and `container.docker.enabled` both on attaches them at start even with no rule loaded, so a segmentation applied later takes effect on reload. Any other agent that started with no workload rule needs a restart before its first rule decides anything, and `/api/v1/firewall/workload/rules` says so.
 
 A container the window never saw gets **no rule at all** and is named in the header, because segmenting a container from a reading that never included it would cut every peer it has. A container seen under a name no selector can carry, such as a short hexadecimal name that reads as an id, is named the same way. The header also warns when the document would carry more rules than the workload firewall's 64-rule ceiling.
 

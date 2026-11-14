@@ -176,8 +176,9 @@ dns:
 ```
 
 The resolver is bound when the agent starts, so restart it rather than
-reloading. Binding port 53 needs `CAP_NET_BIND_SERVICE`, and the agent refuses
-to start if the address cannot be bound. Then point the stack at it, by adding
+reloading. Binding port 53 needs `CAP_NET_BIND_SERVICE`, which the warden holds
+and uses for the rootless agent, and the agent refuses to start if the address
+cannot be bound. Then point the stack at it, by adding
 to each service:
 
 ```yaml
