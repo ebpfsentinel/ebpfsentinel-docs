@@ -111,10 +111,23 @@ pod already named, is decided by the masks of the cgroups above it, so it is
 refused at its first `connect()`. A container the pod status does not list yet
 is found by the pod uid its cgroup path carries. Processes that were running
 before the agent started are named this way too, without waiting for them to
-fork or exec. Two windows remain: an agent that has just started decides a pod
-only once its pod watch has listed the node's pods, and `exe` and `container`
-are read at exec, so a rule naming them decides a task from the call after
-that read.
+fork or exec. A selector naming `exe` and nothing but a `parent` or an
+`ancestor` beside it is decided in the kernel from the file the calling task
+runs, read at the call, so a binary refused by path is refused from its first
+connection too. A path is looked up where the agent sees it; a path inside a
+container's image is learned from the first exec of it the agent reads, and
+the processes started from that file after it are decided in the kernel. The
+file is recorded as the kernel holds it, which under overlayfs is the
+overlay's device rather than the layer's a `stat` reports. A container the
+status does not list yet in a pod declaring a single container, and no init or
+ephemeral one, is that container, so a rule naming `container` decides it from
+the start as well. Three windows remain: an
+agent that has just started decides a pod only once its pod watch has listed
+the node's pods; `exe` alongside a `unit`, a `cgroup`, a `container` or
+Kubernetes matchers, `exe_hash`, and `container` in a pod of several
+containers are read at exec, so a rule naming them decides a task from the
+call after that read; and where the kernel's BTF does not describe a task's
+executable, `exe` is read at exec as well, which the start-up log says.
 
 **Across a reload.** Each selector keeps the bit it held under the previous
 document, so a mask already written in the kernel goes on meaning the same
@@ -428,7 +441,7 @@ The agent says the same four things wherever it reports the block: `ebpfsentinel
 
 ## Executables allowed to reach the network
 
-A workload rule is decided against what the agent learned about a task from `/proc`, which leaves a window: a process that executes and connects before the agent has read it carries no identity yet, and is counted under `unresolved`. An allow-list cannot live with that window, because the window is exactly where something unexpected starts. `firewall.network_executables` closes it by moving the decision into the kernel, at the `socket_create` and `socket_connect` security module hooks, where the executable is read from the task making the call.
+A workload rule is decided against what the agent learned about a task from `/proc`, apart from the path a bare `exe` selector names, which is read in the kernel. That leaves a window for every other fact: a process that executes and connects before the agent has read it carries no identity yet, and is counted under `unresolved`. An allow-list cannot live with that window, because the window is exactly where something unexpected starts. `firewall.network_executables` closes it by moving the decision into the kernel, at the `socket_create` and `socket_connect` security module hooks, where the executable is read from the task making the call.
 
 **This needs the BPF LSM active at boot.** A program attached at a security module hook loads only where the kernel was built with `CONFIG_BPF_LSM=y` and booted with `bpf` among its active modules, which is the `lsm=` boot parameter and not a kernel version. Distributions and host providers set it differently, so check your own host before relying on it:
 
