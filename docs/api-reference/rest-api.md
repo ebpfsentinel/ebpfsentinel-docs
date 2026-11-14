@@ -15,8 +15,8 @@ what is being called rather than on who is calling.
 |-------|-----------|-------|--------------|
 | `/healthz`, `/readyz` | not limited | - | No |
 | `/metrics` | 30 requests/minute per IP | 10 | No |
-| Read routes under `/api/v1/` | 200 requests/minute per IP | 200 | No |
-| Write routes under `/api/v1/` | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#write-api-rate-limit) |
+| Read routes under `/api/v1/` | `read_per_minute`, default 200/minute per IP | `read_burst`, default 200 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#api-rate-limits) |
+| Write routes under `/api/v1/` | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#api-rate-limits) |
 | Every `/api/v1/` route, when `auth.enabled` | 600 requests/minute per IP | 30 | No |
 
 The probes are unlimited on purpose: a kubelet that cannot get a readiness
@@ -37,7 +37,7 @@ peer whose address the server cannot determine is keyed under one shared
 bucket rather than waved through.
 
 The enterprise agent listens on a port of its own and limits it its own
-way, reading the same `write_per_second` and `write_burst` so both ports
+way, reading the same `agent.api_rate_limit` block so both ports
 are tuned once. See
 [Rate limiting](rest-api-enterprise.md#rate-limiting) for what differs.
 

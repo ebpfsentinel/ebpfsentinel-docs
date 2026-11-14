@@ -21,9 +21,11 @@ agent:
   log_level: "info"                     # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"                    # Log format: json or text. Default: json
   config_writes: refused                # Whether the control API may rewrite this file: refused or allowed. Default: refused
-  api_rate_limit:                       # Write-API rate limit (see below). Optional.
+  api_rate_limit:                       # Control-API rate limits (see below). Optional.
     write_per_second: 1                 # Sustained write rate per IP. Default: 1
     write_burst: 60                     # Write burst per IP. Default: 60
+    read_per_minute: 200                # Sustained read rate per IP. Default: 200
+    read_burst: 200                     # Read burst per IP. Default: 200
     exempt_loopback: true               # Don't rate-limit loopback clients. Default: true
 ```
 
@@ -49,7 +51,7 @@ agent:
 | `swagger_ui` | `bool` | No | `false` | Enable Swagger UI at `/swagger-ui/` |
 | `log_level` | `string` | No | `info` | Log level |
 | `log_format` | `string` | No | `json` | Log output format |
-| `api_rate_limit` | `object` | No | see below | Rate limit for the mutating control-plane API (see below) |
+| `api_rate_limit` | `object` | No | see below | Rate limits for the control-plane API, writes and reads (see below) |
 | `config_writes` | `string` | No | `refused` | Whether `PUT /api/v1/config/{section}` may rewrite this agent's own configuration file: `refused` or `allowed`. Refused by default. Where the file is rendered by the Kubernetes operator from a custom resource, a write accepted here is reverted at the next reconcile and nobody is told why the setting went back, so allow it only where the file on disk is what decides what this agent does. |
 
 ## Pod profile
@@ -186,19 +188,23 @@ absolute path on both agents and give the directory to the agents' uid. A
 `pod` profile agent without it says once at startup that the node agent keeps
 reading its pods.
 
-## Write-API rate limit
+## API rate limits
 
-The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/v1/`) are rate-limited per client IP with a GCRA token bucket, so a leaked token or a runaway client cannot rewrite the firewall, IPS blacklist, NAT, or rate-limit state at high speed. Read endpoints keep a separate, looser limit that is not configurable: 200 requests/minute per IP with a burst of 200 on the open-source port, 4 requests/second per IP with a burst of 200 on the enterprise one. The full set of tiers per port is in [REST API](../api-reference/rest-api.md#rate-limiting) and [Enterprise REST API](../api-reference/rest-api-enterprise.md#rate-limiting).
+The mutating control-plane endpoints (`POST`/`DELETE`/`PATCH`/`PUT` under `/api/v1/`) are rate-limited per client IP with a GCRA token bucket, so a leaked token or a runaway client cannot rewrite the firewall, IPS blacklist, NAT, or rate-limit state at high speed. Read endpoints have a separate, looser bucket, 200 requests/minute per IP with a burst of 200 by default. The full set of tiers per port is in [REST API](../api-reference/rest-api.md#rate-limiting) and [Enterprise REST API](../api-reference/rest-api-enterprise.md#rate-limiting).
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `write_per_second` | `integer` | No | `1` | Sustained refill rate of the write bucket, requests/second/IP. Must be ≥ 1 |
 | `write_burst` | `integer` | No | `60` | Burst capacity of the write bucket, requests/IP. Must be ≥ 1 |
+| `read_per_minute` | `integer` | No | `200` | Sustained refill rate of the read bucket, requests/minute/IP. Between 1 and 60000 |
+| `read_burst` | `integer` | No | `200` | Burst capacity of the read bucket, requests/IP. Must be ≥ 1 |
 | `exempt_loopback` | `bool` | No | `true` | Exempt loopback clients (`127.0.0.0/8`, `::1`) from the write limit |
 
 With the defaults, a non-loopback client gets a 60-request burst that refills at 1/s (60/minute); once exhausted, further writes return `429 Too Many Requests` with a `Retry-After` header. **Loopback is exempt by default**, so local CLI tooling and same-host bulk reconfiguration are never throttled. Raise `write_burst` / `write_per_second` if you drive bulk reconfiguration through the API from a remote host, or set `exempt_loopback: false` to rate-limit local clients too. Bulk rule/IOC sets are normally loaded from the YAML config at startup rather than the write API.
 
-This block governs both ports. The enterprise agent reads the same three fields and applies the same two tiers to its own API, so a deployment running both tunes one thing rather than two.
+The read bucket is keyed by address too, so every caller that reaches the agent from one address shares it. That happens when the agent runs with host networking and its callers reach it through the node address, behind a NAT gateway, or through the Kubernetes API server proxy. Raise `read_per_minute` and `read_burst` there rather than have a dashboard or the operator answered `429`. The operator itself waits what `Retry-After` asks, a few seconds at most, before reporting a refusal.
+
+This block governs both ports. The enterprise agent reads the same fields and applies the same two tiers to its own API, so a deployment running both tunes one thing rather than two.
 
 Every mutating route sits in that group, including the ones whose cost is not in the agent: `POST /api/v1/threatintel/feeds/refresh` starts an outbound download of every enabled feed, so it is throttled as a write like any other mutation. Because the limit bounds how often the route is called and not how many downloads it starts, that refresh is additionally single-flight: one feed cycle runs at a time, and a caller arriving while one is fetching gets `409 Conflict` with the code `REFRESH_IN_PROGRESS` rather than queueing a second download.
 

@@ -63,14 +63,11 @@ the write bucket rather than the cheaper one.
 
 | Tier | Sustained | Burst | Configurable |
 |------|-----------|-------|--------------|
-| Read | 4 requests/second per IP | 200 | No |
-| Write | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#write-api-rate-limit) |
+| Read | `read_per_minute`, default 200/minute per IP | `read_burst`, default 200 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#api-rate-limits) |
+| Write | `write_per_second`, default 1/second per IP | `write_burst`, default 60 | Yes, in [`agent.api_rate_limit`](../configuration/agent.md#api-rate-limits) |
 
-The write tier is the same block the open-source agent reads, so a
-deployment running both ports tunes one thing rather than two. The read
-tier is fixed for the same reason: the configuration carries no read keys,
-and inventing a second pair here would mean an operator tuning this port
-separately from the one they have already tuned.
+Both tiers read the same block the open-source agent reads, so a
+deployment running both ports tunes one thing rather than two.
 
 Over the burst, the request answers `429 Too Many Requests` with a
 `Retry-After` header in seconds and a plain-text body:

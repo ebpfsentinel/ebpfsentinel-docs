@@ -175,10 +175,10 @@ Two further per-IP limits apply whether or not authentication is enabled:
 
 | Surface | Sustained | Burst |
 |---|---|---|
-| Read endpoints (`GET /api/v1/*`) | 200 requests per minute | 200 |
+| Read endpoints (`GET /api/v1/*`) | 200 requests per minute, `read_per_minute` | 200, `read_burst` |
 | `/metrics` | 30 requests per minute | 10 |
 
-A limit refills continuously rather than resetting on a window boundary, so a client staying at or below the sustained rate never spends its burst. Over the limit, the agent answers `429 Too Many Requests` with a `Retry-After` header. Mutating endpoints have their own configurable limit; see [agent configuration](../configuration/agent.md#write-api-rate-limit).
+A limit refills continuously rather than resetting on a window boundary, so a client staying at or below the sustained rate never spends its burst. Over the limit, the agent answers `429 Too Many Requests` with a `Retry-After` header. The read and mutating limits are configurable; see [agent configuration](../configuration/agent.md#api-rate-limits).
 
 ## Configuration
 

@@ -273,7 +273,7 @@ does not recognise.
 
 | Tier | Sustained rate | Burst | Configurable |
 |------|---------------|-------|--------------|
-| Read | 4 requests/second per peer | 200 | No |
+| Read | `agent.api_rate_limit.read_per_minute`, default 200/minute per peer | `agent.api_rate_limit.read_burst`, default 200 | Yes |
 | Write | `agent.api_rate_limit.write_per_second`, default 1/second per peer | `agent.api_rate_limit.write_burst`, default 60 | Yes |
 
 The write tier reads the same `agent.api_rate_limit` block as the OSS agent's
@@ -284,10 +284,12 @@ agent:
   api_rate_limit:
     write_per_second: 1
     write_burst: 60
+    read_per_minute: 200
+    read_burst: 200
     exempt_loopback: true
 ```
 
-Both values must be at least 1; a zero is rejected when the configuration loads,
+Every value must be at least 1; a zero is rejected when the configuration loads,
 because a bucket that refills at nothing refuses every request and locks the
 write API out entirely.
 
