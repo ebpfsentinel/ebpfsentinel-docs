@@ -102,7 +102,7 @@ the capabilities in the init network namespace:
 | Load-balancer VIP reply | eBPF `xdp-vip-announcer` (XDP_TX) | agent (token) |
 | pcap manual/auto capture | `AF_PACKET` fd opened by the warden, passed to the agent | warden (`CAP_NET_RAW`) |
 | Conntrack snapshot / event poller | warden reads `/proc/net/nf_conntrack` | warden (init netns) |
-| `conntrack -D` retroactive teardown on a new deny rule | warden netlink | warden (`CAP_NET_ADMIN`) |
+| Conntrack retroactive teardown on a new deny rule | warden netlink | warden (`CAP_NET_ADMIN`) |
 | Multi-WAN policy routing (`ip rule` / `ip route`) | warden netlink | warden (`CAP_NET_ADMIN`) |
 | Gratuitous ARP on VIP takeover | warden `AF_PACKET` | warden (`CAP_NET_RAW`) |
 | DLP target discovery (`libssl` in other processes and containers) | warden `/proc` scan | warden (`CAP_SYS_PTRACE`) |
@@ -280,7 +280,7 @@ The warden's `--uid` must match the uid the agent presents over `SO_PEERCRED`:
 `0` on a bare-metal root host (the agent maps namespace-0 to real root), `65534`
 in a container (the agent drops to nobody before unsharing).
 
-**A `conntrack -D` teardown, route change, or VIP ARP does nothing.**
+**A conntrack teardown, route change, or VIP ARP does nothing.**
 Confirm the warden is reachable - these are brokered to it. If the agent runs
 without a warden (`EBPFSENTINEL_WARDEN_SOCK` unset), they are unavailable while
 the eBPF datapath (including the conntrack-timeout flow-kill and `xdp-vip-announcer`) keeps

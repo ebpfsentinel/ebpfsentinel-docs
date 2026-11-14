@@ -212,10 +212,10 @@ What does not survive:
 - UDP and ICMP state, which needs no handover: the kernel picks those up from
   the next packet.
 
-Restoring needs `conntrack` (conntrack-tools) on every member, the tool the
-agent already uses to read the table where `/proc/net/nf_conntrack` is absent.
-Without it the promoted node logs the flows it could not restore and they are
-reset.
+Restoring writes each flow over ctnetlink, so no `conntrack` binary is needed on
+any member; it needs `CAP_NET_ADMIN` in the host network namespace, held by the
+agent itself or, when it runs rootless, by the warden. A flow the kernel
+refuses is logged by the promoted node and reset.
 
 Measured end to end in the two-node lab of the enterprise integration tests: a
 TCP stream sending a line every 50 ms through the leader, the leader's agent

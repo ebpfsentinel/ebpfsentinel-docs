@@ -483,9 +483,8 @@ Bytes are only in the connection table when the kernel counts them, so turning
 `share_writes` (or flow export) on sets `net.netfilter.nf_conntrack_acct` to `1`
 on the host. The agent never sets it back, and a connection opened before it
 was set carries no byte count. On a host whose kernel has no
-`/proc/net/nf_conntrack`, the table is read through `conntrack -L`, by the
-warden when the agent runs rootless, so `conntrack-tools` must be installed
-there. A window belongs to one process: several programs, each writing to a
+`/proc/net/nf_conntrack`, the table is read through a ctnetlink dump, by the
+warden when the agent runs rootless; no `conntrack` binary is needed. A window belongs to one process: several programs, each writing to a
 single new server, are several writers and raise nothing.
 
 The history of servers is learned, never written by hand. Every server this

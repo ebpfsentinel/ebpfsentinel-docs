@@ -7,7 +7,7 @@ Connection tracking (conntrack) provides stateful packet inspection by querying 
 1. The `tc-conntrack` TC classifier program parses L3/L4 headers and calls `bpf_skb_ct_lookup` to probe kernel netfilter
 2. `nf_conn->status` and `nf_conn->mark` are read via `bpf_probe_read_kernel` at runtime BTF-resolved offsets
 3. The firewall fast-path uses conntrack state to skip full rule evaluation for established connections
-4. Userspace queries kernel CT state via `/proc/net/nf_conntrack` parsing for the REST API and SSE event stream, falling back to dumping through conntrack-tools (`conntrack -L`) on a kernel built without `CONFIG_NF_CONNTRACK_PROCFS`
+4. Userspace queries kernel CT state via `/proc/net/nf_conntrack` parsing for the REST API and SSE event stream, falling back to a ctnetlink dump on a kernel built without `CONFIG_NF_CONNTRACK_PROCFS`; no `conntrack` binary is needed on the host
 5. Kernel netfilter manages all timeouts, state transitions, and eviction - no BPF-side state machine
 
 ## Connection States
@@ -114,9 +114,8 @@ appears.
 
 The route is the one that can go missing. At boot the agent probes whether it
 can read the table at all - `/proc/net/nf_conntrack` if the kernel was built
-with `CONFIG_NF_CONNTRACK_PROCFS`, otherwise a `conntrack -L` it actually
-runs, since conntrack-tools can be installed and still fail for want of
-`CAP_NET_ADMIN`. If neither answers, no poller is started and this route
+with `CONFIG_NF_CONNTRACK_PROCFS`, otherwise a ctnetlink dump it actually
+makes, since that dump fails for want of `CAP_NET_ADMIN`. If neither answers, no poller is started and this route
 answers `404 SERVICE_NOT_AVAILABLE`. A missing proc file is therefore not on
 its own a reason for the stream to be absent, and the boot log says so rather
 than leaving the `404` as the only evidence.

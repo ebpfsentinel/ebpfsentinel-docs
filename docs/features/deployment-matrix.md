@@ -338,7 +338,7 @@ Enterprise; see [Process detections](process-detections.md#reading-the-tree-in-t
 Multi-WAN routing manages gateway selection with health checks (ICMP/TCP probes). It requires access to the **host routing table** to apply policy routing decisions.
 
 - **Bare metal / Container** (`network_mode: host`): full support. The route changes go through the warden, which holds `CAP_NET_ADMIN` in the host network namespace.
-- **K8s DaemonSet** (`hostNetwork: true`): the agent runs in its own user namespace, which is never privileged over the host network namespace, so it cannot program routes itself. The route changes are sent to the warden, which holds `CAP_NET_ADMIN` in the host network namespace and applies them over netlink (same path as `conntrack -D` flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)).
+- **K8s DaemonSet** (`hostNetwork: true`): the agent runs in its own user namespace, which is never privileged over the host network namespace, so it cannot program routes itself. The route changes are sent to the warden, which holds `CAP_NET_ADMIN` in the host network namespace and applies them over netlink (same path as the conntrack flow teardown; see the [BPF token capability matrix](../operations/deployment/bpf-token.md#capability-matrix)).
 
   > **CNI compatibility note**: eBPFsentinel adds policy routes (`ip rule`) to the host routing table. Most CNIs are unaffected because they use separate routing tables or eBPF-based routing:
   > - **Flannel, Calico (iptables mode), kube-router**: compatible - these use standard routing tables that don't conflict with policy routing rules.
@@ -379,7 +379,7 @@ host capabilities** at all. This is what the systemd units, the Compose file
 and the Helm chart ship.
 
 Because the agent runs in its own user namespace, host-netns operations are
-brokered to the warden in the init network namespace: `conntrack -D` teardown,
+brokered to the warden in the init network namespace: conntrack teardown,
 Multi-WAN route application, gratuitous ARP on VIP takeover, and pcap capture
 (the warden opens the `AF_PACKET` sockets and passes the fds). The in-kernel
 equivalents (conntrack-timeout flow-kill, `xdp-vip-announcer`) cover the eBPF side.
