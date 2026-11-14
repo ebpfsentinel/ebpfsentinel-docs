@@ -157,11 +157,19 @@ object is loaded:
 | `SOCKET_IDENTITY`, `SOCKET_FLOW` | `attribution.max_sockets` |
 | `LB_MAGLEV` | `loadbalancer.max_maglev_services`, or the Maglev services listed |
 | `LB_BACKENDS`, `LB_BACKEND_MAC` | `loadbalancer.max_backends`, or the backends listed |
+| `NETPOL_REPLIES` | whether `container.kubernetes.network_policy.mode` is other than `off` |
 
 A table belonging to a feature that is off is created small rather than empty,
 so a reload that turns the feature on can still insert until the next start. A
 pinned map keeps the size it was created with, so a size changed by a hot
 reload is reported and applied at the next start.
+
+The plain hash tables of the workload firewall - selectors by cgroup, lineage
+executables, quarantines, name grants, network policy cgroups and remote
+workload addresses - are created without preallocation, so a node holding no
+workload rule, quarantine or policy pays for the entries it writes rather than
+for their capacity. An LRU table cannot be created that way, which is why
+`NETPOL_REPLIES` is sized by the plan instead.
 
 ## Ring Buffer Events (Cross-Cutting)
 
@@ -342,6 +350,7 @@ Packet normalization running after XDP processing:
 
 - Six programs on the same cgroup as the attribution object, and a different question: `connect4`/`connect6`, `sendmsg4`/`sendmsg6` and the **pre-bind** pair `bind4`/`bind6`, which is where the attribution object uses post-bind - post-bind runs once the kernel has assigned the address and cannot refuse it
 - Reads a mask and never an identity. Userspace resolves what a cgroup and a task are - an executable path, a systemd unit, a cgroup path, a container - and writes one bit per selector of the loaded policy into `WORKLOAD_CGROUP_SELECTORS` (keyed by cgroup id) or `WORKLOAD_TASK_SELECTORS` (keyed by thread group id, since an executable belongs to a task and not to its cgroup). The two are ORed, and a selector naming both halves is decided in userspace and written once, so it can never be half-satisfied
+- A cgroup with no mask of its own borrows its ancestors'. When `WORKLOAD_CGROUP_SELECTORS` has no key for the calling task's cgroup, the program reads the masks of up to 16 ancestor cgroups through `bpf_get_current_ancestor_cgroup_id` and ORs them, so a container started in a pod whose own cgroup is already written is decided before userspace has seen the container.
 - `WORKLOAD_RULES` is the policy in priority order with no holes: the walk stops at the first disabled slot, and slot zero disabled is a node with no policy, where the hooks count nothing and allow everything
 - Returns `1` to let the syscall through and `0` to refuse it, which the caller sees as `EPERM`. A rule in observe mode counts what it would have refused and returns `1`, so a policy can be measured before it is turned on
 - The object is loaded at start whatever the document says. With no workload rule, no quarantine, network policy off and no container labels followed, its hooks are kept unattached and the reload that brings the first rule attaches them, so a rule added to a running agent is enforced without a restart. A document whose workload rules enforce stops the agent on a host where these hooks did not attach

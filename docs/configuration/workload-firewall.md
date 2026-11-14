@@ -102,6 +102,25 @@ matching pod is scheduled or relabelled. Under the operator, a rule matching
 no running pod anywhere is reported on the policy rather than left to be
 found by the traffic it never stopped.
 
+**From the first connection.** A pod is named in the kernel by its cgroups,
+not by its tasks. The agent writes the masks of every live container cgroup
+from what the enricher knows of the pod, at start and again whenever the pod
+metadata changes, and writes the pod's own cgroup the same way. A task whose
+container cgroup carries no mask yet, a container that has just started in a
+pod already named, is decided by the masks of the cgroups above it, so it is
+refused at its first `connect()`. A container the pod status does not list yet
+is found by the pod uid its cgroup path carries. Processes that were running
+before the agent started are named this way too, without waiting for them to
+fork or exec. Two windows remain: an agent that has just started decides a pod
+only once its pod watch has listed the node's pods, and `exe` and `container`
+are read at exec, so a rule naming them decides a task from the call after
+that read.
+
+**Across a reload.** Each selector keeps the bit it held under the previous
+document, so a mask already written in the kernel goes on meaning the same
+rule while the new document is replayed over running tasks; a cgroup the new
+document no longer names is cleared at the end of that replay.
+
 ### Selecting by what a task was started under
 
 `parent` and `ancestor` name a process by where it came from rather than by what it is: the `curl` a CI runner starts, the shell a web server spawns, anything a scheduler launches.
