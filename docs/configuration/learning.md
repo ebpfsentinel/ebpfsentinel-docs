@@ -9,7 +9,7 @@ learning:
   enabled: true
   max_edges: 8192
   sample_interval_secs: 10
-  storage_path: data/learning.redb
+  # storage_path: /var/lib/ebpfsentinel/learning.redb
 ```
 
 | Key | Type | Default | Meaning |
@@ -17,7 +17,7 @@ learning:
 | `enabled` | bool | `true` | Whether a window can be opened on this node at all. Off means the learning routes answer 404 and no sampler runs. |
 | `max_edges` | integer | `8192` | How many distinct destinations one window may hold. Minimum 64, maximum 131072. |
 | `sample_interval_secs` | integer | `10` | Seconds between readings of the connection table. Minimum 1, maximum 300. |
-| `storage_path` | string | `data/learning.redb` | Where windows are written down. Empty keeps them in memory only. |
+| `storage_path` | string | beside `audit.storage_path` | Where windows are written down. Left out, `learning.redb` in the directory of the audit store, which a deployment already made writable for the agent. Empty keeps them in memory only. |
 
 ## What a window records
 
