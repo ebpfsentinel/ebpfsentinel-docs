@@ -112,6 +112,10 @@ force nor the tables the hooks read.
   the answer, so replay on each node whose pods the policy selects, and read a
   quiet answer as "nothing seen here breaks", which is a smaller claim than
   "nothing breaks".
+- **It reads the kernel's connection table.** A CNI whose datapath carries pod
+  traffic past netfilter, such as Cilium's, leaves those connections out of
+  that table, so beside it a replay judges the node's own connections and
+  none between pods.
 
 The replay needs the mode at `observe` or `enforce`, the cluster readable and
 connection tracking on; otherwise the route answers `404`. It reads at most 100,000 tracked connections, 10,000
