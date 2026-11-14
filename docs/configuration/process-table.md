@@ -213,6 +213,42 @@ The fork, exec and exit path exports per-CPU counters under
 `action` label: `exec`, `fork` and `exit` for the three tracepoints,
 `thread_fork` and `thread_exit` for a thread created or ended rather than a
 process, `lineage_unresolved` for an event whose parent or start time the
-kernel could not read, and `events_dropped` where the ring buffer was full
+kernel could not read, `outside_namespace` for a task the agent's pid
+namespace cannot see, and `events_dropped` where the ring buffer was full
 because userspace was not draining it fast enough. A non-zero `events_dropped` means the table is missing entries, and the
 node is busier than the ring buffer was sized for.
+
+## Pid namespaces
+
+The table names a process by the pid the agent's procfs shows
+(`EBPFSENTINEL_HOST_PROC`, `/proc` otherwise). On a machine that procfs is the
+initial pid namespace and the kernel's own pid is that number. Where the node
+is itself a container, a kind node for instance, the procfs belongs to the
+node's namespace and every task in it has another number there. The agent
+reads which namespace its procfs is in at start-up and writes it to every
+kernel program that reports or keys on a pid: the process table, workload
+firewall rules, socket attribution, network executables, write refusal,
+process kill, crypto call counts and DLP. Each of them then numbers tasks the
+way that procfs does, so a workload rule names and refuses a pod's task on a
+kind node as on a machine.
+
+The namespace is read from the link of the procfs's pid 1 where the agent may
+read it. An agent with a pid namespace of its own, the pod of a chart that
+shares none with its node, is refused that link; it then counts how many
+levels the procfs sits above its own namespace from `NSpid` in
+`<procfs>/self/status`, and a small program it runs as its own task reads that
+ancestor's identity from the kernel, checking that the agent's number there is
+the one the procfs shows.
+
+A pod's task on such a node lives in a pid namespace below the node's and has
+a number in the node's as well. The kernel's helper answers only for a task of
+the node's namespace itself, so for a pod's task the programs read the number
+off the task's `struct pid`, at the depth of the node's namespace, with
+offsets taken from the running kernel's BTF. A kernel whose BTF does not
+describe them leaves those tasks at pid 0, and the start-up log says so.
+
+A task the namespace cannot see, one of the machine around the node, has no
+number there. It is left out of the table and counted as `outside_namespace`,
+and the workload rules treat it as a task they cannot name. The start-up log
+says which namespace was read, or why none could be, in which case the
+kernel's own pids are used.
