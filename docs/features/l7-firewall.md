@@ -120,7 +120,7 @@ The section is refused at startup, and the agent does not start, when:
 - a `version` is not a version such as `0.9.1` or `1.0`, an address or range does not parse, or a port range is inverted;
 - a pattern or name is empty, a priority is 0, or two rules share an id.
 
-Rules are read at startup only. A configuration reload does not re-read `enterprise.extended_l7`; restart the agent to apply a change. A licence that lacks `extended-l7-protocols` mounts nothing, and the agent logs a warning when the section carries rules it will not apply.
+Rules are read at startup only. A configuration reload does not re-read `enterprise.extended_l7`; restart the agent to apply a change. A licence that lacks `extended-l7-protocols` mounts nothing, and the agent logs a warning when the section carries rules it will not apply. The licence is read for the parsers at startup too, like every enterprise router: a renewed key that adds `extended-l7-protocols` mounts them at the next restart, and a key that expires or is revoked while the agent runs leaves them parsing and enforcing, since the [datapath keeps running](enterprise/license.md#graceful-degradation) through a licence event.
 
 ### GeoIP Country Matching
 
