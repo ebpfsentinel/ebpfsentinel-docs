@@ -192,7 +192,7 @@ method named in the configuration it draws a key at first start, writes it to
 
 ```bash
 export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
-curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api/v1/license/status
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api/v1/license
 ```
 
 A `--bind-address` off loopback refuses to start twice over: once because the
@@ -266,7 +266,19 @@ cp /path/to/my-license.key ./license.key
 sudo chown 65534:65534 ebpfsentinel.yaml && sudo chmod 640 ebpfsentinel.yaml
 docker compose up -d
 docker compose logs -f
+# The agent drew its API key at first start, on the state volume. The image
+# is distroless, so the key is read from the host side of the volume.
+STATE=$(docker volume inspect -f '{{ .Mountpoint }}' ebpfsentinel-enterprise_ebpfsentinel-state)
+export EBPFSENTINEL_TOKEN=$(sudo cat "$STATE/auth/api-key")
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api/v1/license
 ```
+
+Both services run on the host network and the agent keeps its default bind,
+`127.0.0.1:8444`, which is the host's own loopback: reachable from the host
+and from nothing else. To serve it further, put a TLS terminator in front of
+it, or add `--bind-address` to the agent's `command` together with
+`agent.allow_plaintext_api: true` in `ebpfsentinel.yaml`, since the agent
+refuses plaintext off loopback.
 
 The host prerequisites are the ones listed [above](#prerequisites): the
 user-namespace sysctl has to be set on the host, since nothing inside a

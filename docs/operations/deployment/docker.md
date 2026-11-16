@@ -55,7 +55,9 @@ counters are not authenticated unless `auth.metrics_auth_required` says so.
 From the host, anything under `/api/v1` carries the key:
 
 ```bash
-export EBPFSENTINEL_TOKEN=$(docker exec ebpfsentinel cat /var/lib/ebpfsentinel/auth/api-key)
+# Distroless: no `cat` inside, so read the key from the host side of the volume.
+STATE=$(docker volume inspect -f '{{ .Mountpoint }}' ebpfsentinel_ebpfsentinel-state)
+export EBPFSENTINEL_TOKEN=$(sudo cat "$STATE/auth/api-key")
 curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" localhost:8080/api/v1/ebpf/status
 ```
 
