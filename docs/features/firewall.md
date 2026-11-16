@@ -71,7 +71,7 @@ Each rule field is optional - omitted fields act as wildcards:
 | `negate_source` | `false` | Invert source IP match (match if NOT in CIDR) |
 | `negate_destination` | `false` | Invert destination IP match |
 
-**Default policy** (`pass` or `drop`) applies when no rule matches. Maximum 4096 rules per address family. Firewall fast-path `HashMap` caches are flushed on every rule reload to prevent stale entries from surviving across configuration changes.
+**Default policy** (`pass` or `drop`) applies when no rule matches. Maximum 4096 rules per address family. A rule reload never leaves the datapath between two sets: the new rules, fast-path `HashMap` entries included, are written beside the ones in force and published by a single map write, after which the previous set's entries are removed. If the kernel refuses any write, nothing is published, the previous rules stay enforced, the API keeps listing them, and the change or reload fails with the kernel's error. The same holds when the fast-path tables (65 536 exact five-tuple entries, 16 384 protocol and port entries) cannot hold the new set's entries beside the ones in force: the reload is refused rather than leaving a rule out.
 
 ### XDP Actions
 
