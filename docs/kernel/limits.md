@@ -25,6 +25,7 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | xdp-loadbalancer | Backends per service | 256 |
 | xdp-loadbalancer | Backends total | `loadbalancer.max_backends`, at most 65,536 |
 | xdp-loadbalancer | Maglev services | `loadbalancer.max_maglev_services`, at most 256 |
+| xdp-loadbalancer | Flows held on their backend, and DNAT replies translated back | `loadbalancer.max_flows`, 65,536 unset, at most 16,777,216 |
 | xdp-vip-announcer | Virtual IPs | 256 |
 | tc-conntrack | Connections | Kernel netfilter table (`nf_conntrack_max`) |
 | tc-nat-ingress | DNAT rules (IPv4) | 256 |
@@ -113,6 +114,9 @@ The rows for 4 and 8 CPUs are measured, the others follow from them at 4.2 MB pe
 | Round-robin state entries | 4,096 | `LB_RR_STATE` (PerCpuArray, `MAX_LB_SERVICES`) |
 | Maglev services | `loadbalancer.max_maglev_services` (at most 256) | `LB_MAGLEV` (HashMap, sized at load) |
 | Backend MAC entries | as `LB_BACKENDS` | `LB_BACKEND_MAC` (HashMap, sized at load) |
+| Open connections per backend | as `LB_BACKENDS` | `LB_BACKEND_CONNS` (HashMap, sized at load) |
+| Flows held on their backend | `loadbalancer.max_flows` (65,536 unset) | `LB_FLOWS` (LRU HashMap, sized at load) |
+| DNAT replies translated back to the service | `loadbalancer.max_flows` (65,536 unset) | `LB_REVERSE` (LRU HashMap, sized at load) |
 | DEVMAP redirect targets | 256 | `LB_DEVMAP` (DevMap) |
 | RingBuf size | 1 MB | `EVENTS` |
 

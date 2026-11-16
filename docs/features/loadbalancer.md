@@ -11,14 +11,20 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 ### Two-Layer Architecture
 
 1. **Kernel-side (eBPF)** - An XDP program performs fast-path packet rewriting. In DNAT mode, destination IP/port is replaced with the selected backend and L3/L4 checksums are updated inline. In L2 DSR mode, only the Ethernet addresses are rewritten and checksums are left untouched. Either way this happens before the kernel allocates an SKB, achieving maximum throughput.
-2. **Userspace (LB Engine)** - Manages service definitions, runs backend selection algorithms, tracks connection counts for least-connections balancing, and processes health check results to mark backends healthy or unhealthy.
+2. **Userspace (LB Engine)** - Manages service definitions, writes them and their backends into the kernel tables, processes health check results to mark backends healthy or unhealthy, and every 10 seconds rebuilds each backend's open-connection count from the flow table.
+
+### Connection Affinity
+
+Every packet of a connection reaches the same backend. The first packet of a TCP or UDP flow (source and destination address and port, protocol) is balanced by the service's algorithm, and the backend it went to is recorded in the kernel flow table `LB_FLOWS`; the packets after it are sent there without being balanced again. A flow leaves its backend only when that backend is marked unhealthy, is removed, or the service changes, and is then balanced afresh.
+
+The flow table holds `loadbalancer.max_flows` flows (65,536 unset). It is a least-recently-used table: when it is full, the flow idle the longest is forgotten, and if it sends again it is balanced as a new one. With Maglev or IP hash that lands on the same backend; with the other algorithms it may not, so size `max_flows` above the connections the node carries at once.
 
 ### Protocols
 
 | Protocol | Behavior |
 |----------|----------|
-| **TCP** | Full L4 load balancing with connection tracking |
-| **UDP** | Stateless per-packet distribution |
+| **TCP** | Balanced per connection; a connection is open from its first packet until its FIN or RST |
+| **UDP** | Balanced per flow; a UDP flow has no close, so it lasts until the flow table forgets it |
 | **TLS Passthrough** | Forwards encrypted TLS traffic without termination - backends handle TLS |
 
 ### Balancing Algorithms
@@ -26,9 +32,9 @@ eBPFsentinel includes a built-in L4 load balancer for TCP, UDP, and TLS passthro
 | Algorithm | Description |
 |-----------|-------------|
 | **Round Robin** | Per-service index cycles through healthy backends sequentially |
-| **Weighted** | Cumulative weight distribution - higher weight = more traffic |
+| **Weighted** | Each new connection goes to a healthy backend drawn at random in proportion to its `weight`: weights 3 and 1 send three connections in four to the first |
 | **IP Hash** | FNV-1a hash of client address for sticky sessions |
-| **Least Connections** | Selects the healthy backend with the fewest active connections |
+| **Least Connections** | Each new connection goes to the healthy backend holding the fewest open TCP connections, counted in the kernel as connections open and close; ties go round robin. A UDP flow is never counted as open, so on a UDP service this spreads like round robin |
 | **Maglev** | Consistent hashing via a precomputed permutation ring (prime size 65537). O(1) lookup with no per-packet state; only ~1/N flows are remapped when the backend set changes. Deterministic across nodes - required for L2 DSR / multi-node ECMP. |
 
 ### Forwarding Modes
@@ -37,7 +43,7 @@ The selected backend is reached using one of two forwarding modes, set per servi
 
 | Mode | Value | Behavior |
 |------|-------|----------|
-| **DNAT** | `dnat` (default) | Destination IP/port are rewritten to the selected backend and L3/L4 checksums are recomputed inline. The next hop towards the backend is resolved in the kernel FIB and both Ethernet addresses are rewritten from it, so a backend on a local segment or behind a router is reached directly. Until the kernel has resolved the next hop's neighbour, packets go through the host stack (which resolves it); the node must forward IP (`net.ipv4.ip_forward` / `net.ipv6.conf.all.forwarding`) for those. |
+| **DNAT** | `dnat` (default) | Destination IP/port are rewritten to the selected backend and L3/L4 checksums are recomputed inline. The next hop towards the backend is resolved in the kernel FIB and both Ethernet addresses are rewritten from it, so a backend on a local segment or behind a router is reached directly. Until the kernel has resolved the next hop's neighbour, packets go through the host stack (which resolves it); the node must forward IP (`net.ipv4.ip_forward` / `net.ipv6.conf.all.forwarding`) for those. Backend replies must route back through this node, on an interface the agent is attached to: the backend answers from its own address and port, and the reply's source is put back to the service address and port before it is routed to the client (`LB_REVERSE`, one entry per flow, sized by `max_flows`). A reply that takes another path reaches the client from an address it never called, and the connection fails. |
 | **L2 DSR** | `l2dsr` | Direct Server Return (LVS-DR style). The destination MAC is rewritten to the backend's resolved MAC and the source to this node's interface MAC; the destination IP stays the VIP and **no L3/L4 checksum recompute** occurs. The backend (with the VIP bound on loopback) replies directly to the client, bypassing the load balancer on the return path. |
 
 L2 DSR requirements:

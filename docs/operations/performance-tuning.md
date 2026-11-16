@@ -109,7 +109,8 @@ The per-CPU tables take their capacity from the configuration at agent start, at
 | `ddos.max_tracked_sources` | 16,384 | the five per-source DDoS tables (SYN rate, ICMP rate, amplification rate, half-open counts, flood counters) |
 | `ddos.connection_tracking.max_entries` | 65,536 | the DDoS connection table |
 | `loadbalancer.max_maglev_services` | derived | the Maglev ring table, 128 KiB a ring; not per CPU. Unset, it is the Maglev services the file lists, floor 1 |
-| `loadbalancer.max_backends` | derived | the backend and backend-MAC tables; not per CPU. Unset, it is the backends the file lists, floor 256 |
+| `loadbalancer.max_backends` | derived | the backend, backend-MAC and open-connection tables; not per CPU. Unset, it is the backends the file lists, floor 256 |
+| `loadbalancer.max_flows` | 65,536 | the flow table that keeps each connection on its backend, and the table translating DNAT replies back; not per CPU. Past it the longest-idle flow is forgotten and balanced again |
 | `threatintel.max_entries` | derived | the IOC tables (IPv4, IPv6, and a bloom filter for each); not per CPU. Unset, it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor of 4,096 |
 
 QoS keeps a per-CPU flow table of a fixed 65,536 slots, 16 bytes a slot per CPU.

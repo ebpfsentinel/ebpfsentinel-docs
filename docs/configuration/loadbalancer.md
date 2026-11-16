@@ -9,6 +9,7 @@ loadbalancer:
   enabled: true                          # Enable/disable load balancer
   max_maglev_services: 8                 # Optional: Maglev rings reserved at start (1-256)
   max_backends: 1024                     # Optional: backend slots reserved at start (1-65536)
+  max_flows: 65536                       # Optional: connections tracked at once (1-16777216)
   services:
     - id: "service-id"                   # Unique service identifier (max 64 chars)
       name: "human-readable-name"        # Display name
@@ -43,6 +44,7 @@ loadbalancer:
 | `services` | `[LbService]` | `[]` | List of load balancer service definitions |
 | `max_maglev_services` | `integer` | derived | Maglev rings the kernel table reserves, 1 to 256. Unset, it is the number of enabled `maglev` services the file lists, with a floor of 1. Each ring is 128 KiB, so this is the one capacity worth setting when Maglev services are added through the API rather than the file. Applies at the next agent start |
 | `max_backends` | `integer` | derived | Backend slots the backend and backend-MAC tables reserve, 1 to 65,536. Unset, it is the backends the file lists across every service, with a floor of 256 so one full service always fits. Applies at the next agent start |
+| `max_flows` | `integer` | `65536` | Connections the flow table keeps on their backend at once, 1 to 16,777,216. Past it the connection idle the longest is forgotten and balanced again when it next sends. The same capacity sizes the table that puts DNAT replies back in the service's name. Both are allocated whole at start, about 120 bytes of keys and values per flow plus the kernel's per-entry overhead. Applies at the next agent start |
 
 The kernel tables are created once, when the agent starts. A service added through the API or a configuration reload that needs more Maglev rings or backend slots than were reserved is refused with an error naming the key to raise, and the running services stay as they were. With the load balancer off, its program is not loaded and the tables do not exist.
 
@@ -102,6 +104,7 @@ probed.
 - Maximum **64 services**
 - Each service must have at least **1 backend**
 - An explicit `max_maglev_services` or `max_backends` must hold at least the Maglev services or backends the file lists
+- `max_flows` must be between 1 and 16,777,216
 - Service and backend IDs: max **64 characters**, must not be empty
 - Backend weight must be **> 0**
 - Listen port must be **> 0**
@@ -112,7 +115,7 @@ probed.
 
 `mode` selects how the selected backend is reached. It is independent of the balancing algorithm.
 
-- **`dnat`** (default) - destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Unchanged from prior releases.
+- **`dnat`** (default) - destination IP/port rewritten to the backend; L3/L4 checksums recomputed. Works across L3 boundaries. Backend replies must route back through this node, which rewrites their source to the service address and port.
 - **`l2dsr`** - Direct Server Return: only the Ethernet header is rewritten, destination to the backend's resolved MAC and source to this node's interface MAC; destination IP stays the VIP and checksums are not recomputed. Backends reply directly to the client. Requires all backends on the same L2 segment (`same_segment: true`); backend MACs are resolved automatically via neighbor/ARP (IPv4) or ND (IPv6). Packets whose backend MAC cannot be resolved fall back to `dnat` automatically.
 
 ## Examples

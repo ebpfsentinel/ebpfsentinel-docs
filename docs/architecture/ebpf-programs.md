@@ -156,7 +156,8 @@ object is loaded:
 | `REJECT_RATELIMIT` | whether any firewall rule uses `reject` |
 | `SOCKET_IDENTITY`, `SOCKET_FLOW` | `attribution.max_sockets` |
 | `LB_MAGLEV` | `loadbalancer.max_maglev_services`, or the Maglev services listed |
-| `LB_BACKENDS`, `LB_BACKEND_MAC` | `loadbalancer.max_backends`, or the backends listed |
+| `LB_BACKENDS`, `LB_BACKEND_MAC`, `LB_BACKEND_CONNS` | `loadbalancer.max_backends`, or the backends listed |
+| `LB_FLOWS`, `LB_REVERSE` | `loadbalancer.max_flows` |
 | `NETPOL_REPLIES` | whether `container.kubernetes.network_policy.mode` is other than `off` |
 
 A table belonging to a feature that is off is created small rather than empty,
@@ -234,10 +235,11 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 ## XDP Load Balancer (xdp-loadbalancer)
 
 - **Service map** lookup by `(protocol, port)` in `LB_SERVICES` to find service definitions
-- **Backend selection**: round robin (per-CPU index), weighted, IP hash, least connections or Maglev
-- **Two modes**: DNAT rewrites the destination IP and port for the selected backend; L2 DSR rewrites only the Ethernet header (destination from `LB_BACKEND_MAC`, source = this interface) and leaves the VIP in place so the backend replies to the client directly
+- **Flow affinity**: the backend chosen for a flow's first packet is recorded in `LB_FLOWS` (LRU hash keyed by the 5-tuple) and every later packet of the flow goes there while it stays healthy
+- **Backend selection** for a new flow: round robin (per-CPU index), weighted (random draw in proportion to weight), IP hash, least connections (fewest open TCP connections in `LB_BACKEND_CONNS`, moved atomically as connections open and close, rebuilt from `LB_FLOWS` every 10 seconds by userspace) or Maglev; weighted, least connections and the healthy-backend probe walk the service's backends with `bpf_loop`, so a service of 256 backends stays within the verifier's budget
+- **Two modes**: DNAT rewrites the destination IP and port for the selected backend and records the reply's 5-tuple in `LB_REVERSE`; a reply matching it (any packet that is not addressed to a service) gets its source put back to the service address and port and is routed on the same way; L2 DSR rewrites only the Ethernet header (destination from `LB_BACKEND_MAC`, source = this interface) and leaves the VIP in place so the backend replies to the client directly
 - **Forwarding**: DNAT resolves the next hop with `bpf_fib_lookup` and rewrites both MACs from it, then sends with `XDP_TX` on the receiving interface or `XDP_REDIRECT` (DevMap, else `bpf_redirect`) to another; an unresolved neighbour is passed to the stack, and only a missing route falls back to a MAC swap and `XDP_TX`
-- **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update
+- **IPv4 checksum**: L3 IP header + L4 TCP/UDP incremental update (RFC 1624: the old word is added in complement, never subtracted; a UDP datagram sent without a checksum keeps none)
 - **IPv6 checksum**: L4 pseudo-header incremental update (8 × u16 words for 128-bit address diff + port diff)
 - **RingBuf events**: `EVENT_TYPE_LB` with `LB_ACTION_FORWARD` or `LB_ACTION_NO_BACKEND`
 - **LB_METRICS PerCpuArray**: per-CPU forwarding counters read by `MetricsReader`
