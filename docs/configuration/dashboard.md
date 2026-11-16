@@ -430,6 +430,17 @@ under `require` and requiring the hybrid group of browsers never cuts the
 control plane off from the fleet. `disable` is a statement about the hybrid
 group itself, so it removes it in both directions.
 
+What each link actually negotiated is counted, rather than what it offered:
+`ebpfsentinel_dashboard_tls_handshakes_total{link,group}` increments once per
+completed handshake with the group it completed on (`X25519MLKEM768`,
+`X25519`, `SECP256R1`). The links are `listener` (the dashboard's own HTTPS
+listener), `agents-pinned` (agents with a `tls_pin_sha256`), `history-store`
+(ClickHouse) and `outbound` (agents without a pin, the OIDC provider and the
+SMTP relay). A link whose count stays on a classical group is a peer that
+does not answer the hybrid group. The PostgreSQL state store builds its TLS
+client inside its driver and is not counted; it offers the hybrid group first
+all the same.
+
 The mode applies only where the dashboard terminates TLS itself. Behind an
 ingress or a reverse proxy, the browser's handshake is that proxy's. Full
 behaviour, including what a client without hybrid support sees, is in

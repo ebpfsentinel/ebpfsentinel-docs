@@ -20,6 +20,7 @@
   "ebpfsentinel_dashboard_csp_violations_total": "Dashboard registry: dashboard-server",
   "ebpfsentinel_dashboard_proxy_requests_total": "Dashboard registry: dashboard-server",
   "ebpfsentinel_dashboard_proxy_fanout_partials_total": "Dashboard registry: dashboard-server",
+  "ebpfsentinel_dashboard_tls_handshakes_total": "Dashboard registry: dashboard-server",
   "ebpfsentinel_dashboard_tls_pin_mismatch_total": "Dashboard registry: dashboard-server",
   "ebpfsentinel_dashboard_upstream_sse_connected": "Dashboard registry: dashboard-server",
   "ebpfsentinel_dashboard_upstream_sse_events_total": "Dashboard registry: dashboard-server",
