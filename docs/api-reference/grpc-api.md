@@ -270,22 +270,33 @@ peers, and the addresses that may call them are exactly the ones listed in
 
 ### Trust boundary
 
-The peer channel carries no authentication and no TLS: the server is a plain
-tonic listener and the peer clients dial `http://`. Everything the table above
-describes is therefore available to whatever can open a TCP connection to the
-port - forcing a leadership change with `RequestVote`, installing firewall or
-IPS rules with `ReplicateSnapshot`, or reading a node's rule set out with
-`RequestSnapshot`.
+The peer channel is mutual TLS 1.3. Each node holds one leaf signed by the
+cluster's CA and presents it both as the listener's certificate and as its
+client certificate when it dials a peer, so a connection completes only when
+both ends verify against that CA. With `enterprise.ha.tls.peer_fingerprints`
+set, each end also checks after the handshake that the other's leaf is one of
+those SHA-256 fingerprints, so a certificate the same CA signed for something
+else does not join the cluster. Key exchange follows `agent.tls.pq_mode`: with
+`require`, both ends negotiate the hybrid `X25519MLKEM768` group or nothing,
+and `GET /api/v1/tls/handshakes` reports the group under the link `ha-peer`.
 
-Treat `9443` the way you would treat a database replication port:
+The agent refuses to start replication when `enterprise.ha.enabled` is set and
+there is no `tls` block, unless `enterprise.ha.insecure_plaintext: true` is
+written out instead; the two together are refused as a contradiction. A node
+running plaintext says so in a warning at every start. Plaintext is for a link
+already inside a tunnel you terminate (a mesh sidecar, WireGuard): there,
+whatever can open a TCP connection to the port can force a leadership change
+with `RequestVote`, install firewall or IPS rules with `ReplicateSnapshot`, or
+read a node's rule set out with `RequestSnapshot`.
+
+Whatever the transport, treat `9443` the way you would treat a database
+replication port:
 
 - Bind it to the interface that carries peer traffic rather than to `0.0.0.0`,
   by setting `enterprise.ha.listen_addr` to that address.
 - Allow it from the HA peer addresses and from nothing else, at the host
   firewall or the network policy.
 - Never expose it to a client network, an ingress or the internet.
-- Keep the peer set on a network segment you would be willing to give root on
-  every node in the cluster to, because that is what reaching the port grants.
 
 The HTTP API that *reports* on HA - `/api/v1/ha/status`, `/api/v1/ha/peers`,
 `/api/v1/ha/failover` and the rest - is a different surface on port `8444` with

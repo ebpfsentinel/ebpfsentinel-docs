@@ -240,9 +240,16 @@ enterprise:
     max_replication_bandwidth: 10485760  # bytes/s (optional)
     replication_interval_ms: 200
     split_brain_policy: prefer_active    # prefer_active | prefer_standby | fence
-    listen_addr: "0.0.0.0:9443"    # peer gRPC: no auth, no TLS - fence it to the peers
+    listen_addr: "0.0.0.0:9443"    # peer gRPC, mutual TLS (tls below)
     advertised_addr: ""            # what peers reach this node on, required in active-active
     data_dir: /var/lib/ebpfsentinel/ha
+    tls:                           # required when enabled, unless insecure_plaintext
+      ca_cert_path: /etc/ebpfsentinel/ha-tls/ca.crt  # the cluster CA
+      cert_path: /etc/ebpfsentinel/ha-tls/tls.crt    # this node's leaf, server + client purpose
+      key_path: /etc/ebpfsentinel/ha-tls/tls.key
+      peer_fingerprints: []        # hex SHA-256 of each peer's leaf; empty = any leaf the CA signed
+    # insecure_plaintext: true     # instead of tls, for a link inside a tunnel you terminate;
+    #                              # warned at every start
     mode: active-passive           # active-passive | active-active
     # advertised_addr and interface_assignments are required only in
     # active-active mode, where a node is named by its address:

@@ -412,8 +412,11 @@ the OSS agent's own 8080, 50051 and 9090 are never started. The enterprise API
 terminates no TLS of its own, so put a proxy in front of it if it leaves the
 node, which is also why the chart's values accept plaintext on the pod's
 non-loopback bind. It still authenticates: name an existing Secret so every
-pod answers to one key, or read the key a pod drew for itself out of its log. The HA port carries no authentication and no TLS either, so it must reach
-the HA peers and nothing else - see
+pod answers to one key, or read the key a pod drew for itself out of its log. The HA port is mutual TLS: name a Secret in `ha.tls.existingSecret`
+holding `ca.crt`, `tls.crt` and `tls.key` (the shape cert-manager writes), which
+the chart mounts at `/etc/ebpfsentinel/ha-tls` for the `enterprise.ha.tls`
+block of your configuration to name. It must still reach the HA peers and
+nothing else - see
 the [gRPC API reference](../../api-reference/grpc-api.md).
 
 Stopping a pod works as it does in the community chart:

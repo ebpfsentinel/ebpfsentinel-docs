@@ -512,13 +512,24 @@ receives it are in the [gRPC API reference](../../api-reference/grpc-api.md).
 
 :::warning The peer port is a trust boundary
 
-This channel carries no authentication and no TLS. Whatever can open a TCP
-connection to the port can force a leadership change or replace a node's
-firewall, IPS and blocklist state. Bind `listen_addr` to the interface that
-carries peer traffic, allow the port from the peer addresses only, and never
-expose it to a client network or an ingress.
+This channel is mutual TLS: every node presents a leaf signed by the cluster
+CA in both directions, `tls.peer_fingerprints` narrows the accepted leaves to
+the cluster's own, and `agent.tls.pq_mode: require` holds both ends to the
+hybrid `X25519MLKEM768` group. Replication does not start without the `tls`
+block unless `insecure_plaintext: true` is written out, and a plaintext node
+warns at every start: on such a link, whatever can open a TCP connection to
+the port can force a leadership change or replace a node's firewall, IPS and
+blocklist state. Either way, bind `listen_addr` to the interface that carries
+peer traffic, allow the port from the peer addresses only, and never expose it
+to a client network or an ingress.
 
 :::
+
+Under the Kubernetes operator, `HACluster.spec.tls` names the Secrets instead
+of paths: `caSecretRef` for the cluster CA, `secretRef` for the node's leaf
+and key (`tls.crt` and `tls.key` unless the keys are named), and
+`peerFingerprints`. The operator mounts them and writes the paths into the
+agent's configuration. `spec.insecurePlaintext` is the same opt-out.
 
 ## Configuration
 
