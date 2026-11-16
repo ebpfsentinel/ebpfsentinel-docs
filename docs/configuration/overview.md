@@ -131,6 +131,7 @@ See [Hot Reload](../operations/hot-reload.md) for the full reference.
 
 Configuration is validated at load time. Invalid configuration produces clear error messages:
 
+- Unknown keys → refused in every section, nested blocks included, with the key and the list the block accepts, so a misspelt field fails the load instead of leaving a rule that matches nothing
 - Invalid CIDR subnets → parse error with the offending value
 - Invalid regex patterns → compilation error with pattern context
 - Missing required fields → field name and section
