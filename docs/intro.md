@@ -48,7 +48,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **Container link hot-plug** - auto-attach TC programs to every container and pod link as it appears (veth, netkit, macvlan, ipvlan, bridge members)
 - **RingBuf adaptive backpressure** - skip event emission when buffer >75% full
 <!-- feature-count: rest-surface -->
-- **REST API** (Axum) with OpenAPI 3.1, Swagger UI, CORS (132 paths, 149 operations)
+- **REST API** (Axum) with OpenAPI 3.1, Swagger UI, CORS (133 paths, 150 operations)
 - **gRPC streaming** (tonic) for real-time alert subscriptions with severity, component, MITRE filters
 - **JWT / OIDC / API key authentication** with role-based access control (Admin, Operator, Viewer)
 - **TLS 1.3** via rustls + aws-lc-rs, post-quantum ready (X25519MLKEM768 hybrid)

@@ -463,6 +463,11 @@ negotiated under it and the groups each one used, and one `algorithm` asset per
 key exchange group with its primitive (`kem` or `key-agree`) and NIST quantum
 security level. Connections read in clear negotiated nothing and are counted on
 the document's metadata properties rather than listed as components. The
+agent's own links are on the same bill: one `protocol` asset per link
+(`crypto/link/api`, `crypto/link/siem-syslog`, ...) carrying the key exchange
+policy it was built with and referencing the groups it completed handshakes on,
+each group counting those under `ebpfsentinel:own-handshakes` beside the
+connections it watched. The
 serial number is derived from the document's content, so the same reading
 always gives the same serial number and the same SHA-256.
 

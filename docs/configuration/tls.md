@@ -12,6 +12,7 @@ agent:
     key_path: /etc/ebpfsentinel/server.key
     allow_tls12: false            # TLS 1.3 only by default
     pq_mode: prefer               # Post-quantum key exchange: prefer, require, disable. Default: prefer
+    outbound_pq_mode: prefer      # What the agent's own clients dial with. Default: follows pq_mode
 ```
 
 ## Fields
@@ -23,6 +24,7 @@ agent:
 | `key_path` | `string` | - | Path to PEM private key file |
 | `allow_tls12` | `bool` | `false` | Allow TLS 1.2 connections. When `false` (default), only TLS 1.3 is accepted |
 | `pq_mode` | `string` | `prefer` | Post-quantum key exchange mode: `prefer`, `require`, or `disable` (see below) |
+| `outbound_pq_mode` | `string` | follows `pq_mode`, with `require` read as `prefer` | The key exchange the agent's own clients dial with: `prefer`, `require`, or `disable` (see [Outbound links](#outbound-links)) |
 
 ## Plaintext on a reachable address is refused
 
@@ -74,6 +76,27 @@ the wire in both directions. A client that cannot negotiate the hybrid group
 sees a TLS handshake failure under `require` and nothing at all under the other
 two modes; what that looks like on the client side is in
 [Post-Quantum TLS](../features/pq-tls.md).
+
+### Outbound links
+
+`outbound_pq_mode` is the policy of every connection the agent opens itself:
+threat intelligence feeds, webhooks, the identity provider, OTLP and SMTP
+alerts, and the flow export collector. Left out, it follows `pq_mode` with
+`require` read as `prefer`, which is the classical fallback described above.
+Written out as `require`, every one of those links is hybrid only:
+
+- a flow export collector over `tls` that cannot answer `X25519MLKEM768` stops
+  the agent at start-up, and the error names the collector and the reason:
+  the peer offers no post-quantum key exchange and the link requires it;
+- any other peer is refused at its handshake with the same reason in the log;
+- a collector that is down at start-up does not hold the agent: it is retried
+  as it always is, and refused the first time it answers without the hybrid
+  group.
+
+`GET /api/v1/crypto/posture` and `ebpfsentinel-agent tls links` list each of
+the agent's own links, the policy it was built with and the group it last
+negotiated; `all_required` is `true` only when the outbound policy and every
+listed link require the hybrid group.
 
 **Important**: PQ hybrid key exchange (`X25519MLKEM768`) exists only in TLS 1.3.
 `allow_tls12: true` therefore cannot be combined with `pq_mode: require`: the

@@ -1626,6 +1626,14 @@ TLS 1.2, or in clear text with the protocol named.
 ebpfsentinel-agent tls posture
 ```
 
+The agent's own links: for each, the key exchange policy it was built with and
+the group its last handshake negotiated. See
+[TLS configuration](../configuration/tls.md#outbound-links).
+
+```bash
+ebpfsentinel-agent tls links
+```
+
 ### aliases
 
 External alias lists: address sets a firewall rule names instead of repeating

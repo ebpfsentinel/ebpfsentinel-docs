@@ -763,6 +763,14 @@ The startup log line carries `transport="tls"` or `transport="plain-http"`.
 A file that does not load, or `agent.tls.allow_tls12: true` beside
 `pq_mode: require`, stops the start.
 
+The clients the enterprise layer dials (the SIEM syslog connectors, the HA
+peer link, federation) follow `agent.tls.outbound_pq_mode`. Under `require`
+each Microsoft Sentinel, QRadar or syslog collector reached over TLS is asked
+for the hybrid group before the agent starts: one that answers only a
+classical exchange stops the start with a message naming the endpoint and the
+setting, and one that cannot be reached yet is retried later rather than
+refused.
+
 ### Advanced DLP
 
 | Field | Type | Default | Description |

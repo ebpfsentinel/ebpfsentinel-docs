@@ -232,6 +232,7 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/threatintel/status` | viewer | none | Threat intel subsystem status. |
 | `GET` | `/api/v1/threatintel/urls` | viewer | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
 | `GET` | `/api/v1/tls/handshakes` | viewer | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
+| `GET` | `/api/v1/crypto/posture` | viewer | none | The key exchange policy each of the agent's own TLS links was built with, the group it last negotiated and the handshakes it completed on each group. |
 | `GET` | `/api/v1/tls/posture` | viewer | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
 | `GET` | `/api/v1/tls/status` | viewer | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | operator | none | What the loaded programs decide for one packet. |

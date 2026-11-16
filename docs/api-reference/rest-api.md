@@ -3771,6 +3771,30 @@ Response:
 Edges are listed with the most connections first, and the counts sit beside
 the edge's own fields.
 
+#### GET /api/v1/crypto/posture
+
+The agent's own links, not the traffic it watches: each TLS link it opened or
+accepted, the key exchange policy the link was built with, and the group it
+last negotiated. See [TLS configuration](../configuration/tls.md#outbound-links).
+
+```bash
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  https://localhost:8443/api/v1/crypto/posture
+```
+
+Response:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `outbound_mode` | string | The policy the agent's own clients dial with: `prefer`, `require` or `disable` |
+| `all_required` | boolean | `true` when the outbound policy and every link with a recorded policy require the hybrid group |
+| `links[].link` | string | `api`, `grpc`, `outbound`, `flow-export`, or a link the enterprise layer adds |
+| `links[].mode` | string | The policy the link was built with, `null` when none was recorded |
+| `links[].last_group` | string | The group the last handshake completed on, `null` before the first |
+| `links[].last_post_quantum` | boolean | Whether that group carries a post-quantum component |
+| `links[].last_at_unix` | integer | When it completed, in seconds since the epoch |
+| `links[].groups[]` | array | Every group the link completed a handshake on: `group`, `post_quantum`, `handshakes` |
+
 ### Metrics
 
 #### GET /metrics
@@ -3945,6 +3969,7 @@ reads one table for the write roles, and this column is checked against it.
 | GET | `/api/v1/tls/status` | Yes | Negotiated TLS key-exchange group for this connection |
 | GET | `/api/v1/tls/handshakes` | Yes | What recent TLS handshakes on the node negotiated |
 | GET | `/api/v1/tls/posture` | Yes | The cryptographic posture of each edge between workloads |
+| GET | `/api/v1/crypto/posture` | Yes | The key exchange policy of each of the agent's own links and the group each last negotiated |
 
 ## Enterprise Endpoints
 
