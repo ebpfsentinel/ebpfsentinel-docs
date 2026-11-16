@@ -419,7 +419,7 @@ Queries observed on the wire are a kernel slot:
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ebpfsentinel_tls_handshakes_total` | Counter | `link`, `group` | TLS handshakes this process completed, by the link it completed on and the key-exchange group negotiated, read at scrape time from what the TLS stack itself reported. `group` is the IANA name (`X25519MLKEM768` is the hybrid post-quantum group, `X25519` and `secp256r1` are classical). `link` is `api` (REST listener), `grpc`, `flow-export`, `outbound` (every client that takes the process default: threat intelligence feeds, GeoIP, webhooks, OIDC and JWKS, the heartbeat, OTLP, SMTP, the Enterprise HTTP SIEM exporters and the portal report), and on the Enterprise agent `federation`, `siem-syslog`, `tls-proxy-workload` and `tls-proxy-upstream`. A series appears once its link has completed one handshake |
+| `ebpfsentinel_tls_handshakes_total` | Counter | `link`, `group` | TLS handshakes this process completed, by the link it completed on and the key-exchange group negotiated, read at scrape time from what the TLS stack itself reported. `group` is the IANA name (`X25519MLKEM768` is the hybrid post-quantum group, `X25519` and `secp256r1` are classical). `link` is `api` (REST listener), `grpc`, `flow-export`, `outbound` (every client that takes the process default: threat intelligence feeds, GeoIP, webhooks, OIDC and JWKS, the heartbeat, OTLP, SMTP, the Enterprise HTTP SIEM exporters and the portal report), and on the Enterprise agent `api` (its own REST listener on 8444, when it terminates TLS), `ha-peer`, `federation`, `siem-syslog`, `tls-proxy-workload` and `tls-proxy-upstream`. A series appears once its link has completed one handshake |
 
 ### Zones
 

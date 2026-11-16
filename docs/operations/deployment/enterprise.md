@@ -198,8 +198,11 @@ curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api
 A `--bind-address` off loopback refuses to start twice over: once because the
 API would answer unauthenticated requests, which `agent.allow_unauthenticated_api`
 is the only way past, and once because it would serve plaintext, which
-`agent.allow_plaintext_api` is the only way past. The two are separate
-decisions, and the message names the address, the switch and the fix. See
+`agent.allow_plaintext_api` or a certificate in `enterprise.api.tls` is the
+way past. The two are separate decisions, and the message names the address,
+the switch and the fix. With `enterprise.api.tls` set the agent terminates TLS
+itself, on the key exchange `agent.tls.pq_mode` names, and the startup log
+says `transport="tls"`; without it the log says `transport="plain-http"`. See
 [TLS](../../configuration/tls.md).
 
 The enterprise agent builds its datapath once at boot: it has no config file
@@ -276,7 +279,8 @@ curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://127.0.0.1:8444/api
 Both services run on the host network and the agent keeps its default bind,
 `127.0.0.1:8444`, which is the host's own loopback: reachable from the host
 and from nothing else. To serve it further, put a TLS terminator in front of
-it, or add `--bind-address` to the agent's `command` together with
+it, set `enterprise.api.tls` so the agent terminates TLS itself, or add
+`--bind-address` to the agent's `command` together with
 `agent.allow_plaintext_api: true` in `ebpfsentinel.yaml`, since the agent
 refuses plaintext off loopback.
 
@@ -408,10 +412,14 @@ The config is a ConfigMap whose checksum is a pod annotation, so a values change
 rolls the DaemonSet. The chart exposes the enterprise API (8444) and the HA peer gRPC port (9443), and
 nothing else: this binary opens one HTTP listener, so the REST surface,
 `/metrics` and the `/healthz` and `/readyz` probes are all served on 8444 and
-the OSS agent's own 8080, 50051 and 9090 are never started. The enterprise API
-terminates no TLS of its own, so put a proxy in front of it if it leaves the
-node, which is also why the chart's values accept plaintext on the pod's
-non-loopback bind. It still authenticates: name an existing Secret so every
+the OSS agent's own 8080, 50051 and 9090 are never started. Name a Secret in
+`agent.apiTls.existingSecret` holding `tls.crt` and `tls.key` and the agent
+terminates TLS on 8444 itself: the chart mounts it at
+`/etc/ebpfsentinel/api-tls`, writes the `enterprise.api.tls` block, switches
+both probes to HTTPS, and the key exchange follows `agent.tls.pq_mode`. Left
+empty, 8444 serves plain HTTP for a proxy or a mesh in front of it, which is
+why the chart's values accept plaintext on the pod's non-loopback bind and why
+the agent's startup log says `transport="plain-http"`. It still authenticates: name an existing Secret so every
 pod answers to one key, or read the key a pod drew for itself out of its log. The HA port is mutual TLS: name a Secret in `ha.tls.existingSecret`
 holding `ca.crt`, `tls.crt` and `tls.key` (the shape cert-manager writes), which
 the chart mounts at `/etc/ebpfsentinel/ha-tls` for the `enterprise.ha.tls`

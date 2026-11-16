@@ -39,6 +39,12 @@ enterprise:
   revocations_path: /etc/ebpfsentinel/offline-bundle.json
   license_clock_path: /var/lib/ebpfsentinel/license-clock
 
+  # ── REST listener (8444) ────────────────────────────────────────
+  api:
+    tls:
+      cert_path: /etc/ebpfsentinel/api-tls/tls.crt
+      key_path: /etc/ebpfsentinel/api-tls/tls.key
+
   # ── Advanced DLP (Vectorscan) ───────────────────────────────────
   advanced_dlp:
     enabled: true
@@ -737,6 +743,25 @@ explains the order and the priorities the running rules carry.
 | `license_path` | string | none | Path to the license key file, re-read every minute |
 | `revocations_path` | string | none, or `revocations.json` beside `portal.state_path` when the portal is enabled | Offline bundle whose `revocations` list the key is checked against, re-read every minute. The portal's heartbeat adds the organisation's revocations to it and never removes one. A path with no file yet revokes nothing; a file that does not parse refuses the key. See [Revocation](../features/enterprise/license.md#revocation) |
 | `license_clock_path` | string | `/var/lib/ebpfsentinel/license-clock` | Where the agent records the latest time it has seen, so a clock set back does not extend a key. See [Expiry and grace](../features/enterprise/license.md#expiry-and-grace) |
+
+### REST listener
+
+The enterprise port (`--enterprise-port`, 8444) serves the API, `/metrics`
+and both probes. With `api.tls` the agent terminates TLS on it itself; the key
+exchange follows `agent.tls.pq_mode` and the protocol versions
+`agent.tls.allow_tls12`, the same switches as the community listeners, and
+each handshake is counted under the `api` link of
+`ebpfsentinel_tls_handshakes_total`. Without it the port is plain HTTP, which off
+loopback needs `agent.allow_plaintext_api: true` and a terminator in front.
+The startup log line carries `transport="tls"` or `transport="plain-http"`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api.tls.cert_path` | string | none | PEM server certificate, full chain. Required with `api.tls` |
+| `api.tls.key_path` | string | none | PEM private key of that certificate. Required with `api.tls` |
+
+A file that does not load, or `agent.tls.allow_tls12: true` beside
+`pq_mode: require`, stops the start.
 
 ### Advanced DLP
 

@@ -278,7 +278,8 @@ set, each end also checks after the handshake that the other's leaf is one of
 those SHA-256 fingerprints, so a certificate the same CA signed for something
 else does not join the cluster. Key exchange follows `agent.tls.pq_mode`: with
 `require`, both ends negotiate the hybrid `X25519MLKEM768` group or nothing,
-and `GET /api/v1/tls/handshakes` reports the group under the link `ha-peer`.
+and `ebpfsentinel_tls_handshakes_total` counts the group under the link
+`ha-peer`.
 
 The agent refuses to start replication when `enterprise.ha.enabled` is set and
 there is no `tls` block, unless `enterprise.ha.insecure_plaintext: true` is
