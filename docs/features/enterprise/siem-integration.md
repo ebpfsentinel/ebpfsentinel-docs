@@ -340,8 +340,8 @@ Key features:
 
 - **Date-partitioned keys** - objects stored as `{prefix}/year=YYYY/month=MM/day=DD/hour=HH/{batch_id}.ndjson.gz` for efficient partition pruning
 - **Gzip compression** - configurable (enabled by default), reduces storage costs by 80-90%. The key follows it: with `compress: false` the object is written as `.ndjson`, so a reader is never handed plain text under a gzip name
-- **S3-compatible** - works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store
-- **Authentication** - access key/secret key pair, or IAM instance roles when credentials are omitted
+- **S3-compatible** - works with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3 API-compatible store, addressed path-style (`{endpoint}/{bucket}/{key}`)
+- **Authentication** - with an access key and its secret, every write is signed with Signature Version 4 for the configured `region`. With either half missing the write leaves unsigned, which only a bucket open to anonymous writes accepts: no instance role or environment variable is looked up
 
 ```yaml
 enterprise:
@@ -350,8 +350,9 @@ enterprise:
       endpoint: http://minio:9000           # or https://s3.amazonaws.com
       bucket: siem-data-lake
       prefix: ebpfsentinel/siem
-      access_key_id: AKIAIOSFODNN7EXAMPLE   # optional - uses IAM if absent
-      secret_access_key: wJalrXUtnFEMI...   # optional
+      region: us-east-1                      # signature region (default us-east-1; auto for R2)
+      access_key_id: AKIAIOSFODNN7EXAMPLE   # with the secret: Signature Version 4
+      secret_access_key: wJalrXUtnFEMI...   # without both: unsigned writes
       compress: true                         # gzip (default: true)
       timeout_ms: 10000
 ```
