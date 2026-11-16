@@ -73,7 +73,7 @@ Transmission security hardening:
 - **RSA 2048-bit minimum** for JWT signing keys (RS256)
 - **Constant-time API key comparison** prevents timing side-channel leakage
 - **CA private key zeroization** scrubs key material from memory after use
-- **Token revocation** enables immediate invalidation of compromised credentials
+- **Credential withdrawal**: an API key is withdrawn by removing it from the configuration, a token by rotating the key that signed it; short token lifetimes bound the rest
 - **Auth rate limiting** mitigates brute-force attacks on authentication endpoints
 
 ## Evidence Collection

@@ -2255,7 +2255,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/ips/blacklist
 
-Manually add an IP to the IPS blacklist. Drives the same path the DNS-blocklist and reputation auto-block features already use, so the entry is visible through `GET /api/v1/ips/blacklist` and is subject to the policy's TTL cap and expiry sweeper. Returns `201` on success and `400` for an unparseable address or a full blacklist.
+Manually add an IP to the IPS blacklist. Drives the same path the DNS-blocklist and reputation auto-block features already use, so the entry is visible through `GET /api/v1/ips/blacklist` and is subject to the policy's TTL cap and expiry sweeper. Returns `201` on success and `400` for an unparseable address or a full blacklist. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ips/blacklist \
@@ -2281,7 +2281,7 @@ Response:
 
 #### DELETE /api/v1/ips/blacklist/{ip}
 
-Remove an IP from the IPS blacklist. Returns `204` on success, `400` for an unparseable address and `404` when the address is not blacklisted.
+Remove an IP from the IPS blacklist. Returns `204` on success, `400` for an unparseable address and `404` when the address is not blacklisted. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ips/blacklist/198.51.100.7
@@ -2307,7 +2307,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/ratelimit/rules
 
-Create a rate limit rule.
+Create a rate limit rule. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ratelimit/rules \
@@ -2317,7 +2317,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### DELETE /api/v1/ratelimit/rules/{id}
 
-Delete a rate limit rule.
+Delete a rate limit rule. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-global
@@ -2847,7 +2847,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### POST /api/v1/lb/vips/grant
 
-Grant an `elected` node the speaker role for a number of seconds, or release it with `0`. Requires write access. The node answers ARP from the moment the grant is taken and falls silent on its own when it runs out, checked every second on its own clock; a renewal replaces the remaining time. Refused with `400` when the role is not `elected` or the grant exceeds 300 seconds. Only a change of role is written to the audit log, not every renewal.
+Grant an `elected` node the speaker role for a number of seconds, or release it with `0`. Requires `admin` role. The node answers ARP from the moment the grant is taken and falls silent on its own when it runs out, checked every second on its own clock; a renewal replaces the remaining time. Refused with `400` when the role is not `elected` or the grant exceeds 300 seconds. Only a change of role is written to the audit log, not every renewal.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/lb/vips/grant \
@@ -3018,7 +3018,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/routing/gateways
 
-Add a routing gateway. Requires a write role: admin or operator. Viewers are refused. The agent assigns the identifier itself, taking the lowest free one, so the body carries none and two gateways may share a name or a next hop. Returns `201` on success and `409` only when all 256 identifiers are in use.
+Add a routing gateway. Requires `admin` role, since a route changes the whole node. The agent assigns the identifier itself, taking the lowest free one, so the body carries none and two gateways may share a name or a next hop. Returns `201` on success and `409` only when all 256 identifiers are in use.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/routing/gateways \
@@ -3055,7 +3055,7 @@ Response: the created gateway, in the same shape `GET /api/v1/routing/gateways` 
 
 #### DELETE /api/v1/routing/gateways/{id}
 
-Remove a routing gateway. Requires a write role: admin or operator. Viewers are refused. Returns `204` on success, `400` when the identifier is not a number in 0-255, and `404` when no gateway carries it.
+Remove a routing gateway. Requires `admin` role. Returns `204` on success, `400` when the identifier is not a number in 0-255, and `404` when no gateway carries it.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/routing/gateways/1
@@ -3106,7 +3106,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 #### POST /api/v1/zones
 
 Create a zone. `interfaces` and `default_policy` are optional; a zone with no
-interface carries no traffic, and an absent `default_policy` denies.
+interface carries no traffic, and an absent `default_policy` denies. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/zones \
@@ -3116,7 +3116,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### DELETE /api/v1/zones/{id}
 
-Remove a zone by name. Interfaces of the removed zone become unzoned.
+Remove a zone by name. Interfaces of the removed zone become unzoned. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/zones/dmz
@@ -3124,7 +3124,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8
 
 #### POST /api/v1/zones/policies
 
-Create an inter-zone policy. Policies are directional.
+Create an inter-zone policy. Policies are directional. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/zones/policies \
@@ -3138,7 +3138,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### DELETE /api/v1/zones/policies/{id}
 
-Remove an inter-zone policy. The id is `{from}__{to}`.
+Remove an inter-zone policy. The id is `{from}__{to}`. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/zones/policies/lan__dmz
@@ -3420,7 +3420,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/nat/nptv6
 
-Create an NPTv6 rule.
+Create an NPTv6 rule. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/nat/nptv6 \
@@ -3430,7 +3430,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### DELETE /api/v1/nat/nptv6/{id}
 
-Delete an NPTv6 rule.
+Delete an NPTv6 rule. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/nat/nptv6/site-a
@@ -3596,8 +3596,8 @@ action with under a second left answers `0` and is still in force.
 
 #### POST /api/v1/responses/manual
 
-Create a time-bounded response action. Requires a write role: admin or
-operator, since a containment is not namespaced. Viewers are refused.
+Create a time-bounded response action. Requires `admin` role, since a
+containment is not namespaced.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/responses/manual \
@@ -3621,8 +3621,7 @@ IPv4 targets only, since its per-source map is keyed by a 32-bit address.
 #### DELETE /api/v1/responses/{id}
 
 Revoke a response action early, which lifts the blacklist entry or the token
-bucket immediately instead of waiting for the TTL. Requires a write role:
-admin or operator. Viewers are refused.
+bucket immediately instead of waiting for the TTL. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/responses/resp-001
@@ -3789,6 +3788,12 @@ keeps working without holding the agent's key.
 
 ## Endpoint Summary
 
+In the Auth column, `Yes` means any authenticated role, viewer included;
+`Yes (write)` means `operator` or `admin`, an operator held to its namespaces
+where the resource has one; `Yes (admin)` means `admin` alone, because the write
+changes the whole node. A viewer is refused every write with `403`. The agent
+reads one table for the write roles, and this column is checked against it.
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/healthz` | No | Liveness probe |
@@ -3797,8 +3802,8 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/agent/status` | Yes | Agent status |
 | GET | `/api/v1/agent/identity` | Yes | Operator-managed metadata (hot-reloadable) |
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
-| POST | `/api/v1/firewall/rules` | Yes | Create firewall rule |
-| DELETE | `/api/v1/firewall/rules/{id}` | Yes | Delete firewall rule (403 for system rules) |
+| POST | `/api/v1/firewall/rules` | Yes (write) | Create firewall rule |
+| DELETE | `/api/v1/firewall/rules/{id}` | Yes (write) | Delete firewall rule (403 for system rules) |
 | GET | `/api/v1/firewall/shadow` | Yes | What each shadow rule would have allowed or denied |
 | GET | `/api/v1/firewall/workload/rules` | Yes | Workload rules in force and what each has refused |
 | GET | `/api/v1/firewall/workload/fqdn` | Yes | What each workload rule by name has resolved |
@@ -3823,30 +3828,30 @@ keeps working without holding the agent's key.
 | POST | `/api/v1/netpol/replay` | Yes (write) | What proposed NetworkPolicy manifests would have refused |
 | POST | `/api/v1/trace` | Yes (write) | What the loaded programs decide for one crafted packet |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
-| POST | `/api/v1/firewall/l7-rules` | Yes | Create L7 rule |
-| DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes | Delete L7 rule |
+| POST | `/api/v1/firewall/l7-rules` | Yes (write) | Create L7 rule |
+| DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes (write) | Delete L7 rule |
 | GET | `/api/v1/ips/rules` | Yes | List IPS rules |
-| PATCH | `/api/v1/ips/rules/{id}` | Yes | Update IPS rule mode |
+| PATCH | `/api/v1/ips/rules/{id}` | Yes (write) | Update IPS rule mode |
 | GET | `/api/v1/ips/blacklist` | Yes | List blacklisted IPs |
-| POST | `/api/v1/ips/blacklist` | Yes | Add an IP to the blacklist |
-| DELETE | `/api/v1/ips/blacklist/{ip}` | Yes | Remove an IP from the blacklist |
+| POST | `/api/v1/ips/blacklist` | Yes (admin) | Add an IP to the blacklist |
+| DELETE | `/api/v1/ips/blacklist/{ip}` | Yes (admin) | Remove an IP from the blacklist |
 | GET | `/api/v1/ips/domain-blocks` | Yes | List domain-based IP blocks |
 | GET | `/api/v1/ratelimit/rules` | Yes | List rate limit rules |
-| POST | `/api/v1/ratelimit/rules` | Yes | Create rate limit rule |
-| DELETE | `/api/v1/ratelimit/rules/{id}` | Yes | Delete rate limit rule |
+| POST | `/api/v1/ratelimit/rules` | Yes (admin) | Create rate limit rule |
+| DELETE | `/api/v1/ratelimit/rules/{id}` | Yes (admin) | Delete rate limit rule |
 | GET | `/api/v1/threatintel/status` | Yes | Feed status |
 | GET | `/api/v1/threatintel/iocs` | Yes | List IOCs |
 | GET | `/api/v1/threatintel/feeds` | Yes | List feeds |
 | GET | `/api/v1/threatintel/urls` | Yes | List malicious URL indicators |
-| POST | `/api/v1/threatintel/feeds/refresh` | Yes | Trigger a feed refresh |
+| POST | `/api/v1/threatintel/feeds/refresh` | Yes (write) | Trigger a feed refresh |
 | GET | `/api/v1/geoip/status` | Yes | GeoIP enrichment status |
 | GET | `/api/v1/geoip/lookup` | Yes | Resolve an IP to its GeoIP record |
 | GET | `/api/v1/alerts` | Yes | List alerts |
 | GET | `/api/v1/alerts/{id}` | Yes | Read one alert |
 | GET | `/api/v1/alerts/stream` | Yes | SSE live alert feed (`Last-Event-ID` resume) |
-| POST | `/api/v1/alerts/{id}/false-positive` | Yes | Mark false positive |
-| PATCH | `/api/v1/alerts/{id}/triage` | Yes | Set status or assignee, append a note |
-| POST | `/api/v1/alerts/triage` | Yes | Apply one triage change to many alerts |
+| POST | `/api/v1/alerts/{id}/false-positive` | Yes (write) | Mark false positive |
+| PATCH | `/api/v1/alerts/{id}/triage` | Yes (write) | Set status or assignee, append a note |
+| POST | `/api/v1/alerts/triage` | Yes (write) | Apply one triage change to many alerts |
 | GET | `/api/v1/audit/logs` | Yes | List audit logs |
 | GET | `/api/v1/audit/rules/{id}/history` | Yes | Rule change history |
 | GET | `/api/v1/ddos/status` | Yes | DDoS protection status |
@@ -3862,16 +3867,16 @@ keeps working without holding the agent's key.
 | DELETE | `/api/v1/lb/services/{id}` | Yes (admin) | Delete LB service |
 | GET | `/api/v1/lb/vips` | Yes | L2 VIP announcer status |
 | POST | `/api/v1/lb/vips` | Yes (admin) | Apply VIP announce config |
-| POST | `/api/v1/lb/vips/grant` | Yes (write) | Grant or release the speaker role of an `elected` node |
+| POST | `/api/v1/lb/vips/grant` | Yes (admin) | Grant or release the speaker role of an `elected` node |
 | GET | `/api/v1/lb/vips/bgp` | Yes | BGP sessions announcing the VIPs |
 | GET | `/api/v1/dns/status` | Yes | DNS intelligence status |
 | GET | `/api/v1/dns/cache` | Yes | DNS cache entries |
-| DELETE | `/api/v1/dns/cache` | Yes | Flush DNS cache |
+| DELETE | `/api/v1/dns/cache` | Yes (write) | Flush DNS cache |
 | GET | `/api/v1/dns/stats` | Yes | DNS statistics |
 | GET | `/api/v1/dns/blocklist` | Yes | DNS blocklist rules |
 | GET | `/api/v1/domains/reputation` | Yes | Domain reputations |
-| POST | `/api/v1/domains/blocklist` | Yes | Add to blocklist |
-| DELETE | `/api/v1/domains/blocklist/{domain}` | Yes | Remove from blocklist |
+| POST | `/api/v1/domains/blocklist` | Yes (write) | Add to blocklist |
+| DELETE | `/api/v1/domains/blocklist/{domain}` | Yes (write) | Remove from blocklist |
 | GET | `/api/v1/config` | Yes | Current config |
 | POST | `/api/v1/config/reload` | Yes (admin) | Trigger reload |
 | PUT | `/api/v1/config/{section}` | Yes (admin) | Write one config section and reload |
@@ -3898,18 +3903,18 @@ keeps working without holding the agent's key.
 | GET | `/api/v1/nat/rules` | Yes | List NAT rules |
 | GET | `/api/v1/routing/status` | Yes | Routing status |
 | GET | `/api/v1/routing/gateways` | Yes | List gateways with health status |
-| POST | `/api/v1/routing/gateways` | Yes | Add a routing gateway |
-| DELETE | `/api/v1/routing/gateways/{id}` | Yes | Remove a routing gateway |
+| POST | `/api/v1/routing/gateways` | Yes (admin) | Add a routing gateway |
+| DELETE | `/api/v1/routing/gateways/{id}` | Yes (admin) | Remove a routing gateway |
 | GET | `/api/v1/routing/routes` | Yes | Default route currently in effect |
 | GET | `/api/v1/zones/status` | Yes | Zone status |
 | GET | `/api/v1/zones` | Yes | List zones |
 | GET | `/api/v1/zones/policies` | Yes | List inter-zone policies |
-| POST | `/api/v1/zones` | Yes | Create a zone |
-| DELETE | `/api/v1/zones/{id}` | Yes | Remove a zone |
-| POST | `/api/v1/zones/policies` | Yes | Create an inter-zone policy |
-| DELETE | `/api/v1/zones/policies/{id}` | Yes | Remove an inter-zone policy |
+| POST | `/api/v1/zones` | Yes (admin) | Create a zone |
+| DELETE | `/api/v1/zones/{id}` | Yes (admin) | Remove a zone |
+| POST | `/api/v1/zones/policies` | Yes (admin) | Create an inter-zone policy |
+| DELETE | `/api/v1/zones/policies/{id}` | Yes (admin) | Remove an inter-zone policy |
 | GET | `/api/v1/aliases/status` | Yes | Alias count |
-| PUT | `/api/v1/aliases/{id}/content` | Yes | Set external alias content |
+| PUT | `/api/v1/aliases/{id}/content` | Yes (write) | Set external alias content |
 | GET | `/api/v1/dlp/status` | Yes | DLP status |
 | GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |
 | GET | `/api/v1/dlp/scope` | Yes | Workloads the probes read plaintext from |
@@ -3925,8 +3930,8 @@ keeps working without holding the agent's key.
 | POST | `/api/v1/qos/classifiers` | Yes (admin) | Create QoS classifier |
 | DELETE | `/api/v1/qos/classifiers/{id}` | Yes (admin) | Delete QoS classifier |
 | GET | `/api/v1/nat/nptv6` | Yes | List NPTv6 rules |
-| POST | `/api/v1/nat/nptv6` | Yes | Create NPTv6 rule |
-| DELETE | `/api/v1/nat/nptv6/{id}` | Yes | Delete NPTv6 rule |
+| POST | `/api/v1/nat/nptv6` | Yes (admin) | Create NPTv6 rule |
+| DELETE | `/api/v1/nat/nptv6/{id}` | Yes (admin) | Delete NPTv6 rule |
 | GET | `/api/v1/mitre/coverage` | Yes | MITRE ATT&CK technique coverage map |
 | GET | `/api/v1/fingerprints/summary` | Yes | JA4 client fingerprint cache summary |
 | GET | `/api/v1/processes` | Yes | The process table, newest first |

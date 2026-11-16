@@ -104,19 +104,32 @@ rather than three dot-separated parts and it is what `--token` and
 
 ## RBAC Roles
 
-| Role | Read | Write | Admin |
-|------|------|-------|-------|
-| `viewer` | All endpoints | No | No |
-| `operator` | All endpoints | Namespace-scoped (see below) | No |
-| `admin` | All endpoints | All endpoints | Config reload, eBPF status |
+| Role | Read | Write |
+|------|------|-------|
+| `viewer` | All endpoints | None |
+| `operator` | All endpoints | Namespaced firewall and L7 rules (see below), IPS rule modes, alert triage, learning sessions, packet traces and policy replays, threat-feed refresh, alias content, the DNS cache and the domain blocklist |
+| `admin` | All endpoints | Every write, including everything that changes the whole node: configuration reload and section writes, conntrack flush, IPS blacklist, rate limiting, NAT, DDoS, zones, routing, load balancing, QoS, manual responses and captures |
+
+The [endpoint summary](../api-reference/rest-api.md#endpoint-summary) gives
+the role of every write. A write the agent has no entry for needs `admin`. The
+Kubernetes operator calls configuration reload and the VIP endpoints, so the
+key it holds must carry `admin`.
 
 ## Namespace Scoping
 
 Operators are scoped to namespaces. A namespace value of `None` (or omitted) means **deny-all** -- it does not grant unrestricted access. Operators must list their allowed namespaces explicitly.
 
-## Token Revocation
+## Withdrawing Access
 
-Token revocation is built-in using a `sub:iat` (subject + issued-at) pair. Revoking a token invalidates all tokens for that subject issued at or before the revocation timestamp.
+The agent keeps no revocation list. An API key stops working once it is
+removed from `auth.api_keys` and the agent restarts. A token stops working when
+it expires, so keep token lifetimes short; to withdraw one before then, rotate
+the signing key at the issuer, or for a static key replace the file at
+`auth.jwt.public_key_path` and reload the configuration.
+
+When `auth.oidc` names no `audience`, the agent accepts a token the provider
+issued for any of its applications, and says so in a warning at startup. Set
+`audience` to the client this agent is registered as.
 
 ## Rate Limiting
 

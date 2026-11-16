@@ -23,7 +23,7 @@ PCI-DSS requires strong cryptography and access controls (Requirements 2, 4, 8):
 | JWT signing | RS256 with RSA 2048-bit minimum key size |
 | API key comparison | Constant-time to prevent timing attacks |
 | CA private keys | Zeroized from memory after use |
-| Token revocation | Immediate invalidation of compromised tokens |
+| Credential withdrawal | API key removed from the configuration, signing key rotated for tokens, short token lifetimes |
 | Auth rate limiting | Brute-force protection on authentication endpoints |
 
 ## Requirement 1: Network Security Controls

@@ -43,7 +43,7 @@ Additional access-control hardening:
 
 - **Constant-time API key comparison** prevents timing side-channel attacks on key validation
 - **Auth rate limiting** protects against brute-force authentication attempts
-- **Token revocation** allows immediate invalidation of compromised JWT tokens
+- **Credential withdrawal**: a compromised JWT is withdrawn by rotating the key that signed it, an API key by removing it from the configuration; short token lifetimes bound the rest
 - **RSA 2048-bit minimum** enforced for JWT signing keys (RS256)
 - **CA private key zeroization** ensures signing material is scrubbed from memory after use
 

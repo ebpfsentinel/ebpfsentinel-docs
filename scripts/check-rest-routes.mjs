@@ -529,6 +529,40 @@ report(
   'Take the grant from path_to_domain and required_permission in rbac_middleware.rs.',
 );
 
+// The open-source agent holds every write to one role in one table, and the
+// summary's Auth column states it: `Yes (write)` for the rows an operator may
+// call, `Yes (admin)` for the rest. A write the table does not name needs
+// admin, so a missing row reads as admin too.
+const ossRbacPath = process.env.EBPFSENTINEL_OSS_RBAC
+  ? resolve(process.env.EBPFSENTINEL_OSS_RBAC)
+  : resolve(repoRoot, '..', 'ebpfsentinel', 'crates', 'agent', 'src', 'http', 'middleware', 'rbac.rs');
+const ossRbac = readSource(ossRbacPath);
+const rolesFrom = ossRbac.indexOf('pub const WRITE_ROLES');
+if (rolesFrom === -1) fail([`Cannot find WRITE_ROLES in ${ossRbacPath}. Update this check.`]);
+const writeRoles = new Map(
+  [
+    ...ossRbac
+      .slice(rolesFrom, ossRbac.indexOf('];', rolesFrom))
+      .matchAll(/\(\s*"(\w+)",\s*"([^"]+)",\s*WriteRole::(\w+),?\s*\)/g),
+  ].map((m) => [`${m[1]} ${m[2]}`, m[3] === 'Operator' ? 'Yes (write)' : 'Yes (admin)']),
+);
+if (writeRoles.size === 0) fail([`WRITE_ROLES in ${ossRbacPath} lists no route. Update this check.`]);
+const ossText = readFileSync(pagePath, 'utf8');
+const wrongRole = [];
+for (const line of ossText.slice(0, ossText.indexOf(`\n${ENTERPRISE_HEADING}`)).split('\n')) {
+  const row = /^\| (POST|PUT|PATCH|DELETE) \| `([^`]+)` \| ([^|]+?) \|/.exec(line);
+  if (!row) continue;
+  const pair = `${row[1]} ${row[2]}`;
+  const truth = writeRoles.get(pair) ?? 'Yes (admin)';
+  if (row[3] !== truth) wrongRole.push(`${pair} says ${row[3]}, the agent asks for ${truth}`);
+}
+report(
+  problems,
+  'write in the endpoint summary held to another role than the agent holds it to',
+  wrongRole.sort(),
+  'Take the role from WRITE_ROLES in crates/agent/src/http/middleware/rbac.rs.',
+);
+
 if (problems.length > 0) fail(problems);
 
 console.log(

@@ -88,9 +88,9 @@ disk) or `jwks_url` (an endpoint the agent fetches at startup and refreshes in
 the background). Setting both is refused at boot rather than resolved by
 precedence.
 
-Token revocation is supported via `sub:iat` revocation keys - when a token is
-revoked, its subject and issued-at timestamp form a composite key that is
-checked on every request.
+The agent keeps no revocation list: a token is good until it expires, so
+lifetimes should be short. How to withdraw access sooner is in
+[Authentication configuration](../configuration/auth.md#withdrawing-access).
 
 ```yaml
 auth:
@@ -149,7 +149,7 @@ auth:
 | Role | Permissions |
 |------|-------------|
 | `admin` | Full access to all endpoints |
-| `operator` | Every write the `viewer` role is refused, **except** firewall rules whose scope is `global` or an interface: those are admin-only. A namespace-scoped rule needs that namespace in the identity's `namespaces` claim, and an identity with no `namespaces` claim at all grants no namespace rather than all of them. The rule must also match a source or destination inside that namespace's [`cidrs`](../configuration/namespaces.md), or it is refused with `NAMESPACE_TRAFFIC_FORBIDDEN` |
+| `operator` | Namespaced firewall and L7 rules, IPS rule modes, alert triage, learning sessions, packet traces and policy replays, threat-feed refresh, alias content, the DNS cache and the domain blocklist. Every write that changes the whole node (configuration, conntrack, IPS blacklist, rate limiting, NAT, DDoS, zones, routing, load balancing, QoS, manual responses and captures) is admin-only, and so are firewall rules whose scope is `global` or an interface. A namespace-scoped rule needs that namespace in the identity's `namespaces` claim, and an identity with no `namespaces` claim at all grants no namespace rather than all of them. The rule must also match a source or destination inside that namespace's [`cidrs`](../configuration/namespaces.md), or it is refused with `NAMESPACE_TRAFFIC_FORBIDDEN` |
 | `viewer` | Read-only access to all endpoints |
 
 A token carrying no `role` claim is treated as `viewer`.
