@@ -263,6 +263,7 @@ enterprise:
     degraded_threshold_secs: 90
     offline_threshold_secs: 180
     data_dir: /var/lib/ebpfsentinel/federation
+    estate_response: shadow             # shadow (record orders) or enforce (send them)
     # Mutual-TLS for inter-cluster auth (optional; default off = plain HTTP).
     # When enabled, federation routes move to a dedicated client-cert-required
     # listener and the presented client-cert fingerprint is pinned per cluster.

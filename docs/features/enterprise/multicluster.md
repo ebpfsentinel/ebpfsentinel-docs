@@ -281,7 +281,7 @@ file-service port (445, 139, 2049) in its own process table and stops them
 through its enforcement path. The order names only addresses, so no process
 identifier crosses the network.
 
-The response starts in **shadow**: every order is recorded as what it would
+The response starts in **shadow** unless `multi_cluster.estate_response: enforce` says otherwise: every order is recorded as what it would
 have done, with the shares it names, and nothing is sent. A reader who has
 seen the orders puts the response in force with
 `POST /api/v1/federation/estate/response/promote` and a body
@@ -289,6 +289,9 @@ seen the orders puts the response in force with
 reading has restarted since, the promotion is refused with `409` rather than
 putting in force a response nobody has read. The dashboard draws each verdict
 on the incident graph with the hosts as nodes and offers the promotion there.
+A promotion holds until the agent restarts, which starts the response in
+the mode `multi_cluster.estate_response` names again; writing `enforce` there
+is what keeps it in force across restarts.
 
 This is detection with a bound and a response on the source host, and
 nothing is blocked before it: shares written to before the verdict was raised stay written to,
@@ -348,6 +351,7 @@ enterprise:
 | `offline_threshold_secs` | u64 | `180` | Seconds until offline status, must be > 0 |
 | `data_dir` | string | `/var/lib/ebpfsentinel/federation` | Persistent state directory, must not be empty |
 | `mtls` | object | - | Mutual-TLS enforcement (see below). Absent/disabled keeps the legacy plain-HTTP behaviour |
+| `estate_response` | string | `shadow` | Mode the [estate response](#encryption-across-the-estate) starts in on the management cluster: `shadow` records each order and sends nothing, `enforce` sends it |
 
 The two thresholds are read against the age of the last heartbeat in the
 order above, so they must widen: an interval at or beyond the degraded

@@ -51,6 +51,32 @@ Maximum 256 rules per direction (IPv4), 128 per direction (IPv6).
 `tenant_id` applies to `snat_rules` and `dnat_rules`. NPTv6 translation is a
 stateless prefix rewrite and is not tenant-scoped.
 
+### Tunnels
+
+Two optional blocks tie an IPv4 rule to a tunnel. An IPv6 rule carrying either
+is refused at load, because the kernel side applies them to IPv4 only.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `ipsec.if_id` | u32 | - | The `if_id` an `xfrmi` device was created with (`ip link add ... type xfrm if_id N`). On a source translation, what the rule translates is sent through that device. On a destination translation, the rule matches only packets that arrived through it. `0` is refused |
+| `ipsec.link` | i32 | `0` | The underlying link index handed to the kernel with it |
+| `fou.dport` | u16 | - | On a source translation, the UDP destination port of the FOU or GUE header the kernel adds. Needs a `fou` or GUE tunnel device configured on the host. `0` is refused |
+| `fou.sport` | u16 | `0` | UDP source port; `0` lets the kernel pick one per flow |
+| `fou.encapsulation` | string | `fou` | `fou` or `gue` |
+
+```yaml
+nat:
+  snat_rules:
+    - id: to-branch
+      type: snat
+      translated_addr: "10.20.0.1"
+      match_dst: "10.30.0.0/16"
+      ipsec:
+        if_id: 7
+```
+
+`NAT_METRICS` counts each packet steered or wrapped (`xfrm_steered`, `fou_encap`).
+
 ### NAT Type Parameters
 
 #### `snat`

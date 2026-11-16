@@ -75,7 +75,7 @@ Both are optional - if only the City database is available, ASN fields will be e
 
 ### Mode 1: MaxMind Account (auto-download)
 
-Provide your MaxMind account ID and license key. Databases are downloaded automatically from the MaxMind API, extracted from `.tar.gz` archives, and stored locally.
+Provide your MaxMind account ID and license key. Databases are downloaded from the MaxMind download service at start-up and every `refresh_interval_hours`, extracted from `.tar.gz` archives, written to `database_dir` and swapped in without a restart. A download that fails or is not a database leaves the previous one in use.
 
 ```yaml
 geoip:
@@ -124,7 +124,7 @@ geoip:
 
 For `maxmind_account` and `url` modes, databases are periodically re-downloaded according to `refresh_interval_hours` (default: 24 hours). MaxMind updates GeoLite2 databases twice weekly.
 
-Set `refresh_interval_hours: 0` to disable auto-refresh (useful for `file` mode or manual updates).
+`file` mode never downloads and ignores `refresh_interval_hours`; replace the files and restart the agent to pick up new ones. The download modes need `refresh_interval_hours` of at least 1.
 
 ## Configuration
 

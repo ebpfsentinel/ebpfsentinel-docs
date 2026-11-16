@@ -68,7 +68,7 @@ dns:
 |-------|------|---------|-------------|
 | `domains` | `[string]` | `[]` | Inline domain patterns (exact or wildcard `*`) |
 | `action` | `string` | `block` | Section-wide action. `block` injects every resolved address into `inject_target`; `alert` and `log` only raise an alert (medium and low severity) and touch no map |
-| `inject_target` | `string` | `threatintel` | Where the addresses resolved by a blocked domain go when `action: block`: `threatintel`, `firewall`, or `ips` |
+| `inject_target` | `string` | `threatintel` | Where the addresses resolved by a blocked domain go when `action: block`: `threatintel` (the threat-intel drop set, needs `threatintel.enabled`), `firewall` (a /32 or /128 drop in the firewall's prefix tables, both as source and destination, needs `firewall.enabled`; lifted when the address expires, the domain leaves the blocklist or the target changes), or `ips` (the IPS blacklist) |
 | `grace_period_secs` | `integer` | `300` | Kept in the map this long after the DNS TTL expires, so an entry survives a slow re-resolution |
 | `feeds` | `[Feed]` | `[]` | External blocklist feeds |
 

@@ -11,7 +11,7 @@ geoip:
     mode: "file"                               # maxmind_account, url, or file
     city_path: "/opt/geoip/GeoLite2-City.mmdb" # Path to City database (file mode)
     asn_path: "/opt/geoip/GeoLite2-ASN.mmdb"   # Path to ASN database (file mode, optional)
-  refresh_interval_hours: 24                   # Auto-refresh interval (0 = disabled)
+  refresh_interval_hours: 24                   # Download again every N hours (download modes)
   database_dir: "/var/lib/ebpfsentinel/geoip"  # Storage directory for downloaded databases
 ```
 
@@ -23,8 +23,8 @@ geoip:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable GeoIP enrichment |
 | `source` | `GeoIpSource` | Required | Database provisioning mode |
-| `refresh_interval_hours` | `integer` | `24` | Hours between auto-refresh downloads (0 = disabled) |
-| `database_dir` | `string` | `/var/lib/ebpfsentinel/geoip` | Directory for storing downloaded databases |
+| `refresh_interval_hours` | `integer` | `24` | Hours between two downloads in `maxmind_account` and `url` modes, at least 1; ignored in `file` mode |
+| `database_dir` | `string` | `/var/lib/ebpfsentinel/geoip` | Directory `maxmind_account` and `url` download into; must be writable by the agent |
 
 ### GeoIpSource - Mode: `maxmind_account`
 
@@ -62,8 +62,25 @@ Load databases from local `.mmdb` files. No network access required.
 - `source` is required when `enabled: true`
 - `maxmind_account` mode: `account_id`, `license_key`, and `edition_ids` must not be empty
 - `url` mode: `city_url` must not be empty
+- `maxmind_account` and `url` modes: `database_dir` must not be empty and `refresh_interval_hours` must be at least 1
 - `file` mode: `city_path` must not be empty
 - `license_key` is masked in sanitized config output (`***`)
+
+## Downloads and refresh
+
+In `maxmind_account` and `url` modes the agent downloads the databases into
+`database_dir` at start-up, before the first lookup, then again every
+`refresh_interval_hours`, and swaps the new database in without a restart: a
+lookup sees the database before the refresh or the one after it. A download
+replaces a file only once it opens as a database, so a failed, truncated or
+non-database answer (an error page from a proxy) leaves the previous file in
+use and is logged. When the start-up download fails, the agent serves what a
+previous run left in `database_dir`; with nothing there, enrichment is off
+until the next refresh succeeds.
+
+Country and ASN lists in aliases are expanded from the database loaded when
+the alias is resolved; a refreshed database reaches them at the next periodic alias
+refresh.
 
 ## Examples
 
@@ -107,7 +124,6 @@ geoip:
     mode: file
     city_path: "/opt/geoip/GeoLite2-City.mmdb"
     asn_path: "/opt/geoip/GeoLite2-ASN.mmdb"
-  refresh_interval_hours: 0
 ```
 
 ### City database only (no ASN)
@@ -118,7 +134,6 @@ geoip:
   source:
     mode: file
     city_path: "/opt/geoip/GeoLite2-City.mmdb"
-  refresh_interval_hours: 0
 ```
 
 Alerts will include country/city information but no ASN data.

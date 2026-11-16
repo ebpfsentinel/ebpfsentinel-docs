@@ -42,9 +42,11 @@ These are read once at startup and apply at the next start:
 
 These are written in place on every reload, without reloading any program:
 
-- `CONFIG_FLAGS` - per-feature enabled flags, read by `tc-ids` and `tc-threatintel`
+- `CONFIG_FLAGS` - per-feature enabled flags, read by `tc-threatintel`
 - `L7_PORTS` - ports `tc-ids` hands to the L7 parser
 - `INTERFACE_GROUPS` - interface-to-group membership bitmask
+- `DDOS_SYN_CONFIG`, `ICMP_CONFIG`, `CONNTRACK_CONFIG`, `AMP_PROTECT_CONFIG` - the `xdp-ratelimit` SYN, ICMP, connection-flood and amplification guards; a guard the file turns off, or `ddos.enabled: false`, is written disabled and stops dropping at once, and an amplification port the file no longer lists is released
+- `SCRUB_CONFIG` - the `tc-scrub` normalisation parameters (TTL floor, MSS clamp, flags to clear)
 
 ### eBPF programs (loaded/unloaded dynamically)
 
