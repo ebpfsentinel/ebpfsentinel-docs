@@ -112,7 +112,47 @@ seals rest on the console alone, and someone holding the history store could
 rebuild the whole chain; the authority's token is what pins a seal to a time
 outside the customer's reach. Two console replicas writing to one history store
 would both seal each tenant and the chain would read as broken, so the sealing
-console runs as one replica. The seals,
+console runs as one replica.
+
+### Write-once copy under Object Lock
+
+A seal in the history store can be rewritten by whoever holds the store. To
+keep a copy nobody can rewrite, point the console at an S3 bucket created with
+Object Lock enabled (AWS, Scaleway, OVHcloud, MinIO, Ceph):
+
+```yaml
+sealing:
+  object_lock:
+    endpoint: https://s3.fr-par.scw.cloud
+    region: fr-par
+    bucket: acme-sealed-record
+    prefix: console
+    path_style: false              # true for MinIO and Ceph
+    access_key_id_file: /etc/dashboard/secrets/seal-copy-access-key
+    secret_access_key_file: /etc/dashboard/secrets/seal-copy-secret-key
+    mode: compliance               # or governance
+    retain_days: 2557              # 1 to 36500
+```
+
+As each seal closes, the console writes it once to
+`{prefix}/{tenant}/{seq}.json` with its timestamp token, a retention date
+`retain_days` ahead and the lock mode. The object carries the tenant, the
+seal's digests, counts and links, and the token; **never an audit entry or a
+case event**. Under `compliance` nobody, the bucket's root account included,
+can delete the copy or shorten its retention before it ends; under
+`governance` an account granted `s3:BypassGovernanceRetention` still can. The
+key pair needs `s3:PutObject` and `s3:PutObjectRetention` on the prefix and
+nothing else.
+
+A copy the bucket refused (no Object Lock on the bucket, a wrong key, the
+endpoint out of reach) leaves the seal kept in the history store, and the seal
+says why on the screen and in the proof file. The copy is **tamper-proof only
+within its retention and only for what was copied**: a seal written before the
+bucket was configured, or one the bucket refused, has no copy. An auditor
+compares the bucket's objects with the proof file; a seal whose hash differs
+from its copy was rewritten in the store.
+
+The seals,
 the controls and the trail are read by the roles holding `ViewAudit`: tenant
 admin, admin and auditor.
 
