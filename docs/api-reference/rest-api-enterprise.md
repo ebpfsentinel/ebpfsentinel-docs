@@ -762,17 +762,17 @@ and for the request and response bodies.
 |--------|------|------|-------|-----------------|-------------|
 | `GET` | `/api/v1/enterprise/alerts` | viewer | `alerts:read` | multi-tenancy | Tenant-scoped alerts (filtered by effective tenant). |
 | `GET` | `/api/v1/enterprise/audit` | viewer | `audit:read` | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
-| `POST` | `/api/v1/enterprise/tenants` | operator | `config:write` | multi-tenancy | Create tenant dynamically (admin). |
-| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | `config:write` | multi-tenancy | Reactivate suspended tenant (admin). |
+| `POST` | `/api/v1/enterprise/tenants` | operator | `config:write` | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | `config:write` | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
 | `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | `config:read` | multi-tenancy | Get self-service policy. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | `config:write` | multi-tenancy | Check if operation is allowed. |
-| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | `config:write` | multi-tenancy | Suspend tenant (admin). |
-| `GET` | `/api/v1/tenants` | viewer | `config:read` | multi-tenancy | List all tenants (admin only). |
-| `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `runtime_api` or `unavailable` (admin only). |
-| `GET` | `/api/v1/tenants/metrics` | viewer | `config:read` | multi-tenancy | Prometheus quota metrics (admin only). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | `config:write` | multi-tenancy | Suspend tenant (admin naming no tenant). |
+| `GET` | `/api/v1/tenants` | viewer | `config:read` | multi-tenancy | List all tenants (admin naming no tenant). |
+| `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `runtime_api` or `unavailable` (admin naming no tenant). |
+| `GET` | `/api/v1/tenants/metrics` | viewer | `config:read` | multi-tenancy | Prometheus quota metrics (admin naming no tenant). |
 | `GET` | `/api/v1/tenants/{id}` | viewer | `config:read` | multi-tenancy | Tenant details (read permission). |
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | `config:read` | multi-tenancy | Current quota limits and usage. |
-| `PUT` | `/api/v1/tenants/{id}/quota` | operator | `config:write` | multi-tenancy | Update quota (admin, partial update, 429 on reduction below usage). |
+| `PUT` | `/api/v1/tenants/{id}/quota` | operator | `config:write` | multi-tenancy | Update quota (admin naming no tenant, partial update, 429 on reduction below usage). |
 | `POST` | `/api/v1/tenants/{id}/quota/check` | operator | `config:write` | multi-tenancy | Check quota without consuming (read permission). |
 
 ## Network forensics

@@ -173,7 +173,7 @@ enterprise:
         description: "Alpha team workloads"
         quotas:
           max_rules: 100
-          max_alert_rate_per_sec: 500
+          max_alert_rate: 30000       # alerts per minute in the tenant view
           max_patterns: 50
       - id: team-beta
         name: Team Beta

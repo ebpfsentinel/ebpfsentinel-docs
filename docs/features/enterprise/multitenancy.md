@@ -146,7 +146,8 @@ Podman not enabled in the agent's container settings or a rootless container
 whose owner's socket is not there - whatever `state` says: a node
 whose containerd socket answers still falls back for the containers of a
 runtime it cannot reach. The
-route is admin-only, like the rest of `/api/v1/tenants`, and the dashboard's
+route answers only an administrator whose credential names no tenant, like the
+rest of `/api/v1/tenants`, and the dashboard's
 container screen reads it so the gap is named on the screen instead of inferred
 from a short table.
 
@@ -238,35 +239,70 @@ Each tenant has configurable resource limits (0 = unlimited):
 | Quota | Default | Description |
 |-------|---------|-------------|
 | `max_rules` | 1,000 | Firewall + IDS + NAT rules combined |
-| `max_alert_rate` | 10,000/min | Maximum alert rate |
+| `max_alert_rate` | 10,000/min | Alerts recorded in the tenant's view per minute |
 | `max_patterns` | 100 | DLP patterns |
 | `max_ratelimit_rules` | 100 | Rate-limit rules |
 | `max_qos_pipes` | 32 | QoS pipes |
 
+`max_alert_rate_per_sec`, the spelling earlier files used, is still read and
+is a per-second figure: it is multiplied by sixty, so `500` holds the tenant to
+30,000 alerts a minute. `max_alert_rate` wins when both are written.
+
 ### Quota Enforcement
 
-- `check_quota()` uses `saturating_add` to prevent overflow
-- `check_and_record()` performs **atomic check+record** under write lock to prevent TOCTOU races
-- `release_usage()` decrements usage on resource deletion (saturating)
-- Runtime quota updates via `PUT /api/v1/tenants/{id}/quota` with reduction protection - returns HTTP 429 if new limit would be below current usage
+Usage is counted off what the node holds, never added up request by request:
+the agent reads its firewall, IDS, NAT, DLP, rate-limit and QoS services at
+boot, every ten seconds, and after every configuration it puts in force, and
+attributes each rule to the tenant its `tenant_id` names.
+
+- **Only a tenant given a quota is held to it.** A tenant with no `quotas`
+  block, and the default tenant (rules naming no tenant, NPTv6 prefixes, DLP
+  patterns, and every rule created through the REST API, which carries no
+  tenant), are never refused for what they hold.
+- **A reload that grows a tenant past its quota is refused.** The file is
+  counted before anything is put in force; when a tenant would hold more of a
+  resource than its quota allows, and more than it holds now, the reload is
+  refused whole and the log names the tenant and the resource. The running
+  rules stay in force.
+- **A node that starts over a quota is not refused.** It is the estate as it
+  stood before the quota was written; the agent logs a warning per tenant and
+  resource at boot, and only a change that adds to the overrun is refused.
+- **The alert rate is a window of one minute.** Each alert attributed to a
+  tenant counts against its `max_alert_rate`; past it, the rest of that minute
+  is dropped from the tenant's alert view and counted in
+  `ebpfsentinel_ent_tenant_quota_exceeded_total`. The alert itself is not
+  dropped: response, forensics and the SIEM export receive it whatever the
+  tenant's rate.
+- `PUT /api/v1/tenants/{id}/quota` changes a quota at runtime and answers HTTP
+  429 when the new limit would sit below what the tenant holds now.
 
 ## Tenant-Aware RBAC
 
-Access control is scoped per tenant using JWT claims or API key headers.
+Access control is scoped per tenant using the verified credential's claims.
+What a caller reaches is decided by two things: its role, and whether its
+credential names a tenant.
 
 ### Roles
 
-| Role | Capabilities |
-|------|-------------|
-| `Admin` | Cross-tenant access to all resources |
-| `Operator` | Read + write within own tenant only |
-| `Viewer` | Read-only within own tenant only |
+| Credential | Reaches |
+|------------|---------|
+| `admin`, naming no tenant | Every tenant, and the node-wide tenant routes (list, create, suspend, activate, quota changes, quota metrics, attribution) |
+| `admin`, naming a tenant | Read and write within that tenant only |
+| `operator` | Read and write within its own tenant only |
+| `viewer` | Read only within its own tenant |
+
+A tenant's own administrator is confined like any other caller of that tenant:
+a credential naming a tenant never reaches another one, whatever its role. The
+dashboard mints its agent tokens this way: each carries the tenant it is for and
+an audience of `ebpfsentinel-agent-{tenant_id}`, so a token issued for one
+customer's view of a shared node cannot read another customer's.
 
 ### Identity Extraction
 
 Identity is resolved from a **verified principal only**:
 
-1. **JWT claims** - `namespaces[0]` as tenant_id, `role` claim, `sub` as subject.
+1. **JWT claims** - the `tenant_id` claim, else `namespaces[0]`, as the tenant
+   (an empty value names none); the `role` claim; `sub` as subject.
    The auth layer populates these for both a validated JWT **and** a validated
    API key.
 
@@ -280,12 +316,16 @@ subject for audit only and confers no access.)
 
 `authorize_tenant_access(caller, target_tenant, permission)` enforces:
 
-- Admin always passes (no tenant check)
-- Non-admin requires `tenant_id` claim matching `target_tenant`
+- An admin naming no tenant passes for every tenant
+- Any other caller passes only for the tenant its credential names
 - Viewer: `Read` only
-- Operator: `Read` + `Write`
+- Operator and admin: `Read` + `Write`
 
-Error codes: `MISSING_TENANT_CLAIM`, `TENANT_MISMATCH`, `INSUFFICIENT_PERMISSION`
+Another tenant answers **404** `NOT_FOUND` ("tenant '{id}' not found"), exactly
+as a tenant that does not exist, so a confined caller learns nothing about who
+else the node holds. A node-wide route called by anyone other than an admin
+naming no tenant answers **403** `INSUFFICIENT_PERMISSION`; a caller below
+admin with no tenant in its credential answers **403** `MISSING_TENANT_CLAIM`.
 
 ## Tenant Events
 
@@ -293,9 +333,12 @@ Error codes: `MISSING_TENANT_CLAIM`, `TENANT_MISMATCH`, `INSUFFICIENT_PERMISSION
 
 `TenantEventService` maintains in-memory ring buffers:
 
-- **Alert buffer**: up to 10,000 entries (FIFO eviction)
-- **Audit buffer**: up to 10,000 entries (FIFO eviction)
-- **Broadcast channel**: real-time alert subscription for consumers
+- **Alert buffer**: up to 10,000 entries (FIFO eviction), fed from the agent's
+  internal security event bus, so every datapath alert attributed to a tenant
+  lands here whether or not a SIEM is configured, within the tenant's
+  `max_alert_rate`
+- **Audit buffer**: up to 10,000 entries (FIFO eviction), including quota
+  changes and tenant creation, suspension and activation
 
 ### Tenant Resolution (Userspace)
 
@@ -310,8 +353,9 @@ Userspace resolution complements the eBPF kernel resolution:
 
 `effective_tenant(caller_tenant, caller_role, requested_tenant)`:
 
-- Admin: uses requested tenant (or `None` for all tenants)
-- Non-admin: always scoped to own tenant (ignores requested)
+- Admin naming no tenant: uses the requested tenant (or `None` for all tenants)
+- Every other caller: always scoped to the tenant its credential names; asking
+  for another one answers 404
 
 ## Tenant Self-Service
 
@@ -358,11 +402,17 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/enterprise/tenants` | operator | multi-tenancy | Create tenant dynamically (admin). |
-| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | multi-tenancy | Suspend tenant (admin). |
-| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | multi-tenancy | Reactivate suspended tenant (admin). |
+| `POST` | `/api/v1/enterprise/tenants` | operator | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | multi-tenancy | Suspend tenant (admin naming no tenant). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
 | `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | multi-tenancy | Get self-service policy. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | multi-tenancy | Check if operation is allowed. |
+
+The Role column is the grant the RBAC layer checks. Creating, suspending and
+activating a tenant also need an administrator whose credential names no
+tenant: an operator-role key, or a tenant's own administrator, is answered 403.
+The Kubernetes operator suspends and activates tenants through these routes, so
+the agent key it holds is an `admin` key naming no tenant.
 
 The series these routes write are in the Prometheus Metrics table below, with
 the names and labels the registry actually carries.
@@ -564,7 +614,7 @@ There is no gauge in the registry carrying the configured limit itself. Usage
 is published as a ratio so a panel needs no second series to be readable, and
 the limit is read from `GET /api/v1/tenants/{id}/quota`.
 
-`GET /api/v1/tenants/metrics` (admin only) is a different thing: a snapshot of
+`GET /api/v1/tenants/metrics` (admin naming no tenant only) is a different thing: a snapshot of
 the configured limit and the current usage per tenant and resource, rendered
 as Prometheus text by the handler itself. It is written rather than registered,
 so it hangs under no prefix, is on no registry, and appears on neither
@@ -576,13 +626,13 @@ by hand.
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/tenants` | viewer | multi-tenancy | List all tenants (admin only). |
-| `GET` | `/api/v1/tenants/attribution` | viewer | multi-tenancy | What this node's last attribution pass observed (admin only). |
+| `GET` | `/api/v1/tenants` | viewer | multi-tenancy | List all tenants (admin naming no tenant). |
+| `GET` | `/api/v1/tenants/attribution` | viewer | multi-tenancy | What this node's last attribution pass observed (admin naming no tenant). |
 | `GET` | `/api/v1/tenants/{id}` | viewer | multi-tenancy | Tenant details (read permission). |
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | multi-tenancy | Current quota limits and usage. |
-| `PUT` | `/api/v1/tenants/{id}/quota` | operator | multi-tenancy | Update quota (admin, partial update, 429 on reduction below usage). |
+| `PUT` | `/api/v1/tenants/{id}/quota` | operator | multi-tenancy | Update quota (admin naming no tenant, partial update, 429 on reduction below usage). |
 | `POST` | `/api/v1/tenants/{id}/quota/check` | operator | multi-tenancy | Check quota without consuming (read permission). |
-| `GET` | `/api/v1/tenants/metrics` | viewer | multi-tenancy | Prometheus quota metrics (admin only). |
+| `GET` | `/api/v1/tenants/metrics` | viewer | multi-tenancy | Prometheus quota metrics (admin naming no tenant). |
 | `GET` | `/api/v1/enterprise/alerts` | viewer | multi-tenancy | Tenant-scoped alerts (filtered by effective tenant). |
 | `GET` | `/api/v1/enterprise/audit` | viewer | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
 
