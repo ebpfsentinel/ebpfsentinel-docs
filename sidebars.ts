@@ -129,6 +129,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/base-model',
             'features/enterprise/siem-integration',
             'features/enterprise/compliance-reports',
+            'features/enterprise/regulated-estates',
             'features/enterprise/airgap',
             'features/enterprise/analytics',
             'features/enterprise/advanced-rbac',

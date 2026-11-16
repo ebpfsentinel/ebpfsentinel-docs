@@ -114,3 +114,7 @@ alerting:
   evidence names what the entity evidences elsewhere
 - Audit trail: `ebpfsentinel-agent audit logs`
 - Alerts by component: `ebpfsentinel-agent alerts list --component ids`
+- Critical: a notification draft built from a case (`regime=nis2`), a dated record that each
+  stated control held, the attestation that nodes run the bytes the release signed, and hourly
+  seals over the console's record; see
+  [Proof for regulated estates](../features/enterprise/regulated-estates.md)

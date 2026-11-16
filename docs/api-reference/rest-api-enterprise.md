@@ -180,6 +180,7 @@ deployment that needs roles turns authentication on.
 | [Multi-cluster federation](#multi-cluster-federation) | 17 | [Multi-cluster federation](../features/enterprise/multicluster.md) |
 | [Multi-tenancy](#multi-tenancy) | 13 | [Multi-tenancy](../features/enterprise/multitenancy.md) |
 | [Network forensics](#network-forensics) | 14 | [Network forensics](../features/enterprise/network-forensics.md) |
+| [Runtime attestation](#runtime-attestation) | 1 | [Proof for regulated estates](../features/enterprise/regulated-estates.md#attested-nodes) |
 | [SIEM integration](#siem-integration) | 2 | [SIEM integration](../features/enterprise/siem-integration.md) |
 | [Threat intelligence platforms](#threat-intelligence-platforms) | 2 | [Threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) |
 | [TLS intelligence](#tls-intelligence) | 22 | [TLS intelligence](../features/enterprise/tls-intelligence.md) |
@@ -846,6 +847,16 @@ data: {"id":"01934567-89ab-7def-0123-456789abcdef","component":"ids","severity":
 The Prometheus gauge `forensics_sse_subscribers` exposes the current
 subscriber count, incremented / decremented by the handler on connect /
 disconnect.
+
+## Runtime attestation
+
+License feature: `runtime-attestation`. See
+[Proof for regulated estates](../features/enterprise/regulated-estates.md#attested-nodes)
+for what the reading proves and where it stops.
+
+| Method | Path | Role | Grant | License feature | Description |
+|--------|------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/attestation/runtime` | viewer | `config:read` | runtime-attestation | The executable and every kernel program object measured on disk and compared with the signed release measurements (200 whatever the verdict). |
 
 ## SIEM integration
 

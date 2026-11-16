@@ -86,6 +86,10 @@ is answered here rather than in a changelog.
 | `threat-intel-platforms` | TAXII 2.1 collections and MISP instances, read on an interval | - |
 | `sigma-rules` | Sigma rules over network connections compiled into IDS rules | - |
 | `extended-l7-protocols` | MQTT, AMQP 0-9-1, NATS and Cassandra CQL named on a flow and [matched by rules](../l7-firewall.md#rules-on-the-extended-protocols) on their parsed fields; Kafka, MongoDB and LDAP named on a flow, with no rule reading them | - |
+| `regulatory-notification` | NIS2 and DORA notification drafts built from a case, in the console. See [Proof for regulated estates](regulated-estates.md) | - |
+| `control-assurance` | Stated controls traced through each node's loaded rules on an interval and kept on a hash chain, in the console | - |
+| `runtime-attestation` | The agent's executable and kernel objects measured and compared with the signed release measurements | - |
+| `sealed-audit` | Hourly seals over the console's audit trail, case events and control chain, optionally timestamped by an RFC 3161 authority | - |
 
 ### The write refusal is a configuration, not a licence
 

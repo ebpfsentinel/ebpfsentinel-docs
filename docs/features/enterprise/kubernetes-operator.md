@@ -1,6 +1,6 @@
 # Kubernetes Operator
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** | **License Feature: `kubernetes-operator`**
 
 ## Overview
 
@@ -20,9 +20,10 @@ licence to start.
 
 ## Licence
 
-The operator does not start without an Enterprise licence carrying the
-`kubernetes-operator` feature. It reads the licence from a Secret in its own
-namespace - `ebpfsentinel-license`, key `license`, unless the chart's
+The operator does not start without a paid licence carrying the
+`kubernetes-operator` feature, which every tier from Professional up includes.
+It reads the licence from a Secret in its own namespace -
+`ebpfsentinel-license`, key `license`, unless the chart's
 `license.existingSecret` and `license.secretKey` name another - and verifies
 both signatures, Ed25519 and ML-DSA-65, against the issuer's keys built into
 the binary, exactly as the [enterprise agent](license.md) does.

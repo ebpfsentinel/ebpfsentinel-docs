@@ -1,6 +1,6 @@
 # Bare-Metal Load Balancer
 
-> **Edition: Enterprise** (the Kubernetes operator, licence feature `kubernetes-operator`)
+> **Edition: Professional and above** (the Kubernetes operator, licence feature `kubernetes-operator`)
 
 ## Overview
 
