@@ -32,7 +32,8 @@ release: [Docker Compose](#docker-compose) below fetches and verifies them.
 2. The **agent** starts as uid 65534 with `cap_drop: ALL`, connects to that
    socket (`EBPFSENTINEL_WARDEN_SOCK`) and unshares a user namespace.
 3. It `fsopen("bpf")`s and passes the fd to the warden over `SCM_RIGHTS`; the
-   warden stamps `delegate_*=any` + `FSCONFIG_CMD_CREATE` on it and hands it
+   warden stamps the `delegate_*` options (the program and attach types the
+   agent loads, see the [BPF token guide](bpf-token.md)) + `FSCONFIG_CMD_CREATE` on it and hands it
    back. Only that one step needs `CAP_SYS_ADMIN` in the initial user namespace.
 4. The agent mounts the delegated bpffs, calls `BPF_TOKEN_CREATE` (`EOPNOTSUPP`
    outside a user namespace, which is why the split exists) and loads and

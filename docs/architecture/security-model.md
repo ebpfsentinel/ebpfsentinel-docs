@@ -138,7 +138,16 @@ the host pid namespace is not one of them:
   container's `/proc/<pid>/root` (`CAP_SYS_PTRACE`) and creating the uprobe link
   (`CAP_BPF` + `CAP_PERFMON`) are brokered to the privileged **warden**, which
   returns the link descriptor over the control socket. The agent itself stays
-  `cap-drop: ALL` - it never holds a tracing capability.
+  `cap-drop: ALL` - it never holds a tracing capability. A uprobe reads the
+  memory of every process running the probed code, so the warden checks the
+  offset against the file before creating the link: it must fall inside a TLS
+  write or read call or a crypto library's encrypt call the file names
+  (`SSL_write`, `gnutls_record_send`, `EVP_EncryptUpdate`, Go's
+  `crypto/tls.(*Conn).Write` and their kin). In a file stripped of its symbols
+  the offset must lie in executable code and the file must carry a TLS stack of
+  its own. Anything else, such as an offset in `sshd` or in `libc`, is refused
+  and the refusal names the function the offset lies in. The link is created on
+  the file the warden checked, not on a path read a second time.
 - **The file watch on the warden only.** Marking a whole filesystem
   (`CAP_SYS_ADMIN`) and turning the handle the kernel reports into a directory
   name (`CAP_DAC_READ_SEARCH`) are done by the warden, on a control connection

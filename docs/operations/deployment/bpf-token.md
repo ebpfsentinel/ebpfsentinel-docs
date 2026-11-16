@@ -41,7 +41,7 @@ sequenceDiagram
     Note over A: unshare(CLONE_NEWUSER + CLONE_NEWNS)<br/>→ root inside its OWN userns (no host caps)
     A->>A: fsopen("bpf") - superblock owned by the agent's userns
     A->>W: Command::Delegate + fs_fd (SCM_RIGHTS)
-    Note over W: fsconfig delegate_*=any + FSCONFIG_CMD_CREATE<br/>(requires CAP_SYS_ADMIN in init_user_ns - only the warden)
+    Note over W: fsconfig delegate_* (closed lists) + FSCONFIG_CMD_CREATE<br/>(requires CAP_SYS_ADMIN in init_user_ns - only the warden)
     W-->>A: Delegated{btf_names, pcap_count} + BTF/pcap fds (SCM_RIGHTS)
     A->>A: fsmount + move_mount the delegated bpffs
     A->>A: setenv(EBPF_MODULE_BTF_FDS, EBPFSENTINEL_PCAP_FDS,<br/>EBPFSENTINEL_USERNS_READY=1) → execv self
@@ -57,6 +57,21 @@ the **initial** user namespace. The agent, in a descendant user namespace, holds
 fails that one step. It passes the `fs_fd` to the warden over `SCM_RIGHTS`, the
 warden stamps the delegation, and the agent resumes. Token creation and every
 later `bpf()` then happen entirely in the agent's own user namespace.
+
+**What the token carries.** Commands and map types are delegated whole. Program
+and attach types are delegated only as far as the agent's own programs go:
+
+| Option | Values |
+|---|---|
+| `delegate_progs` | `xdp`, `sched_cls`, `kprobe`, `cgroup_skb`, `cgroup_sock`, `cgroup_sock_addr`, `sock_ops`, `raw_tracepoint`, `lsm`, `syscall` |
+| `delegate_attachs` | `cgroup_inet_ingress`, `cgroup_inet_egress`, `cgroup_inet_sock_release`, the `cgroup_inet4/6` `bind`, `post_bind`, `connect` and `getpeername` hooks, the `cgroup_udp4/6` `sendmsg` and `recvmsg` hooks, `cgroup_sock_ops`, `xdp`, `tcx_ingress`, `tcx_egress`, `trace_uprobe_multi`, `trace_kprobe_multi`, `trace_kprobe_session`, `lsm_mac` |
+
+An agent that is taken over gets no `tracing`, `perf_event` or `struct_ops`
+program out of the token. A program loaded with no attach type carries `0`,
+which the kernel spells `cgroup_inet_ingress`, and that entry is what lets the
+XDP, TC, raw tracepoint and syscall programs load. If the kernel refuses any
+option, the warden refuses the whole delegation rather than hand back a token
+narrower than the agent needs, and the agent says so at start-up.
 
 The trampoline is a no-op when no warden socket is configured
 (`EBPFSENTINEL_WARDEN_SOCK` unset) or on the post-`execv` second pass

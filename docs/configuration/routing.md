@@ -95,7 +95,7 @@ routing:
 
 When `primary` fails 3 consecutive health checks, the agent rewrites the default route through `backup`. When `primary` recovers (2 consecutive successes), the route goes back.
 
-Rewriting the routing table is a `CAP_NET_ADMIN` operation: a rootless agent proxies it through its warden, so failover needs no extra capability on the agent itself.
+Rewriting the routing table is a `CAP_NET_ADMIN` operation: a rootless agent proxies it through its warden, so failover needs no extra capability on the agent itself. The warden replaces the main table's default route and nothing else: a request for any other destination or table is refused, so the agent cannot steer one address or one network elsewhere through it.
 
 ### Backup Link Kept Out of Service
 

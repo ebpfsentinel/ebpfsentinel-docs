@@ -349,7 +349,12 @@ holds exactly that content, so a file of the operator's own is never adopted.
 A directory absent on the host, one on a read-only filesystem and one the
 holder may not write to are each reported once with the reason and skipped;
 the warden holds no `CAP_DAC_OVERRIDE`, so it seeds only directories its own
-user can write to. A canary deleted or renamed away is planted again at once,
+user can write to. A directory the system keeps its own files in is refused
+whatever its permissions: `/proc`, `/sys`, `/dev`, `/run`, `/boot`, `/etc`,
+`/usr`, `/bin`, `/sbin`, the `/lib` directories, `/var/lib`, `/var/run`,
+`/var/cache`, `/nix`, `/snap`, anything below them, and any directory directly
+under `/`. The warden checks the directory it actually opened, after links are
+followed, so a link pointing into one of them is refused too. A canary deleted or renamed away is planted again at once,
 and every canary is planted again each time the watch is opened.
 
 ```yaml
