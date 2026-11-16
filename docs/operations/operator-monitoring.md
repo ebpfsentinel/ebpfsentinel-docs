@@ -26,6 +26,7 @@ curl -s localhost:8081/metrics | grep -v '^#'
 | `ebpfsentinel_operator_reconcile_duration_seconds` | Histogram | `controller`, `result` | How long a pass takes |
 | `ebpfsentinel_operator_reconcile_in_flight` | Gauge | `controller` | How many passes are running right now |
 | `ebpfsentinel_operator_objects` | Gauge | `kind`, `namespace`, `ready` | How many resources of each kind are ready, not ready, or not yet reported |
+| `ebpfsentinel_operator_tls_handshakes_total` | Counter | `link`, `group` | Which key exchange each TLS handshake negotiated: `link` is `outbound` (the API server, the agents, the console) or `webhook` (the admission listener), `group` the IANA name, `X25519MLKEM768` being the hybrid post-quantum one |
 
 `controller` is the kind a controller reconciles, such as `FirewallPolicy`,
 or `ebpfsentinelagent` for the agent controller. `namespace` on the object
@@ -42,6 +43,13 @@ on does not expose its scheduling queue, so a figure under that name would
 be an estimate. `reconcile_in_flight` is the honest substitute: a value that
 stays at its ceiling while `reconcile_duration_seconds` climbs means passes
 are waiting on each other.
+
+Every link the operator dials or serves offers `X25519MLKEM768` first, with
+`X25519` and `secp256r1` behind it for a peer that has no hybrid group. A
+series appears once its link has completed one handshake, and it counts what
+was negotiated rather than what was offered: a classical `group` on
+`outbound` names an API server or an agent that answered without the hybrid
+group.
 
 ## What a healthy loop looks like
 
