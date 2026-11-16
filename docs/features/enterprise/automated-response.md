@@ -14,7 +14,7 @@ Automated response orchestration evaluates every security alert against configur
 
 ```
 OSS Alert Pipeline
-  └── SIEM Broadcast Channel
+  └── Security event bus (always on, SIEM or none)
         └── Response Bridge (tokio task)
               └── ResponseOrchestrationService.ingest_siem_event()
                     ├── to_snapshot() → AlertSnapshot

@@ -4,7 +4,7 @@
 
 ## Overview
 
-Native connectors for 10 enterprise SIEM and data lake platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, broadcast channel for internal subscribers (analytics bridge), OTLP at-least-once delivery with retry/backoff, and retroactive IOC matching against the event buffer.
+Native connectors for 10 enterprise SIEM and data lake platforms with durable buffering (redb-backed), Elastic Common Schema (ECS) mapping, fan-out to multiple destinations, circuit breaker protection, OTLP at-least-once delivery with retry/backoff, and retroactive IOC matching against the event buffer.
 
 ## Supported Platforms
 
@@ -550,11 +550,15 @@ enterprise:
 
 Only configure the connectors you need. Unconfigured connectors are ignored.
 
+A connector that fails to start, a CA file that does not exist or an endpoint the client refuses, is dropped alone: the agent logs the connector and the reason, the others export, and `GET /api/v1/siem/status` lists it under `failed_connectors`. When no connector starts at all, the agent logs it and runs without export; response, forensics and analytics keep working.
+
+Automated response, forensics and analytics do not depend on this block. Every alert is published on an internal event bus that those engines read whether or not a SIEM is configured; the SIEM exporters receive each event from the same bus.
+
 ## REST API
 
 | Method | Path | Role | License feature | Description |
 |--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/siem/status` | viewer | siem-integration | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts). |
+| `GET` | `/api/v1/siem/status` | viewer | siem-integration | Export pipeline status (connectors started, connectors that failed to start with the reason, buffer size, pending events, exported/dropped/error counts). |
 | `POST` | `/api/v1/siem/retro-ioc-scan` | operator | siem-integration | Retroactive IOC matching against buffered events. |
 
 ## Feature Gating

@@ -34,7 +34,7 @@ remain:
 
 ```
 OSS Alert Pipeline
-  └── SIEM Broadcast Channel
+  └── Security event bus (always on, SIEM or none)
         └── Forensics Bridge (tokio task)
               └── ForensicsService.ingest_siem_event()
                     ├── ForensicsEngine.ingest() → Ring Buffer (VecDeque, capped)

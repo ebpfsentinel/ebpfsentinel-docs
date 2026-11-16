@@ -856,7 +856,7 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/siem/retro-ioc-scan` | operator | `config:write` | siem-integration | Retroactive IOC matching against buffered events. |
-| `GET` | `/api/v1/siem/status` | viewer | `config:read` | siem-integration | Export pipeline status (connectors, buffer size, pending events, exported/dropped/error counts). |
+| `GET` | `/api/v1/siem/status` | viewer | `config:read` | siem-integration | Export pipeline status (connectors started, connectors that failed to start with the reason, buffer size, pending events, exported/dropped/error counts). |
 
 ## Threat intelligence platforms
 
