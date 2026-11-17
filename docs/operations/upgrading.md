@@ -2,10 +2,13 @@
 
 An upgrade replaces two processes, the agent and the warden, and both come from
 the same release: the warden protocol is versioned with the agent, so run them
-at the same version. The agent's eBPF links belong to its process, so every
-upgrade detaches the programs when the old agent exits and attaches them again
-when the new one has started. For that window the node is not filtered, and its
-length is the time the new agent takes to start, not a fixed figure.
+at the same version. The agent's XDP, TC and cgroup links are pinned on the
+host bpffs, so an upgrade leaves the node filtered throughout: the old agent
+exits with its hooks still enforcing the last rules it wrote, and the new one
+adopts them and moves each to its own rules in one `BPF_LINK_UPDATE`, so a hook
+is never empty and never runs on blank rules. What waits for the new process is
+what needs one: alerts, rule changes, feed refreshes and the expiry of timed
+blocks. See [Enforcement After the Agent Exits](enforcement-after-exit.md).
 
 ## What a stop does
 
@@ -13,14 +16,15 @@ The stop command (`ebpfsentinel-agent stop`, which a host unit requires since
 it refuses `systemctl stop`), `docker stop` and a pod deletion all end the
 agent in order, and both agents treat SIGTERM as a stop rather than as a kill: the HTTP listener stops
 accepting and lets the requests in flight finish, the background loops are told
-to stop and write out what they are still holding, and the eBPF programs are
-then detached. On the Enterprise agent what gets written at that moment is the
+to stop and write out what they are still holding, and the process exits with
+the pinned links left in place (`agent.on_exit: keep`, the default; `detach`
+removes them on a graceful exit instead). On the Enterprise agent what gets written at that moment is the
 SIEM batch that has not left yet and the current analytics window; on both, the
 audit and alert stores are written as they go and owe nothing to a stop.
 
 On the community agent a packet capture in progress is ended first, before the
-programs are detached, so a capture never records a window the datapath was no
-longer watching: the session is marked `interrupted`, the file is closed and
+agent stops reading the datapath, so a capture never records a window nobody was
+watching: the session is marked `interrupted`, the file is closed and
 what it holds is a short capture rather than a half-written one. That wait is
 two seconds, and a capture is not a reason to hold a stop open longer than
 that.
