@@ -272,6 +272,20 @@ that loses its agent pod while nobody drains it is raised.
 [Tamper protection on Kubernetes](tamper-protection.md#on-kubernetes)
 describes each refusal, the Kyverno variant and what it does not cover.
 
+A protected agent is stopped on one node by a signed document listed under
+`spec.stoppedNodes` of its `EbpfSentinelAgent` (`node`, `nonce`, `envelope`).
+The operator verifies it against the stop keys named in
+`EnterpriseSettings.spec.tamperProtection.stopKeys` (each an `issuer`,
+`dashboard` or `break-glass`, and the Secrets holding its two public halves),
+hands it to the agent on that node and, once admitted, records it under
+`status.stoppedNodes` and keeps the `DaemonSet` off that node until the entry
+is removed. An entry that does not verify or that the agent refuses is taken
+back out with an `AgentStopRefused` event. The console writes these entries
+itself, so its service account belongs in
+`tamperProtection.allowedServiceAccounts`;
+[Stopping one node's agent](tamper-protection.md#stopping-one-nodes-agent)
+gives the details.
+
 ### Running more than one replica
 
 Replicas elect a leader through a `Lease` in the operator's namespace

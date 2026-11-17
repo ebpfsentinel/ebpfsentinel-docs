@@ -17,6 +17,11 @@ licence holder controls, naming the one node it stops, valid for minutes, and
 used once. The agent verifies it, opens a window in the kernel for sixty
 seconds, records the stop and ends itself.
 
+There are two ways to sign one, and both keys are yours: the console signs it
+when a tenant administrator asks, with a reason, and a key pair kept offline
+signs it when the console cannot. The vendor holds no stop key, and neither
+the customer portal nor anything else we run can issue one.
+
 Every refusal and every admitted or refused stop is an alert.
 
 ## The condition: the BPF LSM at boot
@@ -106,8 +111,30 @@ pair signed with `stop-authorise` until then is a break-glass pair: add
 
 ## Stopping a protected agent
 
-Generate a stop key pair once and keep the private halves offline, the way a
-break-glass key is kept:
+### From the console
+
+The usual way. A tenant administrator opens the fleet, picks the agent and
+gives a reason and a lifetime of one to fifteen minutes; a sign-in older than
+five minutes is sent to sign in again first, and a tenant that asks for a
+second administrator waits for one to approve. The console signs a document
+naming the agent's node, `issuer: dashboard`, who asked and why, posts it to
+the agent and says what the agent answered. The stop is written to the audit
+trail and the tenant's notifications. The console offers a stop only where
+the agent lists the console's pair under `trusted_issuers`, and says why
+everywhere else.
+
+The console's pair is generated once with `dashboard-server stop-keygen`,
+its private half given to the console under `tamper.stop_signing` and its
+public half listed on each agent with `issuer: dashboard`
+([Dashboard configuration](../../configuration/dashboard.md#tamper-optional)).
+Without it, the console signs no stop and says so where one would be offered.
+
+### Break-glass, when the console cannot
+
+Keep a second pair offline, the way any break-glass key is kept, and use it
+only when the console does not answer, or when the agent is not one the
+console reaches (a host outside every tenant, a network the console cannot
+see). It is listed on each agent with `issuer: break-glass`:
 
 ```bash
 ebpfsentinel-license keygen \
@@ -125,6 +152,12 @@ ebpfsentinel-license stop-authorise --node worker-3 --minutes 5 \
 
 ebpfsentinel-enterprise-agent stop --authorisation stop.auth
 ```
+
+`--issuer` defaults to `break-glass`. A break-glass stop is recorded and
+raised exactly like a console one, under its own issuer, so the fleet tells
+afterwards which way each stop came.
+
+### What the agent checks
 
 `stop` posts the document to `POST /api/v1/agent/stop` on the local agent. The
 agent refuses it when it is malformed, of a schema it does not read, not signed
@@ -225,6 +258,46 @@ What it does not cover:
   next pass.
 - Uninstalling, or turning the protection off again, is done as one of the
   named accounts ([Uninstalling](kubernetes-operator.md#uninstalling)).
+
+### Stopping one node's agent
+
+A `DaemonSet` puts the agent back on every node, so on Kubernetes an admitted
+stop is followed by the operator taking the node out of the `DaemonSet`. The
+signed document goes on the agent resource:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: edge
+  namespace: security
+spec:
+  stoppedNodes:
+    - node: worker-3
+      nonce: 0193f2c4-6a1e-7b2d-9c4f-1e2d3c4b5a69
+      envelope: |
+        eyJzY2hlbWEiOiJlYnBmc2VudGluZWwuc3RvcC92MSIs...
+        ...
+        ...
+```
+
+The operator verifies the document against the same stop keys the agent
+renders from `EnterpriseSettings.spec.tamperProtection.stopKeys`, hands it to
+the agent pod on that node and, once the agent admits it, records it under
+`status.stoppedNodes` (node, issuer, who asked, why, `stopping` or `armed`,
+when) and keeps the `DaemonSet` off that node until the entry is removed.
+Removing the entry gives the node back. An entry that does not verify, names
+another node than its document, expired before it reached the agent, or that
+the agent refused, is taken back out of the spec with an `AgentStopRefused`
+event; an admitted one raises `AgentStopAdmitted`.
+
+The console does this itself for an agent the operator runs: it signs the
+document, writes the entry on the agent resource of the tenant's cluster,
+lists the nodes kept off, and gives one back on request from the same role.
+Under the operator's tamper protection only named service accounts change
+`spec.stoppedNodes`, so the console's account must be in
+`tamperProtection.allowedServiceAccounts`. A break-glass stop on Kubernetes
+is the same entry written with `kubectl` by one of those accounts.
 
 ## Alerts
 

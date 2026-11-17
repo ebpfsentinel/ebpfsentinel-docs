@@ -88,6 +88,7 @@ Static tenant catalogue. At least one entry required, all `id`s unique.
 | `agent_pool` | string | (required) | Non-empty pool name keyed by fleet discovery. |
 | `oidc_groups` | string list | `[]` | OIDC `groups` claim values that grant `analyst` access to this tenant. Any match elects the tenant for that user. |
 | `admin_groups` | string list | `[]` | OIDC `groups` claim values that grant `admin` access to this tenant. Membership implies tenant access too. |
+| `require_second_approver` | bool | `false` | A stop one administrator asks for waits for a second administrator of the tenant, never the one who asked, before the console signs it. |
 
 ### `fleet_discovery`
 
@@ -156,10 +157,13 @@ runbook is [Rolling an upgrade out](../operations/upgrade-rollout.md).
 | `api_server` | string | in-cluster address | Must be `https://`. Read at startup only. Absent, the pod's service account and `https://kubernetes.default.svc` are used. |
 | `resources[]` | list | (required) | At least one. Each `{tenant, namespace, name}` is an `EbpfSentinelAgent` the tenant's operators may upgrade; the tenant must exist, the namespace and name are Kubernetes object names, and a resource is listed once. |
 
-The dashboard reads and patches `spec.image` of the listed resources and
-nothing else, as its own service account, so that account needs `get` and
-`patch` on exactly those. A GitOps tool reconciling the same resources must
-ignore `spec.image.tag` and `spec.image.canary`, or it reverts every step.
+The dashboard reads and patches `spec.image` and `spec.stoppedNodes` of the
+listed resources and nothing else, as its own service account, so that
+account needs `get` and `patch` on exactly those. A GitOps tool reconciling
+the same resources must ignore `spec.image.tag`, `spec.image.canary` and
+`spec.stoppedNodes`, or it reverts every step and gives back every stopped
+node. The same list is where the console finds the resource to hand a stop
+of an operator-run agent to (see [`tamper`](#tamper-optional)).
 
 ### `clusters` (optional)
 
@@ -192,6 +196,45 @@ under another cluster's name, or with no token, is answered `401`. Reports are
 held in memory, so after a restart every cluster reads as never reported until
 its next report, a minute later at most. The operator side is
 [Reporting to a console](../features/enterprise/kubernetes-operator.md#reporting-to-a-console).
+
+### `tamper` (optional)
+
+Stopping a tamper-protected agent from the console. A tenant administrator
+asks for a stop with a reason and a lifetime; the console signs a document
+naming the agent's node with its own key pair, as issuer `dashboard`, and
+hands it to the agent, or, for an agent the operator runs, to the agent
+resource listed for the tenant under `upgrades.resources`.
+
+| Field | Type | Default | Validation |
+|---|---|---|---|
+| `stop_signing.ed25519_key_file` | path | unset | The Ed25519 private half, a file mounted from a Secret. Must read as a key at startup. |
+| `stop_signing.ml_dsa_key_file` | path | unset | The ML-DSA-65 private half, beside it. |
+| `stops_per_tenant_per_hour` | u32 | `20` | At least `1`. How many stops one tenant may have signed in an hour; an agent is never sent two within a minute. |
+
+Without `stop_signing` the console signs no stop and says so where one would
+be offered. Generate the pair once:
+
+```bash
+dashboard-server stop-keygen --out-dir ./stop-key
+```
+
+It writes the two private files and the two public ones, and prints both
+snippets: the private files go under `tamper.stop_signing`, the public files
+on each agent under `enterprise.tamper_protection.stop_keys` with
+`issuer: dashboard` (or, on Kubernetes, in the Secrets
+`EnterpriseSettings.spec.tamperProtection.stopKeys` names). An agent that
+lists only a break-glass pair is shown with the stop disabled and the reason.
+
+For an operator-run agent the console's service account writes
+`spec.stoppedNodes` on the agent resource, so it must be named in the
+operator chart's `tamperProtection.allowedServiceAccounts`. A tenant without
+an `upgrades.resources` entry for the cluster running that node is refused
+before anything is signed. The **Fleet** page lists the nodes kept off by a
+signed stop and gives one back; both need the stop permission, and a give-back is audited as
+`agent.resume`. The key never leaves the console: the vendor holds no stop
+key. The full procedure, including the offline break-glass pair for when the
+console cannot answer, is
+[Tamper protection](../features/enterprise/tamper-protection.md#stopping-a-protected-agent).
 
 ### `observability`
 
