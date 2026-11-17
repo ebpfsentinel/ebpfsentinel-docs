@@ -116,6 +116,17 @@ auth:
 
 `issuer` and `audience` are optional and validated only when set.
 
+#### Post-quantum cosignature
+
+Tokens minted by the dashboard also carry an ML-DSA-65 signature over the
+whole token, sent in the `X-Ebpfsentinel-Token-Cosignature` header and
+checked against the ML-DSA-65 key the dashboard publishes in its JWKS under
+the same `kid`. `auth.pq_tokens` decides what is required: `prefer` (default)
+accepts a token without one and refuses a wrong one, `require` refuses a
+classical-only token, `disable` ignores it. Tokens from your identity provider
+are never asked for one. Details and the static-key variant in
+[Authentication Configuration](../configuration/auth.md#post-quantum-token-cosignature).
+
 ### OIDC (JWKS Discovery)
 
 SSO integration via OpenID Connect. The agent fetches the JWKS (JSON Web Key Set) from the discovery URL and validates tokens dynamically.

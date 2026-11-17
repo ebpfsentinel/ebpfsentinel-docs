@@ -54,6 +54,15 @@ EdDSA session tokens + per-tenant agent JWTs + the published JWKS
 the active mint key, every other non-expired entry stays in JWKS for
 the rotation grace window.
 
+Each entry with a `private_key_file` also signs with an ML-DSA-65 key
+derived from its Ed25519 key (HKDF-SHA256), so nothing new has to be
+generated or stored. The JWKS publishes it under the same `kid` as an
+`AKP` entry (`alg: ML-DSA-65`), and every agent token goes out with that
+cosignature in `X-Ebpfsentinel-Token-Cosignature`; the agent holds it to
+`auth.pq_tokens`. A verify-only entry (`public_key_path` alone) publishes
+no ML-DSA-65 key, so tokens minted under it are classical only and an
+agent set to `pq_tokens: require` refuses them.
+
 | Field | Type | Default | Validation |
 |---|---|---|---|
 | `algorithm` | string | `EdDSA` | Only `EdDSA` is accepted. |

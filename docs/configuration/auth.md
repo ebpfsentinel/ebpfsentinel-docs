@@ -64,6 +64,7 @@ auth:
 | `metrics_auth_required` | `bool` | `true` | Whether `/metrics` requires authentication when auth is enabled |
 | `api_keys` | `[ApiKey]` | `[]` | Static API keys |
 | `api_key_salt` | `string` | random | Salt for API key hashing. A random 32-byte value is generated if omitted |
+| `pq_tokens` | `prefer` \| `require` \| `disable` | `prefer` | What a JWT's ML-DSA-65 cosignature has to be (see [Post-quantum token cosignature](#post-quantum-token-cosignature)) |
 | `jwt` | `JwtConfig` | - | JWT (RS256) settings |
 | `oidc` | `OidcConfig` | - | OIDC (JWKS) settings |
 
@@ -83,6 +84,7 @@ auth:
 | `issuer` | `string` | No | Expected token issuer (validated when set) |
 | `audience` | `string` | No | Expected token audience (validated when set) |
 | `public_key_path` | `string` | Yes | Path to RS256 public key (RSA 2048-bit minimum enforced) |
+| `ml_dsa_public_key_path` | `string` | No | With `public_key_path`: base64 of the raw ML-DSA-65 public key (1952 bytes) cosignatures are checked against. Under an allowed key directory like `public_key_path` |
 
 ### OidcConfig
 
@@ -197,6 +199,53 @@ Setting `algorithm: EdDSA` with `public_key_path` works for static keys;
 setting it with `jwks_url` is the recommended path because the dashboard
 rotates its signing key on a schedule and a static PEM would have to be
 redeployed each time.
+
+## Post-quantum token cosignature
+
+Every token the dashboard mints is signed twice. The JWT itself carries the
+Ed25519 signature; an ML-DSA-65 signature over the whole compact token travels
+beside it in the `X-Ebpfsentinel-Token-Cosignature` header (gRPC metadata
+`x-ebpfsentinel-token-cosignature`). The ML-DSA-65 public key is published in
+the dashboard's JWKS under the same `kid` as the Ed25519 key, as an entry with
+`kty: AKP`, `alg: ML-DSA-65` and the raw key in `pub`. A JWKS consumer that does
+not know that entry reads past it.
+
+`auth.pq_tokens` says what the agent does with it, on the REST API, on gRPC and
+on the enterprise API alike:
+
+| Value | A token with a valid cosignature | A token without one | A token with a wrong one |
+|---|---|---|---|
+| `prefer` (default) | accepted | accepted | refused |
+| `require` | accepted | refused | refused |
+| `disable` | accepted, cosignature ignored | accepted | accepted, cosignature ignored |
+
+A cosignature that does not verify is refused under `prefer` too: a token
+somebody bothered to cosign and got wrong is not a classical token.
+
+The setting applies to `auth.jwt` tokens. With `jwks_url` the key is read off
+the JWKS; with `public_key_path` it is read from `ml_dsa_public_key_path`, and
+without that file `require` refuses every token. Tokens issued by your own
+identity provider through `auth.oidc` and API keys are never asked for a
+cosignature: the identity provider signs what it signs.
+
+```yaml
+auth:
+  enabled: true
+  pq_tokens: require
+  jwt:
+    algorithm: EdDSA
+    jwks_url: https://dashboard.example.com/.well-known/jwks.json
+    issuer: https://dashboard.example.com
+    audience: ebpfsentinel-agent
+```
+
+Outside this setting, and said so rather than left to be assumed: image and
+release signatures (cosign keyless through Fulcio), WebPKI certificates on any
+listener, and tokens issued by your identity provider. Licences and signed
+content bundles were already signed with Ed25519 and ML-DSA-65 and both
+signatures are required. The portal's enrolment answer carries no signature of
+its own: it is read over TLS from the address you configured, and a signing key
+on the host that answers it is what the portal design refuses.
 
 ## Security Notes
 
