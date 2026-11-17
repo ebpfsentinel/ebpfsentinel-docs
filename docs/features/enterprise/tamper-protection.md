@@ -106,6 +106,16 @@ leaves the kernel's refusal in place until the next start, and the signed stop
 is the way through it; refusing it for want of a licence would leave a node
 that nobody can stop in order.
 
+In a container there is no service unit to honour status `79`: the runtime
+restarts on any exit, and the agent cannot keep itself down. There an
+admitted stop answers `armed` instead of `stopping`, the agent keeps running,
+and the container has to be stopped (`docker stop`, `docker compose stop`)
+while the kernel's sixty-second window is open; that stop is recorded as the
+signed one. Docker itself cannot be prevented from stopping a container, so
+on Docker the protection refuses kills and unpins from inside the host but
+not a stop through the Docker socket, which is raised at the next start as a
+signalled end (see [Docker](../../operations/deployment/docker.md#docker-cannot-prevent-a-stop)).
+
 The window closes on its own: a stop whose shutdown hangs does not become an
 open door. A trace stays refused even inside the window, since a stop never
 needs the agent's memory.

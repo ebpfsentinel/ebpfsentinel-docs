@@ -335,7 +335,19 @@ The agent's state lives on the `ebpfsentinel-state` volume at
 `/var/lib/ebpfsentinel`, the image's working directory and owned by 65534: the
 redb stores under `data/`, GeoIP databases and the telemetry installation
 identifier. Captures go to the `ebpfsentinel-captures` volume under it. A config
-edit takes `docker compose restart agent`. Upgrading is unpacking the next
+edit takes an announced restart:
+
+```bash
+docker compose exec agent ebpfsentinel-enterprise-agent stop --reason "config edit"
+docker compose restart agent
+```
+
+The agent carries `restart: always`, and Docker cannot prevent a stop: the
+stop command arms the stop for the runtime's own instead of ending the agent,
+and a stop that was not announced is raised at the next start, as the
+[Docker guide](docker.md#docker-cannot-prevent-a-stop) describes. On a
+tamper-protected agent the announcement is the signed authorisation, and the
+container has to be stopped within the kernel's sixty-second window. Upgrading is unpacking the next
 release's tarball and moving `ebpfsentinel.yaml` and `license.key` across: its
 `compose.yaml` names the next release's images.
 

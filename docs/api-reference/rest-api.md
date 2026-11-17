@@ -235,6 +235,15 @@ curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
 { "status": "stopping", "exit_code": 79 }
 ```
 
+In a container, whose runtime restarts on any exit status, the stop is armed
+instead: the agent keeps running, and the runtime's own stop inside the window
+is recorded as this one (see
+[Docker](../operations/deployment/docker.md#docker-cannot-prevent-a-stop)).
+
+```json
+{ "status": "armed", "window_seconds": 300 }
+```
+
 #### GET /api/v1/agent/identity
 
 Agent identity metadata. Surfaces the operator-managed flag and the

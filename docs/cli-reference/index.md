@@ -408,7 +408,10 @@ why in its run record and its audit trail, shuts down in order and exits with
 status `79`, which its service unit treats as final. The units refuse
 `systemctl stop` and `systemctl restart`, and restart the agent on any other
 exit, so this is the way to stop a host agent; a stop by any other means is
-raised as an alert at the next start.
+raised as an alert at the next start. In a container the command arms the stop
+for five minutes instead, and the container's own stop inside that window is
+recorded as this one (see
+[Docker](../operations/deployment/docker.md#docker-cannot-prevent-a-stop)).
 
 | Flag | Description | Default |
 |------|-------------|---------|
@@ -1895,7 +1898,9 @@ takes a reason, which the agent records with the caller before it ends. A
 tamper-protected agent takes a signed authorisation instead: it verifies it,
 lifts the kernel's refusal for a minute and ends itself. Either way the agent
 exits with status `79`, which its unit does not restart, and the run record
-says whether the stop was signed. `--reason` and `--authorisation` do not go
+says whether the stop was signed. In a container the stop is armed instead,
+and the container has to be stopped inside the window, sixty seconds for a
+signed stop. `--reason` and `--authorisation` do not go
 together: a signed stop carries its own reason. A refused stop exits `1` and
 names the reason.
 

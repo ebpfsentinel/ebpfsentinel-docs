@@ -613,3 +613,34 @@ Unlike the systemd units, there is no watchdog here: docker restarts a container
 that exits, and nothing asks a running one whether it is still working. On
 Docker the stall shows up on `/readyz` only, so point whatever watches the
 deployment at that rather than at the process being up.
+
+### Docker cannot prevent a stop
+
+Both services carry `restart: always`: the agent comes back on every exit, a
+crash, an out-of-memory kill and a `kill` of its process included, and after
+a daemon restart even when the container had been stopped. What Docker cannot
+do is refuse a stop. Anyone allowed to talk to the Docker socket can
+`docker stop`, `docker rm` or `docker compose down` the agent, and no setting
+of the agent's changes that. A restart policy also cannot be told to leave one
+exit status down, so the stop status the systemd units honour means nothing
+here.
+
+What the agent does instead is tell a stop that was asked for from one that
+was not. Announce the stop, then do it:
+
+```bash
+docker compose exec agent ebpfsentinel-agent stop --reason "host maintenance"
+docker compose stop
+```
+
+Outside a service unit the stop command does not end the agent: it records
+who asked and why, answers `armed` with a window of five minutes, and keeps
+running. A `docker stop` arriving inside that window is recorded as the stop
+that was asked for. Any other stop, kill or removal is recorded as a signal,
+and the next start raises it as an alert (`agent-stopped-by-signal`), so a stop
+nobody announced is never silent; it is only not prevented.
+
+Enforcement does not depend on any of this. The warden pins the agent's links
+on the host's `/sys/fs/bpf`, so the last rules keep being enforced through
+`docker stop`, `docker rm` and `docker compose down`, until a new agent
+replaces them (see [Enforcement after exit](../enforcement-after-exit.md)).
