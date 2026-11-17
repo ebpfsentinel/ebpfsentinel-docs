@@ -9,8 +9,9 @@ length is the time the new agent takes to start, not a fixed figure.
 
 ## What a stop does
 
-`systemctl stop`, `docker stop` and a pod deletion all send SIGTERM, and both
-agents treat it as a stop rather than as a kill: the HTTP listener stops
+The stop command (`ebpfsentinel-agent stop`, which a host unit requires since
+it refuses `systemctl stop`), `docker stop` and a pod deletion all end the
+agent in order, and both agents treat SIGTERM as a stop rather than as a kill: the HTTP listener stops
 accepting and lets the requests in flight finish, the background loops are told
 to stop and write out what they are still holding, and the eBPF programs are
 then detached. On the Enterprise agent what gets written at that moment is the
@@ -48,9 +49,9 @@ tarball comes from the [releases page](https://github.com/ebpfsentinel/ebpfsenti
 ```bash
 tar xzf ebpfsentinel-<version>-linux-<arch>.tar.gz
 cd ebpfsentinel-<version>-linux-<arch>
-sudo systemctl stop ebpfsentinel ebpfsentinel-warden
+sudo ebpfsentinel-agent stop --reason "upgrade"
 sudo ./install.sh
-sudo systemctl start ebpfsentinel-warden ebpfsentinel
+sudo systemctl start ebpfsentinel
 ```
 
 The redb stores under `/var/lib/ebpfsentinel/data/` are kept. See

@@ -44,6 +44,8 @@ const KNOWN_ARG_KEYS = new Set([
   'action',
   'help',
   'value_name',
+  // Constrains which flags go together; the page names the pair in prose.
+  'conflicts_with',
 ]);
 
 function fail(lines) {

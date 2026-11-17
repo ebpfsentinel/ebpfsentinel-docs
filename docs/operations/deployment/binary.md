@@ -139,9 +139,42 @@ Deleting the file draws a new key at the next start. Configuring
 none. The agent binds `127.0.0.1` by default; binding anywhere else without
 TLS is refused, see [TLS](../../configuration/tls.md).
 
+### Stopping the agent
+
+Both units refuse `systemctl stop` and `systemctl restart`
+(`RefuseManualStop=yes`). The way to stop the agent is the agent itself:
+
+```bash
+sudo ebpfsentinel-agent stop --reason "kernel upgrade"
+sudo systemctl start ebpfsentinel     # when it should run again
+```
+
+The command records who asked and why in the run record beside the audit
+store and in the audit trail, then the agent shuts down in order and exits
+with status `79`. The unit treats that status as final
+(`RestartPreventExitStatus=79`, `SuccessExitStatus=79`) and restarts the agent
+on every other exit (`Restart=always`), so a `systemctl kill`, a stray signal
+or a crash brings it back within `RestartSec=5s`. The warden is bound to the
+agent (`BindsTo=`) and goes down with it.
+
+The next start reads how the last run ended and says so in its log: a
+recorded stop, a host shutdown, a failure, a signal, or nothing recorded at
+all. The last three are raised as alerts, with the time the run started and
+whether the host rebooted since. While it runs the agent watches its own unit
+files and their drop-ins, and raises a masked unit, a new drop-in or an edited
+unit within 30 seconds.
+
+This holds against an honest mistake and a careless script, not against
+root, who can still edit or mask the unit and kill the process; what it buys
+is that doing so is seen. The XDP, TC and cgroup links stay pinned and
+enforcing through a kill, see
+[Enforcement After the Agent Exits](../enforcement-after-exit.md). The package
+scripts and `uninstall.sh` use the stop command, and lift the refusal for the
+moment of their own stop only if the agent cannot answer.
+
 ### Restart, watchdog and stop budget
 
-`Restart=on-failure` covers an agent that exits. It does nothing for one that is
+`Restart=always` covers an agent that exits. It does nothing for one that is
 still running and no longer working: a ring-buffer reader wedged in a record
 handler leaves the process alive, the API answering and no packet being
 inspected. So the agent reports its own liveness to systemd, and the unit

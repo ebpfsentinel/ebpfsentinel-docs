@@ -95,9 +95,16 @@ agent refuses it when it is malformed, of a schema it does not read, not signed
 by a configured pair, for another node, issued ahead of its clock by more than
 two minutes, valid for longer than fifteen minutes, expired, or already used.
 Admitted, it opens the kernel's window for sixty seconds, writes the stop record,
-raises a `tamper-stop-admitted` alert and exits with status `79`, so a supervisor
-restarting the agent on any other exit leaves this one stopped. A refusal answers
-`403` and raises a `tamper-stop-refused` alert naming the reason.
+raises a `tamper-stop-admitted` alert and exits with status `79`, which the
+service unit treats as final while it restarts the agent on any other exit. The
+run record names the stop as signed, by whom and for whom, so the next start
+and the console tell it from a bare stop on an unprotected agent. A refusal
+answers `403` and raises a `tamper-stop-refused` alert naming the reason.
+
+The route is not licence-gated. A licence that lapses under a protected agent
+leaves the kernel's refusal in place until the next start, and the signed stop
+is the way through it; refusing it for want of a licence would leave a node
+that nobody can stop in order.
 
 The window closes on its own: a stop whose shutdown hangs does not become an
 open door. A trace stays refused even inside the window, since a stop never

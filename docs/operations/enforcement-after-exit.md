@@ -61,7 +61,7 @@ agent:
 ```
 
 `keep` leaves the pins on a graceful exit too. `detach` removes them on a
-graceful exit, so `systemctl stop` takes the hooks off; a crash or a kill
+graceful exit, so `ebpfsentinel-agent stop` takes the hooks off; a crash or a kill
 keeps them either way, since a process that is killed runs no exit path.
 
 ## Taking the hooks off

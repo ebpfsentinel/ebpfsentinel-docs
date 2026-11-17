@@ -879,7 +879,7 @@ kernel refuses, the condition it needs and the limits.
 
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
-| `POST` | `/api/v1/agent/stop` | operator | `config:write` | tamper-protection | Admit a signed stop authorisation (`text/plain` envelope); `202` and the agent ends with status 79, `403` naming the reason when refused. |
+| `POST` | `/api/v1/agent/stop` | operator | `config:write` | none | Admit a signed stop authorisation (`text/plain` envelope); `202` and the agent ends with status 79, `403` naming the reason when refused. An agent without the protection takes the JSON `{"reason": "..."}` of the OSS route instead. Never licence-gated: a licence lapsing under a protected agent leaves the kernel's refusal in place until the next start, and this is the way through it. |
 
 ## Threat intelligence platforms
 

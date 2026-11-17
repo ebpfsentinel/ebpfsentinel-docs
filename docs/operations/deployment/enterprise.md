@@ -207,7 +207,30 @@ says `transport="tls"`; without it the log says `transport="plain-http"`. See
 
 The enterprise agent builds its datapath once at boot: it has no config file
 watcher, no SIGHUP handling and no reload route, so the unit carries no
-`ExecReload` and a config edit takes `systemctl restart ebpfsentinel-enterprise`.
+`ExecReload`, and a config edit takes a stop and a start:
+
+```bash
+sudo ebpfsentinel-enterprise-agent stop --reason "config edit"
+sudo systemctl start ebpfsentinel-enterprise
+```
+
+### Stopping the agent
+
+The units refuse `systemctl stop` and `systemctl restart`, restart the agent on
+any exit other than its own stop command, and treat that command's status `79`
+as final, the same way as the community units, which the
+[binary deployment guide](binary.md#stopping-the-agent) describes in full,
+alerts on a signalled end and on a masked or edited unit included.
+
+On an agent without [tamper protection](../../features/enterprise/tamper-protection.md)
+`ebpfsentinel-enterprise-agent stop --reason "..."` is the whole of it. With
+the protection armed the command takes `--authorisation <file>` instead: a
+document signed for this node, which the agent verifies before it lifts the
+kernel's refusal for a minute and ends. The run record says which of the two
+it was, so a signed stop is never confused with a bare one. The stop route is
+not licence-gated: a licence lapsing under a protected agent leaves the
+kernel's refusal in place until the next start, and the signed stop is the way
+through it.
 
 ### Restart, watchdog and stop budget
 

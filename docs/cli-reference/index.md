@@ -401,6 +401,23 @@ ebpfsentinel-agent identity
 ebpfsentinel-agent identity -o json
 ```
 
+### stop
+
+Stop the running agent and keep it stopped. The agent records who asked and
+why in its run record and its audit trail, shuts down in order and exits with
+status `79`, which its service unit treats as final. The units refuse
+`systemctl stop` and `systemctl restart`, and restart the agent on any other
+exit, so this is the way to stop a host agent; a stop by any other means is
+raised as an alert at the next start.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--reason <TEXT>` | Why, kept in the run record, the audit trail and the next start's log line | none |
+
+```bash
+ebpfsentinel-agent stop --reason "kernel upgrade"
+```
+
 ### health
 
 Check agent liveness and readiness.
@@ -1871,17 +1888,25 @@ ebpfsentinel-enterprise-agent uninstall
 
 ### stop
 
-Stop a [tamper-protected](../features/enterprise/tamper-protection.md) agent
-with a signed authorisation. The command posts it to the local agent, which
-verifies it, lifts the kernel's refusal for a minute and ends itself with
-status `79`. A refused authorisation exits `1` and names the reason.
+Stop the running agent and keep it stopped; the units refuse `systemctl stop`
+and restart the agent on any other exit. On an agent without
+[tamper protection](../features/enterprise/tamper-protection.md) the command
+takes a reason, which the agent records with the caller before it ends. A
+tamper-protected agent takes a signed authorisation instead: it verifies it,
+lifts the kernel's refusal for a minute and ends itself. Either way the agent
+exits with status `79`, which its unit does not restart, and the run record
+says whether the stop was signed. `--reason` and `--authorisation` do not go
+together: a signed stop carries its own reason. A refused stop exits `1` and
+names the reason.
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--authorisation <PATH>` | The authorisation `ebpfsentinel-license stop-authorise` or the console wrote | required |
+| `--authorisation <PATH>` | The authorisation `ebpfsentinel-license stop-authorise` or the console wrote; required by a tamper-protected agent | none |
+| `--reason <TEXT>` | Why, kept in the run record | none |
 | `--token <TOKEN>` | Bearer token or API key for the agent's REST surface | `$EBPFSENTINEL_TOKEN` |
 
 ```bash
+ebpfsentinel-enterprise-agent stop --reason "kernel upgrade"
 ebpfsentinel-enterprise-agent stop --authorisation stop.auth
 ```
 

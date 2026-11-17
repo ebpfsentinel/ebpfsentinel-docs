@@ -37,7 +37,7 @@ A stop is observed by the reader within 50 milliseconds, whichever side asked
 for it: the file is closed, the packet count and file size are written against
 the session, and the capture slot is free again. That is why a capture started
 with a 300 second duration and stopped after two seconds costs nothing for the
-remaining 298, and why a `systemctl stop` during a capture does not wait the
+remaining 298, and why an agent stop during a capture does not wait the
 duration out. A capture ended by an agent stop is a short capture rather than a
 broken file, and it reads `interrupted` so that it is not mistaken for one an
 operator ended on purpose or for one that reached its own duration.

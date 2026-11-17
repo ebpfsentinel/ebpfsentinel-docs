@@ -215,6 +215,26 @@ The same values back the container rows of the
 [deployment matrix](../features/deployment-matrix.md#what-the-node-itself-reports),
 so the page and the node can be compared.
 
+#### POST /api/v1/agent/stop
+
+Stop the agent and keep it stopped. The request is recorded under the
+caller's name with its reason, the agent shuts down in order and exits with
+status `79`, which its service unit does not restart. The answer leaves before
+the shutdown starts. A stop by any other means is raised as an alert at the
+next start. `503` where nothing wired the stop (an agent embedded in another
+process).
+
+```bash
+curl -X POST -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "kernel upgrade"}' \
+  http://localhost:8080/api/v1/agent/stop
+```
+
+```json
+{ "status": "stopping", "exit_code": 79 }
+```
+
 #### GET /api/v1/agent/identity
 
 Agent identity metadata. Surfaces the operator-managed flag and the
@@ -3824,6 +3844,7 @@ reads one table for the write roles, and this column is checked against it.
 | GET | `/readyz` | No | Readiness probe |
 | GET | `/metrics` | Yes | Prometheus metrics |
 | GET | `/api/v1/agent/status` | Yes | Agent status |
+| POST | `/api/v1/agent/stop` | Yes (admin) | Stop the agent and keep it stopped |
 | GET | `/api/v1/agent/identity` | Yes | Operator-managed metadata (hot-reloadable) |
 | GET | `/api/v1/firewall/rules` | Yes | List firewall rules |
 | POST | `/api/v1/firewall/rules` | Yes (write) | Create firewall rule |
