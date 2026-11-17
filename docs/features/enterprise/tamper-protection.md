@@ -200,9 +200,39 @@ What it does not cover:
 | `tamper-cgroup-refused` | A write to the agent's `cgroup.kill` or `cgroup.freeze` was refused |
 | `tamper-stop-admitted` | A signed stop was admitted |
 | `tamper-stop-refused` | A stop was presented and refused |
+| `agent-stopped-without-authorisation` | An agent fell silent and no signed stop preceded it (raised by whoever watches it, see below) |
 
 Each refusal names the process that tried, so the alert answers who as well as
 what.
+
+## Silence
+
+An agent killed in a way its own guard cannot refuse - a host without the BPF
+LSM, a power cut, a node removed under it - cannot say so itself. Whatever
+watches it says it instead. Each protected agent publishes what it knows on
+`GET /api/v1/agent/tamper` (role `viewer`, grant `config:read`): whether it is protected, the last stop it admitted
+(when, through which issuer, at whose request) and the last attempt it refused.
+A watcher reads that answer while the agent is up, so when the agent goes quiet
+the last refused attempt is already in hand.
+
+| Who watches | Raises | When |
+|---|---|---|
+| The dashboard | `agent_stopped_without_authorisation` on the fleet stream and an `agent-stopped-without-authorisation` alert on the tenant's alert stream | An agent stops answering and neither its last notice nor a `tamper-stop-admitted` alert heard on its stream accounts for the silence |
+| The federation receiver | `agent-stopped-without-authorisation` on the federated alert stream | A cluster member's heartbeat stops and the last one carried no stop |
+| An HA peer | The same rule on the peer's own alert pipeline | A peer's heartbeat stops with no signed stop in its last answer |
+| The operator | `AgentStoppedWithoutAuthorisation` event and `ebpfsentinel_operator_agent_stopped_without_authorisation_total` | An agent container ended on anything but the exit a signed stop ends with (79) and was restarted; a pod lost without a drain carries the last refused attempt too |
+
+A stop is taken to account for a silence when it was admitted no more than five
+minutes before the agent was last heard. Every raise names when the agent was
+last seen and the last attempt it refused, if any. The guard's refusals and an
+HA peer's raise travel the agent's alert pipeline, so response playbooks, SIEM
+export and the tenant views see them like any other alert; the federation
+receiver stores and streams its raise beside the alerts its members send; the
+dashboard's reaches the tenant's alert view and fleet stream.
+
+The fleet-wide view is this edition's. The open source agent keeps a record of
+how each run ended and, on the next start, logs a run that ended on a signal
+rather than on a signed stop, so a single host still tells its own story.
 
 ## Limits
 

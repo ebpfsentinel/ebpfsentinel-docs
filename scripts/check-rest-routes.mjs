@@ -59,6 +59,7 @@ const FEATURE_DOCS = [
   ['/api/v1/enterprise/dlp', 'dlp.md'],
   ['/api/v1/enterprise/tls-probes', 'dlp.md'],
   ['/api/v1/agent/stop', 'tamper-protection.md'],
+  ['/api/v1/agent/tamper', 'tamper-protection.md'],
   ['/api/v1/agent', 'fleet-management.md'],
   ['/api/v1/flows', 'fleet-management.md'],
   ['/api/v1/exposure', 'fleet-management.md'],

@@ -880,6 +880,7 @@ kernel refuses, the condition it needs and the limits.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/agent/stop` | operator | `config:write` | none | Admit a signed stop authorisation (`text/plain` envelope); `202` and the agent ends with status 79, `403` naming the reason when refused. An agent without the protection takes the JSON `{"reason": "..."}` of the OSS route instead. Never licence-gated: a licence lapsing under a protected agent leaves the kernel's refusal in place until the next start, and this is the way through it. |
+| `GET` | `/api/v1/agent/tamper` | viewer | `config:read` | none | What the agent says about its own protection: `protected`, the last `stop` it admitted (`at_ms`, `issuer`, `requested_by`) and the `last_denial` its guard raised (`rule_id`, `message`, `at_ms`). Read by the dashboard, the federation receiver, HA peers and the operator, which raise an agent that falls silent with no signed stop in its last answer. Mounted where tamper protection was enabled and licensed at start, answering `protected: false` on a host without the BPF LSM; `404` elsewhere. Never licence-gated, for the same reason as the stop. |
 
 ## Threat intelligence platforms
 

@@ -361,24 +361,62 @@ One node's answer to a candidate.
 
 The leader's periodic liveness message.
 
-2 fields, in declaration order. The number is the wire tag and never changes.
+3 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
 | 1 | `leader_id` | `string` | The leader's node ID, a UUID. A value that does not parse is rejected. |
 | 2 | `term` | `uint64` | The term the leader is serving. |
+| 3 | `tamper` | [`optional TamperNotice`](#tampernotice) | The leader agent's tamper notice. Absent where tamper protection is off. |
 
 ### HeartbeatResponse
 
 One node's acknowledgement of a heartbeat.
 
-3 fields, in declaration order. The number is the wire tag and never changes.
+4 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
 | 1 | `node_id` | `string` | The answering node's ID. |
 | 2 | `term` | `uint64` | The term the answering node is on. |
 | 3 | `role` | `string` | The answering node's role: `leader`, `follower` or `candidate`. |
+| 4 | `tamper` | [`optional TamperNotice`](#tampernotice) | The answering agent's tamper notice. Absent where tamper protection is off. |
+
+### TamperNotice
+
+What an agent says about its own tamper protection, so a peer that stops hearing from it tells a signed stop from one nobody authorised.
+
+3 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `protected` | `bool` | Whether the kernel refuses a stop on the node. |
+| 2 | `stop` | [`optional TamperStop`](#tamperstop) | The signed stop this run admitted, if any. |
+| 3 | `last_denial` | [`optional TamperDenial`](#tamperdenial) | The last refusal the kernel raised on the agent's behalf, if any. |
+
+### TamperStop
+
+An admitted signed stop.
+
+3 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `at_ms` | `uint64` | When it was admitted, in milliseconds since the epoch. |
+| 2 | `issuer` | `string` | `dashboard`, `portal` or `break-glass`; empty when not known. |
+| 3 | `requested_by` | `string` | Who asked for it; empty when not stated. |
+
+### TamperDenial
+
+One refusal by the kernel.
+
+3 fields, in declaration order. The number is the wire tag and never changes.
+
+| # | Field | Type | Description |
+|---|-------|------|-------------|
+| 1 | `rule_id` | `string` | The alert rule it was raised under. |
+| 2 | `message` | `string` |  |
+| 3 | `at_ms` | `uint64` | When it was refused, in milliseconds since the epoch. |
 
 ### ReplicateDeltaRequest
 

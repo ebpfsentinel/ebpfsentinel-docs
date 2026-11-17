@@ -28,6 +28,7 @@ curl -s localhost:8081/metrics | grep -v '^#'
 | `ebpfsentinel_operator_objects` | Gauge | `kind`, `namespace`, `ready` | How many resources of each kind are ready, not ready, or not yet reported |
 | `ebpfsentinel_operator_agent_workload_recreated_total` | Counter | `namespace`, `agent` | How many times an agent `DaemonSet` was found gone after the operator had written it, and written again |
 | `ebpfsentinel_operator_agent_pod_lost_total` | Counter | `namespace`, `agent` | How many times a schedulable node lost its agent pod while nobody drained it (with tamper protection on) |
+| `ebpfsentinel_operator_agent_stopped_without_authorisation_total` | Counter | `namespace`, `agent` | How many times an agent container ended without a signed stop and was restarted (with tamper protection on) |
 | `ebpfsentinel_operator_tamper_policy_restored_total` | Counter | - | How many times the tamper protection admission policy was found deleted or edited, and put back |
 | `ebpfsentinel_operator_tls_handshakes_total` | Counter | `link`, `group` | Which key exchange each TLS handshake negotiated: `link` is `outbound` (the API server, the agents, the console) or `webhook` (the admission listener), `group` the IANA name, `X25519MLKEM768` being the hybrid post-quantum one |
 
@@ -159,7 +160,7 @@ neither value: point it at port `8081`, path `/metrics`, through
 
 ## The alerts
 
-Eight rules, one for each condition that needs a person, rather than one per
+Nine rules, one for each condition that needs a person, rather than one per
 metric. Each carries a `runbook_url` pointing at its section below.
 
 ### EbpfSentinelOperatorNoLeader
@@ -265,6 +266,24 @@ kubectl get events -A --field-selector reason=AgentPodLostWithoutDrain
 - On the node, the agent's run record says whether the last run ended on a
   signed stop or on a signal
   ([Stopping a protected agent](../features/enterprise/tamper-protection.md#stopping-a-protected-agent)).
+
+### EbpfSentinelAgentStoppedWithoutAuthorisation
+
+**Critical, at once.** An agent container ended on something other than the
+exit a signed stop ends with, and the kubelet restarted it: a kill, a crash or
+an out-of-memory. A signed stop does not raise it.
+
+```bash
+kubectl get events -A --field-selector reason=AgentStoppedWithoutAuthorisation
+```
+
+- The event names the pod, the node, the exit code and the last attempt the
+  agent refused before it ended, as the agent published it on
+  `/api/v1/agent/tamper`.
+- Exit 137 is a `SIGKILL`, from a person or from the out-of-memory killer; the
+  node's kernel log tells the two apart.
+- See [Silence](../features/enterprise/tamper-protection.md#silence) for who
+  else raises the same silence.
 
 ### EbpfSentinelTamperPolicyRestored
 
