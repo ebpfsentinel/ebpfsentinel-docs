@@ -826,7 +826,9 @@ What each replica still keeps to itself, by design: the sign-in rate limiter
 and the cooldowns on IOC search, rule replay and hunt export, so N replicas
 allow up to N times the configured rate; the cap on hunts running at once;
 and the book of clusters. The scheduled summaries, the hunt scheduler and the
-notification rules run on every replica.
+notification rules run on every replica, and so does the probe that raises an
+agent stopped without authorisation: with N replicas the inbox holds N
+notifications for one such stop.
 
 ### A rollout across a restart
 

@@ -247,7 +247,10 @@ last seen and the last attempt it refused, if any. The guard's refusals and an
 HA peer's raise travel the agent's alert pipeline, so response playbooks, SIEM
 export and the tenant views see them like any other alert; the federation
 receiver stores and streams its raise beside the alerts its members send; the
-dashboard's reaches the tenant's alert view and fleet stream.
+dashboard's reaches the tenant's alert view and fleet stream, and is filed as a
+critical notification in the tenant's inbox, mailed to the tenant's
+`notification_recipients` when the dashboard has a mail server. A silence is
+never folded into an earlier one: two stops are two notifications.
 
 The fleet-wide view is this edition's. The open source agent keeps a record of
 how each run ended and, on the next start, logs a run that ended on a signal
