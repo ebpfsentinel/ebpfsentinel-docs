@@ -215,7 +215,7 @@ daemonset:
     securityContext:
       runAsUser: 0
       capabilities:
-        add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON]
+        add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH]
         drop: [ALL]
       appArmorProfile: { type: Unconfined }
       seccompProfile: { type: Unconfined }

@@ -310,6 +310,10 @@ ebpfsentinel-agent flows services -m 60    # 1 to 60
 ebpfsentinel-agent flows services -o json
 ```
 
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-m`, `--minutes` | `15` | How many minutes back, from 1 to 60 |
+
 Example output:
 
 ```
@@ -369,6 +373,15 @@ ebpfsentinel-agent learning segmentation learn-1760000000 -f /etc/ebpfsentinel/b
 ebpfsentinel-agent learning edges
 ebpfsentinel-agent learning edges learn-1760000000 -o json
 ```
+
+| Flag | Applies to | Description |
+|------|------------|-------------|
+| `-d`, `--duration` | `start` | How long to watch for, in seconds; required |
+| `--cgroup` | `start` | Watch one cgroup v2 subtree, by absolute path |
+| `--exe` | `start` | Watch the workload running this executable |
+| `--unit` | `start` | Watch this systemd unit |
+| `--container` | `start` | Watch this container, by name or by id prefix |
+| `-f`, `--output-file` | `policy`, `segmentation` | Write the document to this file instead of to standard output |
 
 `--cgroup` cannot be combined with `--exe`, `--unit` or `--container`;
 `--exe`, `--unit` and `--container` are repeatable and name one scope together.
@@ -688,7 +701,36 @@ ebpfsentinel-agent alerts show alert-001
 
 # Mark as false positive
 ebpfsentinel-agent alerts mark-fp alert-001
+
+# Work the queue: take an alert, move it on, note why
+ebpfsentinel-agent alerts list --status open --unassigned
+ebpfsentinel-agent alerts triage alert-001 --status investigating --assign oncall
+ebpfsentinel-agent alerts triage alert-001 alert-002 --status resolved --note "scanner of ours"
 ```
+
+`alerts list` takes these filters, all optional:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--component` | | Component that raised the alert (`ids`, `dlp`, `threatintel`, ...) |
+| `--severity` | | Minimum severity: `low`, `medium`, `high`, `critical` |
+| `--tactic` | | MITRE ATT&CK tactic, e.g. `exfiltration` |
+| `--technique` | | MITRE ATT&CK technique id, e.g. `T1041` |
+| `--status` | | Triage status: `open`, `acknowledged`, `investigating`, `resolved` |
+| `--assignee` | | Alerts this person holds; cannot be combined with `--unassigned` |
+| `--unassigned` | | Only alerts nobody holds |
+| `--limit` | `100` | Most alerts to list |
+| `--offset` | `0` | Alerts to skip, for paging |
+
+`alerts triage` takes one or more alert ids and applies the same change to each:
+
+| Flag | Description |
+|------|-------------|
+| `--status` | New status: `open`, `acknowledged`, `investigating`, `resolved` |
+| `--assign` | Hand the alerts to somebody; cannot be combined with `--unassign` |
+| `--unassign` | Take the alerts off whoever holds them |
+| `--note` | Append a note |
+| `--author` | Who is writing, when not the authenticated identity |
 
 `alerts show` prints the same fields `alerts list` prints for a row, so a row
 picked out of the queue and the alert opened from it can never disagree.
@@ -754,6 +796,13 @@ ebpfsentinel-agent audit logs --component firewall --limit 20
 # Rule change history
 ebpfsentinel-agent audit history fw-001
 ```
+
+| Flag (`audit logs`) | Default | Description |
+|------|---------|-------------|
+| `--component` | | Component the entry concerns |
+| `--action` | | Action recorded, e.g. a rule added or removed |
+| `--limit` | `100` | Most entries to list |
+| `--offset` | `0` | Entries to skip, for paging |
 
 ### ddos
 
@@ -993,6 +1042,13 @@ ebpfsentinel-agent dns blocklist
 ebpfsentinel-agent dns flush
 ```
 
+| Flag (`dns cache`) | Default | Description |
+|------|---------|-------------|
+| `--domain` | | Entries whose domain contains this text |
+| `--ip` | | Reverse lookup: the domains that resolved to this address |
+| `--page` | `0` | Page to read, counted from 0 |
+| `--page-size` | `50` | Entries per page |
+
 ### domains
 
 Domain reputation and blocklist management.
@@ -1006,6 +1062,13 @@ ebpfsentinel-agent domains reputation --domain suspicious.com --min-score 0.5
 ebpfsentinel-agent domains block malware.example.com
 ebpfsentinel-agent domains unblock example.com
 ```
+
+| Flag (`domains reputation`) | Default | Description |
+|------|---------|-------------|
+| `--domain` | | One domain, exact match |
+| `--min-score` | | Lowest reputation score to list, from 0.0 to 1.0 |
+| `--page` | `0` | Page to read, counted from 0 |
+| `--page-size` | `50` | Entries per page |
 
 ### mitre
 
@@ -1654,6 +1717,8 @@ from expiry. See [Network Cryptography](../features/network-cryptography.md).
 ebpfsentinel-agent tls handshakes
 ebpfsentinel-agent tls handshakes -n 20
 ```
+
+`-n`, `--limit` (default `100`) is the most handshakes to list, newest first.
 
 How each edge between workloads is encrypted: per client, server and port, the
 connections over a post-quantum group, a classical exchange, a version below

@@ -60,10 +60,11 @@ For a host that carries no third-party repository, or an architecture-pinned
 install under configuration management.
 
 ```bash
-REL=<release>
+REL=<release>      # the release tag, without its leading v
+VER=<version>      # the agent's own version in that release, read from its notes
 BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
 
-curl -fsSLO "$BASE/ebpfsentinel-${REL}-linux-amd64.tar.gz"
+curl -fsSLO "$BASE/ebpfsentinel-${VER}-linux-amd64.tar.gz"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.sig"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.crt"
@@ -73,11 +74,12 @@ cosign verify-blob \
   --signature ebpfsentinel-SHA256SUMS.sig \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
   ebpfsentinel-SHA256SUMS
 
 sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS
-tar xzf "ebpfsentinel-${REL}-linux-amd64.tar.gz"
-cd "ebpfsentinel-${REL}-linux-amd64"
+tar xzf "ebpfsentinel-${VER}-linux-amd64.tar.gz"
+cd "ebpfsentinel-${VER}-linux-amd64"
 sudo ./install.sh
 ```
 
@@ -106,18 +108,21 @@ broker and the rootless **agent**. The agent drops every capability, unshares it
 own user namespace, has the warden delegate a bpffs over a shared socket and
 loads its eBPF through a BPF token.
 
+Both images are published by the release and cosign-signed, and so are the two
+files that run them: `compose.yaml` and the agent's seccomp profile
+`ebpfsentinel-agent.json`, release assets listed in `ebpfsentinel-SHA256SUMS`.
+Fetch them into a directory of their own, verify them as
+[Docker deployment](../operations/deployment/docker.md#docker-compose) shows,
+put your configuration beside them as `ebpfsentinel.yaml`, then:
+
 ```bash
 docker compose up -d       # compose.yaml wires both services and the shared socket volume
 docker compose logs -f
 docker compose down
 ```
 
-Both images are published by the release and cosign-signed, and so are the two
-files that run them: `compose.yaml` and the agent's seccomp profile
-`ebpfsentinel-agent.json`, release assets listed in `ebpfsentinel-SHA256SUMS`.
-See [Docker deployment](../operations/deployment/docker.md#docker-compose) for
-fetching and verifying them, the host prerequisites (config ownership,
-AppArmor user namespaces) and a two-container `docker run` equivalent.
+The same page covers the host prerequisites (config ownership, AppArmor user
+namespaces) and a two-container `docker run` equivalent.
 
 ## Kubernetes
 
@@ -129,7 +134,7 @@ helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
   --version <version> -n ebpfsentinel --create-namespace
 ```
 
-The chart needs Kubernetes 1.29 or later. See
+The chart needs Kubernetes 1.30 or later. See
 [Kubernetes Deployment](../operations/deployment/kubernetes.md) for the values and
 the [BPF token guide](../operations/deployment/bpf-token.md) for the startup
 sequence.

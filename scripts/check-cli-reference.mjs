@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
-// Reads the clap declarations of the enterprise agent and asserts that every
-// subcommand, every flag and every default is on the CLI reference page. The
-// binary is the source: a fourth subcommand, a renamed flag or a changed
-// default fails here rather than in a support ticket.
+// Reads the clap declarations of both agents and asserts the CLI reference
+// page keeps up with them. The enterprise binary is held to a row per flag with
+// its default under the enterprise heading. The open-source client, whose
+// commands nest three deep and are documented in prose with examples, is held
+// to naming every subcommand and every long flag inside the section of the
+// top-level command it belongs to. The binary is the source: a new subcommand,
+// a renamed flag or a changed default fails here rather than in a support
+// ticket.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -25,6 +29,11 @@ const DEFAULT_ENT_AGENT_MAIN = resolve(
 const agentMain = process.env.EBPFSENTINEL_ENT_AGENT_MAIN
   ? resolve(process.env.EBPFSENTINEL_ENT_AGENT_MAIN)
   : DEFAULT_ENT_AGENT_MAIN;
+
+const DEFAULT_OSS_AGENT_CLI = resolve(repoRoot, '..', 'ebpfsentinel', 'crates', 'agent', 'src', 'cli.rs');
+const ossCli = process.env.EBPFSENTINEL_OSS_AGENT_CLI
+  ? resolve(process.env.EBPFSENTINEL_OSS_AGENT_CLI)
+  : DEFAULT_OSS_AGENT_CLI;
 
 // The heading the enterprise binary is documented under, and the subsection its
 // own options live in. Everything above the heading describes the open-source
@@ -348,21 +357,173 @@ for (const heading of parsed.keys()) {
   }
 }
 
+// ── The open-source client ──────────────────────────────────────────────
+
+// The body of the brace block opening at the first `{` after `from`, in `text`.
+function braced(text, from) {
+  const open = text.indexOf('{', from);
+  let depth = 0;
+  for (let i = open; i < text.length; i += 1) {
+    if (text[i] === '{') depth += 1;
+    else if (text[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(open + 1, i);
+    }
+  }
+  fail([`${ossCli} has an unbalanced block at offset ${from}.`]);
+  return '';
+}
+
+// Variants of one `enum`: name as typed on the command line, the text of a
+// struct-like body, and the subcommand enum a tuple variant wraps
+// (`Alerts(DomainArgs<AlertsCommand>)`).
+function ossVariants(text, enumName) {
+  const at = text.search(new RegExp(`enum ${enumName}\\s*\\{`));
+  if (at === -1) fail([`${ossCli} declares no \`enum ${enumName}\`.`]);
+  const variants = [];
+  let depth = 0;
+  let current = null;
+  let attrs = '';
+  for (const raw of braced(text, at).split('\n')) {
+    const line = raw.trim();
+    if (depth === 0) {
+      if (line.startsWith('#[command(')) attrs += line;
+      const head = /^(\w+)\s*(\{|\(|,|$)/.exec(line);
+      if (head && !line.startsWith('#') && !line.startsWith('//')) {
+        current = {
+          name: /name\s*=\s*"([^"]+)"/.exec(attrs)?.[1] ?? variantToCommand(head[1]),
+          body: '',
+          wraps: /\((?:\w+<)?(\w+)>?\)/.exec(line)?.[1] ?? null,
+        };
+        attrs = '';
+        variants.push(current);
+      }
+    } else if (current) {
+      current.body += `${raw}\n`;
+    }
+    depth += (line.match(/\{/g) ?? []).length - (line.match(/\}/g) ?? []).length;
+  }
+  return variants;
+}
+
+// Long flags declared in a block of fields, as typed: `--page-size`.
+function ossFlags(body) {
+  const flags = [];
+  const field = /#\[arg\(([^\]]*)\)\]\s*(?:#\[[^\]]*\]\s*)*(?:pub\s+)?(\w+)\s*:/g;
+  for (const match of body.matchAll(field)) {
+    if (!/\blong\b/.test(match[1])) continue;
+    flags.push(`--${/long\s*=\s*"([^"]+)"/.exec(match[1])?.[1] ?? kebab(match[2])}`);
+  }
+  return flags;
+}
+
+// Every subcommand path and every long flag under one variant. Fields
+// flattened from another struct count as the variant's own, except the
+// connection options every command shares, which the page documents once.
+function ossWalk(text, variant, path, found) {
+  // A tuple variant wrapping a struct of arguments rather than a subcommand
+  // enum (`Surface(SurfaceArgs)`) is read as if that struct were its body.
+  const wrapped = variant.wraps ? text.search(new RegExp(`struct ${variant.wraps}\\s*\\{`)) : -1;
+  if (wrapped !== -1) {
+    variant = { ...variant, body: braced(text, wrapped), wraps: null };
+  }
+  found.commands.push(path);
+  found.flags.push(...ossFlags(variant.body).map((flag) => [path, flag]));
+  for (const match of variant.body.matchAll(/#\[command\(flatten\)\]\s*(?:pub\s+)?\w+:\s*(\w+)/g)) {
+    if (match[1] === 'ConnectionArgs') continue;
+    const at = text.search(new RegExp(`struct ${match[1]}\\s*\\{`));
+    if (at !== -1) found.flags.push(...ossFlags(braced(text, at)).map((flag) => [path, flag]));
+  }
+  const nested =
+    variant.wraps ??
+    /#\[command\(subcommand\)\]\s*(?:pub\s+)?\w+:\s*(?:Option<)?(\w+)/.exec(variant.body)?.[1];
+  if (!nested) return;
+  for (const child of ossVariants(text, nested)) ossWalk(text, child, `${path} ${child.name}`, found);
+}
+
+// The open-source part of the page, cut into one section per top-level
+// command: its "### <command>" heading, the "### <command> <child>" headings
+// after it, and every "####" beneath them.
+function ossSections(text) {
+  const at = text.indexOf(`\n${HEADING}`);
+  const sectionsFound = new Map();
+  let current = null;
+  for (const line of text.slice(0, at).split('\n')) {
+    if (/^##\s/.test(line)) {
+      current = null;
+      continue;
+    }
+    const heading = /^###\s+(\S+)/.exec(line);
+    if (heading) {
+      current = sectionsFound.get(heading[1]) ?? '';
+      sectionsFound.set(heading[1], current);
+      current = heading[1];
+      continue;
+    }
+    if (current) sectionsFound.set(current, `${sectionsFound.get(current)}${line}\n`);
+  }
+  return sectionsFound;
+}
+
+function readOss() {
+  try {
+    return readFileSync(ossCli, 'utf8');
+  } catch (error) {
+    fail([
+      `Cannot read the open-source agent CLI at ${ossCli}:`,
+      `  ${error.message}`,
+      '',
+      'The open-source repository is expected beside this one. Set',
+      'EBPFSENTINEL_OSS_AGENT_CLI to point at its crates/agent/src/cli.rs.',
+    ]);
+  }
+  return '';
+}
+
+const ossSource = readOss();
+const ossPage = ossSections(page);
+const ossFound = { commands: [], flags: [] };
+for (const top of ossVariants(ossSource, 'Command')) {
+  const found = { commands: [], flags: [] };
+  ossWalk(ossSource, top, top.name, found);
+  ossFound.commands.push(...found.commands);
+  ossFound.flags.push(...found.flags);
+  const section = ossPage.get(top.name);
+  if (section === undefined) {
+    problems.push(`ebpfsentinel-agent ${top.name} has no "### ${top.name}" section on the page.`);
+    continue;
+  }
+  for (const path of found.commands.slice(1)) {
+    const leaf = path.split(' ').pop();
+    if (!new RegExp(`(^|[^\\w-])${leaf}($|[^\\w-])`, 'm').test(section)) {
+      problems.push(`ebpfsentinel-agent ${path} is named nowhere under "### ${top.name}".`);
+    }
+  }
+  for (const [path, flag] of found.flags) {
+    if (!new RegExp(`${flag}($|[^\\w-])`, 'm').test(section)) {
+      problems.push(`ebpfsentinel-agent ${path}: \`${flag}\` is named nowhere under "### ${top.name}".`);
+    }
+  }
+}
+
 if (problems.length > 0) {
   fail([
-    `${problems.length} problem${problems.length === 1 ? '' : 's'} between the enterprise CLI and`,
+    `${problems.length} problem${problems.length === 1 ? '' : 's'} between the agents' CLIs and`,
     `${relative(process.cwd(), pagePath)}:`,
     '',
     ...problems.sort().map((problem) => `  ${problem}`),
     '',
-    'Every subcommand of the binary needs a "### <name>" section under',
-    `"${HEADING}", with one table row per flag naming its default. An operator`,
-    'who has to run --help to find a command was not documented.',
+    'Every subcommand of the enterprise binary needs a "### <name>" section under',
+    `"${HEADING}", with one table row per flag naming its default. Every`,
+    'subcommand and long flag of ebpfsentinel-agent is named in the section of',
+    'its top-level command. An operator who has to run --help to find a command',
+    'was not documented.',
   ]);
 }
 
 const flagCount = globals.length + commands.reduce((sum, command) => sum + command.args.length, 0);
 console.log(
   `CLI reference OK: ${binary}, ${commands.length} subcommands, ${flagCount} arguments, ` +
-    `each with a row and its default in ${relative(process.cwd(), pagePath)}.`,
+    `each with a row and its default; ebpfsentinel-agent, ${ossFound.commands.length} commands, ` +
+    `${ossFound.flags.length} long flags, each named in its section of ${relative(process.cwd(), pagePath)}.`,
 );

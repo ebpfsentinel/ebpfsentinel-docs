@@ -72,20 +72,39 @@ newer objects is not a combination anybody tested.
 
 ## Docker Compose
 
-The compose file builds both images from the checkout. Rebuild at the new
-version and recreate the containers; the `ebpfsentinel-state` volume survives:
+A compose file from release N names the images of release N, so upgrading is
+fetching the next release's `compose.yaml` and seccomp profile into the
+directory the deployment runs from, verifying them, and recreating the
+containers. Your `ebpfsentinel.yaml` beside them is not touched, and the
+`ebpfsentinel-state` volume survives:
 
 ```bash
-git fetch --tags && git checkout <version>
-docker compose build
+REL=<next release>
+BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
+
+cd ebpfsentinel            # the directory holding compose.yaml and ebpfsentinel.yaml
+cp compose.yaml compose.yaml.bak
+cp ebpfsentinel-agent.json ebpfsentinel-agent.json.bak
+for f in compose.yaml ebpfsentinel-agent.json ebpfsentinel-SHA256SUMS{,.sig,.crt}; do
+  curl -fsSLO "$BASE/$f"
+done
+
+cosign verify-blob \
+  --certificate ebpfsentinel-SHA256SUMS.crt \
+  --signature ebpfsentinel-SHA256SUMS.sig \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
+  ebpfsentinel-SHA256SUMS
+sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS
+
+docker compose pull
 docker compose up -d
 ```
 
-To run the published images instead, point the two services' `image:` at
-`ghcr.io/ebpfsentinel/ebpfsentinel:<version>` and
-`ghcr.io/ebpfsentinel/ebpfsentinel-warden:<version>`, then
-`docker compose pull && docker compose up -d`. See
-[Docker deployment](deployment/docker.md).
+A rollback puts the two `.bak` files back and runs the same last two commands.
+No checkout is involved: the release's files are the deployment. See
+[Docker deployment](deployment/docker.md#docker-compose).
 
 ## Kubernetes
 

@@ -212,7 +212,7 @@ grpcurl -plaintext -H "x-api-key: sk-admin-key" \
   localhost:50051 ebpfsentinel.v1.AlertStreamService/StreamAlerts
 ```
 
-The server checks `authorization` metadata first. If absent, it falls back to `x-api-key`. Bearer tokens must have valid JWT structure (three Base64-encoded parts separated by dots).
+The server checks `authorization` metadata first. If absent, it falls back to `x-api-key`. A `Bearer` value need not be a JWT: an API key is accepted there too, including the key the agent drew for itself at first start, so `-H "authorization: Bearer $EBPFSENTINEL_TOKEN"` works as it does on the REST API. An empty `Bearer` is refused without falling back.
 
 ### Health Check
 

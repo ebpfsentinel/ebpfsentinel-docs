@@ -20,7 +20,7 @@ Each entry under `interface_groups` is a group name mapped to its configuration:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `interfaces` | list | required | List of interface names in this group |
+| `interfaces` | list | required | List of interface names in this group; each must also be listed in `agent.interfaces`, or the configuration load fails |
 
 Maximum 31 groups (groups are stored as a 31-bit mask, with bit 31 reserved for inversion).
 
@@ -35,6 +35,11 @@ it in a `workload` block instead, decided on the container's cgroup with no
 ceiling of 31, see [IDS workload scope](ids.md#workload-scope).
 
 ## Inversion
+
+A firewall rule names groups in `interfaces`. To hold a rule to one
+interface without a group, write `scope: { interface: eth0 }` instead: a
+bare interface name in `interfaces` is read as a group and refused if no
+group carries it.
 
 When referencing interface groups in rules (firewall, QoS classifiers, QoS pipes, etc.), prefix the group name with `"!"` to invert the match. For example, `"!lan"` means "all interfaces except those in the lan group."
 

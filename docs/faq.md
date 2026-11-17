@@ -30,7 +30,7 @@ Yes. x86_64 is the primary platform; aarch64/ARM64 is cross-tested.
 
 ### What capabilities does it need?
 
-eBPF loads **exclusively** through a BPF token, and there is no `CAP_BPF`/`setcap` loading path. A deployment is two processes: the **warden** broker holds the host capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`, plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP uprobe), and the **agent** runs with none: it unshares a user namespace, has the warden delegate a bpffs, and loads its programs through the token. Unprivileged user namespaces must be enabled on the host. In Docker the agent runs as uid 65534 with `cap_drop: [ALL]`; `docker compose up -d` wires both containers. See the [BPF token guide](operations/deployment/bpf-token.md).
+eBPF loads **exclusively** through a BPF token, and there is no `CAP_BPF`/`setcap` loading path. A deployment is two processes: the **warden** broker holds the host capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`, plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP uprobe and `CAP_DAC_READ_SEARCH` for the file watch), and the **agent** runs with none: it unshares a user namespace, has the warden delegate a bpffs, and loads its programs through the token. Unprivileged user namespaces must be enabled on the host. In Docker the agent runs as uid 65534 with `cap_drop: [ALL]`; `docker compose up -d` wires both containers. See the [BPF token guide](operations/deployment/bpf-token.md).
 
 ## Performance
 

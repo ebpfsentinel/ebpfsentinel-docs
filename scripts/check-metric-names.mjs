@@ -73,6 +73,10 @@ const FILE_EXTENSION = /^\.[a-z0-9]+/;
 // named after it too, so a log sample carrying `ebpfsentinel_agent::startup`
 // would otherwise be reported as a metric no registry exposes.
 const MODULE_PATH = /^::/;
+// A token running on into a hyphen is a resource name, never a series: a
+// metric name has no hyphen, and Compose names a volume `<project>_<volume>`,
+// so `ebpfsentinel_ebpfsentinel-state` would otherwise be read as a metric.
+const RESOURCE_NAME = /^-/;
 const HISTOGRAM_SUFFIXES = ['_bucket', '_sum', '_count'];
 
 function fail(lines) {
@@ -203,7 +207,7 @@ for (const file of markdownFiles(docsRoot).sort()) {
     for (const match of line.matchAll(TOKEN)) {
       const token = match[0];
       const after = line.slice(match.index + token.length);
-      if (FILE_EXTENSION.test(after) || MODULE_PATH.test(after)) continue;
+      if (FILE_EXTENSION.test(after) || MODULE_PATH.test(after) || RESOURCE_NAME.test(after)) continue;
       if (exposed.has(token)) {
         named.add(token);
         continue;

@@ -117,8 +117,11 @@ sudo mount -t bpf bpf /sys/fs/bpf
 ## The API Answers 401
 
 ```
-{"error":"unauthorized","message":"missing or invalid credentials"}
+{"error":{"code":"AUTHENTICATION_REQUIRED","message":"authentication required: no token provided"}}
 ```
+
+The code is the same whatever went wrong; the message says which: no
+credential at all, an empty `Bearer`, or a credential the agent does not accept.
 
 The control API authenticates by default. Every route under `/api/v1` wants a
 credential; `/healthz` and `/readyz` never do, and `/metrics` only when

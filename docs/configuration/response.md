@@ -1,6 +1,6 @@
 # Response Configuration
 
-The `response` section bounds manual response actions: the longest TTL `POST /api/v1/response` and `ebpfsentinel-agent response block` will accept.
+The `response` section bounds manual response actions: the longest TTL `POST /api/v1/responses/manual` and `ebpfsentinel-agent responses create` will accept. The actions themselves are listed with `responses list` (`GET /api/v1/responses`) and removed before their TTL with `responses revoke` (`DELETE /api/v1/responses/{id}`).
 
 It is not the [`auto_response`](auto-response.md) section. That one decides whether an action fires on its own when an alert matches a policy and carries its own per-policy TTL. The ceiling here applies to every response action the agent installs, whoever asked for it.
 

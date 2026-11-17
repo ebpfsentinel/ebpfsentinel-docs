@@ -74,7 +74,7 @@ auth:
 |-------|------|----------|-------------|
 | `name` | `string` | Yes | Key identifier (for audit/logging) |
 | `key` | `string` | Yes | Secret key value |
-| `role` | `string` | Yes | RBAC role: `admin`, `operator`, `viewer` |
+| `role` | `string` | No | RBAC role: `admin`, `operator`, `viewer`. Defaults to `viewer`, so a key written without one can read and change nothing |
 | `namespaces` | `[string]` | No | Namespaces this key may access when `role: operator` (see [Namespace Scoping](#namespace-scoping)). Empty or omitted means **deny-all** for operators - it does not grant unrestricted access. Ignored for `admin`/`viewer` |
 
 ### JwtConfig
@@ -91,6 +91,8 @@ auth:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `jwks_url` | `string` | Yes | JWKS discovery URL (must be HTTPS, 10s fetch timeout) |
+| `issuer` | `string` | No | Expected `iss` claim, refused when it differs. Unset accepts any issuer the key set signs for |
+| `audience` | `string` | No | Expected `aud` claim. Unset accepts a token issued to any client of the provider (see below) |
 
 ## Authentication Methods
 
@@ -191,7 +193,7 @@ auth:
 | `auth.jwt.public_key_path` | path | unset | PEM-encoded public key. Mutually exclusive with `jwks_url`. |
 | `auth.jwt.jwks_url` | URL | unset | JWKS endpoint (`https://`). Mutually exclusive with `public_key_path`. |
 | `auth.jwt.jwks_cache_ttl_seconds` | u64 | `3600` | Cache TTL in seconds. The agent refreshes on TTL expiry. |
-| `auth.jwt.jwks_refresh_on_unknown_kid` | bool | `true` | Reserved for the immediate-on-unknown-kid refresh path; the current synchronous middleware caches at startup, the immediate-refresh hook lands with the async middleware in a follow-up story. |
+| `auth.jwt.jwks_refresh_on_unknown_kid` | bool | `true` | A token signed with a key id the cached set does not hold fetches the set again at once rather than waiting for the next refresh, under a cooldown shared by every request so an unauthenticated client cannot make the agent fetch on demand. `false` refuses such a token until the scheduled refresh picks the key up. |
 | `auth.jwt.issuer` | string | unset | Expected `iss` claim. |
 | `auth.jwt.audience` | string | unset | Expected `aud` claim. |
 

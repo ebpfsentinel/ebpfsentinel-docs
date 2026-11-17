@@ -82,6 +82,7 @@ cosign verify-blob \
   --signature ebpfsentinel-SHA256SUMS.sig \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+  --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
   ebpfsentinel-SHA256SUMS
 
 sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS

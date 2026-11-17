@@ -33,7 +33,7 @@ tar xzf ebpfsentinel-demo.tar.gz && cd ebpfsentinel-demo
 ```
 
 It is pinned to the release it came from, and its checksum and signature are
-in that release's `SHA256SUMS`. The same lab is `demo/` in a checkout of the
+in that release's `ebpfsentinel-SHA256SUMS`. The same lab is `demo/` in a checkout of the
 agent repository, where `sudo ./demo.sh up --local` runs it against an agent
 built from your working tree instead of the published image.
 

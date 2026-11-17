@@ -9,7 +9,7 @@ single privileged daemon therefore backs the whole rootless enterprise agent.
 
 | Half | Runs as | Holds | Role |
 |------|---------|-------|------|
-| `enterprise-warden` | root | `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON` | bpffs delegation, conntrack, routes, ARP, pcap pool, DLP uprobe, extended-TLS `/proc` scan |
+| `enterprise-warden` | root | `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH` | bpffs delegation, conntrack, routes, ARP, pcap pool, DLP uprobe, extended-TLS `/proc` scan, file watch marks and baselines |
 | `enterprise-agent` | uid 65534, `cap-drop: ALL` | nothing | self-unshares a user namespace, loads its own eBPF through a BPF token; brokers privileged ops to the warden |
 
 The agent reaches the warden over an `AF_UNIX` socket given by
@@ -355,7 +355,7 @@ release's tarball and moving `ebpfsentinel.yaml` and `license.key` across: its
 
 The `charts/ebpfsentinel-enterprise` chart deploys one agent per node as a
 DaemonSet with the warden as a **native sidecar** (init container with
-`restartPolicy: Always`, Kubernetes 1.29+). Each release publishes it
+`restartPolicy: Always`, Kubernetes 1.30+). Each release publishes it
 beside the OSS chart, signed the same way, at
 `oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-enterprise`:
 
@@ -440,7 +440,7 @@ What the agent does with them is described under
 [Vendor portal reporting](../../configuration/enterprise.md#vendor-portal-reporting).
 
 The warden holds the host capabilities
-(`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON`); the agent stays
+(`SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH`); the agent stays
 `cap-drop: ALL`. Both containers mount host `/proc` read-only at `/host/proc`,
 and the agent also mounts host `/sys/fs/cgroup` read-only for cgroup attribution.
 The config is a ConfigMap whose checksum is a pod annotation, so a values change

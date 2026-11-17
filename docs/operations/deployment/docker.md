@@ -27,7 +27,7 @@ release: [Docker Compose](#docker-compose) below fetches and verifies them.
 
 1. The **warden** starts first, holding `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` /
    `CAP_NET_RAW` (plus `CAP_BPF`, `CAP_PERFMON` and `CAP_SYS_PTRACE` for the DLP
-   uprobe) in the initial namespaces, and serves the typed `warden-proto` RPC on
+   uprobe, `CAP_DAC_READ_SEARCH` for the file watch) in the initial namespaces, and serves the typed `warden-proto` RPC on
    an `AF_UNIX` socket in a shared volume. It loads no eBPF and holds no maps.
 2. The **agent** starts as uid 65534 with `cap_drop: ALL`, connects to that
    socket (`EBPFSENTINEL_WARDEN_SOCK`) and unshares a user namespace.
@@ -111,7 +111,9 @@ agent image carries the default one, and copying it out needs no container to
 run:
 
 ```bash
-docker create --name ebpfsentinel-config "ghcr.io/ebpfsentinel/ebpfsentinel:${REL}"
+# The agent image this release's compose.yaml names, tag included.
+IMAGE=$(awk '$1 == "image:" && $2 ~ /^ghcr\.io\/ebpfsentinel\/ebpfsentinel:/ { print $2 }' compose.yaml)
+docker create --name ebpfsentinel-config "$IMAGE"
 docker cp ebpfsentinel-config:/etc/ebpfsentinel/config.yaml ebpfsentinel.yaml
 docker rm ebpfsentinel-config
 ```
@@ -130,6 +132,13 @@ sudo chmod 640 ebpfsentinel.yaml
 #    AppArmor profile, shipped as apparmor.d/ebpfsentinel-agent in the release
 #    tarball: it grants `userns` to /usr/local/bin/ebpfsentinel-agent, the path
 #    the image runs, and leaves the restriction in force for everything else.
+#    The profile is not a release file of its own: take it out of the tarball
+#    of the release compose.yaml came from, checked against the same SHA256SUMS.
+VER=$(awk '$1 == "image:" && $2 ~ /^ghcr\.io\/ebpfsentinel\/ebpfsentinel:/ { sub(/.*:/, "", $2); print $2 }' compose.yaml)
+ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+TGZ="ebpfsentinel-${VER}-linux-${ARCH}.tar.gz"
+curl -fsSLO "$BASE/$TGZ" && sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS
+tar -xzf "$TGZ" --strip-components=1 "${TGZ%.tar.gz}/apparmor.d/ebpfsentinel-agent"
 sudo install -Dm644 apparmor.d/ebpfsentinel-agent /etc/apparmor.d/ebpfsentinel-agent
 sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent
 #    Only where apparmor_parser is unavailable, lift the restriction host-wide

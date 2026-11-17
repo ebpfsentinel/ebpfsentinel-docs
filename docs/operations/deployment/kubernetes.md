@@ -13,7 +13,7 @@ The agent runs as a DaemonSet, one pod per node, installed by the Helm chart
 | `warden` | 0 | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH` | Privileged broker, run as a native sidecar (an init container with `restartPolicy: Always`). Delegates a bpffs to the agent once, then performs the host-namespace operations the agent cannot: conntrack teardown, routes, gratuitous ARP, the pcap socket pool, the DLP uprobe attach and the file watch |
 | `agent` | 65534 | none (`drop: [ALL]`) | The agent. Unshares its own user namespace, has the warden stamp the bpffs it opened, loads its eBPF through the token and serves the API |
 
-Native sidecars need **Kubernetes 1.29 or later** (on 1.28 they sit behind an alpha feature gate that is off by default), and the chart's `kubeVersion` refuses an older cluster. The two containers share the
+The chart needs **Kubernetes 1.30 or later** (native sidecars are on by default from 1.29, the `preStop` sleep action the agent drains with from 1.30), and the chart's `kubeVersion` refuses an older cluster. The two containers share the
 warden socket through an `emptyDir`; the agent finds it through
 `EBPFSENTINEL_WARDEN_SOCK`.
 
@@ -249,7 +249,9 @@ These kernels set `kernel.apparmor_restrict_unprivileged_userns=1`. The agent
 runs as uid 65534 and must create a user namespace, and the pod's own
 `appArmorProfile: Unconfined` does not lift a host-level gate. On each such node,
 load the agent's own AppArmor profile (`apparmor.d/ebpfsentinel-agent` in the
-release tarball, loaded with `apparmor_parser -r -W` from a node bootstrap step):
+release tarball, which a node bootstrap step downloads, checks against the
+signed `ebpfsentinel-SHA256SUMS` as [the Docker page shows](docker.md), and
+loads with `apparmor_parser -r -W`):
 it grants `userns` to `/usr/local/bin/ebpfsentinel-agent`, the path the image
 runs, and keeps the restriction for every other binary on the node. Setting the
 sysctl to `0` (a `/etc/sysctl.d/` drop-in or a privileged init DaemonSet) is the
