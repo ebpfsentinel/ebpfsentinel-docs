@@ -1,123 +1,174 @@
-# Post-Quantum TLS
+# Post-Quantum Cryptography
 
-eBPFsentinel supports X25519MLKEM768 hybrid post-quantum key exchange for all TLS connections, protecting against "harvest now, decrypt later" quantum attacks.
+A recording of today's traffic can be decrypted later by whoever holds a
+quantum computer able to break the classical key exchange it was protected
+with. eBPFsentinel answers that on every link it opens or accepts: the hybrid
+key exchange `X25519MLKEM768` (ML-KEM-768, FIPS 203, combined with X25519) is
+offered first by default, every handshake says which group it settled on, and
+`require` refuses a peer that cannot answer it. No licence gates any of it:
+cryptography follows the component it lives in, open source or not.
+
+This page says, link by link, what is hybrid, what stays classical and why,
+and how to hold an estate to `require`.
 
 ## How It Works
 
-The agent uses [aws-lc-rs](https://github.com/aws/aws-lc-rs) as its cryptographic provider, which supports ML-KEM (FIPS 203) hybrid key exchange. The PQ-aware `CryptoProvider` is installed at startup and applies to both directions, with the per-direction differences described under [Outbound TLS](#outbound-tls):
+Every TLS link is built from one vocabulary, `pq_mode`, with three values:
 
-- **Inbound TLS**: the REST API, the gRPC listener, and on the enterprise layer the high-availability and federation mTLS listeners
-- **Outbound TLS**: CTI feed downloads, OIDC JWKS fetch, webhook delivery, SMTP email alerts, syslog and SIEM export, and the mTLS calls an agent makes to its peers
-
-Every one of those surfaces builds its key exchange from the same `pq_mode`,
-rather than from whichever provider happened to be installed first. The gRPC
-listener terminates TLS itself for that reason: a server built from the
-process-wide default would have offered the outbound group ordering, so
-`require` would have been accepted on the way in and not enforced.
-
-## Configuration
-
-```yaml
-agent:
-  tls:
-    enabled: true
-    cert_path: /etc/ebpfsentinel/server.crt
-    key_path: /etc/ebpfsentinel/server.key
-    pq_mode: prefer
-```
-
-### PQ Mode
-
-| Mode | Inbound key exchange groups | Use Case |
-|------|---------------------------|----------|
-| `prefer` (default) | X25519MLKEM768 > X25519 > secp256r1 | Production -- PQ when client supports it, classical fallback |
-| `require` | X25519MLKEM768 only | High-security / government -- rejects non-PQ clients |
-| `disable` | X25519 > secp256r1 | Compatibility with legacy clients |
+| Mode | Groups offered | Use |
+|------|----------------|-----|
+| `prefer` (default) | `X25519MLKEM768`, then `X25519`, then `secp256r1` | Hybrid whenever the other side can, classical otherwise |
+| `require` | `X25519MLKEM768` only | A peer without the hybrid group is refused |
+| `disable` | `X25519`, then `secp256r1` | Legacy peers only |
 
 The hybrid group exists only in TLS 1.3, so `require` cannot be combined with
-`allow_tls12: true` -- that pair leaves a TLS 1.2 client no usable key exchange
-and is rejected when the configuration is read. See
-[TLS configuration](../configuration/tls.md).
+`allow_tls12: true`: that pair leaves a TLS 1.2 client no usable key exchange
+and is refused when the configuration is read.
 
-## What Is Protected
+Two settings, one per direction:
 
-| Component | PQ Status |
-|-----------|-----------|
-| TLS key exchange (inbound + outbound) | X25519MLKEM768 hybrid |
-| JWT authentication (RS256) | Classical -- TLS PQ protects transport |
-| Symmetric crypto (AES-256-GCM, SHA-256) | Quantum-safe already |
-| License signing (enterprise) | Ed25519, dual-signed with ML-DSA-65 |
+- `agent.tls.pq_mode` is what the agent's listeners accept.
+- `agent.tls.outbound_pq_mode` is what the agent's own clients dial with. Left
+  out, it follows `pq_mode` with `require` read as `prefer`, because a feed, a
+  webhook or an identity provider is a server somebody else runs, and
+  requiring the hybrid group from it is a decision to write out rather than to
+  inherit. See [TLS configuration](../configuration/tls.md#outbound-links).
 
-## Outbound TLS
+## Which Link Is Hybrid
 
-The PQ `CryptoProvider` is installed globally at startup, before any HTTP or SMTP client is created. This means:
+Every row below counts its handshakes under
+`ebpfsentinel_tls_handshakes_total{link, group}` (the operator and the
+dashboard carry the same counter under their own prefix), so the answer for a
+running process is read off `/metrics` rather than taken from this table.
 
-- `reqwest` HTTP clients (CTI feeds, webhooks, OIDC, GeoIP) inherit PQ automatically
-- `lettre` SMTP client (email alerts) inherits PQ via `tokio1-rustls-tls`
-- No per-client configuration needed
+### Agent (open source)
 
-Outbound connections follow `pq_mode` with one deliberate exception: `require`
-is an inbound admission policy, and the servers the agent dials are not its
-clients. Offering `X25519MLKEM768` alone on the way out would make every feed,
-webhook and identity provider without hybrid key exchange unreachable, so
-outbound keeps the `prefer` ordering -- hybrid first, classical fallback --
-while the listener still rejects non-PQ clients. `disable` is a statement about
-PQ itself rather than about inbound clients, so it removes the hybrid group in
-both directions.
+| Link | Direction | Policy | `link` label |
+|------|-----------|--------|--------------|
+| REST API | Inbound | `pq_mode` | `api` |
+| gRPC | Inbound | `pq_mode` | `grpc` |
+| Flow export to a collector over TLS | Outbound | `outbound_pq_mode` | `flow-export` |
+| Threat intelligence feeds, GeoIP, webhooks, OIDC discovery and JWKS, OTLP, SMTP, the anonymous heartbeat | Outbound | `outbound_pq_mode` | `outbound` |
 
-| `pq_mode` | Inbound | Outbound |
-|-----------|---------|----------|
-| `prefer` | hybrid first, classical fallback | hybrid first, classical fallback |
-| `require` | hybrid only, non-PQ clients rejected | hybrid first, classical fallback |
-| `disable` | classical only | classical only |
+`GET /api/v1/crypto/posture` and `ebpfsentinel-agent tls links` list each of
+the agent's own links with the policy it was built with and the group it last
+negotiated; `all_required` is `true` only when every one of them requires the
+hybrid group.
 
-## Enterprise Surfaces
+### Enterprise agent
 
-| Surface | Direction | Groups |
-|---------|-----------|--------|
-| High-availability replication (mTLS) | Outbound | hybrid first, classical fallback |
-| Federation mTLS listener | Inbound | follows `pq_mode`, including `require` |
-| Federation and member registration clients | Outbound | hybrid first, classical fallback |
-| Syslog, CEF and SIEM export over TLS | Outbound | hybrid first, classical fallback |
-| TLS inspection proxy (both halves) | Both | hybrid first, classical fallback |
+| Link | Direction | Policy | `link` label |
+|------|-----------|--------|--------------|
+| REST listener on 8444, when `enterprise.api.tls` names a certificate | Inbound | `pq_mode` | `api` |
+| High-availability peers on 9443 (mutual TLS) | Both | `pq_mode` on the listener, `outbound_pq_mode` on the dialling side | `ha-peer` |
+| Federation listener and its clients (mutual TLS) | Both | `pq_mode` inbound, `outbound_pq_mode` outbound | `federation` |
+| Syslog, CEF, Sentinel and QRadar connectors over TLS | Outbound | `outbound_pq_mode` | `siem-syslog` |
+| HTTP SIEM exporters, vendor portal report, content channel | Outbound | `outbound_pq_mode` | `outbound` |
+| TLS inspection proxy | Both | hybrid first, classical fallback, never `require` | `tls-proxy-workload`, `tls-proxy-upstream` |
 
-The inspection proxy is the one surface that never requires the hybrid group.
-It stands between a workload and a server neither of which it chose, so
-refusing a classical client would not harden the agent, it would stop the
-traffic the proxy exists to read.
+The inspection proxy stands between a workload and a server neither of which
+it chose; refusing a classical client there would not harden the agent, it
+would stop the traffic the proxy exists to read. Under `require`, each syslog
+collector configured over TLS is asked for the hybrid group before the agent
+starts, and one that answers only a classical exchange stops the start with a
+message naming it. The peer link is described in
+[High Availability](enterprise/high-availability.md), the listener in
+[Enterprise configuration](../configuration/enterprise.md#rest-listener).
 
-## Dashboard
+### Dashboard and operator
 
-The dashboard's own listener carries the same field, `server.tls.pq_mode`, with
-the same three values and the same inbound / outbound split: a browser or a
-proxy reaching the dashboard is an inbound client, while the agents, the OIDC
-provider, ClickHouse and the SMTP relay the dashboard dials are servers
-somebody else configured, so `require` never applies on the way out.
+| Process | Link | Policy |
+|---------|------|--------|
+| Dashboard | HTTPS listener | `server.tls.pq_mode`, `require` included |
+| Dashboard | Agents, OIDC, ClickHouse, SMTP, webhooks | hybrid first, classical fallback |
+| Operator | Kubernetes API server, agents, console | hybrid first, classical fallback |
+| Operator | Admission webhook listener | hybrid first, classical fallback |
 
-| Surface | Direction | Groups |
-|---------|-----------|--------|
-| Dashboard HTTPS listener | Inbound | follows `server.tls.pq_mode`, including `require` |
-| Agent fan-out, OIDC, ClickHouse, SMTP, webhooks | Outbound | hybrid first, classical fallback |
+`require` on the dashboard closes TLS 1.2 on its listener, and a certificate
+hot reload rebuilds the listener through the same policy. The field takes
+effect only where the dashboard terminates TLS itself: behind an ingress the
+browser's handshake is the ingress's. See the
+[dashboard configuration](../configuration/dashboard.md) and
+[operator monitoring](../operations/operator-monitoring.md).
 
-Two details are specific to that listener. `require` closes TLS 1.2 on it,
-because the hybrid group exists only in TLS 1.3 and leaving 1.2 open would be a
-classical key exchange under a policy that forbids one. And the certificate hot
-reload rebuilds the listener through the same policy, so a renewal cannot
-silently drop the posture the running process started with.
+## Signatures
 
-The field only has an effect where the dashboard terminates TLS itself
-(`server.tls.enabled: true`). Behind an ingress or a reverse proxy, the
-handshake the browser performs is that proxy's, and so is the posture.
+Where we own both ends, a signature is dual: Ed25519 and ML-DSA-65 (FIPS 204)
+over the same bytes, and both must verify.
 
-## What a Client Without Hybrid Support Sees
+| What is signed | Signatures | Verified by |
+|----------------|-----------|-------------|
+| Licence keys and offline bundles | Ed25519 + ML-DSA-65 | the enterprise agent, the operator, the dashboard |
+| Content bundles, release measurements | Ed25519 + ML-DSA-65 | the enterprise agent |
+| Signed stop of a tamper-protected agent | Ed25519 + ML-DSA-65 | the enterprise agent |
+| Agent API tokens minted by the dashboard | Ed25519 JWT + ML-DSA-65 cosignature | the agent, per `auth.pq_tokens` |
+
+`auth.pq_tokens` (`prefer`, `require`, `disable`) decides whether a token
+without its cosignature is accepted; see
+[authentication](../configuration/auth.md#post-quantum-token-cosignature).
+
+## What Stays Classical, and Why
+
+| What | Why it stays |
+|------|--------------|
+| Image and release signatures (cosign keyless, Fulcio certificates, Rekor) | The Sigstore ecosystem issues ECDSA certificates; a post-quantum signature nobody's verifier reads proves nothing. The dual-signed measurements manifest is the post-quantum statement about the same artefacts |
+| WebPKI certificates on any listener | Certificate authorities do not issue post-quantum certificates yet. The key exchange is hybrid; the certificate that authenticates it is what the CA signed |
+| Tokens and assertions from your identity provider (`auth.oidc`) | Your identity provider signs what it signs; the agent verifies it and asks it for nothing more |
+| API keys | A shared secret compared in constant time, no asymmetric step to replace |
+| A peer that cannot answer the hybrid group under `prefer` | `prefer` is the decision to fall back; `require` is the decision not to |
+
+A key exchange protects what is recorded today; a signature protects only
+while it is being verified, and nobody forges a signature after the fact on a
+link already closed. That is why the key exchange moved first and everywhere,
+and signatures moved where we own both ends.
+
+## Data at Rest
+
+Symmetric cryptography with 256-bit keys is not what a quantum computer
+breaks, so data at rest needed no change of algorithm; what had to be checked
+was every place a key is derived, wrapped or exchanged.
+
+| Store | Mechanism | Verdict |
+|-------|-----------|---------|
+| Enterprise encrypted assets | AES-256-GCM, key derived by HKDF-SHA-256 from the licence signature | symmetric, stays |
+| Capture store and compliance report custody | HMAC chain under the custody key, no encryption | symmetric, stays |
+| Agent and enterprise redb stores | no application-level wrap; the disk under them is the host's | nothing to move |
+| Dashboard refresh-token sealer | AES-256-GCM, HKDF-derived key | symmetric, stays |
+
+No X25519 or RSA key wrap protects stored data anywhere in the product. RSA
+reaches the dashboard only to verify an identity provider's signature, which
+is the classical case above. On the platform that runs the vendor portal, the
+one classical wrap found (the escrow of the secret store's recovery shares)
+moved to a hybrid ML-KEM-768 + X25519 recipient.
+
+## Holding an Estate to `require`
+
+1. Read what each link negotiates today: `ebpfsentinel-agent tls links`, or
+   `ebpfsentinel_tls_handshakes_total` grouped by `link` and `group`. A link
+   showing only `X25519` or `secp256r1` has a peer that will be refused.
+2. Set the listeners:
+
+   ```yaml
+   agent:
+     tls:
+       enabled: true
+       cert_path: /etc/ebpfsentinel/server.crt
+       key_path: /etc/ebpfsentinel/server.key
+       pq_mode: require
+       outbound_pq_mode: require   # only once every dialled peer answers the hybrid group
+   auth:
+     pq_tokens: require            # tokens minted by the dashboard must carry the cosignature
+   ```
+
+3. Restart and read `GET /api/v1/crypto/posture`: `all_required: true` means
+   every link the agent opens or accepts holds the hybrid group.
+4. On the dashboard, set `server.tls.pq_mode: require` where it terminates TLS.
+
+### What a Client Without Hybrid Support Sees
 
 Under `prefer` and `disable`, nothing: the handshake completes on a classical
-group and the connection behaves as it always did.
-
-Under `require`, the server has no key exchange group in common with the client
-and the handshake fails. The client sees a TLS alert, not an HTTP status, so
-there is no response body and no log line on the client naming post-quantum
-anything:
+group. Under `require`, the server has no group in common with the client and
+the handshake fails with a TLS alert, not an HTTP status:
 
 ```text
 # curl
@@ -127,29 +178,24 @@ curl: (35) error:0A000410:SSL routines::ssl/tls alert handshake failure
 140...:error:...:SSL alert number 40
 ```
 
-The agent logs the refusal on its side. `grpcurl` and the gRPC clients report
-the same failure as a transport error rather than a gRPC status, because the
-connection never reaches HTTP/2. An estate that turns `require` on without
-checking its clients first should expect exactly this, which is why `prefer`
-is the default and `require` is a deliberate statement.
+gRPC clients report a transport error rather than a gRPC status, because the
+connection never reaches HTTP/2. The agent logs the refusal on its side.
 
 ## Verification
-
-Check the negotiated key exchange group in the TLS handshake:
 
 ```bash
 openssl s_client -connect localhost:8080 2>&1 | grep "Server Temp Key"
 # Expected: Server Temp Key: X25519MLKEM768
-```
 
-The gRPC listener answers the same question on its own port, with the ALPN
-protocol gRPC needs:
-
-```bash
 openssl s_client -connect localhost:50051 -alpn h2 2>&1 | grep "Server Temp Key"
-# Expected: Server Temp Key: X25519MLKEM768
 ```
 
-An `openssl` build without ML-KEM support cannot negotiate the hybrid group and
-will report a classical one instead - which says what the client can do, not
-what the listener offered.
+An `openssl` build without ML-KEM support reports a classical group instead,
+which says what the client can do, not what the listener offered. The counter
+on `/metrics` is the server's own answer.
+
+## Related
+
+- [TLS configuration](../configuration/tls.md)
+- [Network Cryptography](network-cryptography.md): the key exchange of the workloads' own traffic, read off their handshakes
+- [Tamper Protection](enterprise/tamper-protection.md): the other half of the same hardening

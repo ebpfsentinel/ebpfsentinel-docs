@@ -39,6 +39,24 @@ Tamper protection is never guaranteed. What still ends it:
 - A kernel module, which runs with the kernel's own privilege and is not asked.
 - Physical access to the machine.
 
+## Per platform
+
+Stopping an agent has three answers, and only the second one needs the BPF
+LSM: the datapath keeps enforcing after the process is gone (open source), the
+kernel refuses the stop unless it is signed (this edition, BPF LSM), and a
+stop nobody signed is raised (this edition, no LSM needed).
+
+| | Host with systemd | Docker or Compose | Kubernetes |
+|---|---|---|---|
+| Open source, no LSM needed | XDP, TC and cgroup links stay pinned and enforcing through a kill ([Enforcement After the Agent Exits](../../operations/enforcement-after-exit.md)); the units refuse `systemctl stop` and restart the agent on any exit but the stop command's ([Binary deployment](../../operations/deployment/binary.md#stopping-the-agent)); the next start logs how the last run ended | Same pinned links; `restart: always` brings the agent back on every exit; the next start logs a signalled end | Same pinned links; the kubelet restarts the container |
+| This edition, needs `bpf` in `lsm=` | The kernel refuses a kill, a trace, an unpin, `cgroup.kill` and `cgroup.freeze` aimed at the agent or its warden, root included, until a signed stop opens its window | The same refusals from inside the host; a stop through the Docker socket is not a signal the kernel is asked about | The same refusals on each node |
+| This edition, no LSM needed | Silence raised by the console, the federation and the HA peer when the agent goes quiet without a signed stop; a masked or edited unit is an alert | Same silence alerts | The API server refuses deleting, narrowing or scaling away the agents except by named service accounts; a removed `DaemonSet` is written again; a pod lost without a drain and a container restarted without the signed stop exit are events, metrics and alerts |
+| What no agent stops | Root rebooting into a kernel command line without `bpf` in `lsm=`, a kernel module, physical access | Root stopping the container through the Docker socket, then the same three | A cluster administrator acting as one of the named service accounts, or removing the admission policy itself (put back and raised), then the same three on each node |
+
+`ebpfsentinel-agent ebpf host-check` answers the LSM question for one host;
+`/api/v1/ebpf/kernel-features` answers it per node under `tamper_protection`,
+and the console shows it across the fleet.
+
 ## Configuration
 
 ```yaml
@@ -169,6 +187,7 @@ What the operator reports, whichever engine refuses:
 |---|---|
 | `AgentWorkloadRecreated` | The agent `DaemonSet` was gone though the operator had written it, and was written again: deleted by a named account, removed under the API server from etcd, or deleted with the protection off |
 | `AgentPodLostWithoutDrain` | A node held an agent pod on the last pass and holds none now, nothing was rolled in between, and the node is still schedulable and not being removed. A drain cordons the node first, so it is not raised |
+| `AgentStoppedWithoutAuthorisation` | An agent container ended on anything but the exit a signed stop ends with (79) and the kubelet restarted it; the note names the pod, the exit and the last attempt the agent refused |
 | `TamperPolicyRestored` | The policy or its binding was deleted or edited outside the operator, and the operator put it back |
 
 Each is also a counter the
