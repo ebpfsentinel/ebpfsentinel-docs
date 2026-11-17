@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
-// Reads the clap declarations of both agents and asserts the CLI reference
-// page keeps up with them. The enterprise binary is held to a row per flag with
-// its default under the enterprise heading. The open-source client, whose
-// commands nest three deep and are documented in prose with examples, is held
-// to naming every subcommand and every long flag inside the section of the
-// top-level command it belongs to. The binary is the source: a new subcommand,
-// a renamed flag or a changed default fails here rather than in a support
-// ticket.
+// Holds the CLI reference page to both agents' command lines. The enterprise
+// binary is read from the `cli.json` its repository commits, which a test there
+// keeps equal to the parser: every command it adds, beside the domains only it
+// carries or under an open-source domain, is named with each of its long flags
+// in the section of its domain, and the daemon's own options with their default
+// and environment variable. The open-source client, whose commands nest three
+// deep and are documented in prose with examples, is read from its clap
+// declarations and held to naming every subcommand and every long flag inside
+// the section of the top-level command it belongs to. The binaries are the
+// source: a new subcommand, a renamed flag or a changed default fails here
+// rather than in a support ticket.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -17,18 +20,10 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
 const pagePath = join(repoRoot, 'docs', 'cli-reference', 'index.md');
 
-const DEFAULT_ENT_AGENT_MAIN = resolve(
-  repoRoot,
-  '..',
-  'ebpfsentinel-enterprise',
-  'crates',
-  'enterprise-agent',
-  'src',
-  'cli.rs',
-);
-const agentMain = process.env.EBPFSENTINEL_ENT_AGENT_MAIN
-  ? resolve(process.env.EBPFSENTINEL_ENT_AGENT_MAIN)
-  : DEFAULT_ENT_AGENT_MAIN;
+const DEFAULT_ENT_CLI_TREE = resolve(repoRoot, '..', 'ebpfsentinel-enterprise', 'cli.json');
+const entTree = process.env.EBPFSENTINEL_ENT_CLI_TREE
+  ? resolve(process.env.EBPFSENTINEL_ENT_CLI_TREE)
+  : DEFAULT_ENT_CLI_TREE;
 
 const DEFAULT_OSS_AGENT_CLI = resolve(repoRoot, '..', 'ebpfsentinel', 'crates', 'agent', 'src', 'cli', 'args.rs');
 const ossCli = process.env.EBPFSENTINEL_OSS_AGENT_CLI
@@ -37,93 +32,13 @@ const ossCli = process.env.EBPFSENTINEL_OSS_AGENT_CLI
 
 // The heading the enterprise binary is documented under, and the subsection its
 // own options live in. Everything above the heading describes the open-source
-// client, which is a different binary with different flags.
+// client, whose commands the enterprise binary carries unchanged.
 const HEADING = '## Enterprise Agent Commands';
 const GLOBAL_SECTION = 'Enterprise Global Options';
-
-// Keys a clap attribute may carry. An unknown one is a construct this parser
-// was never taught, and guessing at it would document the wrong surface.
-const KNOWN_ARG_KEYS = new Set([
-  'long',
-  'short',
-  'env',
-  'default_value',
-  'default_value_t',
-  'value_delimiter',
-  'action',
-  'help',
-  'value_name',
-  // Constrains which flags go together; the page names the pair in prose.
-  'conflicts_with',
-]);
 
 function fail(lines) {
   for (const line of lines) console.error(line);
   process.exit(1);
-}
-
-function readSource() {
-  try {
-    return readFileSync(agentMain, 'utf8');
-  } catch (error) {
-    fail([
-      `Cannot read the enterprise agent source at ${agentMain}:`,
-      `  ${error.message}`,
-      '',
-      'The enterprise repository is expected beside this one. Set',
-      'EBPFSENTINEL_ENT_AGENT_MAIN to point at its enterprise-agent cli.rs.',
-    ]);
-  }
-  return '';
-}
-
-// The body of the brace block that opens at the first `{` after `from`.
-function block(text, from, what) {
-  const open = text.indexOf('{', from);
-  if (open === -1) fail([`${what} carries no body in ${agentMain}.`]);
-  let depth = 0;
-  for (let i = open; i < text.length; i += 1) {
-    const ch = text[i];
-    if (ch === '{') depth += 1;
-    else if (ch === '}') {
-      depth -= 1;
-      if (depth === 0) return text.slice(open + 1, i);
-    }
-  }
-  fail([`${what} has an unbalanced body in ${agentMain}.`]);
-  return '';
-}
-
-// Split on commas that are not inside a string or character literal, so
-// `value_delimiter = ','` stays one key rather than becoming two.
-function topLevelCommas(text) {
-  const parts = [];
-  let current = '';
-  let quote = null;
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (quote) {
-      current += ch;
-      if (ch === '\\') {
-        current += text[i + 1] ?? '';
-        i += 1;
-      } else if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-      current += ch;
-      continue;
-    }
-    if (ch === ',') {
-      parts.push(current.trim());
-      current = '';
-      continue;
-    }
-    current += ch;
-  }
-  if (current.trim().length > 0) parts.push(current.trim());
-  return parts;
 }
 
 function kebab(name) {
@@ -137,223 +52,115 @@ function variantToCommand(name) {
     .toLowerCase();
 }
 
-function parseArg(attrs, field, where) {
-  const arg = attrs.find((line) => line.startsWith('#[arg('));
-  if (!arg) {
-    return { field, flag: null, positional: field.toUpperCase(), default: null, env: null };
-  }
-  const inner = arg.slice('#[arg('.length, arg.lastIndexOf(')]'));
-  const parsed = { field, flag: null, positional: null, default: null, env: null, short: null };
-  for (const key of topLevelCommas(inner)) {
-    const eq = key.indexOf('=');
-    const name = (eq === -1 ? key : key.slice(0, eq)).trim();
-    const value = eq === -1 ? null : key.slice(eq + 1).trim().replace(/^"|"$/g, '');
-    if (!KNOWN_ARG_KEYS.has(name)) {
-      fail([
-        `${where}: the clap attribute of \`${field}\` carries \`${name}\`, which this`,
-        'check does not understand. Teach it the key in KNOWN_ARG_KEYS, and decide',
-        'there what the page has to say about it, rather than leaving the flag',
-        'documented by nobody.',
-      ]);
-    }
-    if (name === 'long') parsed.flag = `--${value ?? kebab(field)}`;
-    if (name === 'short') parsed.short = value ?? field[0];
-    if (name === 'env') parsed.env = value;
-    if (name === 'default_value' || name === 'default_value_t') parsed.default = value;
-  }
-  if (!parsed.flag) parsed.positional = field.toUpperCase();
-  return parsed;
+function escape(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Fields of a struct or of a struct-like enum variant, with the attributes
-// written above each one.
-function fields(body, where) {
-  const found = [];
-  let attrs = [];
-  for (const raw of body.split('\n')) {
-    const line = raw.trim();
-    if (line.length === 0 || line.startsWith('//')) continue;
-    if (line.startsWith('#[')) {
-      attrs.push(line);
-      continue;
-    }
-    // A field of the top-level struct carries its visibility; a variant's does not.
-    const field = /^(?:pub(?:\([\w:]+\))?\s+)?(\w+):\s*[^,]+,$/.exec(line);
-    if (!field) {
-      fail([
-        `${where}: cannot read \`${line}\`.`,
-        '',
-        'This check reads one field per line with its attributes above it. A shape',
-        'it has never seen would be documented by nobody, so it refuses rather than',
-        'skipping the line.',
-      ]);
-    }
-    if (!attrs.some((attr) => attr.startsWith('#[command('))) {
-      found.push(parseArg(attrs, field[1], where));
-    }
-    attrs = [];
+// A word as typed: not inside a longer flag or command name.
+function names(section, word) {
+  return new RegExp(`(^|[^\\w-])${escape(word)}($|[^\\w-])`, 'm').test(section);
+}
+
+function readTree() {
+  try {
+    return JSON.parse(readFileSync(entTree, 'utf8'));
+  } catch (error) {
+    fail([
+      `Cannot read the enterprise command tree at ${entTree}:`,
+      `  ${error.message}`,
+      '',
+      'The enterprise repository is expected beside this one, with the cli.json',
+      'its tests keep. Set EBPFSENTINEL_ENT_CLI_TREE to point at it.',
+    ]);
   }
-  return found;
+  return null;
 }
 
-// The variants of one command enum, as commands. A variant holding a
-// `#[command(subcommand)]` field is a command with subcommands of its own, and
-// each of those is documented under its own "### <parent> <child>" section: a
-// flag of `content import` is not a flag of `content`, and documenting it as
-// one would let a renamed flag pass this check.
-function commandsIn(text, enumName, prefix) {
-  const enumAt = text.indexOf(`enum ${enumName}`);
-  if (enumAt === -1) fail([`${agentMain} declares no \`enum ${enumName}\`.`]);
-  const body = block(text, enumAt, `enum ${enumName}`);
-
-  const commands = [];
-  const lines = body.split('\n');
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim();
-    if (line.length === 0 || line.startsWith('///') || line.startsWith('//')) continue;
-    const unit = /^(\w+),$/.exec(line);
-    if (unit) {
-      commands.push({ name: `${prefix}${variantToCommand(unit[1])}`, args: [] });
-      continue;
-    }
-    const open = /^(\w+)\s*\{$/.exec(line);
-    if (!open) {
-      fail([
-        `enum ${enumName}: cannot read \`${line}\` in ${agentMain}.`,
-        '',
-        'This check reads struct-like and unit variants only. A tuple variant would',
-        'be a subcommand with arguments it cannot enumerate.',
-      ]);
-    }
-    let depth = 1;
-    const collected = [];
-    for (i += 1; i < lines.length && depth > 0; i += 1) {
-      const inner = lines[i];
-      depth += (inner.match(/\{/g) ?? []).length - (inner.match(/\}/g) ?? []).length;
-      if (depth > 0) collected.push(inner);
-    }
-    i -= 1;
-    const name = `${prefix}${variantToCommand(open[1])}`;
-    const collectedText = collected.join('\n');
-    const nested = /#\[command\(subcommand\)\]\s*\n\s*(?:pub(?:\([\w:]+\))?\s+)?\w+:\s*(\w+)\s*,/.exec(collectedText);
-    if (nested) {
-      commands.push({ name, args: [] });
-      commands.push(...commandsIn(text, nested[1], `${name} `));
-      continue;
-    }
-    commands.push({ name, args: fields(collectedText, `subcommand ${name}`) });
-  }
-  if (commands.length === 0) fail([`${agentMain} declares \`enum ${enumName}\` with no variant.`]);
-  return commands;
-}
-
-function parseSource(text) {
-  const cliAt = text.indexOf('struct Cli');
-  if (cliAt === -1) fail([`${agentMain} declares no \`struct Cli\`.`]);
-  const nameAt = text.lastIndexOf('name = "', cliAt);
-  const binary = /name = "([^"]+)"/.exec(text.slice(nameAt, cliAt))?.[1];
-  if (!binary) fail([`${agentMain} names no binary in the \`#[command(...)]\` of \`Cli\`.`]);
-
-  const globals = fields(block(text, cliAt, 'struct Cli'), 'struct Cli');
-  const commands = commandsIn(text, 'Command', '');
-  return { binary, globals, commands };
-}
-
-// The tables of one "### " section, read as flag rows.
-function sections(text) {
+// The enterprise part of the page, as the text under each "### " heading,
+// filed under every command name the heading carries: "### dlp and dns,
+// enterprise verbs" documents both domains, "### content import" its parent.
+function enterpriseSections(text, topLevel) {
   const at = text.indexOf(`\n${HEADING}`);
   if (at === -1) {
     fail([
       `${relative(process.cwd(), pagePath)} carries no "${HEADING}" heading.`,
       '',
       'The heading is where the enterprise binary is documented. Without it this',
-      'check would compare its flags against the open-source client and report',
+      'check would compare its commands against the open-source client and report',
       'every one of them as undocumented.',
     ]);
   }
   const found = new Map();
-  let current = null;
-  for (const line of text.slice(at).split('\n')) {
+  const headings = [];
+  let current = [];
+  for (const line of text.slice(at + 1).split('\n')) {
+    if (/^##\s/.test(line) && !line.startsWith(HEADING)) break;
     const heading = /^###\s+(.+?)\s*$/.exec(line);
     if (heading) {
-      current = { rows: [], text: '' };
-      found.set(heading[1], current);
+      headings.push(heading[1]);
+      current = heading[1] === GLOBAL_SECTION ? [GLOBAL_SECTION] : heading[1].split(/[\s,]+/).filter((w) => topLevel.has(w));
+      for (const key of current) if (!found.has(key)) found.set(key, '');
       continue;
     }
-    if (!current) continue;
-    current.text += `${line}\n`;
-    if (!/^\s*\|/.test(line)) continue;
-    const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|');
-    const first = cells[0]?.trim() ?? '';
-    if (/^:?-{2,}:?$/.test(first) || first.toLowerCase() === 'flag') continue;
-    const tokens = [...first.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
-    const flags = tokens.flatMap((token) => [...token.matchAll(/--[\w-]+/g)].map((m) => m[0]));
-    const positional = tokens.flatMap((token) =>
-      [...token.matchAll(/^<([A-Z_]+)>$/g)].map((m) => m[1]),
-    );
-    current.rows.push({ flags, positional, line });
+    for (const key of current) found.set(key, `${found.get(key)}${line}\n`);
   }
-  return found;
+  return { found, headings };
 }
 
-function checkSection(problems, heading, args, page, what) {
-  const section = page.get(heading);
-  if (!section) {
-    problems.push(`${what} has no "### ${heading}" section on the page.`);
-    return;
-  }
-  const documented = new Set();
-  for (const row of section.rows) {
-    for (const flag of row.flags) documented.add(flag);
-    for (const name of row.positional) documented.add(`<${name}>`);
-  }
-  for (const arg of args) {
-    const key = arg.flag ?? `<${arg.positional}>`;
-    const row = section.rows.find(
-      (candidate) => candidate.flags.includes(arg.flag) || candidate.positional.includes(arg.positional),
-    );
-    if (!row) {
-      problems.push(`${what}: \`${key}\` has no row under "### ${heading}".`);
-      continue;
-    }
-    if (arg.default !== null && !row.line.includes(arg.default)) {
-      problems.push(
-        `${what}: \`${key}\` defaults to \`${arg.default}\`, which its row does not name.`,
-      );
-    }
-    if (arg.env !== null && !row.line.includes(arg.env)) {
-      problems.push(
-        `${what}: \`${key}\` is also read from \`${arg.env}\`, which its row does not name.`,
-      );
-    }
-  }
-  const known = new Set(args.map((arg) => arg.flag ?? `<${arg.positional}>`));
-  for (const key of documented) {
-    if (!known.has(key)) {
-      problems.push(`${what}: "### ${heading}" documents \`${key}\`, which the binary does not take.`);
-    }
-  }
-}
-
-const source = readSource();
-const { binary, globals, commands } = parseSource(source);
+const tree = readTree();
 const page = readFileSync(pagePath, 'utf8');
-const parsed = sections(page);
 const problems = [];
+const { binary } = tree;
 
 if (!page.includes(binary)) {
   problems.push(`The page never names the binary \`${binary}\`.`);
 }
 
-checkSection(problems, GLOBAL_SECTION, globals, parsed, `${binary}`);
-for (const command of commands) {
-  checkSection(problems, command.name, command.args, parsed, `${binary} ${command.name}`);
+const ours = tree.commands.filter((command) => command.enterprise);
+const topLevel = new Set(tree.commands.map((command) => command.path.split(' ')[0]));
+const { found: entPage, headings } = enterpriseSections(page, topLevel);
+
+const options = entPage.get(GLOBAL_SECTION);
+if (options === undefined) {
+  problems.push(`${binary} has no "### ${GLOBAL_SECTION}" section on the page.`);
+} else {
+  for (const option of tree.options) {
+    if (!names(options, option.flag)) {
+      problems.push(`${binary}: \`${option.flag}\` is named nowhere under "### ${GLOBAL_SECTION}".`);
+    }
+    if (option.default && !options.includes(option.default)) {
+      problems.push(`${binary}: \`${option.flag}\` defaults to \`${option.default}\`, which "### ${GLOBAL_SECTION}" does not name.`);
+    }
+    if (option.env && !options.includes(option.env)) {
+      problems.push(`${binary}: \`${option.flag}\` is also read from \`${option.env}\`, which "### ${GLOBAL_SECTION}" does not name.`);
+    }
+  }
 }
 
-const declared = new Set([GLOBAL_SECTION, ...commands.map((command) => command.name)]);
-for (const heading of parsed.keys()) {
-  if (!declared.has(heading) && /^[a-z][a-z-]*( [a-z][a-z-]*)*$/.test(heading)) {
-    problems.push(`The page carries a "### ${heading}" section, which is not a subcommand of ${binary}.`);
+let entFlags = 0;
+for (const command of ours) {
+  const words = command.path.split(' ');
+  const section = entPage.get(words[0]);
+  if (section === undefined) {
+    problems.push(`${binary} ${command.path}: no "### ${words[0]}" section under "${HEADING}".`);
+    continue;
+  }
+  if (words.length > 1 && !names(section, words[words.length - 1])) {
+    problems.push(`${binary} ${command.path} is named nowhere under "### ${words[0]}".`);
+  }
+  for (const argument of command.arguments) {
+    if (!argument.flag) continue;
+    entFlags += 1;
+    if (!names(section, argument.flag)) {
+      problems.push(`${binary} ${command.path}: \`${argument.flag}\` is named nowhere under "### ${words[0]}".`);
+    }
+  }
+}
+
+for (const heading of headings) {
+  if (heading === GLOBAL_SECTION) continue;
+  if (!heading.split(/[\s,]+/).some((word) => topLevel.has(word))) {
+    problems.push(`The page carries a "### ${heading}" section, which names no command of ${binary}.`);
   }
 }
 
@@ -513,17 +320,16 @@ if (problems.length > 0) {
     '',
     ...problems.sort().map((problem) => `  ${problem}`),
     '',
-    'Every subcommand of the enterprise binary needs a "### <name>" section under',
-    `"${HEADING}", with one table row per flag naming its default. Every`,
+    'Every command the enterprise binary adds is named, with each of its long',
+    `flags, in the section of its domain under "${HEADING}". Every`,
     'subcommand and long flag of ebpfsentinel-agent is named in the section of',
     'its top-level command. An operator who has to run --help to find a command',
     'was not documented.',
   ]);
 }
 
-const flagCount = globals.length + commands.reduce((sum, command) => sum + command.args.length, 0);
 console.log(
-  `CLI reference OK: ${binary}, ${commands.length} subcommands, ${flagCount} arguments, ` +
-    `each with a row and its default; ebpfsentinel-agent, ${ossFound.commands.length} commands, ` +
+  `CLI reference OK: ${binary}, ${ours.length} commands of its own and ${entFlags} long flags, ` +
+    `each named in its section; ebpfsentinel-agent, ${ossFound.commands.length} commands, ` +
     `${ossFound.flags.length} long flags, each named in its section of ${relative(process.cwd(), pagePath)}.`,
 );
