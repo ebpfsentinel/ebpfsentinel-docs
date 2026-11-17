@@ -353,9 +353,9 @@ When the TLS proxy intercepts a connection, the upstream server certificate CN/S
 
 Tracks TLS session ticket reuse across destinations. If the same session ticket hash appears at 3+ different destinations within 1 hour, a lateral movement alert fires. The `session_id` from the ClientHello is hashed for privacy-preserving tracking.
 
-### Beaconing-TLS Bridge
+### Handshake Timing for Beaconing
 
-Feeds ClientHello timestamps into the existing C2 beaconing detector. Key: `(src, dst, dst_port, ja4)` - same TLS fingerprint to the same destination endpoint at regular intervals = potential C2 beacon. Uses periodicity estimation with variance thresholds.
+Every ClientHello this service parses is a timestamp for the [C2 beaconing](ml-detection.md#c2-beaconing-detection) detector, keyed `(src, dst, dst_port, ja4)`: the same TLS fingerprint reaching the same destination at a regular interval is a suspect. Nothing here switches it on: `enterprise.beaconing.enabled` does, and it is refused while this service is disabled.
 
 ### ONNX TLS Feature Extraction
 
@@ -401,8 +401,6 @@ enterprise:
     cipher_baseline:
       enabled: true
       warmup_observations: 10
-    beaconing_bridge:
-      enabled: true
     ml:
       model_path: /etc/ebpfsentinel/tls-anomaly.onnx
       anomaly_threshold: 0.7
@@ -584,10 +582,6 @@ enterprise:
     cipher_baseline:
       enabled: true
       warmup_observations: 10
-
-    # Beaconing-TLS Bridge
-    beaconing_bridge:
-      enabled: true
 
     # ML Anomaly Detection
     ml:

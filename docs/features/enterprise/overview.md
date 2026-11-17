@@ -16,7 +16,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 |---------|-------------|
 | [License System](license.md) | Ed25519 + ML-DSA-65 dual-signed license keys, machine fingerprint binding, air-gap activation |
 | [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection |
-| [ML Anomaly Detection](ml-detection.md) | 8 detection engines: baseline Z-score, EWMA streaming, CUSUM change-point, ONNX model, heavy-hitter (CMS), DGA/tunneling (Markov), TLS fingerprint clustering (K-Means), C2 beaconing (TLSH) |
+| [ML Anomaly Detection](ml-detection.md) | 9 detection engines: baseline Z-score, EWMA streaming, CUSUM change-point, ONNX model, Random Cut Forest, heavy-hitter (Space-Saving), DGA/tunneling (Markov), TLS fingerprint clustering (K-Means), C2 beaconing (TLS handshake timing) |
 | [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC, self-service API |
 | [SIEM Integration](siem-integration.md) | 10 connectors: Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
 | [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
@@ -28,7 +28,7 @@ Enterprise features are implemented in a **separate repository** (`ebpfsentinel-
 | [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph |
 | [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy |
 <!-- feature-count: ja4-builtin-threats -->
-| [TLS Intelligence](tls-intelligence.md) | JA4 matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity |
+| [TLS Intelligence](tls-intelligence.md) | JA4 matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, SNI/cert mismatch, session tracking, handshake timing for beaconing, ONNX ML, peer-group rarity |
 | [Threat Intelligence Platforms](threat-intel-platforms.md) | TAXII 2.1 collections and MISP instances polled on their own intervals, the whole of STIX this engine can act on (addresses, domains, URLs, JA4), every indicator carrying where it came from, when it was last confirmed and what kind it is, and a type no matcher covers reported as not actionable at import |
 | [Sigma Rules](sigma-rules.md) | Sigma rules over network connections compiled into the agent's own rules, every rule outside the declared subset refused by the field that stopped it, the supported list generated from the compiler, and `sigma check` to read the refusals before deploying |
 | [Network Forensics](network-forensics.md) | Event ring buffer, event-triggered context freezes, flow timeline reconstruction |

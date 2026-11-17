@@ -18,7 +18,7 @@ Machine learning-based behavioral anomaly detection that identifies threats with
 | **Heavy-Hitter** | Elephant flows / top talkers (Space-Saving counters) | None - a bounded table |
 | **DNS Entropy** | DGA domains and DNS tunneling (Shannon entropy + Markov model) | None - pre-trained bigram model |
 | **TLS Clustering** | Novel/spoofed TLS fingerprints (Mini-Batch K-Means) | None - browser-seeded centroids |
-| **C2 Beaconing** | Repetitive payload patterns in C2 channels (TLSH similarity) | None - per-flow hash ring |
+| **C2 Beaconing** | A client reaching one destination at a regular interval (TLS handshake timing) | None - judged from the third handshake |
 
 **Four of the nine are fused.** Baseline, EWMA, CUSUM and the ONNX model all
 score the same completed feature vector, so their verdicts are combined into one
@@ -66,8 +66,8 @@ DNS Query → DnsEntropyEngine (Shannon entropy + Markov bigram)
 TLS ClientHello → TlsClusteringEngine (Mini-Batch K-Means)
                     └── outlier flag → TLS Intelligence alert enrichment
 
-L7/DLP payload → BeaconingDetector (TLSH hash ring per flow tuple)
-                   └── similarity threshold → Alert
+TLS ClientHello → BeaconingDetector (handshake times per source, destination, port, JA4)
+                    └── regular interval → suspect
 ```
 
 ---
@@ -404,13 +404,30 @@ Groups JA4 TLS fingerprints into behavioral clusters using **Mini-Batch K-Means*
 
 ## C2 Beaconing Detection
 
-Detects command-and-control beaconing channels by identifying repetitive payload patterns using **TLSH** locality-sensitive hashing.
+Detects command-and-control channels by the regularity of their TLS handshakes:
+an implant calling home opens a connection to the same place, with the same TLS
+stack, at the interval it was given.
 
-- TLSH hash computed per flow payload (minimum 50 bytes)
-- Per-tuple `(src_ip, dst_ip, dst_port)` hash ring with LRU eviction
-- Beaconing alert: >= N similar payloads (TLSH distance < threshold) within time window
-- **Periodicity estimation:** inter-arrival time variance - low variance = regular beaconing interval
-- Allowlist for known repetitive protocols (NTP, DNS, mDNS)
+- **Input:** every ClientHello [TLS intelligence](tls-intelligence.md) parses,
+  which is why beaconing refuses to start beside `tls_intelligence.enabled: false`.
+  A licence without `tls-intelligence` leaves beaconing with nothing to read,
+  and the agent says so at startup.
+- **Key:** `(source, destination, destination port, JA4)`, so two programs on
+  one host reaching one server are two keys.
+- **Verdict:** once a key holds `min_handshakes` handshakes inside `window_secs`,
+  the intervals between them are measured. A deviation below a quarter of the
+  mean interval makes the key a suspect, listed with its JA4, its handshake
+  count, the mean interval and its variance.
+- **Bounded:** `handshakes_per_tuple` timestamps per key, `max_tracked_tuples`
+  keys, the least recently seen evicted first.
+- **Allowlist:** destination ports never judged, by default DNS, NTP and mDNS.
+
+The payload itself is not read: a channel whose handshakes are irregular, or
+that keeps one connection open, is not found by this engine.
+
+An integration suite plays real handshakes from an openssl client at a regular
+interval, at uneven gaps and to an allowlisted port, reads each hello off the
+wire and asserts that only the regular one is listed.
 
 ---
 
@@ -562,12 +579,10 @@ enterprise:
   # C2 beaconing detection (separate config section)
   beaconing:
     enabled: true
-    min_payload_size: 50
-    tlsh_distance_threshold: 40
-    min_similar_count: 3
+    min_handshakes: 3
     window_secs: 3600
     max_tracked_tuples: 100
-    hashes_per_tuple: 10
+    handshakes_per_tuple: 10
     allowlisted_ports: [53, 123, 5353]
 ```
 

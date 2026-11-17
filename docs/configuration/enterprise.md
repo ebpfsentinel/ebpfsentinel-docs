@@ -158,15 +158,14 @@ enterprise:
     outlier_threshold: 8.0         # Euclidean distance threshold
     batch_size: 32                 # mini-batch size for centroid updates
 
-  # ── C2 Beaconing Detection (TLSH) ──────────────────────────────
+  # ── C2 Beaconing Detection (TLS handshake timing) ─────────────
+  # Fed by TLS intelligence, which must not be disabled while this is on.
   beaconing:
     enabled: true
-    min_payload_size: 50           # minimum bytes for TLSH hash
-    tlsh_distance_threshold: 40    # 0=identical, <100=similar
-    min_similar_count: 3           # similar payloads to trigger alert
-    window_secs: 3600              # 1 hour matching window
-    max_tracked_tuples: 100        # LRU eviction limit
-    hashes_per_tuple: 10
+    min_handshakes: 3              # handshakes before a key is judged (>= 3)
+    window_secs: 3600              # older handshakes are forgotten
+    max_tracked_tuples: 100        # least recently seen key evicted first
+    handshakes_per_tuple: 10       # timestamps kept per key (>= min_handshakes)
     allowlisted_ports: [53, 123, 5353]
 
   # ── Multi-Tenancy ───────────────────────────────────────────────
