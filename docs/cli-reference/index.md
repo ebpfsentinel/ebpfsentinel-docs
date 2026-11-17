@@ -1820,7 +1820,9 @@ run before the daemon has ever started; `content`, `sigma check` and
 `dlp coverage` work on this machine's own content directory, rules and `/proc`
 rather than through the API, `content` reaching the running agent instead when
 it is given `--host`; `stop`, `license`, `tamper`, `attestation`, `airgap`,
-`peers`, `addresses` and `config version` reach the running agent, and take
+`peers`, `addresses`, `config version`, `ml`, `ai-security`, `tls-intel`,
+`tls-probes`, `l7-inspect`, `intel`, `file-watch` and the enterprise verbs
+under `dlp` and `dns` reach the running agent, and take
 `--host` and `--port` after the domain like every command above.
 
 The commands that reach the agent print its answer as it comes: a field per
@@ -2213,3 +2215,148 @@ waits for the next reload (`GET /api/v1/agent/config/version`).
 ```bash
 ebpfsentinel-enterprise-agent config version
 ```
+
+### ml
+
+[Anomaly detection](../features/enterprise/ml-detection.md): what the detectors
+run, what they flagged, the feedback given and the rules they suggest. Lists
+that grow take `--limit`; alerts, anomalies and the domain generation scores
+default to the latest 50.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `status` | `GET /api/v1/enterprise/ml/status` | The pipeline: which detectors run and what they hold |
+| `alerts [--limit N]` | `GET /api/v1/enterprise/ml/alerts` | Anomaly alerts with their ATT&CK technique |
+| `anomalies [--limit N]` | `GET /api/v1/enterprise/ml/anomalies` | Recent anomalies |
+| `beaconing` | `GET /api/v1/enterprise/ml/beaconing` | Sources suspected of beaconing |
+| `heavy-hitters [--limit N]` | `GET /api/v1/enterprise/ml/heavy-hitters` | The heaviest talkers by bytes |
+| `mass-encryption` | `GET /api/v1/enterprise/ml/mass-encryption` | The threshold learned for mass encryption and where it stands |
+| `suggestions` | `GET /api/v1/enterprise/ml/suggestions` | Rules the detectors suggest |
+| `approve <ID>` / `reject <ID>` | `POST /api/v1/enterprise/ml/suggestions/{id}/approve` / `reject` | Decide on a suggested rule |
+| `feedback <ANOMALY> [--false-positive] [--comment TEXT]` | `POST /api/v1/enterprise/ml/feedback` | Say whether an anomaly was a true or a false positive |
+| `feedback-stats` | `GET /api/v1/enterprise/ml/feedback/stats` | What the feedback adds up to |
+| `training-data` | `GET /api/v1/enterprise/ml/training-data` | The training set the detectors built |
+| `reload-model <PATH>` | `POST /api/v1/enterprise/ml/model/reload` | Swap the ONNX model for the one at this path on the agent's machine |
+| `ewma-status` / `ewma-reset` / `cusum-reset` | `/api/v1/enterprise/ml/ewma/status`, `ewma/reset`, `cusum/reset` | The statistical detectors' state, and forgetting it |
+| `rcf-status` | `GET /api/v1/enterprise/ml/rcf/status` | What the Random Cut Forest holds and what it refused |
+| `rcf-scores [--limit N]` / `rcf-queue [--limit N]` | `GET /api/v1/enterprise/ml/rcf/scores` / `queue` | Recent scores; the alert queue ranked by calibrated score |
+| `rcf-attribution <POINT> [--tenant T] [--workload W] [--window W] [--timestamp S]` | `GET /api/v1/enterprise/ml/rcf/attribution` | Which features made a point anomalous |
+| `rcf-reject <GROUP>` | `POST /api/v1/enterprise/ml/rcf/groups/{id}/reject` | Dismiss a group of alerts raised together |
+
+```bash
+ebpfsentinel-enterprise-agent ml alerts --limit 10
+ebpfsentinel-enterprise-agent ml feedback 0190f3c2 --false-positive --comment "backup window"
+```
+
+### ai-security
+
+[AI traffic](../features/enterprise/ai-security.md): the providers recognised,
+shadow AI, encrypted DNS, AI agent traffic and what leaves for an AI service.
+A policy is read and replaced whole: `set-*` verbs take `--file` with the JSON
+document the API document describes.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `status` / `alerts` | `GET /api/v1/enterprise/ai-security/status` / `alerts` | What AI security watches and what it saw |
+| `providers` | `GET /api/v1/enterprise/ai-security/providers` | The AI providers recognised |
+| `add-provider <DOMAIN> --name N [--category C] [--wildcard]` | `POST /api/v1/enterprise/ai-security/providers` | Recognise one more provider |
+| `delete-provider <ID>` | `DELETE /api/v1/enterprise/ai-security/providers/{id}` | Stop recognising a provider |
+| `dlp-patterns` | `GET /api/v1/enterprise/ai-security/ai-dlp/patterns` | The DLP patterns applied to AI traffic |
+| `add-dlp-pattern --id --name --regex --severity --data-type [--mode M] [--disabled]` | `POST /api/v1/enterprise/ai-security/ai-dlp/patterns` | Apply one more pattern |
+| `delete-dlp-pattern <ID>` | `DELETE /api/v1/enterprise/ai-security/ai-dlp/patterns/{id}` | Remove a pattern |
+| `shadow-ai`, `shadow-ai-policy`, `set-shadow-ai-policy` | `/api/v1/enterprise/ai-security/shadow-ai/detections`, `policy` | AI services no policy allows, and the policy |
+| `encrypted-dns`, `encrypted-dns-policy`, `set-encrypted-dns-policy` | `/api/v1/enterprise/ai-security/encrypted-dns/detections`, `policy` | Encrypted DNS resolvers reached, and the policy |
+| `agent-traffic`, `agent-traffic-policy`, `set-agent-traffic-policy` | `/api/v1/enterprise/ai-security/agent-traffic`, `policy` | Traffic from AI agents, and the policy |
+| `exfiltration-sources`, `exfiltration-thresholds`, `set-exfiltration-thresholds` | `/api/v1/enterprise/ai-security/exfiltration/sources`, `thresholds` | The sources sending the most to AI services, and the volumes above which it is exfiltration |
+| `replay --file <PATH>` | `POST /api/v1/enterprise/ai-security/events` | Hand the engine one recorded connection and print what it decided |
+
+Categories: `general_purpose`, `code_assistant`, `image_generation`,
+`model_hub`, `search_ai`, `custom`, `internal`. Modes: `monitor`, `block`,
+`allow_list`.
+
+### tls-intel
+
+[TLS intelligence](../features/enterprise/tls-intelligence.md): fingerprints,
+anomalies, the cryptographic policy and post-quantum readiness.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `status` / `alerts` | `GET /api/v1/enterprise/tls-intelligence/status` / `alerts` | What TLS intelligence watches and what it saw |
+| `anomalies` | `GET /api/v1/enterprise/tls-intelligence/anomalies` | Fingerprints rarely seen on this network |
+| `anomaly-config` / `set-anomaly-config <THRESHOLD>` | `GET` / `PUT /api/v1/enterprise/tls-intelligence/anomalies/config` | The rarity threshold |
+| `cipher-downgrades` | `GET /api/v1/enterprise/tls-intelligence/cipher-downgrades` | Recent cipher downgrades |
+| `clusters` | `GET /api/v1/enterprise/tls-intelligence/clusters` | The fingerprint clusters |
+| `crypto-policy` / `set-crypto-policy --file <PATH>` | `GET` / `PUT /api/v1/enterprise/tls-intelligence/crypto/policy` | The cryptographic policy |
+| `crypto-violations` | `GET /api/v1/enterprise/tls-intelligence/crypto/violations` | Handshakes that broke it |
+| `ml-status` | `GET /api/v1/enterprise/tls-intelligence/ml/status` | The TLS anomaly model |
+| `peer-groups` | `GET /api/v1/enterprise/tls-intelligence/peer-groups/status` | The peer groups and their baselines |
+| `pqc-connections` / `pqc-report` | `GET /api/v1/enterprise/tls-intelligence/pqc/connections` / `report` | The key exchange each connection agreed, and how much traffic is post-quantum ready |
+| `session-anomalies` | `GET /api/v1/enterprise/tls-intelligence/session-anomalies` | Session resumption anomalies |
+| `sni-mismatches` | `GET /api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | The name asked and the certificate given disagreed |
+| `threats` / `threat-matches` | `GET /api/v1/enterprise/tls-intelligence/threats` / `threats/matches` | Known-malicious fingerprints, and the handshakes that matched one |
+| `add-threat --ja4 --name --source --reference --last-confirmed [--category C] [--confidence N]` | `POST /api/v1/enterprise/tls-intelligence/threats` | Add a fingerprint with where it comes from |
+| `delete-threat <ID>` | `DELETE /api/v1/enterprise/tls-intelligence/threats/{id}` | Remove one |
+| `replay --file <PATH>` | `POST /api/v1/enterprise/tls-intelligence/events` | Hand the engine one recorded handshake and print what it decided |
+
+Threat categories: `c2`, `malware`, `exploit_tool`, `scanner`, `botnet`, `custom`.
+
+### tls-probes
+
+The TLS library probes: `status`, `coverage`, `plans`, `redirect` and
+`warnings`, each `GET /api/v1/enterprise/tls-probes/<verb>`, say whether they
+are attached, which processes and libraries they cover, the attach plan per
+library, where statically linked TLS is redirected and what they could not
+attach to.
+
+### l7-inspect
+
+The enterprise [L7 engine](../features/enterprise/l7-deep-inspection.md), with
+[per-protocol policies](../features/enterprise/l7-per-protocol-policies.md). A protocol policy is read and replaced whole, for one
+of `kafka`, `ldap`, `mongodb`, `redis`, `sql`, `ssh`.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `patterns` | `GET /api/v1/enterprise/l7/patterns` | The inspection patterns |
+| `add-pattern --id --name --regex --category --severity [--disabled]` | `POST /api/v1/enterprise/l7/patterns` | Add one |
+| `load-patterns --file <PATH>` | `POST /api/v1/enterprise/l7/patterns/bulk` | Load many from a document carrying `patterns` |
+| `delete-pattern <ID>` | `DELETE /api/v1/enterprise/l7/patterns/{id}` | Remove one |
+| `blocks` / `blocks-ips` / `blocks-stix` | `GET /api/v1/enterprise/l7/blocks`, `blocks/ips`, `blocks/stix` | The sources blocked now; one address per line; as STIX 2.1 indicators |
+| `enriched-alerts` / `matches` / `decisions` | `GET /api/v1/enterprise/l7/enriched-alerts`, `matches`, `policy/decisions` | Alerts with their L7 context, recent matches, recent policy decisions |
+| `policy <PROTO>` / `set-policy <PROTO> --file <PATH>` | `GET` / `PUT /api/v1/enterprise/l7/policy/<proto>` | One protocol's policy |
+| `rule-toggles` | `GET /api/v1/enterprise/l7/rule-toggles` | The rules and whether each is on |
+| `set-rule-toggles <ID>...` | `PUT /api/v1/enterprise/l7/rule-toggles` | Turn on exactly these rules and off every other |
+| `enable <ID>` / `disable <ID>` | `PATCH /api/v1/enterprise/l7/rule-toggles/{id}` | Turn one rule on or off |
+| `analyze --file <PATH>` | `POST /api/v1/enterprise/l7/analyze` | Run one recorded payload through the engine |
+
+```bash
+ebpfsentinel-enterprise-agent l7-inspect blocks-ips > blocked.txt
+ebpfsentinel-enterprise-agent l7-inspect set-policy redis --file redis-policy.json
+```
+
+### dlp and dns, enterprise verbs
+
+The enterprise agent adds verbs under two open source domains. Under `dlp`, the
+enterprise engine: `engine` (`GET /api/v1/enterprise/dlp/status`),
+`engine-patterns` (`GET /api/v1/enterprise/dlp/patterns`),
+`add-pattern --id --name --regex [--data-type] [--description] [--mode] [--severity]`
+(`POST`), `delete-pattern <ID>` (`DELETE .../patterns/{id}`) and
+`pattern-mode <ID> <MODE>` (`PATCH .../patterns/{id}/mode`). Under `dns`, domain
+generation scoring: `dga-scores [--limit N]`, `dga <DOMAIN>`,
+`allow <PATTERN>` and `unallow <PATTERN>` over
+`/api/v1/enterprise/dns/dga-scores` and `/api/v1/enterprise/dns/allowlist`.
+
+```bash
+ebpfsentinel-enterprise-agent dlp pattern-mode internal-ids block
+ebpfsentinel-enterprise-agent dns allow '*.cdn.example'
+```
+
+### intel
+
+The [threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) configured: `sources`
+(`GET /api/v1/intel/sources`) says what each is doing, `indicators`
+(`GET /api/v1/intel/indicators`) what the import put in front of the matchers.
+
+### file-watch
+
+`baselines` (`GET /api/v1/file-watch/baselines`): the fingerprint of every file
+this node watches.
