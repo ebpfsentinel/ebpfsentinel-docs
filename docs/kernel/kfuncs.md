@@ -66,7 +66,7 @@ Safe wrappers: `skb_get_xfrm_info` (tc-nat-ingress), `skb_set_xfrm_info` (tc-nat
 | `bpf_xdp_get_xfrm_state` | 6.8+ | `KF_ACQUIRE \| KF_RET_NULL` | Look up the `xfrm_state` matching an XDP packet |
 | `bpf_xdp_xfrm_state_release` | 6.8+ | `KF_RELEASE` | Release an `xfrm_state*` acquired above |
 
-Safe wrappers: `xdp_rx_hash` and `xdp_rx_timestamp` (xdp-firewall, xdp-ratelimit, xdp-loadbalancer), `xdp_rx_vlan_tag` and `with_xdp_xfrm_state` (xdp-firewall). A driver that does not implement a metadata kfunc answers `EOPNOTSUPP` and the wrapper returns `None`. The `xdp_rss_hash_type` constant module lets callers switch on `L3_IPV4 | L4 | L4_TCP` etc. without literal hex.
+Safe wrappers: `xdp_rx_hash` and `xdp_rx_timestamp` (xdp-firewall, xdp-ratelimit, xdp-loadbalancer), `xdp_rx_vlan_tag` and `with_xdp_xfrm_state` (xdp-firewall). A driver that does not implement a metadata kfunc answers `EOPNOTSUPP` and the wrapper returns `None`. The receive-metadata kfuncs resolve only in a program loaded device-bound, and the agent loads device-bound only when exactly one interface is configured and its links are not pinned: a device-bound program kept by a pinned link after the agent stops faults the kernel when its interface is deleted (seen on 7.0), so with the default pinned links the calls are neutralized, answer `EOPNOTSUPP`, and events carry no NIC hash or hardware timestamp. The `xdp_rss_hash_type` constant module lets callers switch on `L3_IPV4 | L4 | L4_TCP` etc. without literal hex.
 
 ### Dynptr packet size (kernel 6.4 / 6.5)
 
