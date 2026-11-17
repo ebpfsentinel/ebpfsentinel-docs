@@ -414,17 +414,17 @@ enterprise:
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/compliance/reports` | operator | compliance-reports | Generate a new report (`{ framework, period_start_ms, period_end_ms, format }`). |
-| `GET` | `/api/v1/compliance/reports` | viewer | compliance-reports | List reports (summary views, newest first). |
-| `GET` | `/api/v1/compliance/reports/{id}` | viewer | compliance-reports | Fetch full report (JSON). |
-| `GET` | `/api/v1/compliance/reports/{id}/csv` | viewer | compliance-reports | Export as CSV (attachment: `report.csv`). |
-| `GET` | `/api/v1/compliance/reports/{id}/text` | viewer | compliance-reports | Export as structured text. |
-| `GET` | `/api/v1/compliance/reports/{id}/pdf` | viewer | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
-| `POST` | `/api/v1/compliance/segmentation/validate` | operator | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
-| `GET` | `/api/v1/compliance/crypto/report` | viewer | compliance-reports | The network's cryptography as a migration report (see [below](#network-cryptography-inventory)). |
-| `GET` | `/api/v1/compliance/crypto/cbom` | viewer | compliance-reports | The same reading as a CycloneDX 1.6 cryptography bill of materials. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/compliance/reports` | `compliance generate` | operator | compliance-reports | Generate a new report (`{ framework, period_start_ms, period_end_ms, format }`). |
+| `GET` | `/api/v1/compliance/reports` | `compliance reports` | viewer | compliance-reports | List reports (summary views, newest first). |
+| `GET` | `/api/v1/compliance/reports/{id}` | `compliance report` | viewer | compliance-reports | Fetch full report (JSON). |
+| `GET` | `/api/v1/compliance/reports/{id}/csv` | `compliance export` | viewer | compliance-reports | Export as CSV (attachment: `report.csv`). |
+| `GET` | `/api/v1/compliance/reports/{id}/text` | `compliance export` | viewer | compliance-reports | Export as structured text. |
+| `GET` | `/api/v1/compliance/reports/{id}/pdf` | `compliance export` | viewer | compliance-reports | Export as PDF (attachment: `compliance-report.pdf`). |
+| `POST` | `/api/v1/compliance/segmentation/validate` | `compliance segmentation` | operator | compliance-reports | Validate a network segmentation policy (zones, allowed flows). |
+| `GET` | `/api/v1/compliance/crypto/report` | `compliance crypto` | viewer | compliance-reports | The network's cryptography as a migration report (see [below](#network-cryptography-inventory)). |
+| `GET` | `/api/v1/compliance/crypto/cbom` | `compliance cbom` | viewer | compliance-reports | The same reading as a CycloneDX 1.6 cryptography bill of materials. |
 
 ### Error Responses
 

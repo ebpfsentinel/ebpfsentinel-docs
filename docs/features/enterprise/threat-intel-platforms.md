@@ -78,10 +78,10 @@ License feature: `threat-intel-platforms`. Mounted only where the configuration
 carries an enabled `intel` block, so an agent with the feature and no block
 serves neither route.
 
-| Method | Path | Role | Grant | License feature | Description |
-|--------|------|------|-------|-----------------|-------------|
-| `GET` | `/api/v1/intel/sources` | viewer | `threatintel:read` | threat-intel-platforms | One entry per configured source: platform, interval, last attempt, last success, next attempt, consecutive failures, last error, indicators held, resume markers, and what the last poll took and refused. |
-| `GET` | `/api/v1/intel/indicators` | viewer | `threatintel:read` | threat-intel-platforms | Counts by kind and by source, the supported-object table above, and the kinds that reach no matcher with the sentence that says so. |
+| Method | Path | Command | Role | Grant | License feature | Description |
+|--------|------|---------|------|-------|-----------------|-------------|
+| `GET` | `/api/v1/intel/sources` | `intel sources` | viewer | `threatintel:read` | threat-intel-platforms | One entry per configured source: platform, interval, last attempt, last success, next attempt, consecutive failures, last error, indicators held, resume markers, and what the last poll took and refused. |
+| `GET` | `/api/v1/intel/indicators` | `intel indicators` | viewer | `threatintel:read` | threat-intel-platforms | Counts by kind and by source, the supported-object table above, and the kinds that reach no matcher with the sentence that says so. |
 
 Both are read-only and neither starts a poll.
 

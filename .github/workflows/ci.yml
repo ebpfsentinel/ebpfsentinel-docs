@@ -126,6 +126,12 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:cli-invocations
 
+      # A route on an enterprise page names the command that calls it, held to
+      # the enterprise command tree and its exclusion file.
+      - name: Check the command beside each enterprise route
+        working-directory: ebpfsentinel-docs
+        run: npm run check:route-commands
+
       # Sixty-two mappings over twelve components. The page carries them
       # generated, so a mapping added to the agent fails here rather than
       # leaving the matrix a partial extract nobody notices is partial.

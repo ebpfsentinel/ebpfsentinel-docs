@@ -402,20 +402,20 @@ severity are each reported by name and refuse the start.
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/l7/patterns` | viewer | advanced-dlp | List loaded patterns. |
-| `POST` | `/api/v1/enterprise/l7/patterns` | operator | advanced-dlp | Add one pattern. |
-| `POST` | `/api/v1/enterprise/l7/patterns/bulk` | operator | advanced-dlp | Replace the whole catalogue, built-ins included. |
-| `DELETE` | `/api/v1/enterprise/l7/patterns/{id}` | operator | advanced-dlp | Remove a pattern. |
-| `GET` | `/api/v1/enterprise/l7/matches` | viewer | advanced-dlp | Recent match history. |
-| `GET` | `/api/v1/enterprise/l7/rule-toggles` | viewer | advanced-dlp | Rule ids currently allowed to trigger a scan. |
-| `PUT` | `/api/v1/enterprise/l7/rule-toggles` | operator | advanced-dlp | Replace that set. |
-| `PATCH` | `/api/v1/enterprise/l7/rule-toggles/{id}` | operator | advanced-dlp | Add or remove one rule id. |
-| `POST` | `/api/v1/enterprise/l7/analyze` | operator | advanced-dlp | Scan a payload and return matches, policy decision and enrichment. |
-| `GET` | `/api/v1/enterprise/l7/blocks` | viewer | advanced-dlp | Sources blocked after a match, with the reason and when each lapses. |
-| `GET` | `/api/v1/enterprise/l7/blocks/ips` | viewer | advanced-dlp | The same sources, one address per line. |
-| `GET` | `/api/v1/enterprise/l7/blocks/stix` | viewer | advanced-dlp | The same sources as a STIX 2.1 bundle. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/patterns` | `l7-inspect patterns` | viewer | advanced-dlp | List loaded patterns. |
+| `POST` | `/api/v1/enterprise/l7/patterns` | `l7-inspect add-pattern` | operator | advanced-dlp | Add one pattern. |
+| `POST` | `/api/v1/enterprise/l7/patterns/bulk` | `l7-inspect load-patterns` | operator | advanced-dlp | Replace the whole catalogue, built-ins included. |
+| `DELETE` | `/api/v1/enterprise/l7/patterns/{id}` | `l7-inspect delete-pattern` | operator | advanced-dlp | Remove a pattern. |
+| `GET` | `/api/v1/enterprise/l7/matches` | `l7-inspect matches` | viewer | advanced-dlp | Recent match history. |
+| `GET` | `/api/v1/enterprise/l7/rule-toggles` | `l7-inspect rule-toggles` | viewer | advanced-dlp | Rule ids currently allowed to trigger a scan. |
+| `PUT` | `/api/v1/enterprise/l7/rule-toggles` | `l7-inspect set-rule-toggles` | operator | advanced-dlp | Replace that set. |
+| `PATCH` | `/api/v1/enterprise/l7/rule-toggles/{id}` | `l7-inspect enable`, `l7-inspect disable` | operator | advanced-dlp | Add or remove one rule id. |
+| `POST` | `/api/v1/enterprise/l7/analyze` | `l7-inspect analyze` | operator | advanced-dlp | Scan a payload and return matches, policy decision and enrichment. |
+| `GET` | `/api/v1/enterprise/l7/blocks` | `l7-inspect blocks` | viewer | advanced-dlp | Sources blocked after a match, with the reason and when each lapses. |
+| `GET` | `/api/v1/enterprise/l7/blocks/ips` | `l7-inspect blocks-ips` | viewer | advanced-dlp | The same sources, one address per line. |
+| `GET` | `/api/v1/enterprise/l7/blocks/stix` | `l7-inspect blocks-stix` | viewer | advanced-dlp | The same sources as a STIX 2.1 bundle. |
 
 ## Code Architecture
 

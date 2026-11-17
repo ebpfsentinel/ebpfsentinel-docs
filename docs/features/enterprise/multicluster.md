@@ -421,30 +421,30 @@ after upgrade. To migrate without downtime:
 
 ### Management Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/federation/clusters` | operator | multi-cluster | Register member cluster (201, 409 on duplicate endpoint). |
-| `GET` | `/api/v1/federation/clusters` | viewer | multi-cluster | List member clusters (summaries). |
-| `GET` | `/api/v1/federation/clusters/{id}` | viewer | multi-cluster | Cluster details (404 if not found). |
-| `DELETE` | `/api/v1/federation/clusters/{id}` | operator | multi-cluster | Unregister cluster (204). |
-| `GET` | `/api/v1/federation/overview` | viewer | multi-cluster | Federation-wide status. |
-| `POST` | `/api/v1/federation/policies/push` | operator | multi-cluster | Distribute policy (with dry_run, overrides). |
-| `GET` | `/api/v1/federation/policies/history` | viewer | multi-cluster | Distribution history (last 1,000). |
-| `POST` | `/api/v1/federation/alerts` | operator | multi-cluster | Ingest alerts from members; 503 when the store refused, so the batch is resendable. |
-| `GET` | `/api/v1/federation/alerts` | viewer | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
-| `GET` | `/api/v1/federation/alerts/stream` | viewer | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
-| `GET` | `/api/v1/federation/estate/verdicts` | viewer | multi-cluster | Writers encrypting other hosts' shares, each with its origin, the shares written to and the bound on each. |
-| `GET` | `/api/v1/federation/estate/response` | viewer | multi-cluster | The estate response's mode, the reading it started at, and the orders it made or would have made. |
-| `POST` | `/api/v1/federation/estate/response/promote` | operator | multi-cluster | Put the estate response in force on the reading named by `seen_since_ms` (409 when it has restarted). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/federation/clusters` | `federation register` | operator | multi-cluster | Register member cluster (201, 409 on duplicate endpoint). |
+| `GET` | `/api/v1/federation/clusters` | `federation clusters` | viewer | multi-cluster | List member clusters (summaries). |
+| `GET` | `/api/v1/federation/clusters/{id}` | `federation cluster` | viewer | multi-cluster | Cluster details (404 if not found). |
+| `DELETE` | `/api/v1/federation/clusters/{id}` | `federation unregister` | operator | multi-cluster | Unregister cluster (204). |
+| `GET` | `/api/v1/federation/overview` | `federation overview` | viewer | multi-cluster | Federation-wide status. |
+| `POST` | `/api/v1/federation/policies/push` | `federation push` | operator | multi-cluster | Distribute policy (with dry_run, overrides). |
+| `GET` | `/api/v1/federation/policies/history` | `federation history` | viewer | multi-cluster | Distribution history (last 1,000). |
+| `POST` | `/api/v1/federation/alerts` | none | operator | multi-cluster | Ingest alerts from members; 503 when the store refused, so the batch is resendable. |
+| `GET` | `/api/v1/federation/alerts` | `federation alerts` | viewer | multi-cluster | Query federated alerts (filters: cluster_id, severity, component, limit). |
+| `GET` | `/api/v1/federation/alerts/stream` | `federation follow` | viewer | multi-cluster | Server-Sent Events live federated alert feed, scoped to a federation tenant (cluster). |
+| `GET` | `/api/v1/federation/estate/verdicts` | `federation verdicts` | viewer | multi-cluster | Writers encrypting other hosts' shares, each with its origin, the shares written to and the bound on each. |
+| `GET` | `/api/v1/federation/estate/response` | `federation estate-response` | viewer | multi-cluster | The estate response's mode, the reading it started at, and the orders it made or would have made. |
+| `POST` | `/api/v1/federation/estate/response/promote` | `federation promote-estate-response` | operator | multi-cluster | Put the estate response in force on the reading named by `seen_since_ms` (409 when it has restarted). |
 
 ### Member Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/federation/heartbeat` | operator | multi-cluster | Send heartbeat to management (204). |
-| `POST` | `/api/v1/federation/policies/apply` | operator | multi-cluster | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure). |
-| `GET` | `/api/v1/federation/status` | viewer | multi-cluster | Federation health + applied-policy set (health-probe target). |
-| `POST` | `/api/v1/federation/estate/stop` | operator | multi-cluster | Stop the local processes writing to the named shares, found in this host's own process table. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/federation/heartbeat` | none | operator | multi-cluster | Send heartbeat to management (204). |
+| `POST` | `/api/v1/federation/policies/apply` | none | operator | multi-cluster | Apply a pushed policy locally (atomic, dry-run aware; 422 on failure). |
+| `GET` | `/api/v1/federation/status` | `federation status` | viewer | multi-cluster | Federation health + applied-policy set (health-probe target). |
+| `POST` | `/api/v1/federation/estate/stop` | none | operator | multi-cluster | Stop the local processes writing to the named shares, found in this host's own process table. |
 
 ## Feature Gating
 

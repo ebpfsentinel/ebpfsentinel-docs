@@ -10,36 +10,36 @@ Gated by the `FleetManagement` license feature.
 
 ## Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/agent/register` | operator | fleet-management | Register agent, get UUIDv7 identity + token. |
-| `POST` | `/api/v1/agent/heartbeat` | operator | fleet-management | Report status, receive aggregated health. |
-| `GET` | `/api/v1/agent/identity` | viewer | fleet-management | Full agent identity with capabilities. |
-| `GET` | `/api/v1/agent/config/version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
-| `GET` | `/api/v1/agent/addresses?epoch=&since=` | viewer | fleet-management | This node's addresses and the pod, container, guest or host behind each, as what changed since the reader's last answer. |
-| `GET` | `/api/v1/agent/remote-identities?address=` | viewer | fleet-management | The peer list this node holds: its version, its age, and the entry for one address. |
-| `PUT` | `/api/v1/agent/remote-identities` | operator | fleet-management | Replace the peer list whole; refused whole when any entry is wrong. |
-| `GET` | `/api/v1/flows/graph` | viewer | fleet-management | Network flow graph from conntrack data. |
-| `GET` | `/api/v1/flows/reachability` | viewer | fleet-management | SBOMs held and workloads observed, with how many components each report reached. |
-| `GET` | `/api/v1/flows/reachability/report?workload=` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
-| `PUT` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
-| `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | operator | fleet-management | Forget the SBOM of a workload. |
-| `GET` | `/api/v1/flows/reachability/scanner-reports` | viewer | fleet-management | The scanner reports held, each counted against the packages installed now. |
-| `GET` | `/api/v1/flows/reachability/scanner-reports/report?name=` | viewer | fleet-management | One scanner report, each finding joined with the installed package it names or the reason it is not. |
-| `GET` | `/api/v1/flows/reachability/scanner-reports/evidence?name=` | viewer | fleet-management | The evidence pack of one scanner report, digested and chained into the custody log. |
-| `PUT` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Keep a CycloneDX, SPDX, Trivy, Grype or Harbor JSON report under a name. |
-| `DELETE` | `/api/v1/flows/reachability/scanner-reports?name=` | operator | fleet-management | Forget a scanner report. |
-| `GET` | `/api/v1/exposure/listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
-| `GET` | `/api/v1/firewall/workload/peers` | viewer | fleet-management | The rules naming a remote workload and which ends decide each. |
-| `GET` | `/api/v1/firewall/shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
-| `POST` | `/api/v1/firewall/shadow/{id}/promote` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
-| `GET` | `/api/v1/file-watch/baselines` | viewer | fleet-management | What this node keeps of its watched files, for the console to compare across the fleet. |
-| `GET` | `/api/v1/host-rules` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
-| `GET` | `/api/v1/host-rules/intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
-| `GET` | `/api/v1/host-rules/mass-encryption` | viewer | fleet-management | The mass encryption verdict's mode and what it reached in shadow, by workload. |
-| `GET` | `/api/v1/host-rules/write-refusal` | viewer | fleet-management | The write refusal's mode and what it would have refused in shadow, by workload. |
-| `POST` | `/api/v1/host-rules/write-refusal/promote` | operator | fleet-management | Put the write refusal in force, on the reading it was decided on. |
-| `POST` | `/api/v1/host-rules/{id}/promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/agent/register` | none | operator | fleet-management | Register agent, get UUIDv7 identity + token. |
+| `POST` | `/api/v1/agent/heartbeat` | none | operator | fleet-management | Report status, receive aggregated health. |
+| `GET` | `/api/v1/agent/identity` | `identity` | viewer | fleet-management | Full agent identity with capabilities. |
+| `GET` | `/api/v1/agent/config/version` | `config version` | viewer | fleet-management | Config SHA-256 hash, when it was applied, whether the file has moved since. |
+| `GET` | `/api/v1/agent/addresses?epoch=&since=` | `addresses list` | viewer | fleet-management | This node's addresses and the pod, container, guest or host behind each, as what changed since the reader's last answer. |
+| `GET` | `/api/v1/agent/remote-identities?address=` | `peers list` | viewer | fleet-management | The peer list this node holds: its version, its age, and the entry for one address. |
+| `PUT` | `/api/v1/agent/remote-identities` | `peers set` | operator | fleet-management | Replace the peer list whole; refused whole when any entry is wrong. |
+| `GET` | `/api/v1/flows/graph` | `flows graph` | viewer | fleet-management | Network flow graph from conntrack data. |
+| `GET` | `/api/v1/flows/reachability` | `flows reachability` | viewer | fleet-management | SBOMs held and workloads observed, with how many components each report reached. |
+| `GET` | `/api/v1/flows/reachability/report?workload=` | `flows reachability-report` | viewer | fleet-management | One workload's SBOM joined with the flows it originated. |
+| `PUT` | `/api/v1/flows/reachability/sbom?workload=` | `flows set-sbom` | operator | fleet-management | Keep a CycloneDX or SPDX JSON document as the SBOM of a workload. |
+| `DELETE` | `/api/v1/flows/reachability/sbom?workload=` | `flows delete-sbom` | operator | fleet-management | Forget the SBOM of a workload. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports` | `flows scanner-reports` | viewer | fleet-management | The scanner reports held, each counted against the packages installed now. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports/report?name=` | `flows scanner-report` | viewer | fleet-management | One scanner report, each finding joined with the installed package it names or the reason it is not. |
+| `GET` | `/api/v1/flows/reachability/scanner-reports/evidence?name=` | `flows scanner-evidence` | viewer | fleet-management | The evidence pack of one scanner report, digested and chained into the custody log. |
+| `PUT` | `/api/v1/flows/reachability/scanner-reports?name=` | `flows add-scanner-report` | operator | fleet-management | Keep a CycloneDX, SPDX, Trivy, Grype or Harbor JSON report under a name. |
+| `DELETE` | `/api/v1/flows/reachability/scanner-reports?name=` | `flows delete-scanner-report` | operator | fleet-management | Forget a scanner report. |
+| `GET` | `/api/v1/exposure/listeners` | `exposure listeners` | viewer | fleet-management | The sockets this node accepts traffic on, classed against the firewall and the connections accepted. |
+| `GET` | `/api/v1/firewall/workload/peers` | `firewall workload-peers` | viewer | fleet-management | The rules naming a remote workload and which ends decide each. |
+| `GET` | `/api/v1/firewall/shadow` | `firewall shadow` | viewer | fleet-management | What each firewall rule in shadow mode would have done. |
+| `POST` | `/api/v1/firewall/shadow/{id}/promote` | `firewall promote-shadow` | operator | fleet-management | Put one shadow rule in force, on the reading it was decided on. |
+| `GET` | `/api/v1/file-watch/baselines` | `file-watch baselines` | viewer | fleet-management | What this node keeps of its watched files, for the console to compare across the fleet. |
+| `GET` | `/api/v1/host-rules` | `host-rules list` | viewer | fleet-management | The loaded host rules and, for a rule in shadow, what it would have done. |
+| `GET` | `/api/v1/host-rules/intents` | `host-rules intents` | viewer | fleet-management | What a host rule may name, and which of it this host serves. |
+| `GET` | `/api/v1/host-rules/mass-encryption` | `host-rules mass-encryption` | viewer | fleet-management | The mass encryption verdict's mode and what it reached in shadow, by workload. |
+| `GET` | `/api/v1/host-rules/write-refusal` | `host-rules write-refusal` | viewer | fleet-management | The write refusal's mode and what it would have refused in shadow, by workload. |
+| `POST` | `/api/v1/host-rules/write-refusal/promote` | `host-rules promote-write-refusal` | operator | fleet-management | Put the write refusal in force, on the reading it was decided on. |
+| `POST` | `/api/v1/host-rules/{id}/promote` | `host-rules promote` | operator | fleet-management | Put one host rule in shadow in force, on the reading it was decided on. |
 
 ### What authenticates what
 

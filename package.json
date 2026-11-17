@@ -12,6 +12,7 @@
     "typecheck": "tsc",
     "check:cli-reference": "node scripts/check-cli-reference.mjs",
     "check:cli-invocations": "node scripts/check-cli-invocations.mjs",
+    "check:route-commands": "node scripts/check-route-commands.mjs",
     "check:metrics": "node scripts/check-metric-names.mjs",
     "check:ebpf-metric-slots": "node scripts/check-ebpf-metric-slots.mjs",
     "check:feature-counts": "node scripts/check-feature-counts.mjs",

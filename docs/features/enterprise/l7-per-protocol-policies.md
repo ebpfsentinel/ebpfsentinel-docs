@@ -163,21 +163,21 @@ last decisions came out - how many were counted, denied, alerted and
 allowed out of the 500 the agent keeps - so reading a rule back means
 reading the configuration file that wrote it.
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/l7/policy/decisions` | viewer | advanced-dlp | The last 500 decisions, every protocol together. |
-| `GET` | `/api/v1/enterprise/l7/policy/redis` | viewer | advanced-dlp | Outcome counts over the recent Redis decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/redis` | operator | advanced-dlp | Merge rules into the Redis policy. |
-| `GET` | `/api/v1/enterprise/l7/policy/mongodb` | viewer | advanced-dlp | Outcome counts over the recent MongoDB decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/mongodb` | operator | advanced-dlp | Merge rules into the MongoDB policy. |
-| `GET` | `/api/v1/enterprise/l7/policy/kafka` | viewer | advanced-dlp | Outcome counts over the recent Kafka decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/kafka` | operator | advanced-dlp | Merge rules into the Kafka policy. |
-| `GET` | `/api/v1/enterprise/l7/policy/sql` | viewer | advanced-dlp | Outcome counts over the recent SQL decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/sql` | operator | advanced-dlp | Merge rules into the SQL policy. |
-| `GET` | `/api/v1/enterprise/l7/policy/ldap` | viewer | advanced-dlp | Outcome counts over the recent LDAP decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/ldap` | operator | advanced-dlp | Merge rules into the LDAP policy. |
-| `GET` | `/api/v1/enterprise/l7/policy/ssh` | viewer | advanced-dlp | Outcome counts over the recent SSH decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/ssh` | operator | advanced-dlp | Merge rules into the SSH policy. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/policy/decisions` | `l7-inspect decisions` | viewer | advanced-dlp | The last 500 decisions, every protocol together. |
+| `GET` | `/api/v1/enterprise/l7/policy/redis` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent Redis decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/redis` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the Redis policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/mongodb` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent MongoDB decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/mongodb` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the MongoDB policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/kafka` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent Kafka decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/kafka` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the Kafka policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/sql` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent SQL decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/sql` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the SQL policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/ldap` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent LDAP decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ldap` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the LDAP policy. |
+| `GET` | `/api/v1/enterprise/l7/policy/ssh` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent SSH decisions. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ssh` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the SSH policy. |
 
 ## Code Architecture
 

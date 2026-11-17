@@ -457,13 +457,13 @@ of them takes a URL: the address and the credential come from the `portal` block
 and a route that accepted an address would be a way to hand an agent a bundle
 from somewhere nobody signed.
 
-| Method | Path | Role | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/content/status` | viewer | The versions in force, with each set's publication date, entry count, rollback target and whether it is pinned; the bundle version, the attestation digest, the last fetch and the last failure, and the number of consecutive fetch failures; and per kind the engine reading it, whether it reads on this agent, the version written, the version it holds and its last refusal. |
-| `POST` | `/api/v1/content/import` | operator | Verify a bundle in a local directory and put it in force. Takes `{ "bundle_dir": "...", "verify_only": false }`. |
-| `POST` | `/api/v1/content/rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. A pinned set stays pinned, at the version it went back to. |
-| `POST` | `/api/v1/content/pin` | operator | Hold one set at the version in force until it is released. Takes `{ "set": "ml-models" }`. `400` if nothing of that set is applied. |
-| `POST` | `/api/v1/content/unpin` | operator | Release a pinned set. Takes `{ "set": "ml-models" }`. `400` if the set is not pinned. |
+| Method | Path | Command | Role | Description |
+|--------|------|---------|------|-------------|
+| `GET` | `/api/v1/content/status` | `content status` | viewer | The versions in force, with each set's publication date, entry count, rollback target and whether it is pinned; the bundle version, the attestation digest, the last fetch and the last failure, and the number of consecutive fetch failures; and per kind the engine reading it, whether it reads on this agent, the version written, the version it holds and its last refusal. |
+| `POST` | `/api/v1/content/import` | `content import` | operator | Verify a bundle in a local directory and put it in force. Takes `{ "bundle_dir": "...", "verify_only": false }`. |
+| `POST` | `/api/v1/content/rollback` | `content rollback` | operator | Put one set back to the version it replaced. Takes `{ "set": "ids-rules" }`. A pinned set stays pinned, at the version it went back to. |
+| `POST` | `/api/v1/content/pin` | `content pin` | operator | Hold one set at the version in force until it is released. Takes `{ "set": "ml-models" }`. `400` if nothing of that set is applied. |
+| `POST` | `/api/v1/content/unpin` | `content unpin` | operator | Release a pinned set. Takes `{ "set": "ml-models" }`. `400` if the set is not pinned. |
 
 A refused bundle answers `400` and changes nothing on the machine. A verified one
 answers `200` and says what became of each set, because a bundle is eight

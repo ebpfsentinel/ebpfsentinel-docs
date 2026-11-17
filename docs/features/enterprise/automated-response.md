@@ -479,19 +479,19 @@ answer is a bare array, newest first.
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/response/status` | viewer | automated-response | Service status (active policies, how many of them are in dry run, webhooks, cooldowns, never-act entries, rules whose budget is spent in the window they are in now, audit depth). |
-| `GET` | `/api/v1/enterprise/response/policies` | viewer | automated-response | List all response policies. |
-| `POST` | `/api/v1/enterprise/response/policies` | operator | automated-response | Create a response policy. |
-| `DELETE` | `/api/v1/enterprise/response/policies/{id}` | operator | automated-response | Delete a response policy. |
-| `GET` | `/api/v1/enterprise/response/webhooks` | viewer | automated-response | List all webhook endpoints. |
-| `POST` | `/api/v1/enterprise/response/webhooks` | operator | automated-response | Create a webhook endpoint. |
-| `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | operator | automated-response | Delete a webhook endpoint. |
-| `GET` | `/api/v1/enterprise/response/audit` | viewer | automated-response | Query the audit trail. |
-| `GET` | `/api/v1/enterprise/response/approvals` | viewer | automated-response | Actions waiting for a decision, oldest first. |
-| `POST` | `/api/v1/enterprise/response/approvals/{id}/approve` | operator | automated-response | Take a waiting action, recorded under the approver. |
-| `POST` | `/api/v1/enterprise/response/approvals/{id}/refuse` | operator | automated-response | Decline a waiting action. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/response/status` | `responses automation` | viewer | automated-response | Service status (active policies, how many of them are in dry run, webhooks, cooldowns, never-act entries, rules whose budget is spent in the window they are in now, audit depth). |
+| `GET` | `/api/v1/enterprise/response/policies` | `responses policies` | viewer | automated-response | List all response policies. |
+| `POST` | `/api/v1/enterprise/response/policies` | `responses add-policy` | operator | automated-response | Create a response policy. |
+| `DELETE` | `/api/v1/enterprise/response/policies/{id}` | `responses delete-policy` | operator | automated-response | Delete a response policy. |
+| `GET` | `/api/v1/enterprise/response/webhooks` | `responses webhooks` | viewer | automated-response | List all webhook endpoints. |
+| `POST` | `/api/v1/enterprise/response/webhooks` | `responses add-webhook` | operator | automated-response | Create a webhook endpoint. |
+| `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | `responses delete-webhook` | operator | automated-response | Delete a webhook endpoint. |
+| `GET` | `/api/v1/enterprise/response/audit` | `responses trail` | viewer | automated-response | Query the audit trail. |
+| `GET` | `/api/v1/enterprise/response/approvals` | `responses approvals` | viewer | automated-response | Actions waiting for a decision, oldest first. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/approve` | `responses approve` | operator | automated-response | Take a waiting action, recorded under the approver. |
+| `POST` | `/api/v1/enterprise/response/approvals/{id}/refuse` | `responses refuse` | operator | automated-response | Decline a waiting action. |
 
 ## Metrics
 

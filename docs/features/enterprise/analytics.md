@@ -229,17 +229,17 @@ enterprise:
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/analytics/top-talkers` | viewer | advanced-analytics | Top talkers with window-over-window deltas. Query: `period` (default 24h) or `start_ms` + `end_ms`, `limit` (default 20). |
-| `GET` | `/api/v1/analytics/alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
-| `GET` | `/api/v1/analytics/ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
-| `GET` | `/api/v1/analytics/flows` | viewer | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h) or `start_ms` + `end_ms`, `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order` (`asc` or `desc`, default `desc`). |
-| `GET` | `/api/v1/analytics/status` | viewer | advanced-analytics | Pipeline status. |
-| `GET` | `/api/v1/analytics/trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/csv` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/text` | viewer | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). |
-| `GET` | `/api/v1/analytics/trends/history` | viewer | advanced-analytics | Cached daily trend reports (up to 30). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/analytics/top-talkers` | `analytics top-talkers` | viewer | advanced-analytics | Top talkers with window-over-window deltas. Query: `period` (default 24h) or `start_ms` + `end_ms`, `limit` (default 20). |
+| `GET` | `/api/v1/analytics/alerts` | `analytics alerts` | viewer | advanced-analytics | Alert summary by severity and component. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
+| `GET` | `/api/v1/analytics/ioc` | `analytics ioc` | viewer | advanced-analytics | IOC hit summary by threat type. Query: `period` (default 24h) or `start_ms` + `end_ms`. |
+| `GET` | `/api/v1/analytics/flows` | `analytics flows` | viewer | advanced-analytics | Individual flow records held in memory, newest first. Query: `period` (default 24h) or `start_ms` + `end_ms`, `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `severity`, `component`, `limit`, `offset`, `sort_order` (`asc` or `desc`, default `desc`). |
+| `GET` | `/api/v1/analytics/status` | `analytics status` | viewer | advanced-analytics | Pipeline status. |
+| `GET` | `/api/v1/analytics/trends` | `analytics trends` | viewer | advanced-analytics | Trend report (JSON). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/csv` | `analytics trends` | viewer | advanced-analytics | Trend report (CSV). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/text` | `analytics trends` | viewer | advanced-analytics | Trend report (text). Query: `period` (minimum 7d). |
+| `GET` | `/api/v1/analytics/trends/history` | `analytics history` | viewer | advanced-analytics | Cached daily trend reports (up to 30). |
 
 ## Feature Gating
 

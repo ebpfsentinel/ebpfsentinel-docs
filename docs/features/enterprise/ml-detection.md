@@ -592,21 +592,21 @@ enterprise:
 
 ### Core ML Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/ml/status` | viewer | ml-detection | Pipeline status (all engines). |
-| `GET` | `/api/v1/enterprise/ml/anomalies` | viewer | ml-detection | Recent anomalies (limit param). |
-| `GET` | `/api/v1/enterprise/ml/alerts` | viewer | ml-detection | ML alerts with MITRE mapping. |
-| `GET` | `/api/v1/enterprise/ml/suggestions` | viewer | ml-detection | Pending rule suggestions. |
-| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | operator | ml-detection | Approve suggestion. |
-| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/reject` | operator | ml-detection | Reject suggestion. |
-| `POST` | `/api/v1/enterprise/ml/feedback` | operator | ml-detection | Submit FP/TP feedback. |
-| `GET` | `/api/v1/enterprise/ml/feedback/stats` | viewer | ml-detection | Feedback statistics. |
-| `GET` | `/api/v1/enterprise/ml/training-data` | viewer | ml-detection | Export labeled dataset. |
-| `POST` | `/api/v1/enterprise/ml/model/reload` | operator | ml-detection | Hot-swap ONNX model. |
-| `GET` | `/api/v1/enterprise/ml/ewma/status` | viewer | ml-detection | EWMA engine status. |
-| `POST` | `/api/v1/enterprise/ml/ewma/reset` | operator | ml-detection | Reset EWMA state. |
-| `POST` | `/api/v1/enterprise/ml/cusum/reset` | operator | ml-detection | Reset CUSUM state. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/ml/status` | `ml status` | viewer | ml-detection | Pipeline status (all engines). |
+| `GET` | `/api/v1/enterprise/ml/anomalies` | `ml anomalies` | viewer | ml-detection | Recent anomalies (limit param). |
+| `GET` | `/api/v1/enterprise/ml/alerts` | `ml alerts` | viewer | ml-detection | ML alerts with MITRE mapping. |
+| `GET` | `/api/v1/enterprise/ml/suggestions` | `ml suggestions` | viewer | ml-detection | Pending rule suggestions. |
+| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | `ml approve` | operator | ml-detection | Approve suggestion. |
+| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/reject` | `ml reject` | operator | ml-detection | Reject suggestion. |
+| `POST` | `/api/v1/enterprise/ml/feedback` | `ml feedback` | operator | ml-detection | Submit FP/TP feedback. |
+| `GET` | `/api/v1/enterprise/ml/feedback/stats` | `ml feedback-stats` | viewer | ml-detection | Feedback statistics. |
+| `GET` | `/api/v1/enterprise/ml/training-data` | `ml training-data` | viewer | ml-detection | Export labeled dataset. |
+| `POST` | `/api/v1/enterprise/ml/model/reload` | `ml reload-model` | operator | ml-detection | Hot-swap ONNX model. |
+| `GET` | `/api/v1/enterprise/ml/ewma/status` | `ml ewma-status` | viewer | ml-detection | EWMA engine status. |
+| `POST` | `/api/v1/enterprise/ml/ewma/reset` | `ml ewma-reset` | operator | ml-detection | Reset EWMA state. |
+| `POST` | `/api/v1/enterprise/ml/cusum/reset` | `ml cusum-reset` | operator | ml-detection | Reset CUSUM state. |
 
 **Example: `GET /api/v1/enterprise/ml/status`**
 
@@ -652,31 +652,31 @@ memory; `model_warmed_up` says it is contributing to the fusion. A model loaded 
 
 ### Streaming Algorithm Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/ml/heavy-hitters` | viewer | ml-detection | Top-K heavy hitters by byte volume. |
-| `GET` | `/api/v1/enterprise/ml/beaconing` | viewer | ml-detection | Active C2 beaconing suspects. |
-| `GET` | `/api/v1/enterprise/ml/mass-encryption` | viewer | ml-detection | The mass encryption threshold learned per executable and signal, and whether it drifted. |
-| `GET` | `/api/v1/enterprise/ml/rcf/scores` | viewer | ml-detection | Recent Random Cut Forest anomaly scores. |
-| `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
-| `GET` | `/api/v1/enterprise/ml/rcf/queue` | viewer | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |
-| `GET` | `/api/v1/enterprise/ml/rcf/status` | viewer | ml-detection | Pool occupancy and memory cost, threshold state, calibration state, open groups. |
-| `POST` | `/api/v1/enterprise/ml/rcf/groups/{group_id}/reject` | operator | ml-detection | Say an alert group was wrongly collapsed. Tightens the bar the next group needs. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/ml/heavy-hitters` | `ml heavy-hitters` | viewer | ml-detection | Top-K heavy hitters by byte volume. |
+| `GET` | `/api/v1/enterprise/ml/beaconing` | `ml beaconing` | viewer | ml-detection | Active C2 beaconing suspects. |
+| `GET` | `/api/v1/enterprise/ml/mass-encryption` | `ml mass-encryption` | viewer | ml-detection | The mass encryption threshold learned per executable and signal, and whether it drifted. |
+| `GET` | `/api/v1/enterprise/ml/rcf/scores` | `ml rcf-scores` | viewer | ml-detection | Recent Random Cut Forest anomaly scores. |
+| `GET` | `/api/v1/enterprise/ml/rcf/attribution` | `ml rcf-attribution` | viewer | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
+| `GET` | `/api/v1/enterprise/ml/rcf/queue` | `ml rcf-queue` | viewer | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |
+| `GET` | `/api/v1/enterprise/ml/rcf/status` | `ml rcf-status` | viewer | ml-detection | Pool occupancy and memory cost, threshold state, calibration state, open groups. |
+| `POST` | `/api/v1/enterprise/ml/rcf/groups/{group_id}/reject` | `ml rcf-reject` | operator | ml-detection | Say an alert group was wrongly collapsed. Tightens the bar the next group needs. |
 
 ### DNS Entropy Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/dns/dga-scores` | viewer | ml-detection | Recent DGA scores. |
-| `GET` | `/api/v1/enterprise/dns/dga-scores/{domain}` | viewer | ml-detection | Score a domain on demand. |
-| `POST` | `/api/v1/enterprise/dns/allowlist` | operator | ml-detection | Add allowlist pattern. |
-| `DELETE` | `/api/v1/enterprise/dns/allowlist/{pattern}` | operator | ml-detection | Remove pattern. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/dns/dga-scores` | `dns dga-scores` | viewer | ml-detection | Recent DGA scores. |
+| `GET` | `/api/v1/enterprise/dns/dga-scores/{domain}` | `dns dga` | viewer | ml-detection | Score a domain on demand. |
+| `POST` | `/api/v1/enterprise/dns/allowlist` | `dns allow` | operator | ml-detection | Add allowlist pattern. |
+| `DELETE` | `/api/v1/enterprise/dns/allowlist/{pattern}` | `dns unallow` | operator | ml-detection | Remove pattern. |
 
 ### TLS Clustering Endpoint
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | `tls-intel clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
 
 ---
 

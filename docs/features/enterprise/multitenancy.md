@@ -400,13 +400,13 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 
 ### Self-Service API Endpoints
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/enterprise/tenants` | operator | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
-| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | multi-tenancy | Suspend tenant (admin naming no tenant). |
-| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
-| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | multi-tenancy | Get self-service policy. |
-| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | multi-tenancy | Check if operation is allowed. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/enterprise/tenants` | `tenants create` | operator | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | `tenants suspend` | operator | multi-tenancy | Suspend tenant (admin naming no tenant). |
+| `POST` | `/api/v1/enterprise/tenants/{id}/activate` | `tenants activate` | operator | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
+| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | `tenants self-service` | viewer | multi-tenancy | Get self-service policy. |
+| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | `tenants check-self-service` | operator | multi-tenancy | Check if operation is allowed. |
 
 The Role column is the grant the RBAC layer checks. Creating, suspending and
 activating a tenant also need an administrator whose credential names no
@@ -624,17 +624,17 @@ by hand.
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/tenants` | viewer | multi-tenancy | List all tenants (admin naming no tenant). |
-| `GET` | `/api/v1/tenants/attribution` | viewer | multi-tenancy | What this node's last attribution pass observed (admin naming no tenant). |
-| `GET` | `/api/v1/tenants/{id}` | viewer | multi-tenancy | Tenant details (read permission). |
-| `GET` | `/api/v1/tenants/{id}/quota` | viewer | multi-tenancy | Current quota limits and usage. |
-| `PUT` | `/api/v1/tenants/{id}/quota` | operator | multi-tenancy | Update quota (admin naming no tenant, partial update, 429 on reduction below usage). |
-| `POST` | `/api/v1/tenants/{id}/quota/check` | operator | multi-tenancy | Check quota without consuming (read permission). |
-| `GET` | `/api/v1/tenants/metrics` | viewer | multi-tenancy | Prometheus quota metrics (admin naming no tenant). |
-| `GET` | `/api/v1/enterprise/alerts` | viewer | multi-tenancy | Tenant-scoped alerts (filtered by effective tenant). |
-| `GET` | `/api/v1/enterprise/audit` | viewer | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/tenants` | `tenants list` | viewer | multi-tenancy | List all tenants (admin naming no tenant). |
+| `GET` | `/api/v1/tenants/attribution` | `tenants attribution` | viewer | multi-tenancy | What this node's last attribution pass observed (admin naming no tenant). |
+| `GET` | `/api/v1/tenants/{id}` | `tenants show` | viewer | multi-tenancy | Tenant details (read permission). |
+| `GET` | `/api/v1/tenants/{id}/quota` | `tenants quota` | viewer | multi-tenancy | Current quota limits and usage. |
+| `PUT` | `/api/v1/tenants/{id}/quota` | `tenants set-quota` | operator | multi-tenancy | Update quota (admin naming no tenant, partial update, 429 on reduction below usage). |
+| `POST` | `/api/v1/tenants/{id}/quota/check` | `tenants check-quota` | operator | multi-tenancy | Check quota without consuming (read permission). |
+| `GET` | `/api/v1/tenants/metrics` | `tenants metrics` | viewer | multi-tenancy | Prometheus quota metrics (admin naming no tenant). |
+| `GET` | `/api/v1/enterprise/alerts` | `alerts by-tenant` | viewer | multi-tenancy | Tenant-scoped alerts (filtered by effective tenant). |
+| `GET` | `/api/v1/enterprise/audit` | `audit by-tenant` | viewer | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
 
 ### Tenant Response
 

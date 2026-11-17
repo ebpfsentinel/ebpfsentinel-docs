@@ -709,13 +709,13 @@ within one interval rather than at the next agent restart.
 
 ### Admin API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/tls-probes/status` | viewer | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
-| `GET` | `/api/v1/enterprise/tls-probes/plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
-| `GET` | `/api/v1/enterprise/tls-probes/warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
-| `GET` | `/api/v1/enterprise/tls-probes/coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, the build ids to send, and the state of the [offset catalogue](#the-offset-catalogue) the verdicts were reached with. |
-| `GET` | `/api/v1/enterprise/tls-probes/redirect` | viewer | tls-intelligence | What the [connection redirect](#dry-run-what-would-be-redirected-and-who-would-refuse) selects, in dry run or in force: the mode, the authority to install, and per selected process whether it trusts that authority, whether its binary carries traces of a pin, and the verdict. Mounted only when `redirect` is configured. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/tls-probes/status` | `tls-probes status` | viewer | tls-intelligence | High-level scanner health: last scan timestamp (ns), last scan duration (seconds), number of processes scanned, total discovered plans, `ktls_active` flag. |
+| `GET` | `/api/v1/enterprise/tls-probes/plans` | `tls-probes plans` | viewer | tls-intelligence | Full latest `ScanResult`: every `(library, binary_path, binary_dev, binary_ino, pids, symbol offsets, build_id, kernel_hook)` tuple plus the raw kTLS counters read from `/proc/net/tls_stat`. |
+| `GET` | `/api/v1/enterprise/tls-probes/warnings` | `tls-probes warnings` | viewer | tls-intelligence | Warnings collected during the most recent scan (invalid ELF, missing symbol, `/proc` read failure, …). |
+| `GET` | `/api/v1/enterprise/tls-probes/coverage` | `tls-probes coverage` | viewer | tls-intelligence | The verdict per process described in [What this host actually reads](#what-this-host-actually-reads): one entry per process carrying TLS, uncovered first, each surface read or not read with the means or the reason, the share of surfaces read in thousandths, the build ids to send, and the state of the [offset catalogue](#the-offset-catalogue) the verdicts were reached with. |
+| `GET` | `/api/v1/enterprise/tls-probes/redirect` | `tls-probes redirect` | viewer | tls-intelligence | What the [connection redirect](#dry-run-what-would-be-redirected-and-who-would-refuse) selects, in dry run or in force: the mode, the authority to install, and per selected process whether it trusts that authority, whether its binary carries traces of a pin, and the verdict. Mounted only when `redirect` is configured. |
 
 `build_id` is the hex GNU build id of the image the offsets were resolved
 against. It is what makes two scans comparable: an offset that moved while the
@@ -764,13 +764,13 @@ Pattern changes take effect without restarting the agent:
 
 The active TLS probe endpoints documented under Admin API above sit on the same port and are gated behind `tls-intelligence` rather than `advanced-dlp`.
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/dlp/status` | viewer | advanced-dlp | Enterprise DLP engine status. |
-| `GET` | `/api/v1/enterprise/dlp/patterns` | viewer | advanced-dlp | List all DLP patterns. |
-| `POST` | `/api/v1/enterprise/dlp/patterns` | operator | advanced-dlp | Add a custom pattern. |
-| `DELETE` | `/api/v1/enterprise/dlp/patterns/{id}` | operator | advanced-dlp | Remove a custom pattern. |
-| `PATCH` | `/api/v1/enterprise/dlp/patterns/{id}/mode` | operator | advanced-dlp | Change pattern mode. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/dlp/status` | `dlp engine` | viewer | advanced-dlp | Enterprise DLP engine status. |
+| `GET` | `/api/v1/enterprise/dlp/patterns` | `dlp engine-patterns` | viewer | advanced-dlp | List all DLP patterns. |
+| `POST` | `/api/v1/enterprise/dlp/patterns` | `dlp add-pattern` | operator | advanced-dlp | Add a custom pattern. |
+| `DELETE` | `/api/v1/enterprise/dlp/patterns/{id}` | `dlp delete-pattern` | operator | advanced-dlp | Remove a custom pattern. |
+| `PATCH` | `/api/v1/enterprise/dlp/patterns/{id}/mode` | `dlp pattern-mode` | operator | advanced-dlp | Change pattern mode. |
 
 ## Feature Gating
 

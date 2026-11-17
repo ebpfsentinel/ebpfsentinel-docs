@@ -611,9 +611,9 @@ the agent is running:
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/license` | viewer | none | Enterprise license status (200, or 402 when the license is absent or invalid). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/license` | `license status` | viewer | none | Enterprise license status (200, or 402 when the license is absent or invalid). |
 
 Returns license status (200 OK or 402 Payment Required):
 

@@ -519,27 +519,27 @@ A timeline by alert ID is centered on that alert and answers **404** when no eve
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/forensics/status` | viewer | network-forensics | Ring buffer depth and oldest event, context freeze count, campaigns held, trigger policy in force, current packet mirror configuration, whether capture is on, the captures held and the bytes they take on disk. |
-| `GET` | `/api/v1/enterprise/forensics/mirror` | viewer | network-forensics | Return the current packet mirror configuration. |
-| `POST` | `/api/v1/enterprise/forensics/mirror/start` | operator | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
-| `POST` | `/api/v1/enterprise/forensics/mirror/stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
-| `GET` | `/api/v1/enterprise/forensics/campaigns` | viewer | network-forensics | Every encryption joined to the beacons and exfiltrations its actor raised before it, newest encryption first. |
-| `GET` | `/api/v1/enterprise/forensics/context-freezes` | viewer | network-forensics | List all context freezes. |
-| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | viewer | network-forensics | Get a single context freeze. |
-| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}/graph` | viewer | network-forensics | The investigation graph of one freeze, bounded by a node budget and a depth budget. |
-| `DELETE` | `/api/v1/enterprise/forensics/context-freezes/{id}` | operator | network-forensics | Delete a context freeze. |
-| `GET` | `/api/v1/enterprise/forensics/captures` | viewer | network-forensics | List every capture, newest trigger first; empty when capture is off. |
-| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | viewer | network-forensics | Get one capture's record. |
-| `GET` | `/api/v1/enterprise/forensics/captures/{id}/pcapng` | operator | network-forensics | Download a written capture, checked against its digest and recorded in custody under the caller's name. Needs the write grant and pays the write bucket. |
-| `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | viewer | network-forensics | Flow timeline around an alert. |
-| `GET` | `/api/v1/enterprise/forensics/timeline/flow` | viewer | network-forensics | Timeline for a specific flow tuple. |
-| `GET` | `/api/v1/forensics/events/stream` | viewer | network-forensics | Server-Sent Events live forensic event feed. |
-| `GET` | `/api/v1/investigations` | viewer | network-forensics | The investigations this node runs, then the ended ones it keeps, with the node's name and the longest duration it allows. |
-| `POST` | `/api/v1/investigations` | operator | network-forensics | Start an investigation of one workload on this node, under the caller's name; answers with its first sample. |
-| `GET` | `/api/v1/investigations/{id}` | viewer | network-forensics | One investigation: its bounds, its state, its cost and its last sample. |
-| `DELETE` | `/api/v1/investigations/{id}` | operator | network-forensics | Stop an investigation before its time, under the caller's name. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/forensics/status` | `forensics status` | viewer | network-forensics | Ring buffer depth and oldest event, context freeze count, campaigns held, trigger policy in force, current packet mirror configuration, whether capture is on, the captures held and the bytes they take on disk. |
+| `GET` | `/api/v1/enterprise/forensics/mirror` | `forensics mirror` | viewer | network-forensics | Return the current packet mirror configuration. |
+| `POST` | `/api/v1/enterprise/forensics/mirror/start` | `forensics mirror-start` | operator | network-forensics | Enable eBPF packet mirroring. Suspicious packets matched by `tc-ids` are cloned via `bpf_clone_redirect` to the specified interface for forensic capture by tools such as Wireshark or `tcpdump`. |
+| `POST` | `/api/v1/enterprise/forensics/mirror/stop` | `forensics mirror-stop` | operator | network-forensics | Disable eBPF packet mirroring. The `tc-ids` program stops cloning packets. |
+| `GET` | `/api/v1/enterprise/forensics/campaigns` | `forensics campaigns` | viewer | network-forensics | Every encryption joined to the beacons and exfiltrations its actor raised before it, newest encryption first. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes` | `forensics freezes` | viewer | network-forensics | List all context freezes. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}` | `forensics freeze` | viewer | network-forensics | Get a single context freeze. |
+| `GET` | `/api/v1/enterprise/forensics/context-freezes/{id}/graph` | `forensics graph` | viewer | network-forensics | The investigation graph of one freeze, bounded by a node budget and a depth budget. |
+| `DELETE` | `/api/v1/enterprise/forensics/context-freezes/{id}` | `forensics delete-freeze` | operator | network-forensics | Delete a context freeze. |
+| `GET` | `/api/v1/enterprise/forensics/captures` | `forensics captures` | viewer | network-forensics | List every capture, newest trigger first; empty when capture is off. |
+| `GET` | `/api/v1/enterprise/forensics/captures/{id}` | `forensics capture` | viewer | network-forensics | Get one capture's record. |
+| `GET` | `/api/v1/enterprise/forensics/captures/{id}/pcapng` | `forensics download` | operator | network-forensics | Download a written capture, checked against its digest and recorded in custody under the caller's name. Needs the write grant and pays the write bucket. |
+| `GET` | `/api/v1/enterprise/forensics/timeline/{alert_id}` | `forensics timeline` | viewer | network-forensics | Flow timeline around an alert. |
+| `GET` | `/api/v1/enterprise/forensics/timeline/flow` | `forensics flow-timeline` | viewer | network-forensics | Timeline for a specific flow tuple. |
+| `GET` | `/api/v1/forensics/events/stream` | `forensics events` | viewer | network-forensics | Server-Sent Events live forensic event feed. |
+| `GET` | `/api/v1/investigations` | `investigations list` | viewer | network-forensics | The investigations this node runs, then the ended ones it keeps, with the node's name and the longest duration it allows. |
+| `POST` | `/api/v1/investigations` | `investigations start` | operator | network-forensics | Start an investigation of one workload on this node, under the caller's name; answers with its first sample. |
+| `GET` | `/api/v1/investigations/{id}` | `investigations show` | viewer | network-forensics | One investigation: its bounds, its state, its cost and its last sample. |
+| `DELETE` | `/api/v1/investigations/{id}` | `investigations stop` | operator | network-forensics | Stop an investigation before its time, under the caller's name. |
 
 ### Timeline Query Parameters
 

@@ -557,10 +557,10 @@ Automated response, forensics and analytics do not depend on this block. Every a
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/siem/status` | viewer | siem-integration | Export pipeline status (connectors started, connectors that failed to start with the reason, buffer size, pending events, exported/dropped/error counts). |
-| `POST` | `/api/v1/siem/retro-ioc-scan` | operator | siem-integration | Retroactive IOC matching against buffered events. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/siem/status` | `siem status` | viewer | siem-integration | Export pipeline status (connectors started, connectors that failed to start with the reason, buffer size, pending events, exported/dropped/error counts). |
+| `POST` | `/api/v1/siem/retro-ioc-scan` | `siem retro-scan` | operator | siem-integration | Retroactive IOC matching against buffered events. |
 
 ## Feature Gating
 

@@ -54,20 +54,20 @@ license does not carry is never mounted, so a call to one of its paths answers
 
 Twelve of this edition's own routes are mounted whatever the license carries:
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/alerts/{id}/false-positive` | operator | none | Mark an alert as false positive. |
-| `GET` | `/api/v1/license` | viewer | none | What the license itself says. Gating this on a feature would leave an expired deployment with no way to read why it had stopped working. |
-| `GET` | `/api/v1/alerts` | viewer | none | Query the OSS datapath alert store. |
-| `GET` | `/api/v1/alerts/{id}` | viewer | none | Read one stored alert by identifier. |
-| `PATCH` | `/api/v1/alerts/{id}/triage` | operator | none | Set one alert's status or assignee, or append a note. |
-| `POST` | `/api/v1/alerts/triage` | operator | none | Apply one triage change to at most 1000 alerts. |
-| `GET` | `/api/v1/ebpf/kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
-| `GET` | `/api/v1/ebpf/hidden-ports` | viewer | none | The last hidden-port sweep, as the open-source agent serves it. |
-| `GET` | `/api/v1/ebpf/hidden-processes` | viewer | none | The last hidden-process sweep, as the open-source agent serves it. |
-| `GET` | `/metrics` | none | none | OpenMetrics text output for every metric this process keeps: the `ebpfsentinel_ent_` registry and the datapath's own `ebpfsentinel_` one, in one exposition. |
-| `GET` | `/healthz` | none | none | Liveness. Answers 200 while the process is running. |
-| `GET` | `/readyz` | none | none | Readiness. 200 once this node is doing what its role asks of it, 503 otherwise. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/alerts/{id}/false-positive` | `alerts mark-fp` | operator | none | Mark an alert as false positive. |
+| `GET` | `/api/v1/license` | `license status` | viewer | none | What the license itself says. Gating this on a feature would leave an expired deployment with no way to read why it had stopped working. |
+| `GET` | `/api/v1/alerts` | `alerts list` | viewer | none | Query the OSS datapath alert store. |
+| `GET` | `/api/v1/alerts/{id}` | `alerts show` | viewer | none | Read one stored alert by identifier. |
+| `PATCH` | `/api/v1/alerts/{id}/triage` | `alerts triage` | operator | none | Set one alert's status or assignee, or append a note. |
+| `POST` | `/api/v1/alerts/triage` | `alerts triage` | operator | none | Apply one triage change to at most 1000 alerts. |
+| `GET` | `/api/v1/ebpf/kernel-features` | `ebpf kernel-features` | viewer | none | Return what the startup helper probe learned about this kernel. |
+| `GET` | `/api/v1/ebpf/hidden-ports` | `ebpf hidden-ports` | viewer | none | The last hidden-port sweep, as the open-source agent serves it. |
+| `GET` | `/api/v1/ebpf/hidden-processes` | `ebpf hidden-processes` | viewer | none | The last hidden-process sweep, as the open-source agent serves it. |
+| `GET` | `/metrics` | `metrics` | none | none | OpenMetrics text output for every metric this process keeps: the `ebpfsentinel_ent_` registry and the datapath's own `ebpfsentinel_` one, in one exposition. |
+| `GET` | `/healthz` | `health` | none | none | Liveness. Answers 200 while the process is running. |
+| `GET` | `/readyz` | `health` | none | none | Readiness. 200 once this node is doing what its role asks of it, 503 otherwise. |
 
 The two probes carry no authentication and no license check on purpose: an
 orchestrator has no credential, and a license that cannot be read is exactly
@@ -113,136 +113,136 @@ as a changed configuration file, datapath included. Each is described in
 [REST API](../../api-reference/rest-api.md) and listed with its grant in
 [Enterprise REST API](../../api-reference/rest-api-enterprise.md#open-source-surface).
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/agent/status` | viewer | none | Returns the current agent status including version, uptime, and eBPF state. |
-| `GET` | `/api/v1/alerts/stream` | viewer | none | Server-Sent Events live alert feed. |
-| `GET` | `/api/v1/aliases/status` | viewer | none | Alias service status. |
-| `PUT` | `/api/v1/aliases/{id}/content` | operator | none | Push content for an External alias. |
-| `GET` | `/api/v1/audit/logs` | viewer | none | Query stored audit log entries. |
-| `GET` | `/api/v1/audit/rules/{id}/history` | viewer | none | Query rule version history. |
-| `GET` | `/api/v1/config` | viewer | none | Return the current (sanitized) agent configuration. |
-| `POST` | `/api/v1/config/reload` | operator | none | Trigger a configuration reload via the API. |
-| `PUT` | `/api/v1/config/{section}` | operator | none | Write one section of the agent configuration file and reload. |
-| `GET` | `/api/v1/conntrack/connections` | viewer | none | List tracked connections. |
-| `GET` | `/api/v1/conntrack/events` | viewer | none | Server-Sent Events stream of connection lifecycle events (new, update, destroy). |
-| `POST` | `/api/v1/conntrack/flush` | operator | none | Flush all tracked connections. |
-| `GET` | `/api/v1/conntrack/status` | viewer | none | Connection tracking status. |
-| `GET` | `/api/v1/ddos/attacks` | viewer | none | List active `DDoS` attacks. |
-| `GET` | `/api/v1/ddos/attacks/history` | viewer | none | Attack history. |
-| `GET` | `/api/v1/ddos/policies` | viewer | none | List `DDoS` policies. |
-| `POST` | `/api/v1/ddos/policies` | operator | none | Create a `DDoS` policy. |
-| `DELETE` | `/api/v1/ddos/policies/{id}` | operator | none | Delete a `DDoS` policy. |
-| `GET` | `/api/v1/ddos/status` | viewer | none | `DDoS` protection status. |
-| `GET` | `/api/v1/dlp/patterns` | viewer | none | List DLP patterns. |
-| `GET` | `/api/v1/dlp/scope` | viewer | none | Which workloads DLP is reading. |
-| `GET` | `/api/v1/dlp/status` | viewer | none | DLP status. |
-| `GET` | `/api/v1/dns/blocklist` | viewer | none | List loaded blocklist rules. |
-| `GET` | `/api/v1/dns/cache` | viewer | none | List DNS cache entries. |
-| `DELETE` | `/api/v1/dns/cache` | operator | none | Flush the DNS cache. |
-| `GET` | `/api/v1/dns/stats` | viewer | none | DNS cache and blocklist statistics. |
-| `GET` | `/api/v1/dns/status` | viewer | none | DNS intelligence subsystem status. |
-| `POST` | `/api/v1/domains/blocklist` | operator | none | Add a domain to the runtime blocklist. |
-| `DELETE` | `/api/v1/domains/blocklist/{domain}` | operator | none | Remove a domain from the runtime blocklist. |
-| `GET` | `/api/v1/domains/reputation` | viewer | none | Query domain reputations. |
-| `GET` | `/api/v1/ebpf/coverage` | viewer | none | What the agent sees of each pod on this node. |
-| `GET` | `/api/v1/ebpf/drop-reasons` | viewer | none | Why the kernel dropped packets, counted by reason. |
-| `GET` | `/api/v1/ebpf/foreign-programs` | viewer | none | Who else has a program on the network path. |
-| `GET` | `/api/v1/ebpf/guests` | viewer | none | The virtual machines and KubeVirt guests whose links the agent holds, named or reported unnamed with the reason. |
-| `GET` | `/api/v1/ebpf/raw-sockets` | viewer | none | Who else reads the node's traffic. |
-| `GET` | `/api/v1/ebpf/status` | viewer | none | Return the load status of each eBPF program. |
-| `GET` | `/api/v1/fingerprints/summary` | viewer | none | Fingerprint cache status. |
-| `GET` | `/api/v1/firewall/l7-rules` | viewer | none | List all L7 rules. |
-| `POST` | `/api/v1/firewall/l7-rules` | operator | none | Create a new L7 rule. |
-| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | operator | none | Delete an L7 rule by ID. |
-| `GET` | `/api/v1/firewall/rules` | viewer | none | List all active rules. |
-| `POST` | `/api/v1/firewall/rules` | operator | none | Create a new rule. |
-| `DELETE` | `/api/v1/firewall/rules/{id}` | operator | none | Delete a rule by ID. |
-| `GET` | `/api/v1/firewall/workload/fqdn` | viewer | none | What the rules naming destinations by name have resolved, and what is still open. |
-| `GET` | `/api/v1/firewall/workload/labels` | viewer | none | The containers whose labels carry policy, the rules each produced and any label refused. |
-| `GET` | `/api/v1/firewall/workload/reach` | viewer | none | What the workload policy lets a workload reach. |
-| `GET` | `/api/v1/firewall/workload/rules` | viewer | none | The workload rules in force and what each has refused. |
-| `GET` | `/api/v1/flows/export` | viewer | none | Flow export status. |
-| `GET` | `/api/v1/geoip/lookup` | viewer | none | Resolve an IP to `GeoIP` info. |
-| `GET` | `/api/v1/geoip/status` | viewer | none | `GeoIP` enrichment status. |
-| `GET` | `/api/v1/ids/rules` | viewer | none | List all IDS rules. |
-| `GET` | `/api/v1/ids/status` | viewer | none | IDS service status. |
-| `GET` | `/api/v1/ids/suricata/report` | viewer | none | What the imported Suricata rulesets compiled to. |
-| `GET` | `/api/v1/ips/blacklist` | viewer | none | List current IPS blacklist entries. |
-| `POST` | `/api/v1/ips/blacklist` | operator | none | Manually add an IP to the IPS blacklist. |
-| `DELETE` | `/api/v1/ips/blacklist/{ip}` | operator | none | Remove an IP from the IPS blacklist. |
-| `GET` | `/api/v1/ips/domain-blocks` | viewer | none | List IPS blacklist entries originating from domain mechanisms. |
-| `GET` | `/api/v1/ips/rules` | viewer | none | List all IPS rules. |
-| `PATCH` | `/api/v1/ips/rules/{id}` | operator | none | Toggle a rule's mode. |
-| `GET` | `/api/v1/lb/services` | viewer | none | List LB services. |
-| `POST` | `/api/v1/lb/services` | operator | none | Create an LB service. |
-| `GET` | `/api/v1/lb/services/{id}` | viewer | none | Get LB service detail. |
-| `DELETE` | `/api/v1/lb/services/{id}` | operator | none | Delete an LB service. |
-| `GET` | `/api/v1/lb/status` | viewer | none | Load balancer status. |
-| `GET` | `/api/v1/lb/vips` | viewer | none | VIP announcer status. |
-| `POST` | `/api/v1/lb/vips` | operator | none | Apply a new VIP announce configuration. |
-| `GET` | `/api/v1/lb/vips/bgp` | viewer | none | BGP sessions announcing the VIPs. |
-| `POST` | `/api/v1/lb/vips/grant` | operator | none | Grant or release the speaker role of an `elected` node. |
-| `GET` | `/api/v1/learning/sessions` | viewer | none | Every learning window this node remembers. |
-| `POST` | `/api/v1/learning/sessions` | operator | none | Open a learning window. |
-| `GET` | `/api/v1/learning/sessions/{id}` | viewer | none | One learning window, as it stands. |
-| `GET` | `/api/v1/learning/sessions/{id}/edges` | viewer | none | What the window saw, edge by edge. |
-| `GET` | `/api/v1/learning/sessions/{id}/policy` | viewer | none | The allow-list the window describes. |
-| `GET` | `/api/v1/learning/sessions/{id}/segmentation` | viewer | none | The rules that keep each container on a bridge to the peers the window saw it reach. |
-| `POST` | `/api/v1/learning/sessions/{id}/stop` | operator | none | Close a learning window early. |
-| `GET` | `/api/v1/mitre/coverage` | viewer | none | MITRE ATT&CK coverage matrix. |
-| `GET` | `/api/v1/nat/nptv6` | viewer | none | List `NPTv6` rules. |
-| `POST` | `/api/v1/nat/nptv6` | operator | none | Create an `NPTv6` rule. |
-| `DELETE` | `/api/v1/nat/nptv6/{id}` | operator | none | Delete an `NPTv6` rule. |
-| `GET` | `/api/v1/nat/rules` | viewer | none | List NAT rules. |
-| `GET` | `/api/v1/nat/status` | viewer | none | NAT status. |
-| `POST` | `/api/v1/netpol/replay` | operator | none | What proposed network policies would have refused. |
-| `GET` | `/api/v1/processes` | viewer | none | The processes alive on this node. |
-| `GET` | `/api/v1/processes/{pid}` | viewer | none | One process, by pid. |
-| `GET` | `/api/v1/qos/classifiers` | viewer | none | List all `QoS` classifiers. |
-| `POST` | `/api/v1/qos/classifiers` | operator | none | Create a new `QoS` classifier. |
-| `DELETE` | `/api/v1/qos/classifiers/{id}` | operator | none | Delete a `QoS` classifier. |
-| `GET` | `/api/v1/qos/pipes` | viewer | none | List all `QoS` pipes. |
-| `POST` | `/api/v1/qos/pipes` | operator | none | Create a new `QoS` pipe. |
-| `DELETE` | `/api/v1/qos/pipes/{id}` | operator | none | Delete a `QoS` pipe. |
-| `GET` | `/api/v1/qos/queues` | viewer | none | List all `QoS` queues. |
-| `POST` | `/api/v1/qos/queues` | operator | none | Create a new `QoS` queue. |
-| `DELETE` | `/api/v1/qos/queues/{id}` | operator | none | Delete a `QoS` queue. |
-| `GET` | `/api/v1/qos/shaping` | viewer | none | Per-workload rates, where they act, and what each cgroup achieved. |
-| `GET` | `/api/v1/qos/status` | viewer | none | `QoS` service status. |
-| `GET` | `/api/v1/ratelimit/rules` | viewer | none | List all rate limit rules. |
-| `POST` | `/api/v1/ratelimit/rules` | operator | none | Create a new rate limit rule. |
-| `DELETE` | `/api/v1/ratelimit/rules/{id}` | operator | none | Delete a rate limit rule. |
-| `GET` | `/api/v1/responses` | viewer | none | List active response actions. |
-| `POST` | `/api/v1/responses/manual` | operator | none | Create a time-bounded response action. |
-| `DELETE` | `/api/v1/responses/{id}` | operator | none | Revoke a response action early. |
-| `GET` | `/api/v1/routing/gateways` | viewer | none | List routing gateways. |
-| `POST` | `/api/v1/routing/gateways` | operator | none | Add a routing gateway. |
-| `DELETE` | `/api/v1/routing/gateways/{id}` | operator | none | Remove a routing gateway. |
-| `GET` | `/api/v1/routing/routes` | viewer | none | Effective default route(s) from gateway selection. |
-| `GET` | `/api/v1/routing/status` | viewer | none | Routing status. |
-| `GET` | `/api/v1/services/graph` | viewer | none | Who called whom over the last minutes. |
-| `GET` | `/api/v1/surface` | viewer | none | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks. |
-| `GET` | `/api/v1/surface/listening` | viewer | none | Every listener with the packages its process maps, the traffic it took and who may reach it. |
-| `GET` | `/api/v1/surface/loaded` | viewer | none | Every file live processes map executable, once per root, and the package owning it. |
-| `GET` | `/api/v1/surface/packages` | viewer | none | What the package managers say is installed, in the host's root and every container's. |
-| `GET` | `/api/v1/threatintel/feeds` | viewer | none | The configured feeds, the CrowdSec local API among them, with when each was last fetched. |
-| `POST` | `/api/v1/threatintel/feeds/refresh` | operator | none | Fetch every feed now; refused while a fetch is already running. |
-| `GET` | `/api/v1/threatintel/iocs` | viewer | none | List loaded IOCs. |
-| `GET` | `/api/v1/threatintel/status` | viewer | none | Threat intel subsystem status. |
-| `GET` | `/api/v1/threatintel/urls` | viewer | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
-| `GET` | `/api/v1/tls/handshakes` | viewer | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
-| `GET` | `/api/v1/crypto/posture` | viewer | none | The key exchange policy each of the agent's own TLS links was built with, the group it last negotiated and the handshakes it completed on each group. |
-| `GET` | `/api/v1/tls/posture` | viewer | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
-| `GET` | `/api/v1/tls/status` | viewer | none | Report the negotiated TLS key-exchange group for the current connection. |
-| `POST` | `/api/v1/trace` | operator | none | What the loaded programs decide for one packet. |
-| `GET` | `/api/v1/zones` | viewer | none | List security zones. |
-| `POST` | `/api/v1/zones` | operator | none | Create a security zone. |
-| `GET` | `/api/v1/zones/policies` | viewer | none | List inter-zone policies. |
-| `POST` | `/api/v1/zones/policies` | operator | none | Create an inter-zone policy. |
-| `DELETE` | `/api/v1/zones/policies/{id}` | operator | none | Remove an inter-zone policy. |
-| `GET` | `/api/v1/zones/status` | viewer | none | Zone service status. |
-| `DELETE` | `/api/v1/zones/{id}` | operator | none | Remove a security zone. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/agent/status` | `status` | viewer | none | Returns the current agent status including version, uptime, and eBPF state. |
+| `GET` | `/api/v1/alerts/stream` | `watch` | viewer | none | Server-Sent Events live alert feed. |
+| `GET` | `/api/v1/aliases/status` | `aliases status` | viewer | none | Alias service status. |
+| `PUT` | `/api/v1/aliases/{id}/content` | `aliases set-content` | operator | none | Push content for an External alias. |
+| `GET` | `/api/v1/audit/logs` | `audit logs` | viewer | none | Query stored audit log entries. |
+| `GET` | `/api/v1/audit/rules/{id}/history` | `audit history` | viewer | none | Query rule version history. |
+| `GET` | `/api/v1/config` | `config show` | viewer | none | Return the current (sanitized) agent configuration. |
+| `POST` | `/api/v1/config/reload` | `config reload` | operator | none | Trigger a configuration reload via the API. |
+| `PUT` | `/api/v1/config/{section}` | `config set` | operator | none | Write one section of the agent configuration file and reload. |
+| `GET` | `/api/v1/conntrack/connections` | `conntrack list` | viewer | none | List tracked connections. |
+| `GET` | `/api/v1/conntrack/events` | `conntrack watch` | viewer | none | Server-Sent Events stream of connection lifecycle events (new, update, destroy). |
+| `POST` | `/api/v1/conntrack/flush` | `conntrack flush` | operator | none | Flush all tracked connections. |
+| `GET` | `/api/v1/conntrack/status` | `conntrack status` | viewer | none | Connection tracking status. |
+| `GET` | `/api/v1/ddos/attacks` | `ddos attacks` | viewer | none | List active `DDoS` attacks. |
+| `GET` | `/api/v1/ddos/attacks/history` | `ddos history` | viewer | none | Attack history. |
+| `GET` | `/api/v1/ddos/policies` | `ddos policies` | viewer | none | List `DDoS` policies. |
+| `POST` | `/api/v1/ddos/policies` | `ddos add` | operator | none | Create a `DDoS` policy. |
+| `DELETE` | `/api/v1/ddos/policies/{id}` | `ddos delete` | operator | none | Delete a `DDoS` policy. |
+| `GET` | `/api/v1/ddos/status` | `ddos status` | viewer | none | `DDoS` protection status. |
+| `GET` | `/api/v1/dlp/patterns` | `dlp patterns` | viewer | none | List DLP patterns. |
+| `GET` | `/api/v1/dlp/scope` | `dlp scope` | viewer | none | Which workloads DLP is reading. |
+| `GET` | `/api/v1/dlp/status` | `dlp status` | viewer | none | DLP status. |
+| `GET` | `/api/v1/dns/blocklist` | `dns blocklist` | viewer | none | List loaded blocklist rules. |
+| `GET` | `/api/v1/dns/cache` | `dns cache` | viewer | none | List DNS cache entries. |
+| `DELETE` | `/api/v1/dns/cache` | `dns flush` | operator | none | Flush the DNS cache. |
+| `GET` | `/api/v1/dns/stats` | `dns stats` | viewer | none | DNS cache and blocklist statistics. |
+| `GET` | `/api/v1/dns/status` | `dns status` | viewer | none | DNS intelligence subsystem status. |
+| `POST` | `/api/v1/domains/blocklist` | `domains block` | operator | none | Add a domain to the runtime blocklist. |
+| `DELETE` | `/api/v1/domains/blocklist/{domain}` | `domains unblock` | operator | none | Remove a domain from the runtime blocklist. |
+| `GET` | `/api/v1/domains/reputation` | `domains reputation` | viewer | none | Query domain reputations. |
+| `GET` | `/api/v1/ebpf/coverage` | `ebpf coverage` | viewer | none | What the agent sees of each pod on this node. |
+| `GET` | `/api/v1/ebpf/drop-reasons` | `ebpf drops` | viewer | none | Why the kernel dropped packets, counted by reason. |
+| `GET` | `/api/v1/ebpf/foreign-programs` | `ebpf foreign-programs` | viewer | none | Who else has a program on the network path. |
+| `GET` | `/api/v1/ebpf/guests` | `ebpf guests` | viewer | none | The virtual machines and KubeVirt guests whose links the agent holds, named or reported unnamed with the reason. |
+| `GET` | `/api/v1/ebpf/raw-sockets` | `ebpf raw-sockets` | viewer | none | Who else reads the node's traffic. |
+| `GET` | `/api/v1/ebpf/status` | `ebpf status` | viewer | none | Return the load status of each eBPF program. |
+| `GET` | `/api/v1/fingerprints/summary` | `fingerprints summary` | viewer | none | Fingerprint cache status. |
+| `GET` | `/api/v1/firewall/l7-rules` | `l7 list` | viewer | none | List all L7 rules. |
+| `POST` | `/api/v1/firewall/l7-rules` | `l7 add` | operator | none | Create a new L7 rule. |
+| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | `l7 delete` | operator | none | Delete an L7 rule by ID. |
+| `GET` | `/api/v1/firewall/rules` | `firewall list` | viewer | none | List all active rules. |
+| `POST` | `/api/v1/firewall/rules` | `firewall add` | operator | none | Create a new rule. |
+| `DELETE` | `/api/v1/firewall/rules/{id}` | `firewall delete` | operator | none | Delete a rule by ID. |
+| `GET` | `/api/v1/firewall/workload/fqdn` | `firewall fqdn` | viewer | none | What the rules naming destinations by name have resolved, and what is still open. |
+| `GET` | `/api/v1/firewall/workload/labels` | `firewall labels` | viewer | none | The containers whose labels carry policy, the rules each produced and any label refused. |
+| `GET` | `/api/v1/firewall/workload/reach` | `firewall reach` | viewer | none | What the workload policy lets a workload reach. |
+| `GET` | `/api/v1/firewall/workload/rules` | `firewall workload` | viewer | none | The workload rules in force and what each has refused. |
+| `GET` | `/api/v1/flows/export` | `flows export` | viewer | none | Flow export status. |
+| `GET` | `/api/v1/geoip/lookup` | `geoip lookup` | viewer | none | Resolve an IP to `GeoIP` info. |
+| `GET` | `/api/v1/geoip/status` | `geoip status` | viewer | none | `GeoIP` enrichment status. |
+| `GET` | `/api/v1/ids/rules` | `ids rules` | viewer | none | List all IDS rules. |
+| `GET` | `/api/v1/ids/status` | `ids status` | viewer | none | IDS service status. |
+| `GET` | `/api/v1/ids/suricata/report` | `ids suricata` | viewer | none | What the imported Suricata rulesets compiled to. |
+| `GET` | `/api/v1/ips/blacklist` | `ips blacklist` | viewer | none | List current IPS blacklist entries. |
+| `POST` | `/api/v1/ips/blacklist` | `ips blacklist add` | operator | none | Manually add an IP to the IPS blacklist. |
+| `DELETE` | `/api/v1/ips/blacklist/{ip}` | `ips blacklist delete` | operator | none | Remove an IP from the IPS blacklist. |
+| `GET` | `/api/v1/ips/domain-blocks` | `ips domain-blocks` | viewer | none | List IPS blacklist entries originating from domain mechanisms. |
+| `GET` | `/api/v1/ips/rules` | `ips list` | viewer | none | List all IPS rules. |
+| `PATCH` | `/api/v1/ips/rules/{id}` | `ips set-mode` | operator | none | Toggle a rule's mode. |
+| `GET` | `/api/v1/lb/services` | `lb services` | viewer | none | List LB services. |
+| `POST` | `/api/v1/lb/services` | `lb add` | operator | none | Create an LB service. |
+| `GET` | `/api/v1/lb/services/{id}` | `lb service` | viewer | none | Get LB service detail. |
+| `DELETE` | `/api/v1/lb/services/{id}` | `lb delete` | operator | none | Delete an LB service. |
+| `GET` | `/api/v1/lb/status` | `lb status` | viewer | none | Load balancer status. |
+| `GET` | `/api/v1/lb/vips` | `lb vips` | viewer | none | VIP announcer status. |
+| `POST` | `/api/v1/lb/vips` | `lb announce` | operator | none | Apply a new VIP announce configuration. |
+| `GET` | `/api/v1/lb/vips/bgp` | `lb bgp` | viewer | none | BGP sessions announcing the VIPs. |
+| `POST` | `/api/v1/lb/vips/grant` | `lb grant` | operator | none | Grant or release the speaker role of an `elected` node. |
+| `GET` | `/api/v1/learning/sessions` | `learning list` | viewer | none | Every learning window this node remembers. |
+| `POST` | `/api/v1/learning/sessions` | `learning start` | operator | none | Open a learning window. |
+| `GET` | `/api/v1/learning/sessions/{id}` | `learning status` | viewer | none | One learning window, as it stands. |
+| `GET` | `/api/v1/learning/sessions/{id}/edges` | `learning edges` | viewer | none | What the window saw, edge by edge. |
+| `GET` | `/api/v1/learning/sessions/{id}/policy` | `learning policy` | viewer | none | The allow-list the window describes. |
+| `GET` | `/api/v1/learning/sessions/{id}/segmentation` | `learning segmentation` | viewer | none | The rules that keep each container on a bridge to the peers the window saw it reach. |
+| `POST` | `/api/v1/learning/sessions/{id}/stop` | `learning stop` | operator | none | Close a learning window early. |
+| `GET` | `/api/v1/mitre/coverage` | `mitre coverage` | viewer | none | MITRE ATT&CK coverage matrix. |
+| `GET` | `/api/v1/nat/nptv6` | `nat nptv6 list` | viewer | none | List `NPTv6` rules. |
+| `POST` | `/api/v1/nat/nptv6` | `nat nptv6 create` | operator | none | Create an `NPTv6` rule. |
+| `DELETE` | `/api/v1/nat/nptv6/{id}` | `nat nptv6 delete` | operator | none | Delete an `NPTv6` rule. |
+| `GET` | `/api/v1/nat/rules` | `nat rules` | viewer | none | List NAT rules. |
+| `GET` | `/api/v1/nat/status` | `nat status` | viewer | none | NAT status. |
+| `POST` | `/api/v1/netpol/replay` | `netpol replay` | operator | none | What proposed network policies would have refused. |
+| `GET` | `/api/v1/processes` | `processes list` | viewer | none | The processes alive on this node. |
+| `GET` | `/api/v1/processes/{pid}` | `processes show` | viewer | none | One process, by pid. |
+| `GET` | `/api/v1/qos/classifiers` | `qos classifiers` | viewer | none | List all `QoS` classifiers. |
+| `POST` | `/api/v1/qos/classifiers` | `qos add-classifier` | operator | none | Create a new `QoS` classifier. |
+| `DELETE` | `/api/v1/qos/classifiers/{id}` | `qos delete-classifier` | operator | none | Delete a `QoS` classifier. |
+| `GET` | `/api/v1/qos/pipes` | `qos pipes` | viewer | none | List all `QoS` pipes. |
+| `POST` | `/api/v1/qos/pipes` | `qos add-pipe` | operator | none | Create a new `QoS` pipe. |
+| `DELETE` | `/api/v1/qos/pipes/{id}` | `qos delete-pipe` | operator | none | Delete a `QoS` pipe. |
+| `GET` | `/api/v1/qos/queues` | `qos queues` | viewer | none | List all `QoS` queues. |
+| `POST` | `/api/v1/qos/queues` | `qos add-queue` | operator | none | Create a new `QoS` queue. |
+| `DELETE` | `/api/v1/qos/queues/{id}` | `qos delete-queue` | operator | none | Delete a `QoS` queue. |
+| `GET` | `/api/v1/qos/shaping` | `qos shaping` | viewer | none | Per-workload rates, where they act, and what each cgroup achieved. |
+| `GET` | `/api/v1/qos/status` | `qos status` | viewer | none | `QoS` service status. |
+| `GET` | `/api/v1/ratelimit/rules` | `ratelimit list` | viewer | none | List all rate limit rules. |
+| `POST` | `/api/v1/ratelimit/rules` | `ratelimit add` | operator | none | Create a new rate limit rule. |
+| `DELETE` | `/api/v1/ratelimit/rules/{id}` | `ratelimit delete` | operator | none | Delete a rate limit rule. |
+| `GET` | `/api/v1/responses` | `responses list` | viewer | none | List active response actions. |
+| `POST` | `/api/v1/responses/manual` | `responses create` | operator | none | Create a time-bounded response action. |
+| `DELETE` | `/api/v1/responses/{id}` | `responses revoke` | operator | none | Revoke a response action early. |
+| `GET` | `/api/v1/routing/gateways` | `routing gateways` | viewer | none | List routing gateways. |
+| `POST` | `/api/v1/routing/gateways` | `routing add-gateway` | operator | none | Add a routing gateway. |
+| `DELETE` | `/api/v1/routing/gateways/{id}` | `routing delete-gateway` | operator | none | Remove a routing gateway. |
+| `GET` | `/api/v1/routing/routes` | `routing routes` | viewer | none | Effective default route(s) from gateway selection. |
+| `GET` | `/api/v1/routing/status` | `routing status` | viewer | none | Routing status. |
+| `GET` | `/api/v1/services/graph` | `flows services` | viewer | none | Who called whom over the last minutes. |
+| `GET` | `/api/v1/surface` | `surface` | viewer | none | This host's surface: what is installed, what runs, what listens, what is reachable and what the policy blocks. |
+| `GET` | `/api/v1/surface/listening` | `surface listening` | viewer | none | Every listener with the packages its process maps, the traffic it took and who may reach it. |
+| `GET` | `/api/v1/surface/loaded` | `surface loaded` | viewer | none | Every file live processes map executable, once per root, and the package owning it. |
+| `GET` | `/api/v1/surface/packages` | `surface packages` | viewer | none | What the package managers say is installed, in the host's root and every container's. |
+| `GET` | `/api/v1/threatintel/feeds` | `threatintel feeds` | viewer | none | The configured feeds, the CrowdSec local API among them, with when each was last fetched. |
+| `POST` | `/api/v1/threatintel/feeds/refresh` | `threatintel feeds refresh` | operator | none | Fetch every feed now; refused while a fetch is already running. |
+| `GET` | `/api/v1/threatintel/iocs` | `threatintel iocs` | viewer | none | List loaded IOCs. |
+| `GET` | `/api/v1/threatintel/status` | `threatintel status` | viewer | none | Threat intel subsystem status. |
+| `GET` | `/api/v1/threatintel/urls` | `threatintel urls` | viewer | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
+| `GET` | `/api/v1/tls/handshakes` | `tls handshakes` | viewer | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
+| `GET` | `/api/v1/crypto/posture` | `tls links` | viewer | none | The key exchange policy each of the agent's own TLS links was built with, the group it last negotiated and the handshakes it completed on each group. |
+| `GET` | `/api/v1/tls/posture` | `tls posture` | viewer | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
+| `GET` | `/api/v1/tls/status` | `tls status` | viewer | none | Report the negotiated TLS key-exchange group for the current connection. |
+| `POST` | `/api/v1/trace` | `trace` | operator | none | What the loaded programs decide for one packet. |
+| `GET` | `/api/v1/zones` | `zones list` | viewer | none | List security zones. |
+| `POST` | `/api/v1/zones` | `zones add` | operator | none | Create a security zone. |
+| `GET` | `/api/v1/zones/policies` | `zones policies` | viewer | none | List inter-zone policies. |
+| `POST` | `/api/v1/zones/policies` | `zones add-policy` | operator | none | Create an inter-zone policy. |
+| `DELETE` | `/api/v1/zones/policies/{id}` | `zones delete-policy` | operator | none | Remove an inter-zone policy. |
+| `GET` | `/api/v1/zones/status` | `zones status` | viewer | none | Zone service status. |
+| `DELETE` | `/api/v1/zones/{id}` | `zones delete` | operator | none | Remove a security zone. |
 
 ## Enterprise Architecture
 

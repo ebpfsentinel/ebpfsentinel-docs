@@ -530,32 +530,32 @@ same change, so the assignment cannot outlive the role it names.
 
 ### Role Management
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/rbac/roles` | viewer | advanced-rbac | List all roles. |
-| `POST` | `/api/v1/rbac/roles` | admin | advanced-rbac | Create custom role (201). |
-| `GET` | `/api/v1/rbac/roles/{id}` | viewer | advanced-rbac | Role details (404 if not found). |
-| `PUT` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Update custom role (403 for built-in). |
-| `DELETE` | `/api/v1/rbac/roles/{id}` | admin | advanced-rbac | Delete custom role (403 for built-in, 409 if another role inherits from it, 204 on success). Assignments naming it go with it. |
-| `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
-| `PUT` | `/api/v1/rbac/roles` | admin | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
-| `POST` | `/api/v1/rbac/roles/reload` | admin | advanced-rbac | Bulk reload all custom roles (atomic). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/rbac/roles` | `rbac roles` | viewer | advanced-rbac | List all roles. |
+| `POST` | `/api/v1/rbac/roles` | `rbac add-role` | admin | advanced-rbac | Create custom role (201). |
+| `GET` | `/api/v1/rbac/roles/{id}` | `rbac role` | viewer | advanced-rbac | Role details (404 if not found). |
+| `PUT` | `/api/v1/rbac/roles/{id}` | `rbac set-role` | admin | advanced-rbac | Update custom role (403 for built-in). |
+| `DELETE` | `/api/v1/rbac/roles/{id}` | `rbac delete-role` | admin | advanced-rbac | Delete custom role (403 for built-in, 409 if another role inherits from it, 204 on success). Assignments naming it go with it. |
+| `GET` | `/api/v1/rbac/roles/{id}/effective-grants` | `rbac grants` | viewer | advanced-rbac | Resolved grants with inheritance. |
+| `PUT` | `/api/v1/rbac/roles` | `rbac set-roles` | admin | advanced-rbac | Deprecated, kept for one release: same as `POST /api/v1/rbac/roles/reload`. |
+| `POST` | `/api/v1/rbac/roles/reload` | `rbac reload` | admin | advanced-rbac | Bulk reload all custom roles (atomic). |
 
 ### Permission Checking
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/rbac/check` | operator | advanced-rbac | Check permission (`{ role_id, domain, permission, resource_id? }`). |
-| `POST` | `/api/v1/rbac/filter` | operator | advanced-rbac | Filter accessible resources (`{ role_id, domain, resource_ids }`). |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/rbac/check` | `rbac check` | operator | advanced-rbac | Check permission (`{ role_id, domain, permission, resource_id? }`). |
+| `POST` | `/api/v1/rbac/filter` | `rbac filter` | operator | advanced-rbac | Filter accessible resources (`{ role_id, domain, resource_ids }`). |
 
 ### Subject Assignments
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `POST` | `/api/v1/rbac/assignments` | admin | advanced-rbac | Assign role to subject (201). |
-| `DELETE` | `/api/v1/rbac/assignments` | admin | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
-| `GET` | `/api/v1/rbac/assignments/{subject}` | viewer | advanced-rbac | List roles for subject. |
-| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | admin | advanced-rbac | Remove role from subject (204). No request body. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `POST` | `/api/v1/rbac/assignments` | `rbac assign` | admin | advanced-rbac | Assign role to subject (201). |
+| `DELETE` | `/api/v1/rbac/assignments` | none | admin | advanced-rbac | Deprecated, kept for one release: remove role from subject (204). The body is optional; `?subject=&role_id=` does the same. |
+| `GET` | `/api/v1/rbac/assignments/{subject}` | `rbac assignments` | viewer | advanced-rbac | List roles for subject. |
+| `DELETE` | `/api/v1/rbac/assignments/{subject}/{role_id}` | `rbac unassign` | admin | advanced-rbac | Remove role from subject (204). No request body. |
 
 ## Feature Gating
 

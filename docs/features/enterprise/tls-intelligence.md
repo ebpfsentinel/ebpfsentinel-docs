@@ -476,29 +476,29 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/tls-intelligence/threats` | viewer | tls-intelligence | List all threat fingerprint entries. |
-| `POST` | `/api/v1/enterprise/tls-intelligence/threats` | operator | tls-intelligence | Add custom threat entry. |
-| `DELETE` | `/api/v1/enterprise/tls-intelligence/threats/{id}` | operator | tls-intelligence | Remove threat entry. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/threats/matches` | viewer | tls-intelligence | List threat match detections. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies` | viewer | tls-intelligence | List behavior anomaly alerts. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | viewer | tls-intelligence | Current anomaly detector thresholds. |
-| `PUT` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | operator | tls-intelligence | Replace the anomaly detector thresholds. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/report` | viewer | tls-intelligence | Post-quantum readiness summary for the estate. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/connections` | viewer | tls-intelligence | Connections carrying post-quantum key exchange. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | viewer | tls-intelligence | Current cryptographic policy. |
-| `PUT` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | operator | tls-intelligence | Replace the cryptographic policy. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/violations` | viewer | tls-intelligence | Connections that breached the cryptographic policy. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/status` | viewer | tls-intelligence | Overall TLS intelligence status. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/cipher-downgrades` | viewer | tls-intelligence | List cipher downgrade detections. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | viewer | tls-intelligence | List SNI/cert mismatch detections. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | viewer | tls-intelligence | List session resumption anomalies. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/ml/status` | viewer | tls-intelligence | TLS ML inference status. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | viewer | tls-intelligence | Peer-group rarity status. |
-| `GET` | `/api/v1/enterprise/tls-intelligence/alerts` | viewer | tls-intelligence | List TLS intelligence alerts. |
-| `POST` | `/api/v1/enterprise/tls-intelligence/events` | operator | tls-intelligence | Ingest a TLS handshake observation. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/tls-intelligence/threats` | `tls-intel threats` | viewer | tls-intelligence | List all threat fingerprint entries. |
+| `POST` | `/api/v1/enterprise/tls-intelligence/threats` | `tls-intel add-threat` | operator | tls-intelligence | Add custom threat entry. |
+| `DELETE` | `/api/v1/enterprise/tls-intelligence/threats/{id}` | `tls-intel delete-threat` | operator | tls-intelligence | Remove threat entry. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/threats/matches` | `tls-intel threat-matches` | viewer | tls-intelligence | List threat match detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies` | `tls-intel anomalies` | viewer | tls-intelligence | List behavior anomaly alerts. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | `tls-intel anomaly-config` | viewer | tls-intelligence | Current anomaly detector thresholds. |
+| `PUT` | `/api/v1/enterprise/tls-intelligence/anomalies/config` | `tls-intel set-anomaly-config` | operator | tls-intelligence | Replace the anomaly detector thresholds. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/clusters` | `tls-intel clusters` | viewer | tls-intelligence | Fingerprint clusters with centroids and labels. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/report` | `tls-intel pqc-report` | viewer | tls-intelligence | Post-quantum readiness summary for the estate. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/pqc/connections` | `tls-intel pqc-connections` | viewer | tls-intelligence | Connections carrying post-quantum key exchange. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | `tls-intel crypto-policy` | viewer | tls-intelligence | Current cryptographic policy. |
+| `PUT` | `/api/v1/enterprise/tls-intelligence/crypto/policy` | `tls-intel set-crypto-policy` | operator | tls-intelligence | Replace the cryptographic policy. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/crypto/violations` | `tls-intel crypto-violations` | viewer | tls-intelligence | Connections that breached the cryptographic policy. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/status` | `tls-intel status` | viewer | tls-intelligence | Overall TLS intelligence status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/cipher-downgrades` | `tls-intel cipher-downgrades` | viewer | tls-intelligence | List cipher downgrade detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/sni-cert-mismatches` | `tls-intel sni-mismatches` | viewer | tls-intelligence | List SNI/cert mismatch detections. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/session-anomalies` | `tls-intel session-anomalies` | viewer | tls-intelligence | List session resumption anomalies. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/ml/status` | `tls-intel ml-status` | viewer | tls-intelligence | TLS ML inference status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/peer-groups/status` | `tls-intel peer-groups` | viewer | tls-intelligence | Peer-group rarity status. |
+| `GET` | `/api/v1/enterprise/tls-intelligence/alerts` | `tls-intel alerts` | viewer | tls-intelligence | List TLS intelligence alerts. |
+| `POST` | `/api/v1/enterprise/tls-intelligence/events` | `tls-intel replay` | operator | tls-intelligence | Ingest a TLS handshake observation. |
 
 **Example: `POST /api/v1/enterprise/tls-intelligence/events`**
 

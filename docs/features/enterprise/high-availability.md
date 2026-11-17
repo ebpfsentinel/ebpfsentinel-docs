@@ -579,14 +579,14 @@ Validation: `heartbeat_ms > 0`, `failure_threshold > 0`, `peers` non-empty when 
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/ha/status` | viewer | high-availability | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded). |
-| `GET` | `/api/v1/ha/peers` | viewer | high-availability | Peer list with addresses. |
-| `POST` | `/api/v1/ha/failover` | operator | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
-| `GET` | `/api/v1/ha/replication` | viewer | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
-| `GET` | `/api/v1/ha/interfaces` | viewer | high-availability | Interface assignments and ownership status (active_active mode). |
-| `GET` | `/api/v1/ha/health` | viewer | high-availability | Cluster health (health, degradation_policy, is_degraded) plus one entry per peer carrying addr, failure_count and reachable. It names no `ha_mode`: that is read from `/api/v1/ha/status`. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/ha/status` | `ha status` | viewer | high-availability | Cluster status (node_id, role, term, leader_id, peer_count, ebpf_active, ha_mode, cluster_health, degradation_policy, is_degraded). |
+| `GET` | `/api/v1/ha/peers` | `ha peers` | viewer | high-availability | Peer list with addresses. |
+| `POST` | `/api/v1/ha/failover` | `ha failover` | operator | high-availability | Manual failover (leader only, 409 Conflict if not leader or no peers). |
+| `GET` | `/api/v1/ha/replication` | `ha replication` | viewer | high-availability | Per-category replication status (leader_seq, synced and initial_sync_complete flags). |
+| `GET` | `/api/v1/ha/interfaces` | `ha interfaces` | viewer | high-availability | Interface assignments and ownership status (active_active mode). |
+| `GET` | `/api/v1/ha/health` | `ha health` | viewer | high-availability | Cluster health (health, degradation_policy, is_degraded) plus one entry per peer carrying addr, failure_count and reachable. It names no `ha_mode`: that is read from `/api/v1/ha/status`. |
 
 ## Feature Gating
 

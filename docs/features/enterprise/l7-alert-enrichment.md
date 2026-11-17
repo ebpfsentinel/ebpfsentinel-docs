@@ -198,9 +198,9 @@ refused:
 
 ## REST API
 
-| Method | Path | Role | License feature | Description |
-|--------|------|------|-----------------|-------------|
-| `GET` | `/api/v1/enterprise/l7/enriched-alerts` | viewer | advanced-dlp | Alerts carrying their L7 protocol context. |
+| Method | Path | Command | Role | License feature | Description |
+|--------|------|---------|------|-----------------|-------------|
+| `GET` | `/api/v1/enterprise/l7/enriched-alerts` | `l7-inspect enriched-alerts` | viewer | advanced-dlp | Alerts carrying their L7 protocol context. |
 
 ## Feature Gating
 
