@@ -260,6 +260,7 @@ const sidebars: SidebarsConfig = {
         'operations/deployment/bpf-token',
         'operations/deployment/enterprise',
         'operations/hot-reload',
+        'operations/enforcement-after-exit',
         'operations/monitoring',
         'operations/operator-monitoring',
         'operations/troubleshooting',

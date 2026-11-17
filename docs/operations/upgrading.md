@@ -32,11 +32,12 @@ runs past the shorter of the two is finished with SIGKILL, and what the loops
 had not written by then is lost. Lower either value below ten seconds and that
 is what you are choosing.
 
-A kill loses that work and nothing else. The eBPF programs are attached through
-links the process owns, so the kernel detaches them when the process goes, and
-the pin directory is rewritten at the next start: an agent killed with SIGKILL
-leaves no attachment and no stale pin behind, which is why a crash recovers by
-restarting and needs no cleanup step.
+A kill loses that work and nothing else. The XDP, TC and cgroup links are
+pinned on the host bpffs, so an agent killed with SIGKILL leaves them attached
+and enforcing the last rules it wrote, and the next start adopts them rather
+than attaching again: a crash recovers by restarting and needs no cleanup step.
+Removing them is `ebpfsentinel-agent uninstall`, see
+[Enforcement After the Agent Exits](enforcement-after-exit.md).
 
 ## Binary
 

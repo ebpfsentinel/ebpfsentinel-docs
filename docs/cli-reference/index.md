@@ -33,6 +33,23 @@ Display version and build information.
 ebpfsentinel-agent version
 ```
 
+### uninstall
+
+Take the agent's XDP, TC and cgroup hooks off this node. They are pinned on the
+host bpffs so they keep enforcing after the agent stops, crashes or is killed;
+this removes the link pins, and the map pins with them. Through the warden when
+one is named, directly otherwise. A running agent keeps its hooks until it
+stops. See [Enforcement After the Agent Exits](../operations/enforcement-after-exit.md).
+
+```bash
+ebpfsentinel-agent uninstall
+ebpfsentinel-agent uninstall --warden-sock /run/ebpfsentinel/warden.sock
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--warden-sock` | `$EBPFSENTINEL_WARDEN_SOCK` | The warden holding the pins for a rootless agent |
+
 ### watch
 
 Real-time alert stream - like `tail -f` for security events. Consumes the agent's
@@ -1837,6 +1854,20 @@ three lines, both signatures have to verify against the keys built into the
 binary, and the machine fingerprint and the size band have to cover this host.
 A refusal names the four causes and exits non-zero, so a provisioning script
 can gate on it. The parent directory is created when it is missing.
+
+### uninstall
+
+Take the agent's XDP, TC and cgroup hooks off this node, as the OSS
+[`uninstall`](#uninstall) does: the link pins that keep them enforcing after the
+agent stops go, and the map pins with them.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--warden-sock <PATH>` | The warden holding the pins for a rootless agent | `$EBPFSENTINEL_WARDEN_SOCK` |
+
+```bash
+ebpfsentinel-enterprise-agent uninstall
+```
 
 ### content
 

@@ -21,6 +21,7 @@ agent:
   log_level: "info"                     # Log level: error, warn, info, debug, trace. Default: info
   log_format: "json"                    # Log format: json or text. Default: json
   config_writes: refused                # Whether the control API may rewrite this file: refused or allowed. Default: refused
+  on_exit: keep                         # What a graceful exit does with the pinned links: keep or detach. Default: keep
   api_rate_limit:                       # Control-API rate limits (see below). Optional.
     write_per_second: 1                 # Sustained write rate per IP. Default: 1
     write_burst: 60                     # Write burst per IP. Default: 60
@@ -53,6 +54,7 @@ agent:
 | `log_format` | `string` | No | `json` | Log output format |
 | `api_rate_limit` | `object` | No | see below | Rate limits for the control-plane API, writes and reads (see below) |
 | `config_writes` | `string` | No | `refused` | Whether `PUT /api/v1/config/{section}` may rewrite this agent's own configuration file: `refused` or `allowed`. Refused by default. Where the file is rendered by the Kubernetes operator from a custom resource, a write accepted here is reverted at the next reconcile and nobody is told why the setting went back, so allow it only where the file on disk is what decides what this agent does. |
+| `on_exit` | `string` | No | `keep` | What a graceful exit does with the pinned XDP, TC and cgroup links: `keep` leaves them attached and enforcing the last rules written, `detach` removes them. A crash or a kill keeps them either way; `ebpfsentinel-agent uninstall` removes them. See [Enforcement After the Agent Exits](../operations/enforcement-after-exit.md) |
 
 ## Pod profile
 
