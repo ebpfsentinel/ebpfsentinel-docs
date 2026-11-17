@@ -1869,6 +1869,22 @@ agent stops go, and the map pins with them.
 ebpfsentinel-enterprise-agent uninstall
 ```
 
+### stop
+
+Stop a [tamper-protected](../features/enterprise/tamper-protection.md) agent
+with a signed authorisation. The command posts it to the local agent, which
+verifies it, lifts the kernel's refusal for a minute and ends itself with
+status `79`. A refused authorisation exits `1` and names the reason.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--authorisation <PATH>` | The authorisation `ebpfsentinel-license stop-authorise` or the console wrote | required |
+| `--token <TOKEN>` | Bearer token or API key for the agent's REST surface | `$EBPFSENTINEL_TOKEN` |
+
+```bash
+ebpfsentinel-enterprise-agent stop --authorisation stop.auth
+```
+
 ### content
 
 Read, import or roll back the signed content the subscription delivers. It works

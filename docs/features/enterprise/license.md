@@ -90,6 +90,7 @@ is answered here rather than in a changelog.
 | `control-assurance` | Stated controls traced through each node's loaded rules on an interval and kept on a hash chain, in the console | - |
 | `runtime-attestation` | The agent's executable and kernel objects measured and compared with the signed release measurements | - |
 | `sealed-audit` | Hourly seals over the console's audit trail, case events and control chain, optionally timestamped by an RFC 3161 authority | - |
+| `tamper-protection` | The kernel refusing a signal, a trace or an unpin aimed at the agent unless a signed stop opened a window, where the BPF LSM is active at boot (`bpf` in `lsm=`); without it root stops the agent like any process. See [Tamper protection](tamper-protection.md) | - |
 
 ### The write refusal is a configuration, not a licence
 

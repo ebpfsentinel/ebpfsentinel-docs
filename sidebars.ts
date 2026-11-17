@@ -130,6 +130,7 @@ const sidebars: SidebarsConfig = {
             'features/enterprise/siem-integration',
             'features/enterprise/compliance-reports',
             'features/enterprise/regulated-estates',
+            'features/enterprise/tamper-protection',
             'features/enterprise/airgap',
             'features/enterprise/analytics',
             'features/enterprise/advanced-rbac',

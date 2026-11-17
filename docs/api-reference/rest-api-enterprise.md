@@ -183,6 +183,7 @@ deployment that needs roles turns authentication on.
 | [Runtime attestation](#runtime-attestation) | 1 | [Proof for regulated estates](../features/enterprise/regulated-estates.md#attested-nodes) |
 | [SIEM integration](#siem-integration) | 2 | [SIEM integration](../features/enterprise/siem-integration.md) |
 | [Threat intelligence platforms](#threat-intelligence-platforms) | 2 | [Threat intelligence platforms](../features/enterprise/threat-intel-platforms.md) |
+| [Tamper protection](#tamper-protection) | 1 | [Tamper protection](../features/enterprise/tamper-protection.md) |
 | [TLS intelligence](#tls-intelligence) | 22 | [TLS intelligence](../features/enterprise/tls-intelligence.md) |
 
 ## Always mounted
@@ -869,6 +870,16 @@ and for the request and response bodies.
 |--------|------|------|-------|-----------------|-------------|
 | `POST` | `/api/v1/siem/retro-ioc-scan` | operator | `config:write` | siem-integration | Retroactive IOC matching against buffered events. |
 | `GET` | `/api/v1/siem/status` | viewer | `config:read` | siem-integration | Export pipeline status (connectors started, connectors that failed to start with the reason, buffer size, pending events, exported/dropped/error counts). |
+
+## Tamper protection
+
+License feature: `tamper-protection`. See
+[Tamper protection](../features/enterprise/tamper-protection.md) for what the
+kernel refuses, the condition it needs and the limits.
+
+| Method | Path | Role | Grant | License feature | Description |
+|--------|------|------|-------|-----------------|-------------|
+| `POST` | `/api/v1/agent/stop` | operator | `config:write` | tamper-protection | Admit a signed stop authorisation (`text/plain` envelope); `202` and the agent ends with status 79, `403` naming the reason when refused. |
 
 ## Threat intelligence platforms
 

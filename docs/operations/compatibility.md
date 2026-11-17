@@ -185,6 +185,7 @@ Everything below is above the 6.12 floor: each entry is active only where its co
 | `network_executables` | The list of executables allowed to reach the network, decided before the socket exists | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | An observing list is skipped with the reason and an enforcing list refuses to start the agent |
 | `write_refusal` | A write-open refused past a count, before a byte is written | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | A fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain |
 | `self_protection` | The agent's own maps and links refused to every other task | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | The agent's objects are guarded only by the privilege it takes to reach them, and the node reports itself unprotected |
+| `tamper_protection` | A signal, a trace or an unpin aimed at the agent refused unless a signed stop opened the window | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Root stops the agent like any process, and the fleet raises the silence after the fact |
 
 <!-- END GENERATED ABOVE THE FLOOR -->
 

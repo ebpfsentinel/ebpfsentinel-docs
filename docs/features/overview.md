@@ -127,12 +127,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-eight program directories: twenty-four
+`crates/ebpf-programs/` holds twenty-nine program directories: twenty-five
 attached at a hook of their own, three reached only by tail call from one of
-those twenty-four, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty-four attached programs, of which the seven after
+those twenty-five, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-five attached programs, of which the seven after
 `uprobe-dlp` read a task rather than a packet, the next two
-read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one refuses a writer's write-opens past a count under watched directories, and the last one counts the calls a process makes into the system crypto library; of the seven after `uprobe-dlp` only the workload firewall, the
+read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one keeps the agent itself from being stopped, the next one refuses a writer's write-opens past a count under watched directories, and the last one counts the calls a process makes into the system crypto library; of the seven after `uprobe-dlp` only the workload firewall, the
 executables list, the connection redirect and the cluster address resolution act on a syscall and only the
 signal program acts on a process:
 
@@ -160,6 +160,7 @@ signal program acts on a process:
 | `tracepoint-drop-reason` | raw tracepoint | Counts every packet the kernel drops by the reason it gave and the interface the packet was on |
 | `tracepoint-tcp-health` | raw tracepoint | Counts retransmissions, resets and connections opened, failed and closed, per edge between two services |
 | `lsm-bpf-guard` | BPF LSM | Refuses a writable descriptor to one of the agent's maps and a descriptor to one of its links, so another process cannot rewrite or detach them; read-only descriptors are let through |
+| `lsm-tamper-guard` | BPF LSM | Refuses a signal, a trace, an unlink or a rename aimed at the agent and what it pinned, unless a signed stop opened a window; loaded only by the enterprise agent under `tamper-protection`, where the BPF LSM is active at boot |
 | `lsm-write-refusal` | BPF LSM | Counts each writer's write-opens and truncations under watched directories and refuses those past a threshold inside a window, before a byte is written; fails open, needs the BPF LSM active |
 | `uprobe-crypto` | uprobe | Counts calls into the encryption entry point of the system crypto libraries per process, for the mass encryption engine; reads no argument, key or buffer |
 

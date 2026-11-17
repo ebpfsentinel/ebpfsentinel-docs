@@ -20,10 +20,13 @@ The line the agent draws is between a destination **we** chose and a destination
 |---------|---------|-----|
 | `threat-intel-feed-download` | **Refused** | Reaches a public feed provider. Import a signed bundle instead. |
 | `portal-reporting` | **Refused** | Reaches the vendor. Entitlement is measured from the offline licence. |
+| `content-channel` | **Refused** | Reaches the vendor. Import a signed content bundle instead. |
 | `siem-export` | Permitted | The collector is the one named in your configuration. |
 | `compliance-delivery` | Permitted | The webhook or SMTP host is the one named in your configuration. |
 | `federation-peer` | Permitted | Another cluster in your own federation. |
 | `response-webhook` | Permitted | The endpoint an automated response action names. |
+| `threat-intel-platform` | Permitted | The TAXII collection or MISP instance your configuration names. |
+| `local-agent` | Permitted | The command line reaching the agent on this machine's loopback address, as `stop` does. |
 
 A permitted purpose is not a promise that the host is reachable: a SIEM
 collector sitting outside the enclave fails the way any unreachable host does.
