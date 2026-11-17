@@ -64,7 +64,8 @@ enterprise:
   tamper_protection:
     enabled: true
     stop_keys:
-      - public_key: /etc/ebpfsentinel/stop-signing.pub
+      - issuer: break-glass
+        public_key: /etc/ebpfsentinel/stop-signing.pub
         pq_public_key: /etc/ebpfsentinel/stop-signing-pq.pub
     # node_name: worker-3            # unset: the node or host name
     # protected_directories: [/sys/fs/bpf/ebpfsentinel-links]
@@ -76,15 +77,30 @@ enterprise:
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | `false` | Arms the protection, on a licence carrying `tamper-protection` |
-| `stop_keys` | empty | The key pairs allowed to sign a stop. Empty, no stop is admitted until the agent restarts with one, and the agent warns at every start |
+| `stop_keys` | empty | The key pairs allowed to sign a stop, each with the `issuer` it is trusted for. Empty, no stop is admitted until the agent restarts with one, and the agent warns at every start |
+| `stop_keys[].issuer` | required | `dashboard` for the console's pair, `break-glass` for the pair kept offline. An entry without it is refused at load |
 | `node_name` | node or host name | The name a stop must carry for this node |
 | `protected_directories` | the link pin directory | Directories whose entries cannot be unlinked or renamed |
 | `protected_files` | none | Files held themselves, beside the configuration and the licence the agent started with |
 | `cgroup_root` | `/sys/fs/cgroup` | Where the unified cgroup hierarchy is mounted; empty leaves the cgroup undecided |
 | `stop_record_path` | `/var/lib/ebpfsentinel/stop-record.json` | Where an admitted stop is recorded, so the next start and the console tell it from a silent one |
 
-The stop keys are configuration, never the document's claim: a stop says
-nothing about which key signed it, and only the pairs listed here are tried.
+The stop keys are configuration, never the document's claim. A stop names its
+issuer, and only the pairs listed here for that issuer are tried: a key listed
+for `dashboard` never admits a document claiming `break-glass`, nor the reverse,
+and a document whose issuer has no key here is refused as such. Both issuers
+are the customer's own keys; the vendor holds no stop key and no portal issues
+one.
+
+`GET /api/v1/agent/tamper` lists the pairs the agent trusts under
+`trusted_issuers`, each by issuer and fingerprint (the SHA-256 of both public
+halves), never the key, so a console knows before offering a stop whether this
+agent would admit one from it.
+
+A configuration written before issuers existed lists its pairs without
+`issuer`, and the agent refuses to load it until each entry names one. Every
+pair signed with `stop-authorise` until then is a break-glass pair: add
+`issuer: break-glass` to each existing entry.
 
 ## Stopping a protected agent
 
@@ -101,7 +117,7 @@ Sign a stop for one node, then hand it to the agent on that node:
 
 ```bash
 ebpfsentinel-license stop-authorise --node worker-3 --minutes 5 \
-  --requested-by "on-call" --reason "kernel upgrade" \
+  --issuer break-glass --requested-by "on-call" --reason "kernel upgrade" \
   --signing-key stop-signing.key --pq-signing-key stop-signing-pq.key \
   --output stop.auth
 
@@ -110,7 +126,7 @@ ebpfsentinel-enterprise-agent stop --authorisation stop.auth
 
 `stop` posts the document to `POST /api/v1/agent/stop` on the local agent. The
 agent refuses it when it is malformed, of a schema it does not read, not signed
-by a configured pair, for another node, issued ahead of its clock by more than
+by a pair listed for the issuer it names, for another node, issued ahead of its clock by more than
 two minutes, valid for longer than fifteen minutes, expired, or already used.
 Admitted, it opens the kernel's window for sixty seconds, writes the stop record,
 raises a `tamper-stop-admitted` alert and exits with status `79`, which the
