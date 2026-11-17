@@ -61,11 +61,11 @@ the gap. Nothing in this workflow opens a socket.
 ```bash
 ebpfsentinel-enterprise-agent generate-request \
   --features advanced-dlp,ml-detection \
-  --output request.json
+  --output-file request.json
 ```
 
 The file carries the machine fingerprint, the agent version and the features
-asked for. `fingerprint --output` writes a different file - the fingerprint and
+asked for. `fingerprint --output-file` writes a different file - the fingerprint and
 the three values it is computed from, with no features - which is a report for a
 support ticket and is refused by step 3.
 

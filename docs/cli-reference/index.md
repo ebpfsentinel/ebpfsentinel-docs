@@ -1802,12 +1802,23 @@ API key, a JWT or an OIDC token in that header. See
 
 > **Edition: Enterprise**
 
-The enterprise agent is a binary of its own, and it is not a client of the one
-above. Given no subcommand it runs as the daemon; given one of the five below it reads
-the machine, writes a file, installs one, puts content in force or scans this
-host's own processes, and exits. None of them takes a host or a token: three are
-meant to run before the daemon has ever started, and the other two work on this
-machine's own content directory and its own `/proc` rather than through the API.
+The enterprise agent carries the whole command line above under its own name:
+every command on this page works against an enterprise agent, with the same
+grammar, the same `-o table|json`, the same token resolution and the same exit
+codes. The one difference is where a command looks by default: the enterprise
+agent serves its whole API, open source routes included, on port `8444`, so
+`--port` defaults to `8444` here (`--host`, `--port`, `EBPFSENTINEL_HOST` and
+`EBPFSENTINEL_PORT` still apply). Two open source commands answer with a sentence
+rather than a table, because this agent serves the same thing elsewhere:
+`capture`, since it records traffic through
+[network forensics](../features/enterprise/network-forensics.md), and `ebpf uprobes`,
+since it reports its TLS probes under `/api/v1/enterprise/tls-probes`.
+
+Given no subcommand it runs as the daemon. The commands below are the ones it
+adds. `fingerprint`, `generate-request` and `import-activation` are meant to
+run before the daemon has ever started; `content`, `sigma check` and
+`dlp coverage` work on this machine's own content directory, rules and `/proc`
+rather than through the API; `stop` reaches the running agent.
 
 ```
 ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
@@ -1815,11 +1826,14 @@ ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
 
 ### Enterprise Global Options
 
-These are read when the binary runs as the daemon. A subcommand ignores them.
+`-c, --config`, `-l, --log-level`, `--log-format`, `--token` and `-o, --output`
+are the global options above. The configuration file defaults to
+`config/ebpfsentinel.yaml` here, and a daemon logs JSON unless `--log-format text`
+asks otherwise; `RUST_LOG`, when set, wins over `--log-level`. The three flags
+below are read when the binary runs as the daemon, and a subcommand ignores them.
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-c, --config <PATH>` | Config file path | `config/ebpfsentinel.yaml` |
 | `--license <PATH>` | License key file. Also read from the `EBPFSENTINEL_LICENSE` environment variable. Absent here and in `enterprise.license_path`, the agent starts in open-source mode rather than refusing to start | From `enterprise.license_path` |
 | `--bind-address <ADDR>` | Bind address of the enterprise API | `127.0.0.1` |
 | `--enterprise-port <PORT>` | Port of the enterprise API | `8444` |
@@ -1831,7 +1845,7 @@ computed from.
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--output <PATH>` | Also write the fingerprint and its components to a JSON file | Printed only |
+| `-f, --output-file <PATH>` | Also write the fingerprint and its components to a JSON file | Printed only |
 
 ```bash
 ebpfsentinel-enterprise-agent fingerprint
@@ -1850,7 +1864,7 @@ A component the host does not expose is reported as `unavailable` on stderr and
 folded into the hash as that word, so the fingerprint is still stable across
 restarts of the same machine.
 
-The file `--output` writes is a report: it carries the fingerprint and its
+The file `--output-file` writes is a report: it carries the fingerprint and its
 components and no list of features, so it is **not** the file `ebpfsentinel-license
 activate` reads. Use `generate-request` for that.
 
@@ -1862,12 +1876,12 @@ machine. This is the file the air-gapped round trip carries out.
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--features <LIST>` | Features to ask for, comma separated (`advanced-dlp,ml-detection`) | Empty, which asks for a license carrying no feature |
-| `-o, --output <PATH>` | Path of the request JSON | Required |
+| `-f, --output-file <PATH>` | Path of the request JSON | Required |
 
 ```bash
 ebpfsentinel-enterprise-agent generate-request \
   --features advanced-dlp,ml-detection \
-  --output request.json
+  --output-file request.json
 ```
 
 The request carries the fingerprint, the agent version and the features asked
@@ -1876,11 +1890,12 @@ so a feature nobody bought does not arrive by editing this file.
 
 ### dlp
 
-Ask this machine what its data-loss prevention actually reads. One subcommand
-today, and it takes no flag of its own.
+The open source `dlp status`, `dlp patterns` and `dlp scope` work here as they
+do above. The enterprise agent adds one verb beside them, which asks this
+machine what its data-loss prevention actually reads.
 
 ```
-ebpfsentinel-enterprise-agent dlp <coverage>
+ebpfsentinel-enterprise-agent dlp <status|patterns|scope|coverage>
 ```
 
 ### dlp coverage
@@ -1973,7 +1988,10 @@ names the reason.
 |------|-------------|---------|
 | `--authorisation <PATH>` | The authorisation `ebpfsentinel-license stop-authorise` or the console wrote; required by a tamper-protected agent | none |
 | `--reason <TEXT>` | Why, kept in the run record | none |
-| `--token <TOKEN>` | Bearer token or API key for the agent's REST surface | `$EBPFSENTINEL_TOKEN` |
+| `--host <ADDR>` | Address of the agent | `127.0.0.1` |
+| `--port <PORT>` | Port of the enterprise API | `8444` |
+
+The bearer token is the global `--token`, or `$EBPFSENTINEL_TOKEN`.
 
 ```bash
 ebpfsentinel-enterprise-agent stop --reason "kernel upgrade"

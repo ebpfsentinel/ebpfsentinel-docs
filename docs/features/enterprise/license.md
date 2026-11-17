@@ -205,7 +205,7 @@ machine that generated the request, through a SHA-256 fingerprint computed from:
 ebpfsentinel-enterprise-agent fingerprint
 
 # Write the fingerprint and its components to a JSON report
-ebpfsentinel-enterprise-agent fingerprint --output fingerprint.json
+ebpfsentinel-enterprise-agent fingerprint --output-file fingerprint.json
 ```
 
 That file is a report rather than an activation request: it carries no list of
@@ -373,7 +373,7 @@ For environments without internet access:
 [Air-gapped agent]                    [Connected workstation]
 
 1. generate-request --features LIST \
-     --output request.json
+     --output-file request.json
    (exports fingerprint + features)
                     ──── transfer ────►
                                        2. ebpfsentinel-license activate \
