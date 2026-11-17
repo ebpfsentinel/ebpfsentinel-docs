@@ -1822,8 +1822,9 @@ rather than through the API, `content` reaching the running agent instead when
 it is given `--host`; `stop`, `license`, `tamper`, `attestation`, `airgap`,
 `peers`, `addresses`, `config version`, `ml`, `ai-security`, `tls-intel`,
 `tls-probes`, `l7-inspect`, `intel`, `file-watch`, `forensics`,
-`investigations` and the enterprise verbs under `dlp`, `dns`, `responses`,
-`alerts` and `audit` reach the running agent, and take
+`investigations`, `tenants`, `rbac`, `federation`, `ha`, `analytics`,
+`compliance`, `siem` and the enterprise verbs under `dlp`, `dns`, `responses`,
+`alerts`, `audit`, `firewall`, `flows` and `host-rules` reach the running agent, and take
 `--host` and `--port` after the domain like every command above.
 
 The commands that reach the agent print its answer as it comes: a field per
@@ -2426,4 +2427,147 @@ duration above the configured ceiling is refused) and `stop <ID>`
 
 ```bash
 ebpfsentinel-enterprise-agent investigations start --node node-a --cgroup-id 4242 --reading top-tcp --duration-secs 60
+```
+
+### tenants
+
+[Multi-tenancy](../features/enterprise/multitenancy.md): what each tenant holds,
+its quota and whether it may act.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `list` / `show <ID>` | `GET /api/v1/tenants`, `tenants/{id}` | The tenants, one tenant |
+| `attribution` | `GET /api/v1/tenants/attribution` | Which tenant each interface, namespace, subnet and VLAN belongs to |
+| `metrics` | `GET /api/v1/tenants/metrics` | Per-tenant counters, printed in the Prometheus text exposition |
+| `quota <ID>` | `GET /api/v1/tenants/{id}/quota` | A tenant's quota and what it uses |
+| `set-quota <ID> [--max-rules] [--max-patterns] [--max-alert-rate] [--max-ratelimit-rules] [--max-qos-pipes]` | `PUT /api/v1/tenants/{id}/quota` | Change the limits given, leave the others |
+| `check-quota <ID> <RESOURCE> <COUNT>` | `POST /api/v1/tenants/{id}/quota/check` | Whether consuming that many units would exceed the quota |
+| `create --file <PATH>` | `POST /api/v1/enterprise/tenants` | Create a tenant from its JSON document |
+| `activate <ID>` / `suspend <ID>` | `POST .../tenants/{id}/activate`, `.../suspend` | Let a tenant act again, or stop it while keeping what it holds |
+| `self-service <ID>` / `check-self-service <ID> <OPERATION>` | `GET .../tenants/{id}/self-service`, `POST .../self-service/check` | What a tenant may do for itself, and whether one operation is among it |
+
+```bash
+ebpfsentinel-enterprise-agent tenants set-quota acme --max-rules 500 --max-alert-rate 200
+```
+
+### rbac
+
+[Advanced RBAC](../features/enterprise/advanced-rbac.md): roles, what each
+grants, and who holds them.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `roles` / `role <ID>` | `GET /api/v1/rbac/roles`, `roles/{id}` | The roles, one role |
+| `grants <ID>` | `GET /api/v1/rbac/roles/{id}/effective-grants` | What a role may do once its parents are folded in |
+| `add-role --file` / `set-role <ID> --file` / `delete-role <ID>` | `POST` / `PUT` / `DELETE /api/v1/rbac/roles` | Add, replace or remove one role |
+| `set-roles --file` / `reload --file` | `PUT /api/v1/rbac/roles`, `POST .../roles/reload` | Replace every role at once, taken entire or refused entire |
+| `assignments <SUBJECT>` | `GET /api/v1/rbac/assignments/{subject}` | The roles a user, group or token holds |
+| `assign <SUBJECT> <ROLE>` / `unassign <SUBJECT> <ROLE>` | `POST /api/v1/rbac/assignments`, `DELETE .../{subject}/{role_id}` | Give or take a role |
+| `check --role --domain --permission [--resource]` | `POST /api/v1/rbac/check` | Whether a role may do one thing |
+| `filter --role --domain <IDS>...` | `POST /api/v1/rbac/filter` | Of the resources given, the ones a role may read |
+
+```bash
+ebpfsentinel-enterprise-agent rbac assign alice soc-analyst
+ebpfsentinel-enterprise-agent rbac check --role soc-analyst --domain firewall --permission write
+```
+
+### federation
+
+[Multi-cluster federation](../features/enterprise/multicluster.md), from the
+management cluster. The routes the clusters call on each other (heartbeats,
+forwarded alerts, a policy applied on a member, a signed estate stop) carry no
+command: nobody at a shell is their caller.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `status` / `overview` | `GET /api/v1/federation/status`, `overview` | Whether this cluster federates and as what; the estate at a glance |
+| `clusters` / `cluster <ID>` | `GET /api/v1/federation/clusters`, `clusters/{id}` | The members, one member |
+| `register --name --endpoint --fingerprint --agent-version` / `unregister <ID>` | `POST` / `DELETE /api/v1/federation/clusters` | Register a member, remove one |
+| `alerts [--cluster] [--severity] [--component] [--limit]` | `GET /api/v1/federation/alerts` | Alerts gathered from the members |
+| `follow [--cluster] [--severity] [--component]` | `GET /api/v1/federation/alerts/stream` | The same, live, one JSON document per line |
+| `history [--limit]` | `GET /api/v1/federation/policies/history` | The policies pushed and how each member took them |
+| `push --file <PATH> [--dry-run]` | `POST /api/v1/federation/policies/push` | Push a policy; with `--dry-run` every member validates it without applying it |
+| `verdicts` | `GET /api/v1/federation/estate/verdicts` | Writers seen on several members |
+| `estate-response` / `promote-estate-response --seen-since-ms` | `GET /api/v1/federation/estate/response`, `POST .../promote` | The estate response and its shadow reading; put it in force on the reading weighed |
+
+```bash
+ebpfsentinel-enterprise-agent federation push --file block-c2.json --dry-run
+ebpfsentinel-enterprise-agent federation follow --severity critical
+```
+
+### ha
+
+[High availability](../features/enterprise/high-availability.md): `status`,
+`health`, `interfaces`, `peers` and `replication` (`GET /api/v1/ha/...`) read the
+pair; `failover` (`POST /api/v1/ha/failover`) steps this node down so its peer
+takes over.
+
+### analytics
+
+[Analytics](../features/enterprise/analytics.md) over the alerts and flows kept.
+A window is `--period 24h|7d|30d` back from now, 24 hours by default, or
+`--start-ms` and `--end-ms`.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `status` | `GET /api/v1/analytics/status` | What analytics holds and how far back |
+| `alerts [WINDOW]` / `ioc [WINDOW]` | `GET /api/v1/analytics/alerts`, `ioc` | Alerts by severity and component; indicator matches |
+| `flows [WINDOW] [--src] [--dst] [--src-port] [--dst-port] [--protocol] [--severity] [--component] [--limit] [--offset] [--sort-order]` | `GET /api/v1/analytics/flows` | Search the flows kept, 100 at a time by default |
+| `top-talkers [WINDOW] [--limit N]` | `GET /api/v1/analytics/top-talkers` | The addresses that moved the most |
+| `trends [--period] [--format json\|csv\|text]` | `GET /api/v1/analytics/trends`, `trends/csv`, `trends/text` | How alerts and traffic moved; CSV and text are printed as they come |
+| `history` | `GET /api/v1/analytics/trends/history` | The trends kept from earlier periods |
+
+```bash
+ebpfsentinel-enterprise-agent analytics top-talkers --period 7d --limit 20
+ebpfsentinel-enterprise-agent analytics trends --format csv > trends.csv
+```
+
+### compliance
+
+[Compliance reports](../features/enterprise/compliance-reports.md) and the
+cryptographic inventory.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `reports` / `report <ID>` | `GET /api/v1/compliance/reports`, `reports/{id}` | The reports generated, one report |
+| `generate --framework <F> --from-ms --to-ms [--format json\|csv\|pdf]` | `POST /api/v1/compliance/reports` | Generate a report over a period; `F` is one of `pci_dss4`, `hipaa`, `gdpr_art32`, `soc2`, `nis2`, `dora`, `sec_num_cloud`, `hds` |
+| `export <ID> --format csv\|text\|pdf [--out <PATH>]` | `GET .../reports/{id}/csv`, `text`, `pdf` | CSV and text are printed; a PDF is written to `<ID>.pdf` here by default |
+| `segmentation --file <PATH>` | `POST /api/v1/compliance/segmentation/validate` | A segmentation policy checked against the flows observed |
+| `crypto` | `GET /api/v1/compliance/crypto/report` | The cryptography observed against the policy |
+| `cbom` | `GET /api/v1/compliance/crypto/cbom` | The cryptographic bill of materials, CycloneDX 1.6 JSON as it came |
+
+```bash
+ebpfsentinel-enterprise-agent compliance generate --framework nis2 --from-ms 1767225600000 --to-ms 1769904000000 --format pdf
+ebpfsentinel-enterprise-agent compliance export 0193f2c4-7a1e-7c00-9d2a-5b1f00000003 --format pdf --out nis2-january.pdf
+```
+
+### siem
+
+[SIEM integration](../features/enterprise/siem-integration.md): `status`
+(`GET /api/v1/siem/status`) shows each exporter, where it sends, what it sent and
+dropped; `retro-scan --ip <ADDR>... [--threat-type] [--feed]`
+(`POST /api/v1/siem/retro-ioc-scan`) looks for those addresses in the events
+still buffered.
+
+### firewall, flows and host-rules, enterprise verbs
+
+The open source verbs under these domains keep working; the enterprise agent
+adds beside them:
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `firewall tiers` | `GET /api/v1/firewall/tiers` | The rule tiers, in the order they are decided |
+| `firewall workload-peers` | `GET /api/v1/firewall/workload/peers` | The peers each workload rule resolved to |
+| `firewall promote-shadow <ID> --counting-since-ns` | `POST /api/v1/firewall/shadow/{id}/promote` | Put a shadow rule in force on the counts weighed |
+| `flows graph [--max-nodes] [--min-bytes] [--protocol] [--connections]` | `GET /api/v1/flows/graph` | Who talks to whom, built from connection tracking |
+| `flows reachability` / `reachability-report --workload` | `GET /api/v1/flows/reachability`, `reachability/report` | What each workload reaches; one workload against its SBOM and scanner reports ([reachable vulnerabilities](../features/enterprise/reachable-vulnerabilities.md)) |
+| `flows set-sbom --workload --file` / `delete-sbom --workload` | `PUT` / `DELETE /api/v1/flows/reachability/sbom` | Keep or forget a workload's SBOM |
+| `flows scanner-reports` / `add-scanner-report --name --file` / `delete-scanner-report --name` | `GET` / `PUT` / `DELETE /api/v1/flows/reachability/scanner-reports` | The scanner reports held; keep or forget one |
+| `flows scanner-report --name` / `scanner-evidence --name` | `GET .../scanner-reports/report`, `.../evidence` | One report against what runs and is reached; the evidence behind its verdicts |
+| `host-rules promote <ID> --shadow-since-ns` | `POST /api/v1/host-rules/{id}/promote` | Put a host rule in force on the shadow verdicts weighed |
+| `host-rules promote-write-refusal --counting-since-ns` | `POST /api/v1/host-rules/write-refusal/promote` | Put the write refusal in force on the counts weighed |
+
+```bash
+ebpfsentinel-enterprise-agent flows set-sbom --workload payments/api --file sbom.cdx.json
+ebpfsentinel-enterprise-agent flows reachability-report --workload payments/api
 ```
