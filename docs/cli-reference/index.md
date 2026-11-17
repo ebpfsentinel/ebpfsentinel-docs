@@ -1818,7 +1818,15 @@ Given no subcommand it runs as the daemon. The commands below are the ones it
 adds. `fingerprint`, `generate-request` and `import-activation` are meant to
 run before the daemon has ever started; `content`, `sigma check` and
 `dlp coverage` work on this machine's own content directory, rules and `/proc`
-rather than through the API; `stop` reaches the running agent.
+rather than through the API, `content` reaching the running agent instead when
+it is given `--host`; `stop`, `license`, `tamper`, `attestation`, `airgap`,
+`peers`, `addresses` and `config version` reach the running agent, and take
+`--host` and `--port` after the domain like every command above.
+
+The commands that reach the agent print its answer as it comes: a field per
+line, a list of records as a table, a nested record indented under its name.
+`-o json` prints the answer untouched, and a route the licence does not cover
+answers with its refusal, which the command prints and exits `1` on.
 
 ```
 ebpfsentinel-enterprise-agent [OPTIONS] [COMMAND]
@@ -2003,11 +2011,18 @@ ebpfsentinel-enterprise-agent stop --authorisation stop.auth
 Read, import or roll back the signed content the subscription delivers. It works
 on the content directory from the configuration and reaches no portal: these are
 what an operator does on the machine, and two of them are what an air-gapped
-estate does instead of fetching.
+estate does instead of fetching. Given `--host`, the same verbs are asked of the
+agent at that address instead, through `/api/v1/content/*`; `import --bundle`
+then names a directory on the agent's machine.
 
 ```
-ebpfsentinel-enterprise-agent content <status|import|rollback|pin|unpin>
+ebpfsentinel-enterprise-agent content <status|import|rollback|pin|unpin> [--host <ADDR>] [--port <PORT>]
 ```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--host <ADDR>` | Ask the agent at this address rather than work on this machine | This machine |
+| `--port <PORT>` | Port of that agent's API (`EBPFSENTINEL_PORT`) | `8444` |
 
 ### content status
 
@@ -2119,3 +2134,82 @@ read or when the share of refused rules is above `max_refused_share` (`0.5`
 when paths are given on the command line), which is exactly when the agent
 would refuse to start on them. [Sigma Rules](../features/enterprise/sigma-rules.md)
 lists every field the compiler takes and refuses.
+
+### license
+
+The licence the running agent is under (`GET /api/v1/license`): organisation,
+features, issue and expiry dates, grace, the agent and core ceilings, the
+machine fingerprint it is bound to and whether it is valid now. The table
+leaves out the signed payload and both signatures; `-o json` carries them.
+
+```bash
+ebpfsentinel-enterprise-agent license status
+ebpfsentinel-enterprise-agent -o json license --host 10.0.0.4 status
+```
+
+### tamper
+
+Whether the agent is [tamper protected](../features/enterprise/tamper-protection.md)
+(`GET /api/v1/agent/tamper`): the node it names, the last attempt the kernel
+refused, the stop on record, and the issuers whose signed stop it accepts.
+
+```bash
+ebpfsentinel-enterprise-agent tamper status
+```
+
+### attestation
+
+Hash the executable and every eBPF object in the program directory now, and look
+each up in the signed release measurements (`GET /api/v1/attestation/runtime`).
+The verdict says whether every artifact is one the release measured.
+
+```bash
+ebpfsentinel-enterprise-agent attestation runtime
+```
+
+### airgap
+
+[Air-gap](../features/enterprise/airgap.md) mode and the bundles carried in. The
+bundle directory is a path on the agent's machine.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `status` | `GET /api/v1/airgap/status` | Whether air-gap mode is on, the features it turned off, the outbound calls it refused |
+| `bundles` | `GET /api/v1/airgap/bundles` | The bundles imported so far |
+| `import <DIR>` | `POST /api/v1/airgap/import` | Verify a bundle and import it |
+| `check-freshness <DIR> [--max-age-days N]` | `POST /api/v1/airgap/check-freshness` | Say whether a bundle is recent enough to import |
+
+```bash
+ebpfsentinel-enterprise-agent airgap check-freshness /media/usb/bundle --max-age-days 30
+ebpfsentinel-enterprise-agent airgap import /media/usb/bundle
+```
+
+### peers
+
+The addresses of the other nodes, as the console hands them to this one. The
+node takes a list entire or refuses it entire and keeps the one it had; reading
+it says which version is held and how old it is, which tells a node cut off from
+the console from one that is current.
+
+| Verb | Route | What it does |
+|------|-------|--------------|
+| `list` | `GET /api/v1/agent/remote-identities` | The list's version, its age, how many entries and conflicts |
+| `set --file <PATH>` | `PUT /api/v1/agent/remote-identities` | Hand the node its peers from a JSON document carrying `version` and `entries` |
+
+### addresses
+
+This node's addresses and who holds each (`GET /api/v1/agent/addresses`).
+
+```bash
+ebpfsentinel-enterprise-agent addresses list
+```
+
+### config version
+
+The enterprise agent adds one verb under the open source `config` domain: the
+configuration hash in force, when it was last reloaded and whether a change
+waits for the next reload (`GET /api/v1/agent/config/version`).
+
+```bash
+ebpfsentinel-enterprise-agent config version
+```
