@@ -258,6 +258,20 @@ instead through `webhook.tls.existingSecret` and `webhook.tls.caBundle`. With
 `watchNamespaces` set, the webhook is registered for those namespaces only.
 `webhook.enabled=false` removes it.
 
+### Stopping the agents only in order
+
+With `tamperProtection.enabled` and a licence carrying `tamper-protection`,
+the operator writes a `ValidatingAdmissionPolicy` that refuses the ways of
+stopping the agents a cluster administrator has without touching a node:
+deleting an agent `DaemonSet`, its configuration Secret, its `ServiceAccount`
+or its `EbpfSentinelAgent`, narrowing where it runs, scaling the operator to
+zero, deleting the operator or the namespaces holding them. Only the service
+accounts named in `tamperProtection.allowedServiceAccounts` get through. A
+`DaemonSet` that disappears anyway is written again and reported, and a node
+that loses its agent pod while nobody drains it is raised.
+[Tamper protection on Kubernetes](tamper-protection.md#on-kubernetes)
+describes each refusal, the Kyverno variant and what it does not cover.
+
 ### Running more than one replica
 
 Replicas elect a leader through a `Lease` in the operator's namespace
@@ -1269,6 +1283,15 @@ should go too:
 
 ```bash
 kubectl delete ebpfsentinelagents --all --all-namespaces --wait
+```
+
+With tamper protection on, both steps are refused to everyone but the named
+service accounts, so run them as one:
+
+```bash
+kubectl --as=system:serviceaccount:ops:break-glass delete ebpfsentinelagents --all --all-namespaces --wait
+helm uninstall ebpfsentinel-operator -n ebpfsentinel --kube-as-user system:serviceaccount:ops:break-glass
+kubectl delete validatingadmissionpolicybinding,validatingadmissionpolicy ebpfsentinel-tamper-protection
 ```
 
 `helm uninstall` leaves the custom resource definitions in place, so every resource written against them survives: each

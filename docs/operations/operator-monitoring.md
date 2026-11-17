@@ -26,6 +26,9 @@ curl -s localhost:8081/metrics | grep -v '^#'
 | `ebpfsentinel_operator_reconcile_duration_seconds` | Histogram | `controller`, `result` | How long a pass takes |
 | `ebpfsentinel_operator_reconcile_in_flight` | Gauge | `controller` | How many passes are running right now |
 | `ebpfsentinel_operator_objects` | Gauge | `kind`, `namespace`, `ready` | How many resources of each kind are ready, not ready, or not yet reported |
+| `ebpfsentinel_operator_agent_workload_recreated_total` | Counter | `namespace`, `agent` | How many times an agent `DaemonSet` was found gone after the operator had written it, and written again |
+| `ebpfsentinel_operator_agent_pod_lost_total` | Counter | `namespace`, `agent` | How many times a schedulable node lost its agent pod while nobody drained it (with tamper protection on) |
+| `ebpfsentinel_operator_tamper_policy_restored_total` | Counter | - | How many times the tamper protection admission policy was found deleted or edited, and put back |
 | `ebpfsentinel_operator_tls_handshakes_total` | Counter | `link`, `group` | Which key exchange each TLS handshake negotiated: `link` is `outbound` (the API server, the agents, the console) or `webhook` (the admission listener), `group` the IANA name, `X25519MLKEM768` being the hybrid post-quantum one |
 
 `controller` is the kind a controller reconciles, such as `FirewallPolicy`,
@@ -156,7 +159,7 @@ neither value: point it at port `8081`, path `/metrics`, through
 
 ## The alerts
 
-Five rules, one for each condition that needs a person, rather than one per
+Eight rules, one for each condition that needs a person, rather than one per
 metric. Each carries a `runbook_url` pointing at its section below.
 
 ### EbpfSentinelOperatorNoLeader
@@ -229,3 +232,51 @@ kubectl describe firewallpolicy edge-baseline
 - `Refused` events: another resource sets the same value and wins.
   [What the operator says on a resource](../features/enterprise/kubernetes-operator.md#what-the-operator-says-on-a-resource)
   covers each reason.
+
+### EbpfSentinelAgentWorkloadRecreated
+
+**Critical, at once.** An agent `DaemonSet` the operator had written was gone,
+and the operator wrote it again. Until its pods were ready, the agent's nodes
+ran without one. With tamper protection on, only a named service account or
+a removal under the API server gets there.
+
+```bash
+kubectl get events -A --field-selector reason=AgentWorkloadRecreated
+```
+
+- The API server's audit log names who deleted the `DaemonSet`. A delete
+  that is absent from it was made in etcd.
+- Without tamper protection, any administrator can do it:
+  [turn it on](../features/enterprise/tamper-protection.md#on-kubernetes).
+
+### EbpfSentinelAgentPodLost
+
+**Critical, at once.** A node that held an agent pod no longer does, nothing
+rolled the agents in between, and the node is neither cordoned nor being
+removed. A drain does not raise it; a pod deleted, evicted by hand or killed
+with its node left schedulable does.
+
+```bash
+kubectl get events -A --field-selector reason=AgentPodLostWithoutDrain
+```
+
+- The event names the node. The `DaemonSet` puts a pod back on it; a pod that
+  does not come back points at the node itself, its taints or its kubelet.
+- On the node, the agent's run record says whether the last run ended on a
+  signed stop or on a signal
+  ([Stopping a protected agent](../features/enterprise/tamper-protection.md#stopping-a-protected-agent)).
+
+### EbpfSentinelTamperPolicyRestored
+
+**Critical, at once.** The admission policy that refuses stopping the agents,
+or its binding, was deleted or edited by someone other than the operator,
+and the operator put it back. Between the two, the refusals were off.
+
+```bash
+kubectl get events -A --field-selector reason=TamperPolicyRestored
+```
+
+- The API server's audit log names who changed
+  `validatingadmissionpolicies` or `validatingadmissionpolicybindings`.
+- Check what was done in the gap: the other two alerts above, and the
+  agents' own events.

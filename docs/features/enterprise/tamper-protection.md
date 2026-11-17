@@ -120,6 +120,75 @@ The window closes on its own: a stop whose shutdown hangs does not become an
 open door. A trace stays refused even inside the window, since a stop never
 needs the agent's memory.
 
+## On Kubernetes
+
+On a node, the kernel refuses the stop. On a cluster, an administrator stops
+every agent at once without reaching a node: deleting the agent `DaemonSet`,
+emptying its `nodeSelector`, scaling the operator to zero so nothing puts it
+back. With the operator's tamper protection on, the API server refuses those
+too.
+
+```yaml
+# values of the ebpfsentinel-operator chart
+tamperProtection:
+  enabled: true
+  engine: native            # or kyverno
+  allowedServiceAccounts:
+    - ops/break-glass
+```
+
+The operator writes a `ValidatingAdmissionPolicy` and its binding, named
+`ebpfsentinel-tamper-protection`, that refuse to everyone but the service
+accounts named, the operator's own and the two controllers that finish a
+delete one of them was allowed (the garbage collector and the namespace
+controller):
+
+| Refused | On |
+|---|---|
+| Delete | the agent `DaemonSet`, its configuration Secret and `ServiceAccount`, the `EbpfSentinelAgent`, the operator `Deployment` and licence Secret, the operator's namespace and every namespace holding an agent |
+| Scale to zero | the operator `Deployment`, through `kubectl scale` or an edit |
+| Edit of `nodeSelector`, `tolerations` or `affinity` | the agent `DaemonSet` and the operator `Deployment` |
+| Edit | the configuration Secret and `ServiceAccount` of an agent, the licence Secret |
+| Removal of the `ebpfsentinel.io/tamper-protected` label | any object carrying it |
+
+Cluster-admin is refused like anyone else: the policy names who may, not who
+may not. The refusal names the protection, so the person refused knows which
+account to use. The native policy needs Kubernetes 1.30 or later and nothing
+installed beside it. `engine: kyverno` writes no native policy and renders
+the same rules as a Kyverno `ClusterPolicy` instead, for an estate whose
+admission already runs through Kyverno; that variant holds the release
+namespace and those listed in `tamperProtection.namespaces` from deletion,
+since a chart cannot see where the agents live.
+
+The protection needs the licence to carry `tamper-protection`. Asked for
+without it, the operator logs that nothing is refused and writes no policy.
+
+What the operator reports, whichever engine refuses:
+
+| Event on the agent resource | Raised when |
+|---|---|
+| `AgentWorkloadRecreated` | The agent `DaemonSet` was gone though the operator had written it, and was written again: deleted by a named account, removed under the API server from etcd, or deleted with the protection off |
+| `AgentPodLostWithoutDrain` | A node held an agent pod on the last pass and holds none now, nothing was rolled in between, and the node is still schedulable and not being removed. A drain cordons the node first, so it is not raised |
+| `TamperPolicyRestored` | The policy or its binding was deleted or edited outside the operator, and the operator put it back |
+
+Each is also a counter the
+[operator alert rules](../../operations/operator-monitoring.md#the-alerts)
+page on.
+
+What it does not cover:
+
+- Admission is never asked about its own objects, so an administrator can
+  delete the policy or its binding. The operator puts both back within thirty
+  seconds and raises `TamperPolicyRestored`: possible, never silent. Under
+  the Kyverno engine, the Kyverno policy is as exposed as any other.
+- Whoever reaches etcd or the API server's own flags is past admission. The
+  operator writes the `DaemonSet` again and says so.
+- An edit of the image or the command of the agent `DaemonSet` is not refused;
+  the operator writes the `DaemonSet` back to what the resource asks on its
+  next pass.
+- Uninstalling, or turning the protection off again, is done as one of the
+  named accounts ([Uninstalling](kubernetes-operator.md#uninstalling)).
+
 ## Alerts
 
 | Rule | Raised when |
