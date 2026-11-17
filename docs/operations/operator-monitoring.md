@@ -282,6 +282,10 @@ kubectl get events -A --field-selector reason=AgentStoppedWithoutAuthorisation
   `/api/v1/agent/tamper`.
 - Exit 137 is a `SIGKILL`, from a person or from the out-of-memory killer; the
   node's kernel log tells the two apart.
+- The restart count each pass saw, and the last refused attempt, are kept on
+  the agent resource under `status.agentStatuses[].tamper`, so an operator
+  restarted or a new leader compares the next restart against them rather
+  than starting over.
 - See [Silence](../features/enterprise/tamper-protection.md#silence) for who
   else raises the same silence.
 
