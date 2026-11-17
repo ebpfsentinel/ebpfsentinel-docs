@@ -95,7 +95,9 @@ one.
 `GET /api/v1/agent/tamper` lists the pairs the agent trusts under
 `trusted_issuers`, each by issuer and fingerprint (the SHA-256 of both public
 halves), never the key, so a console knows before offering a stop whether this
-agent would admit one from it.
+agent would admit one from it. The same answer carries `node`, the name a stop
+must be issued for, so the console signs for the node the agent checks against
+rather than for a name it guessed.
 
 A configuration written before issuers existed lists its pairs without
 `issuer`, and the agent refuses to load it until each entry names one. Every
