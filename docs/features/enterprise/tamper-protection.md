@@ -257,8 +257,9 @@ rather than on a signed stop, so a single host still tells its own story.
 
 - A licence lost while the agent runs leaves the protection in place until the
   next start, which then runs unprotected.
-- The protection covers the agent's own maps once their identifiers are first
-  read, within thirty seconds of start; the guard on its links and maps from the
-  open source core covers the rest (see [Foreign programs](../foreign-programs.md)).
+- The agent's own maps and links are covered by the guard from the open
+  source core, which reads their identifiers again half a second after each
+  object is loaded (see [Foreign programs](../foreign-programs.md)); an object
+  is unguarded for that half second.
 - On a host without the BPF LSM nothing is refused, and the node reports itself
   unprotected rather than claiming otherwise.

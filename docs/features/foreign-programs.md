@@ -139,8 +139,8 @@ What it does not cover:
   dump` by id open the map for reading and writing by default and are refused
   on an agent map; the refusal is counted like any other.
 - **A descriptor obtained before the guard was armed**, or on a map the agent
-  no longer holds. The sets name what the agent holds now, read again every
-  30 seconds.
+  no longer holds. The sets name what the agent holds now, read again half a
+  second after any object the agent loads and every 30 seconds otherwise.
 - **The kernel itself.** A module loaded into the kernel, or a process with
   write access to kernel memory, is past any hook.
 - **The files on disk.** The objects the agent loads, its binary and its
