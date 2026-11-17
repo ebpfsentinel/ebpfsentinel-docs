@@ -14,17 +14,20 @@ The fingerprint follows the [JA4 method by FoxIO](https://github.com/FoxIO-LLC/j
 ## JA4 Hash Format
 
 ```
-t13d0305h2_8daaf6152771_02713d6af862
+t13d1516h2_8daaf6152771_e5627efa2ab1
 │││ ││││││  │              │
-││╰─╯│││╰╰──╰── Section b: SHA-256 of sorted cipher suites (12 hex chars)
-││   │││         Section c: SHA-256 of sorted extensions + sig algs (12 hex chars)
-││   ││╰── ALPN hint (first+last char of first ALPN, or "00")
-││   │╰── Extension count (2 digits)
+││╰─╯│││╰╰──╰── Section b: SHA-256 of the sorted cipher suites (12 hex chars)
+││   │││         Section c: SHA-256 of the sorted extensions, then the
+││   │││         signature algorithms in the order the client sent them
+││   ││╰── ALPN hint (first and last character of the first ALPN, or "00")
+││   │╰── Extension count (2 digits, SNI and ALPN included)
 ││   ╰── Cipher suite count (2 digits)
 │╰── SNI indicator: d (domain) or i (IP/absent)
-╰── TLS version: 13, 12, 11, 10
+╰── TLS version: the highest offered, 13, 12, 11, 10
 t = TCP protocol
 ```
+
+The value above is the worked example of FoxIO's specification, and a unit test pins the agent to it, so a fingerprint the agent reports is the one JA4 databases and threat feeds publish for the same client. Section c leaves SNI and ALPN out of the extension list (section a already carries them) and keeps the signature algorithms unsorted, because their order is part of what tells one client from another. A hello with no cipher suite, or no extension besides SNI and ALPN, has twelve zeros in that section; one with no signature algorithm hashes the extension list alone.
 
 ## Extracted Fields
 
