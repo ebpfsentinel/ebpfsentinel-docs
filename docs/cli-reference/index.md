@@ -1811,7 +1811,7 @@ agent serves its whole API, open source routes included, on port `8444`, so
 `EBPFSENTINEL_PORT` still apply). Two open source commands answer with a sentence
 rather than a table, because this agent serves the same thing elsewhere:
 `capture`, since it records traffic through
-[network forensics](../features/enterprise/network-forensics.md), and `ebpf uprobes`,
+[network forensics](../features/enterprise/network-forensics.md) (`forensics captures`), and `ebpf uprobes`,
 since it reports its TLS probes under `/api/v1/enterprise/tls-probes`.
 
 Given no subcommand it runs as the daemon. The commands below are the ones it
@@ -1821,8 +1821,9 @@ run before the daemon has ever started; `content`, `sigma check` and
 rather than through the API, `content` reaching the running agent instead when
 it is given `--host`; `stop`, `license`, `tamper`, `attestation`, `airgap`,
 `peers`, `addresses`, `config version`, `ml`, `ai-security`, `tls-intel`,
-`tls-probes`, `l7-inspect`, `intel`, `file-watch` and the enterprise verbs
-under `dlp` and `dns` reach the running agent, and take
+`tls-probes`, `l7-inspect`, `intel`, `file-watch`, `forensics`,
+`investigations` and the enterprise verbs under `dlp`, `dns`, `responses`,
+`alerts` and `audit` reach the running agent, and take
 `--host` and `--port` after the domain like every command above.
 
 The commands that reach the agent print its answer as it comes: a field per
@@ -2360,3 +2361,69 @@ The [threat intelligence platforms](../features/enterprise/threat-intel-platform
 
 `baselines` (`GET /api/v1/file-watch/baselines`): the fingerprint of every file
 this node watches.
+
+### responses, enterprise verbs
+
+The open source `responses` verbs (`list`, `create`, `revoke`) keep working; the
+enterprise agent adds [automated response](../features/enterprise/automated-response.md)
+beside them.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `automation` | `GET /api/v1/enterprise/response/status` | Whether automated response runs, what it holds, what it spent |
+| `policies` | `GET /api/v1/enterprise/response/policies` | The policies |
+| `add-policy --file <PATH>` / `delete-policy <ID>` | `POST` / `DELETE /api/v1/enterprise/response/policies` | Add a policy from its JSON document, remove one |
+| `webhooks` | `GET /api/v1/enterprise/response/webhooks` | The SOAR webhooks, signing secrets masked |
+| `add-webhook --file <PATH>` / `delete-webhook <ID>` | `POST` / `DELETE /api/v1/enterprise/response/webhooks` | Register a webhook from a file, so the secret is never on a command line; remove one |
+| `approvals` | `GET /api/v1/enterprise/response/approvals` | Actions waiting for a person |
+| `approve <ID>` / `refuse <ID>` | `POST .../approvals/{id}/approve`, `.../refuse` | Let one run, or refuse it |
+| `trail [--policy] [--action] [--outcome] [--since-ns] [--limit N]` | `GET /api/v1/enterprise/response/audit` | What automated response did, dry runs included, 50 newest by default |
+
+```bash
+ebpfsentinel-enterprise-agent responses add-policy --file contain-scanner.json
+ebpfsentinel-enterprise-agent responses approvals
+ebpfsentinel-enterprise-agent responses approve 0193f2c4-7a1e-7c00-9d2a-5b1f00000001
+```
+
+### alerts and audit, by tenant
+
+`alerts by-tenant [--tenant <ID>]` (`GET /api/v1/enterprise/alerts`) and
+`audit by-tenant [--tenant <ID>]` (`GET /api/v1/enterprise/audit`) read alerts and
+audit entries as one [tenant](../features/enterprise/multitenancy.md) sees them,
+the caller's own tenant when none is named.
+
+### forensics
+
+[Network forensics](../features/enterprise/network-forensics.md): captures, the
+contexts frozen around alerts, the mirror and timelines.
+
+| Verb | Route | What it answers |
+|---|---|---|
+| `status` | `GET /api/v1/enterprise/forensics/status` | What forensics holds |
+| `captures` / `capture <ID>` | `GET /api/v1/enterprise/forensics/captures`, `captures/{id}` | The captures taken, one capture |
+| `download <ID> [--out <PATH>]` | `GET /api/v1/enterprise/forensics/captures/{id}/pcapng` | Write one capture as pcapng, to `<ID>.pcapng` here by default |
+| `campaigns` | `GET /api/v1/enterprise/forensics/campaigns` | The attack campaigns forensics grouped |
+| `freezes` / `freeze <ID>` / `delete-freeze <ID>` | `GET` / `DELETE /api/v1/enterprise/forensics/context-freezes` | The frozen contexts, one of them, discard one |
+| `graph <ID> [--focus] [--max-nodes] [--max-depth]` | `GET .../context-freezes/{id}/graph` | The investigation graph of one frozen context |
+| `mirror` / `mirror-start <IFACE>` / `mirror-stop` | `GET /api/v1/enterprise/forensics/mirror`, `POST .../start`, `.../stop` | Where traffic is mirrored; start or stop |
+| `timeline <ALERT> [--before S] [--after S]` | `GET /api/v1/enterprise/forensics/timeline/{alert_id}` | What happened around one alert, 300 seconds each side by default |
+| `flow-timeline --src --dst --src-port --dst-port [--protocol] --from-ns --to-ns` | `GET /api/v1/enterprise/forensics/timeline/flow` | What happened on one flow over a window |
+| `events [--severity-min] [--component] [--technique]` | `GET /api/v1/forensics/events/stream` | Follow forensic events live, one JSON document per line, until the agent ends the stream |
+
+```bash
+ebpfsentinel-enterprise-agent forensics download 0193f2c4-7a1e-7c00-9d2a-5b1f00000002 --out incident.pcapng
+ebpfsentinel-enterprise-agent forensics events --severity-min high | jq .
+```
+
+### investigations
+
+Bounded reads of one workload, named by its cgroup v2 id, each with a fixed
+cost: `list` (`GET /api/v1/investigations`), `show <ID>`,
+`start --node <NODE> --cgroup-id <ID> --reading sockets|top-tcp|server-names|drops [--duration-secs N]`
+(`POST /api/v1/investigations`; the node must be the one answering, and a
+duration above the configured ceiling is refused) and `stop <ID>`
+(`DELETE /api/v1/investigations/{id}`).
+
+```bash
+ebpfsentinel-enterprise-agent investigations start --node node-a --cgroup-id 4242 --reading top-tcp --duration-secs 60
+```
