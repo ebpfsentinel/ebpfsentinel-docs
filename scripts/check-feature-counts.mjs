@@ -102,8 +102,8 @@ function countVariants(source, name, file) {
 }
 
 function countCommands() {
-  const source = read('crates', 'agent', 'src', 'cli.rs');
-  return countVariants(source, 'Command', 'crates/agent/src/cli.rs');
+  const source = read('crates', 'agent', 'src', 'cli', 'args.rs');
+  return countVariants(source, 'Command', 'crates/agent/src/cli/args.rs');
 }
 
 function countBuiltinThreats() {

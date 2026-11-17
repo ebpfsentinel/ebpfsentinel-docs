@@ -60,7 +60,7 @@ relative to the agent repository unless they start with `../`.
 | **Alert Pipeline** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/application/src/alert_pipeline.rs` |
 | **Prometheus Metrics** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/adapters/src/metrics.rs` |
 | **REST API / gRPC** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/http/router.rs`, `crates/adapters/src/grpc/` |
-| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/cli.rs` |
+| **CLI** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | `crates/agent/src/cli/args.rs` |
 
 :white_check_mark: = fully supported | :warning: = partially supported (see details below) | :x: = not supported | \* = see CNI compatibility note | \*\* = needs the node's `/proc` mounted read-only at `/host/proc` (`EBPFSENTINEL_HOST_PROC`), which the shipped Compose file and the Helm chart both do. **Not** `pid: host` or `hostPID: true`: the uprobe is created against a path and an offset with pid 0, and the resolver reads a path.
 

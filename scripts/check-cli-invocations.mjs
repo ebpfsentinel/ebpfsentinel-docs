@@ -26,7 +26,8 @@ const DEFAULT_OSS_AGENT_CLI = resolve(
   'crates',
   'agent',
   'src',
-  'cli.rs',
+  'cli',
+  'args.rs',
 );
 const agentCli = process.env.EBPFSENTINEL_OSS_AGENT_CLI
   ? resolve(process.env.EBPFSENTINEL_OSS_AGENT_CLI)
@@ -65,7 +66,7 @@ function readSource() {
       `  ${error.message}`,
       '',
       'The agent repository is expected beside this one. Set',
-      'EBPFSENTINEL_OSS_AGENT_CLI to point at its crates/agent/src/cli.rs.',
+      'EBPFSENTINEL_OSS_AGENT_CLI to point at its crates/agent/src/cli/args.rs.',
     ]);
   }
   return '';

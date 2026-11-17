@@ -30,7 +30,7 @@ const agentMain = process.env.EBPFSENTINEL_ENT_AGENT_MAIN
   ? resolve(process.env.EBPFSENTINEL_ENT_AGENT_MAIN)
   : DEFAULT_ENT_AGENT_MAIN;
 
-const DEFAULT_OSS_AGENT_CLI = resolve(repoRoot, '..', 'ebpfsentinel', 'crates', 'agent', 'src', 'cli.rs');
+const DEFAULT_OSS_AGENT_CLI = resolve(repoRoot, '..', 'ebpfsentinel', 'crates', 'agent', 'src', 'cli', 'args.rs');
 const ossCli = process.env.EBPFSENTINEL_OSS_AGENT_CLI
   ? resolve(process.env.EBPFSENTINEL_OSS_AGENT_CLI)
   : DEFAULT_OSS_AGENT_CLI;
@@ -474,7 +474,7 @@ function readOss() {
       `  ${error.message}`,
       '',
       'The open-source repository is expected beside this one. Set',
-      'EBPFSENTINEL_OSS_AGENT_CLI to point at its crates/agent/src/cli.rs.',
+      'EBPFSENTINEL_OSS_AGENT_CLI to point at its crates/agent/src/cli/args.rs.',
     ]);
   }
   return '';

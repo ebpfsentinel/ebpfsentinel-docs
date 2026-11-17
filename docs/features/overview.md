@@ -8,7 +8,7 @@ Each carries a `feature-count:` marker on the line above it, and
   eBPF programs        crates/ebpf-programs/       (one directory per program)
   REST paths and       openapi.json                (`paths`, and the methods
   operations                                        declared under each one)
-  CLI subcommands      crates/agent/src/cli.rs     (variants of `enum Command`)
+  CLI subcommands      crates/agent/src/cli/args.rs (variants of `enum Command`)
   Rate limit           crates/domain/src/ratelimit/entity.rs
   algorithms                                       (`enum RateLimitAlgorithm`)
   Load balancer        crates/domain/src/loadbalancer/entity.rs
