@@ -245,8 +245,14 @@ Reports can be generated automatically on a recurring schedule:
 | `Weekly` | 7 days |
 | `Monthly` | 30 days |
 
-The scheduler runs as a background tokio task, generating one report per framework in
-`schedule.frameworks` at each interval. That list is the schedule's own: left empty it falls back
+The scheduler generates one report per framework in `schedule.frameworks` at each interval,
+counted from the last run rather than from the agent's start. The instant of that run is kept in
+`schedule.marker_path` (default `/var/lib/ebpfsentinel/compliance-schedule.json`), so an agent
+restarted more often than its period still reports: a run that fell due while the agent was down
+is generated as soon as it is back, and each report covers the time since the previous one, so
+two reports leave no gap between them. The first start with no marker keeps its own instant and
+the first report follows one period later. A marker that cannot be read, or that names an instant
+after the machine's clock, is logged and the period starts again from now. That list is the schedule's own: left empty it falls back
 to all eight frameworks rather than to the top-level `frameworks`, so a schedule narrower than the
 agent's evaluation set has to name its frameworks.
 
@@ -254,7 +260,7 @@ agent's evaluation set has to name its frameworks.
 
 Each scheduled report can be delivered over two optional channels, configured under `schedule`:
 
-- **Email (SMTP)** - when `schedule.smtp` is set, the report is emailed to every address in `email_recipients` with the JSON report attached. Submission uses STARTTLS (port 587) by default, or implicit TLS when `starttls: false` (port 465); TLS runs over the agent's rustls stack. Optional SMTP AUTH via `username`/`password`.
+- **Email (SMTP)** - when `schedule.smtp` is set, the report is emailed to every address in `email_recipients` with the JSON report attached. Submission uses STARTTLS (port 587) by default, or implicit TLS when `starttls: false` (port 465); TLS runs over the agent's rustls stack and trusts the public roots; a relay whose certificate a private authority signed is trusted through `ca_cert_path`, a PEM file read at each delivery, so a renewed authority needs no restart. Optional SMTP AUTH via `username`/`password`.
 - **Webhook** - when `schedule.webhook_url` is set, a JSON summary (`framework`, `report_id`, `format`, `summary`) is POSTed to the URL on each run, for SOAR/automation pipelines.
 
 Both channels are best-effort: a delivery failure is logged and never aborts report generation or the scheduler loop.

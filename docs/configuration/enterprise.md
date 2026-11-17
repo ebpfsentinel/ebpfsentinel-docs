@@ -231,7 +231,9 @@ enterprise:
       #   port: 587                # 587 with starttls, 465 with starttls: false
       #   from: ebpfsentinel@example.com
       #   starttls: true
+      #   ca_cert_path: /etc/ebpfsentinel/smtp-ca.pem  # private CA, beside the public roots
       # webhook_url: https://soar.example.com/hooks/compliance
+      marker_path: /var/lib/ebpfsentinel/compliance-schedule.json  # last run, kept across restarts
     retention_days: 90
     output_dir: /var/lib/ebpfsentinel/reports
 
