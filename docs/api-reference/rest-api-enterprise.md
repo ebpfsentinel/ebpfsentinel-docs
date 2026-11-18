@@ -246,17 +246,17 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/audit/logs` | viewer | `audit:read` | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | viewer | `audit:read` | none | Query rule version history. |
 | `GET` | `/api/v1/config` | viewer | `config:read` | none | Return the current (sanitized) agent configuration. |
-| `POST` | `/api/v1/config/reload` | operator | `config:write` | none | Trigger a configuration reload via the API. |
-| `PUT` | `/api/v1/config/{section}` | operator | `config:write` | none | Write one section of the agent configuration file and reload. |
+| `POST` | `/api/v1/config/reload` | admin | `config:write` | none | Trigger a configuration reload via the API. |
+| `PUT` | `/api/v1/config/{section}` | admin | `config:write` | none | Write one section of the agent configuration file and reload. |
 | `GET` | `/api/v1/conntrack/connections` | viewer | `conntrack:read` | none | List tracked connections. |
 | `GET` | `/api/v1/conntrack/events` | viewer | `conntrack:read` | none | Server-Sent Events stream of connection lifecycle events (new, update, destroy). |
-| `POST` | `/api/v1/conntrack/flush` | operator | `conntrack:write` | none | Flush all tracked connections. |
+| `POST` | `/api/v1/conntrack/flush` | admin | `conntrack:write` | none | Flush all tracked connections. |
 | `GET` | `/api/v1/conntrack/status` | viewer | `conntrack:read` | none | Connection tracking status. |
 | `GET` | `/api/v1/ddos/attacks` | viewer | `ddos:read` | none | List active `DDoS` attacks. |
 | `GET` | `/api/v1/ddos/attacks/history` | viewer | `ddos:read` | none | Attack history. |
 | `GET` | `/api/v1/ddos/policies` | viewer | `ddos:read` | none | List `DDoS` policies. |
-| `POST` | `/api/v1/ddos/policies` | operator | `ddos:write` | none | Create a `DDoS` policy. |
-| `DELETE` | `/api/v1/ddos/policies/{id}` | operator | `ddos:write` | none | Delete a `DDoS` policy. |
+| `POST` | `/api/v1/ddos/policies` | admin | `ddos:write` | none | Create a `DDoS` policy. |
+| `DELETE` | `/api/v1/ddos/policies/{id}` | admin | `ddos:write` | none | Delete a `DDoS` policy. |
 | `GET` | `/api/v1/ddos/status` | viewer | `ddos:read` | none | `DDoS` protection status. |
 | `GET` | `/api/v1/dlp/patterns` | viewer | `dlp:read` | none | List DLP patterns. |
 | `GET` | `/api/v1/dlp/scope` | viewer | `dlp:read` | none | Which workloads DLP is reading. |
@@ -277,8 +277,8 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/ebpf/status` | viewer | `config:read` | none | Return the load status of each eBPF program. |
 | `GET` | `/api/v1/fingerprints/summary` | viewer | `l7:read` | none | Fingerprint cache status. |
 | `GET` | `/api/v1/firewall/l7-rules` | viewer | `firewall:read` | none | List all L7 rules. |
-| `POST` | `/api/v1/firewall/l7-rules` | operator | `firewall:write` | none | Create a new L7 rule. |
-| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | operator | `firewall:write` | none | Delete an L7 rule by ID. |
+| `POST` | `/api/v1/firewall/l7-rules` | admin | `firewall:write` | none | Create a new L7 rule. |
+| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | admin | `firewall:write` | none | Delete an L7 rule by ID. |
 | `GET` | `/api/v1/firewall/rules` | viewer | `firewall:read` | none | List all active rules. |
 | `POST` | `/api/v1/firewall/rules` | operator | `firewall:write` | none | Create a new rule. |
 | `DELETE` | `/api/v1/firewall/rules/{id}` | operator | `firewall:write` | none | Delete a rule by ID. |
@@ -293,20 +293,20 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/ids/status` | viewer | `ids:read` | none | IDS service status. |
 | `GET` | `/api/v1/ids/suricata/report` | viewer | `ids:read` | none | What the imported Suricata rulesets compiled to. |
 | `GET` | `/api/v1/ips/blacklist` | viewer | `ips:read` | none | List current IPS blacklist entries. |
-| `POST` | `/api/v1/ips/blacklist` | operator | `ips:write` | none | Manually add an IP to the IPS blacklist. |
-| `DELETE` | `/api/v1/ips/blacklist/{ip}` | operator | `ips:write` | none | Remove an IP from the IPS blacklist. |
+| `POST` | `/api/v1/ips/blacklist` | admin | `ips:write` | none | Manually add an IP to the IPS blacklist. |
+| `DELETE` | `/api/v1/ips/blacklist/{ip}` | admin | `ips:write` | none | Remove an IP from the IPS blacklist. |
 | `GET` | `/api/v1/ips/domain-blocks` | viewer | `ips:read` | none | List IPS blacklist entries originating from domain mechanisms. |
 | `GET` | `/api/v1/ips/rules` | viewer | `ips:read` | none | List all IPS rules. |
 | `PATCH` | `/api/v1/ips/rules/{id}` | operator | `ips:write` | none | Toggle a rule's mode. |
 | `GET` | `/api/v1/lb/services` | viewer | `loadbalancer:read` | none | List LB services. |
-| `POST` | `/api/v1/lb/services` | operator | `loadbalancer:write` | none | Create an LB service. |
+| `POST` | `/api/v1/lb/services` | admin | `loadbalancer:write` | none | Create an LB service. |
 | `GET` | `/api/v1/lb/services/{id}` | viewer | `loadbalancer:read` | none | Get LB service detail. |
-| `DELETE` | `/api/v1/lb/services/{id}` | operator | `loadbalancer:write` | none | Delete an LB service. |
+| `DELETE` | `/api/v1/lb/services/{id}` | admin | `loadbalancer:write` | none | Delete an LB service. |
 | `GET` | `/api/v1/lb/status` | viewer | `loadbalancer:read` | none | Load balancer status. |
 | `GET` | `/api/v1/lb/vips` | viewer | `loadbalancer:read` | none | VIP announcer status. |
-| `POST` | `/api/v1/lb/vips` | operator | `loadbalancer:write` | none | Apply a new VIP announce configuration. |
+| `POST` | `/api/v1/lb/vips` | admin | `loadbalancer:write` | none | Apply a new VIP announce configuration. |
 | `GET` | `/api/v1/lb/vips/bgp` | viewer | `loadbalancer:read` | none | BGP sessions announcing the VIPs. |
-| `POST` | `/api/v1/lb/vips/grant` | operator | `loadbalancer:write` | none | Grant or release the speaker role of an `elected` node. |
+| `POST` | `/api/v1/lb/vips/grant` | admin | `loadbalancer:write` | none | Grant or release the speaker role of an `elected` node. |
 | `GET` | `/api/v1/learning/sessions` | viewer | `firewall:read` | none | Every learning window this node remembers. |
 | `POST` | `/api/v1/learning/sessions` | operator | `firewall:write` | none | Open a learning window. |
 | `GET` | `/api/v1/learning/sessions/{id}` | viewer | `firewall:read` | none | One learning window, as it stands. |
@@ -316,33 +316,33 @@ are this edition's, decided by the same middleware as every other route.
 | `POST` | `/api/v1/learning/sessions/{id}/stop` | operator | `firewall:write` | none | Close a learning window early. |
 | `GET` | `/api/v1/mitre/coverage` | viewer | `config:read` | none | MITRE ATT&CK coverage matrix. |
 | `GET` | `/api/v1/nat/nptv6` | viewer | `nat:read` | none | List `NPTv6` rules. |
-| `POST` | `/api/v1/nat/nptv6` | operator | `nat:write` | none | Create an `NPTv6` rule. |
-| `DELETE` | `/api/v1/nat/nptv6/{id}` | operator | `nat:write` | none | Delete an `NPTv6` rule. |
+| `POST` | `/api/v1/nat/nptv6` | admin | `nat:write` | none | Create an `NPTv6` rule. |
+| `DELETE` | `/api/v1/nat/nptv6/{id}` | admin | `nat:write` | none | Delete an `NPTv6` rule. |
 | `GET` | `/api/v1/nat/rules` | viewer | `nat:read` | none | List NAT rules. |
 | `GET` | `/api/v1/nat/status` | viewer | `nat:read` | none | NAT status. |
 | `POST` | `/api/v1/netpol/replay` | operator | `firewall:write` | none | What proposed network policies would have refused. |
 | `GET` | `/api/v1/processes` | viewer | `config:read` | none | The processes alive on this node. |
 | `GET` | `/api/v1/processes/{pid}` | viewer | `config:read` | none | One process, by pid. |
 | `GET` | `/api/v1/qos/classifiers` | viewer | `qos:read` | none | List all `QoS` classifiers. |
-| `POST` | `/api/v1/qos/classifiers` | operator | `qos:write` | none | Create a new `QoS` classifier. |
-| `DELETE` | `/api/v1/qos/classifiers/{id}` | operator | `qos:write` | none | Delete a `QoS` classifier. |
+| `POST` | `/api/v1/qos/classifiers` | admin | `qos:write` | none | Create a new `QoS` classifier. |
+| `DELETE` | `/api/v1/qos/classifiers/{id}` | admin | `qos:write` | none | Delete a `QoS` classifier. |
 | `GET` | `/api/v1/qos/pipes` | viewer | `qos:read` | none | List all `QoS` pipes. |
-| `POST` | `/api/v1/qos/pipes` | operator | `qos:write` | none | Create a new `QoS` pipe. |
-| `DELETE` | `/api/v1/qos/pipes/{id}` | operator | `qos:write` | none | Delete a `QoS` pipe. |
+| `POST` | `/api/v1/qos/pipes` | admin | `qos:write` | none | Create a new `QoS` pipe. |
+| `DELETE` | `/api/v1/qos/pipes/{id}` | admin | `qos:write` | none | Delete a `QoS` pipe. |
 | `GET` | `/api/v1/qos/queues` | viewer | `qos:read` | none | List all `QoS` queues. |
-| `POST` | `/api/v1/qos/queues` | operator | `qos:write` | none | Create a new `QoS` queue. |
-| `DELETE` | `/api/v1/qos/queues/{id}` | operator | `qos:write` | none | Delete a `QoS` queue. |
+| `POST` | `/api/v1/qos/queues` | admin | `qos:write` | none | Create a new `QoS` queue. |
+| `DELETE` | `/api/v1/qos/queues/{id}` | admin | `qos:write` | none | Delete a `QoS` queue. |
 | `GET` | `/api/v1/qos/shaping` | viewer | `qos:read` | none | Per-workload rates, where they act, and what each cgroup achieved. |
 | `GET` | `/api/v1/qos/status` | viewer | `qos:read` | none | `QoS` service status. |
 | `GET` | `/api/v1/ratelimit/rules` | viewer | `ratelimit:read` | none | List all rate limit rules. |
-| `POST` | `/api/v1/ratelimit/rules` | operator | `ratelimit:write` | none | Create a new rate limit rule. |
-| `DELETE` | `/api/v1/ratelimit/rules/{id}` | operator | `ratelimit:write` | none | Delete a rate limit rule. |
+| `POST` | `/api/v1/ratelimit/rules` | admin | `ratelimit:write` | none | Create a new rate limit rule. |
+| `DELETE` | `/api/v1/ratelimit/rules/{id}` | admin | `ratelimit:write` | none | Delete a rate limit rule. |
 | `GET` | `/api/v1/responses` | viewer | `ips:read` | none | List active response actions. |
-| `POST` | `/api/v1/responses/manual` | operator | `ips:write` | none | Create a time-bounded response action. |
-| `DELETE` | `/api/v1/responses/{id}` | operator | `ips:write` | none | Revoke a response action early. |
+| `POST` | `/api/v1/responses/manual` | admin | `ips:write` | none | Create a time-bounded response action. |
+| `DELETE` | `/api/v1/responses/{id}` | admin | `ips:write` | none | Revoke a response action early. |
 | `GET` | `/api/v1/routing/gateways` | viewer | `routing:read` | none | List routing gateways. |
-| `POST` | `/api/v1/routing/gateways` | operator | `routing:write` | none | Add a routing gateway. |
-| `DELETE` | `/api/v1/routing/gateways/{id}` | operator | `routing:write` | none | Remove a routing gateway. |
+| `POST` | `/api/v1/routing/gateways` | admin | `routing:write` | none | Add a routing gateway. |
+| `DELETE` | `/api/v1/routing/gateways/{id}` | admin | `routing:write` | none | Remove a routing gateway. |
 | `GET` | `/api/v1/routing/routes` | viewer | `routing:read` | none | Effective default route(s) from gateway selection. |
 | `GET` | `/api/v1/routing/status` | viewer | `routing:read` | none | Routing status. |
 | `GET` | `/api/v1/services/graph` | viewer | `l7:read` | none | Who called whom over the last minutes. |
@@ -361,12 +361,12 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/tls/status` | viewer | `l7:read` | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | operator | `trace:write` | none | What the loaded programs decide for one packet. |
 | `GET` | `/api/v1/zones` | viewer | `firewall:read` | none | List security zones. |
-| `POST` | `/api/v1/zones` | operator | `firewall:write` | none | Create a security zone. |
+| `POST` | `/api/v1/zones` | admin | `firewall:write` | none | Create a security zone. |
 | `GET` | `/api/v1/zones/policies` | viewer | `firewall:read` | none | List inter-zone policies. |
-| `POST` | `/api/v1/zones/policies` | operator | `firewall:write` | none | Create an inter-zone policy. |
-| `DELETE` | `/api/v1/zones/policies/{id}` | operator | `firewall:write` | none | Remove an inter-zone policy. |
+| `POST` | `/api/v1/zones/policies` | admin | `firewall:write` | none | Create an inter-zone policy. |
+| `DELETE` | `/api/v1/zones/policies/{id}` | admin | `firewall:write` | none | Remove an inter-zone policy. |
 | `GET` | `/api/v1/zones/status` | viewer | `firewall:read` | none | Zone service status. |
-| `DELETE` | `/api/v1/zones/{id}` | operator | `firewall:write` | none | Remove a security zone. |
+| `DELETE` | `/api/v1/zones/{id}` | admin | `firewall:write` | none | Remove a security zone. |
 
 The open-source routes not listed here answer `404 Not Found`, each replaced
 by a surface of this edition: packet capture by

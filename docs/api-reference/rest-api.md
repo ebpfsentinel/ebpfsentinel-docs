@@ -2130,7 +2130,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/firewall/l7-rules
 
-Create an L7 rule.
+Create an L7 rule. Requires `admin` role: an L7 rule carries no namespace and
+applies to every flow the node parses.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/firewall/l7-rules \
@@ -2140,7 +2141,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 
 #### DELETE /api/v1/firewall/l7-rules/{id}
 
-Delete an L7 rule.
+Delete an L7 rule. Requires `admin` role.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/firewall/l7-rules/block-admin
@@ -3882,8 +3883,8 @@ reads one table for the write roles, and this column is checked against it.
 | POST | `/api/v1/netpol/replay` | Yes (write) | What proposed NetworkPolicy manifests would have refused |
 | POST | `/api/v1/trace` | Yes (write) | What the loaded programs decide for one crafted packet |
 | GET | `/api/v1/firewall/l7-rules` | Yes | List L7 rules |
-| POST | `/api/v1/firewall/l7-rules` | Yes (write) | Create L7 rule |
-| DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes (write) | Delete L7 rule |
+| POST | `/api/v1/firewall/l7-rules` | Yes (admin) | Create L7 rule |
+| DELETE | `/api/v1/firewall/l7-rules/{id}` | Yes (admin) | Delete L7 rule |
 | GET | `/api/v1/ips/rules` | Yes | List IPS rules |
 | PATCH | `/api/v1/ips/rules/{id}` | Yes (write) | Update IPS rule mode |
 | GET | `/api/v1/ips/blacklist` | Yes | List blacklisted IPs |

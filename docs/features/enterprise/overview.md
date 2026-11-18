@@ -125,17 +125,17 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/audit/logs` | `audit logs` | viewer | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | `audit history` | viewer | none | Query rule version history. |
 | `GET` | `/api/v1/config` | `config show` | viewer | none | Return the current (sanitized) agent configuration. |
-| `POST` | `/api/v1/config/reload` | `config reload` | operator | none | Trigger a configuration reload via the API. |
-| `PUT` | `/api/v1/config/{section}` | `config set` | operator | none | Write one section of the agent configuration file and reload. |
+| `POST` | `/api/v1/config/reload` | `config reload` | admin | none | Trigger a configuration reload via the API. |
+| `PUT` | `/api/v1/config/{section}` | `config set` | admin | none | Write one section of the agent configuration file and reload. |
 | `GET` | `/api/v1/conntrack/connections` | `conntrack list` | viewer | none | List tracked connections. |
 | `GET` | `/api/v1/conntrack/events` | `conntrack watch` | viewer | none | Server-Sent Events stream of connection lifecycle events (new, update, destroy). |
-| `POST` | `/api/v1/conntrack/flush` | `conntrack flush` | operator | none | Flush all tracked connections. |
+| `POST` | `/api/v1/conntrack/flush` | `conntrack flush` | admin | none | Flush all tracked connections. |
 | `GET` | `/api/v1/conntrack/status` | `conntrack status` | viewer | none | Connection tracking status. |
 | `GET` | `/api/v1/ddos/attacks` | `ddos attacks` | viewer | none | List active `DDoS` attacks. |
 | `GET` | `/api/v1/ddos/attacks/history` | `ddos history` | viewer | none | Attack history. |
 | `GET` | `/api/v1/ddos/policies` | `ddos policies` | viewer | none | List `DDoS` policies. |
-| `POST` | `/api/v1/ddos/policies` | `ddos add` | operator | none | Create a `DDoS` policy. |
-| `DELETE` | `/api/v1/ddos/policies/{id}` | `ddos delete` | operator | none | Delete a `DDoS` policy. |
+| `POST` | `/api/v1/ddos/policies` | `ddos add` | admin | none | Create a `DDoS` policy. |
+| `DELETE` | `/api/v1/ddos/policies/{id}` | `ddos delete` | admin | none | Delete a `DDoS` policy. |
 | `GET` | `/api/v1/ddos/status` | `ddos status` | viewer | none | `DDoS` protection status. |
 | `GET` | `/api/v1/dlp/patterns` | `dlp patterns` | viewer | none | List DLP patterns. |
 | `GET` | `/api/v1/dlp/scope` | `dlp scope` | viewer | none | Which workloads DLP is reading. |
@@ -156,8 +156,8 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/ebpf/status` | `ebpf status` | viewer | none | Return the load status of each eBPF program. |
 | `GET` | `/api/v1/fingerprints/summary` | `fingerprints summary` | viewer | none | Fingerprint cache status. |
 | `GET` | `/api/v1/firewall/l7-rules` | `l7 list` | viewer | none | List all L7 rules. |
-| `POST` | `/api/v1/firewall/l7-rules` | `l7 add` | operator | none | Create a new L7 rule. |
-| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | `l7 delete` | operator | none | Delete an L7 rule by ID. |
+| `POST` | `/api/v1/firewall/l7-rules` | `l7 add` | admin | none | Create a new L7 rule. |
+| `DELETE` | `/api/v1/firewall/l7-rules/{id}` | `l7 delete` | admin | none | Delete an L7 rule by ID. |
 | `GET` | `/api/v1/firewall/rules` | `firewall list` | viewer | none | List all active rules. |
 | `POST` | `/api/v1/firewall/rules` | `firewall add` | operator | none | Create a new rule. |
 | `DELETE` | `/api/v1/firewall/rules/{id}` | `firewall delete` | operator | none | Delete a rule by ID. |
@@ -172,20 +172,20 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/ids/status` | `ids status` | viewer | none | IDS service status. |
 | `GET` | `/api/v1/ids/suricata/report` | `ids suricata` | viewer | none | What the imported Suricata rulesets compiled to. |
 | `GET` | `/api/v1/ips/blacklist` | `ips blacklist` | viewer | none | List current IPS blacklist entries. |
-| `POST` | `/api/v1/ips/blacklist` | `ips blacklist add` | operator | none | Manually add an IP to the IPS blacklist. |
-| `DELETE` | `/api/v1/ips/blacklist/{ip}` | `ips blacklist delete` | operator | none | Remove an IP from the IPS blacklist. |
+| `POST` | `/api/v1/ips/blacklist` | `ips blacklist add` | admin | none | Manually add an IP to the IPS blacklist. |
+| `DELETE` | `/api/v1/ips/blacklist/{ip}` | `ips blacklist delete` | admin | none | Remove an IP from the IPS blacklist. |
 | `GET` | `/api/v1/ips/domain-blocks` | `ips domain-blocks` | viewer | none | List IPS blacklist entries originating from domain mechanisms. |
 | `GET` | `/api/v1/ips/rules` | `ips list` | viewer | none | List all IPS rules. |
 | `PATCH` | `/api/v1/ips/rules/{id}` | `ips set-mode` | operator | none | Toggle a rule's mode. |
 | `GET` | `/api/v1/lb/services` | `lb services` | viewer | none | List LB services. |
-| `POST` | `/api/v1/lb/services` | `lb add` | operator | none | Create an LB service. |
+| `POST` | `/api/v1/lb/services` | `lb add` | admin | none | Create an LB service. |
 | `GET` | `/api/v1/lb/services/{id}` | `lb service` | viewer | none | Get LB service detail. |
-| `DELETE` | `/api/v1/lb/services/{id}` | `lb delete` | operator | none | Delete an LB service. |
+| `DELETE` | `/api/v1/lb/services/{id}` | `lb delete` | admin | none | Delete an LB service. |
 | `GET` | `/api/v1/lb/status` | `lb status` | viewer | none | Load balancer status. |
 | `GET` | `/api/v1/lb/vips` | `lb vips` | viewer | none | VIP announcer status. |
-| `POST` | `/api/v1/lb/vips` | `lb announce` | operator | none | Apply a new VIP announce configuration. |
+| `POST` | `/api/v1/lb/vips` | `lb announce` | admin | none | Apply a new VIP announce configuration. |
 | `GET` | `/api/v1/lb/vips/bgp` | `lb bgp` | viewer | none | BGP sessions announcing the VIPs. |
-| `POST` | `/api/v1/lb/vips/grant` | `lb grant` | operator | none | Grant or release the speaker role of an `elected` node. |
+| `POST` | `/api/v1/lb/vips/grant` | `lb grant` | admin | none | Grant or release the speaker role of an `elected` node. |
 | `GET` | `/api/v1/learning/sessions` | `learning list` | viewer | none | Every learning window this node remembers. |
 | `POST` | `/api/v1/learning/sessions` | `learning start` | operator | none | Open a learning window. |
 | `GET` | `/api/v1/learning/sessions/{id}` | `learning status` | viewer | none | One learning window, as it stands. |
@@ -195,33 +195,33 @@ as a changed configuration file, datapath included. Each is described in
 | `POST` | `/api/v1/learning/sessions/{id}/stop` | `learning stop` | operator | none | Close a learning window early. |
 | `GET` | `/api/v1/mitre/coverage` | `mitre coverage` | viewer | none | MITRE ATT&CK coverage matrix. |
 | `GET` | `/api/v1/nat/nptv6` | `nat nptv6 list` | viewer | none | List `NPTv6` rules. |
-| `POST` | `/api/v1/nat/nptv6` | `nat nptv6 create` | operator | none | Create an `NPTv6` rule. |
-| `DELETE` | `/api/v1/nat/nptv6/{id}` | `nat nptv6 delete` | operator | none | Delete an `NPTv6` rule. |
+| `POST` | `/api/v1/nat/nptv6` | `nat nptv6 create` | admin | none | Create an `NPTv6` rule. |
+| `DELETE` | `/api/v1/nat/nptv6/{id}` | `nat nptv6 delete` | admin | none | Delete an `NPTv6` rule. |
 | `GET` | `/api/v1/nat/rules` | `nat rules` | viewer | none | List NAT rules. |
 | `GET` | `/api/v1/nat/status` | `nat status` | viewer | none | NAT status. |
 | `POST` | `/api/v1/netpol/replay` | `netpol replay` | operator | none | What proposed network policies would have refused. |
 | `GET` | `/api/v1/processes` | `processes list` | viewer | none | The processes alive on this node. |
 | `GET` | `/api/v1/processes/{pid}` | `processes show` | viewer | none | One process, by pid. |
 | `GET` | `/api/v1/qos/classifiers` | `qos classifiers` | viewer | none | List all `QoS` classifiers. |
-| `POST` | `/api/v1/qos/classifiers` | `qos add-classifier` | operator | none | Create a new `QoS` classifier. |
-| `DELETE` | `/api/v1/qos/classifiers/{id}` | `qos delete-classifier` | operator | none | Delete a `QoS` classifier. |
+| `POST` | `/api/v1/qos/classifiers` | `qos add-classifier` | admin | none | Create a new `QoS` classifier. |
+| `DELETE` | `/api/v1/qos/classifiers/{id}` | `qos delete-classifier` | admin | none | Delete a `QoS` classifier. |
 | `GET` | `/api/v1/qos/pipes` | `qos pipes` | viewer | none | List all `QoS` pipes. |
-| `POST` | `/api/v1/qos/pipes` | `qos add-pipe` | operator | none | Create a new `QoS` pipe. |
-| `DELETE` | `/api/v1/qos/pipes/{id}` | `qos delete-pipe` | operator | none | Delete a `QoS` pipe. |
+| `POST` | `/api/v1/qos/pipes` | `qos add-pipe` | admin | none | Create a new `QoS` pipe. |
+| `DELETE` | `/api/v1/qos/pipes/{id}` | `qos delete-pipe` | admin | none | Delete a `QoS` pipe. |
 | `GET` | `/api/v1/qos/queues` | `qos queues` | viewer | none | List all `QoS` queues. |
-| `POST` | `/api/v1/qos/queues` | `qos add-queue` | operator | none | Create a new `QoS` queue. |
-| `DELETE` | `/api/v1/qos/queues/{id}` | `qos delete-queue` | operator | none | Delete a `QoS` queue. |
+| `POST` | `/api/v1/qos/queues` | `qos add-queue` | admin | none | Create a new `QoS` queue. |
+| `DELETE` | `/api/v1/qos/queues/{id}` | `qos delete-queue` | admin | none | Delete a `QoS` queue. |
 | `GET` | `/api/v1/qos/shaping` | `qos shaping` | viewer | none | Per-workload rates, where they act, and what each cgroup achieved. |
 | `GET` | `/api/v1/qos/status` | `qos status` | viewer | none | `QoS` service status. |
 | `GET` | `/api/v1/ratelimit/rules` | `ratelimit list` | viewer | none | List all rate limit rules. |
-| `POST` | `/api/v1/ratelimit/rules` | `ratelimit add` | operator | none | Create a new rate limit rule. |
-| `DELETE` | `/api/v1/ratelimit/rules/{id}` | `ratelimit delete` | operator | none | Delete a rate limit rule. |
+| `POST` | `/api/v1/ratelimit/rules` | `ratelimit add` | admin | none | Create a new rate limit rule. |
+| `DELETE` | `/api/v1/ratelimit/rules/{id}` | `ratelimit delete` | admin | none | Delete a rate limit rule. |
 | `GET` | `/api/v1/responses` | `responses list` | viewer | none | List active response actions. |
-| `POST` | `/api/v1/responses/manual` | `responses create` | operator | none | Create a time-bounded response action. |
-| `DELETE` | `/api/v1/responses/{id}` | `responses revoke` | operator | none | Revoke a response action early. |
+| `POST` | `/api/v1/responses/manual` | `responses create` | admin | none | Create a time-bounded response action. |
+| `DELETE` | `/api/v1/responses/{id}` | `responses revoke` | admin | none | Revoke a response action early. |
 | `GET` | `/api/v1/routing/gateways` | `routing gateways` | viewer | none | List routing gateways. |
-| `POST` | `/api/v1/routing/gateways` | `routing add-gateway` | operator | none | Add a routing gateway. |
-| `DELETE` | `/api/v1/routing/gateways/{id}` | `routing delete-gateway` | operator | none | Remove a routing gateway. |
+| `POST` | `/api/v1/routing/gateways` | `routing add-gateway` | admin | none | Add a routing gateway. |
+| `DELETE` | `/api/v1/routing/gateways/{id}` | `routing delete-gateway` | admin | none | Remove a routing gateway. |
 | `GET` | `/api/v1/routing/routes` | `routing routes` | viewer | none | Effective default route(s) from gateway selection. |
 | `GET` | `/api/v1/routing/status` | `routing status` | viewer | none | Routing status. |
 | `GET` | `/api/v1/services/graph` | `flows services` | viewer | none | Who called whom over the last minutes. |
@@ -240,12 +240,12 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/tls/status` | `tls status` | viewer | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | `trace` | operator | none | What the loaded programs decide for one packet. |
 | `GET` | `/api/v1/zones` | `zones list` | viewer | none | List security zones. |
-| `POST` | `/api/v1/zones` | `zones add` | operator | none | Create a security zone. |
+| `POST` | `/api/v1/zones` | `zones add` | admin | none | Create a security zone. |
 | `GET` | `/api/v1/zones/policies` | `zones policies` | viewer | none | List inter-zone policies. |
-| `POST` | `/api/v1/zones/policies` | `zones add-policy` | operator | none | Create an inter-zone policy. |
-| `DELETE` | `/api/v1/zones/policies/{id}` | `zones delete-policy` | operator | none | Remove an inter-zone policy. |
+| `POST` | `/api/v1/zones/policies` | `zones add-policy` | admin | none | Create an inter-zone policy. |
+| `DELETE` | `/api/v1/zones/policies/{id}` | `zones delete-policy` | admin | none | Remove an inter-zone policy. |
 | `GET` | `/api/v1/zones/status` | `zones status` | viewer | none | Zone service status. |
-| `DELETE` | `/api/v1/zones/{id}` | `zones delete` | operator | none | Remove a security zone. |
+| `DELETE` | `/api/v1/zones/{id}` | `zones delete` | admin | none | Remove a security zone. |
 
 ## Enterprise Architecture
 
