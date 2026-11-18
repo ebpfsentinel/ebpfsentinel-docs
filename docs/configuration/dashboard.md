@@ -162,8 +162,12 @@ listed resources and nothing else, as its own service account, so that
 account needs `get` and `patch` on exactly those. A GitOps tool reconciling
 the same resources must ignore `spec.image.tag`, `spec.image.canary` and
 `spec.stoppedNodes`, or it reverts every step and gives back every stopped
-node. The same list is where the console finds the resource to hand a stop
-of an operator-run agent to (see [`tamper`](#tamper-optional)).
+node. With the operator's tamper protection on, `spec.image` of a resource
+is changed only by the service accounts named in the operator chart's
+`tamperProtection.allowedServiceAccounts`, so the console's account belongs
+there or every step is refused. The same list is where the console finds the
+resource to hand a stop of an operator-run agent to (see
+[`tamper`](#tamper-optional)).
 
 ### `clusters` (optional)
 

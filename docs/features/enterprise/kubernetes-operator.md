@@ -264,7 +264,8 @@ With `tamperProtection.enabled` and a licence carrying `tamper-protection`,
 the operator writes a `ValidatingAdmissionPolicy` that refuses the ways of
 stopping the agents a cluster administrator has without touching a node:
 deleting an agent `DaemonSet`, its configuration Secret, its `ServiceAccount`
-or its `EbpfSentinelAgent`, narrowing where it runs, scaling the operator to
+or its `EbpfSentinelAgent`, narrowing where it runs, changing the image,
+placement or features of the `EbpfSentinelAgent`, scaling the operator to
 zero, deleting the operator or the namespaces holding them. Only the service
 accounts named in `tamperProtection.allowedServiceAccounts` get through. A
 `DaemonSet` that disappears anyway is written again and reported, and a node

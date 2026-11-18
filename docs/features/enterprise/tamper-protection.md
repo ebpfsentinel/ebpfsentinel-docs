@@ -217,6 +217,8 @@ controller):
 | Delete | the agent `DaemonSet`, its configuration Secret and `ServiceAccount`, the `EbpfSentinelAgent`, the operator `Deployment` and licence Secret, the operator's namespace and every namespace holding an agent |
 | Scale to zero | the operator `Deployment`, through `kubectl scale` or an edit |
 | Edit of `nodeSelector`, `tolerations` or `affinity` | the agent `DaemonSet` and the operator `Deployment` |
+| Edit of `nodeSelector`, `tolerations`, `affinity`, `image`, `wardenImage` or `features` | the `EbpfSentinelAgent`, which the operator rolls out to every node it covers |
+| Edit of `stoppedNodes` | the `EbpfSentinelAgent` |
 | Edit | the configuration Secret and `ServiceAccount` of an agent, the licence Secret |
 | Removal of the `ebpfsentinel.io/tamper-protected` label | any object carrying it |
 
@@ -255,7 +257,9 @@ What it does not cover:
   operator writes the `DaemonSet` again and says so.
 - An edit of the image or the command of the agent `DaemonSet` is not refused;
   the operator writes the `DaemonSet` back to what the resource asks on its
-  next pass.
+  next pass. The resource itself is held: its image, placement and features
+  change only through a named account, so a console that upgrades the agents
+  (`spec.image`) needs its service account in `allowedServiceAccounts`.
 - Uninstalling, or turning the protection off again, is done as one of the
   named accounts ([Uninstalling](kubernetes-operator.md#uninstalling)).
 
