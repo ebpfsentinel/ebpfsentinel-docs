@@ -507,6 +507,16 @@ Every ML anomaly alert includes MITRE ATT&CK technique mapping:
 | Payload size anomaly | T1074 Data Staged | Collection |
 | Connection count spike | T1110 Brute Force | Credential Access |
 
+### Where an anomaly alert goes
+
+An anomaly alert, fused or from Random Cut Forest, is an alert like any other. Its component is `ml-anomaly` and its rule id is `ml-` followed by the anomaly type. It is:
+
+- listed by `GET /api/v1/alerts?component=ml-anomaly` beside the datapath's alerts, triaged and marked false positive the same way, and kept as long as they are;
+- published on the agent's security event bus, so the SIEM connectors export it and the tenant alert feed lists it. The alert names no source address, so automated response and auto-capture, which act on the address an alert names, have nothing to act on: neither accepts `ml-anomaly` in `components` (see [Auto-Response](../../configuration/auto-response.md#what-can-be-contained));
+- kept in the ML service's own listing, `GET /api/v1/enterprise/ml/alerts`, with the MITRE mapping above.
+
+Where the datapath alert store could not be opened, the alert still reaches the bus and the ML listing, and is absent from `/api/v1/alerts` only.
+
 ---
 
 ## Configuration
