@@ -5,6 +5,9 @@ The `interface_groups` section defines named groups of network interfaces for mu
 ## Reference
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2, eth3]
+
 interface_groups:
   lan:
     interfaces: [eth0, eth1]
@@ -54,6 +57,9 @@ qos:
 ## Example
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2, eth3, eth4, veth0]
+
 interface_groups:
   lan:
     interfaces: [eth0, eth1]

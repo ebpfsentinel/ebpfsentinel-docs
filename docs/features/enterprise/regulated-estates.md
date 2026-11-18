@@ -43,7 +43,7 @@ A tenant states its controls in the console configuration: a packet described
 by its addresses, port and protocol, and the verdict expected of it
 (`stopped` or `passes`), on every node or on named ones.
 
-```yaml
+```yaml title="dashboard.yaml"
 tenants:
   - id: acme
     controls:

@@ -122,6 +122,7 @@ alerting:
   routes:
     - name: otlp-all
       destination: otlp
+      min_severity: low
 ```
 
 Delivery is **fire-and-forget** (batched by the OpenTelemetry SDK, no retry and

@@ -71,11 +71,12 @@ ids:
 
 ips:
   mode: block
-  blacklist_ttl: 86400
+  max_blacklist_duration_secs: 86400
   whitelist:
     - "192.168.0.0/16"
   rules:
     - id: pci-block-sqli
+      dst_port: 80
       pattern: "(?i)(union\\s+select|drop\\s+table)"
       severity: critical
       mode: block
@@ -98,7 +99,8 @@ threatintel:
       default_action: block
 
 dns:
-  cache_size: 100000
+  cache:
+    max_entries: 100000
   reputation:
     enabled: true
     auto_block_threshold: 0.9

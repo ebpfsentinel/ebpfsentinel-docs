@@ -9,6 +9,10 @@ which can be true of some event.
 ## Configuration
 
 ```yaml
+response:
+  kill_process:
+    enabled: true          # what `kill_process` in `then` needs
+
 host_rules:
   rules:
     - id: shell-under-web-server

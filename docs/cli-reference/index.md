@@ -1189,7 +1189,7 @@ ebpfsentinel-agent zones list
 
 # Add a zone
 ebpfsentinel-agent zones add --json '{
-  "id": "lan",
+  "name": "lan",
   "interfaces": ["eth1", "eth2"],
   "default_policy": "allow"
 }'
@@ -1202,10 +1202,9 @@ ebpfsentinel-agent zones policies
 
 # Add an inter-zone policy
 ebpfsentinel-agent zones add-policy --json '{
-  "from": "lan",
-  "to": "wan",
-  "policy": "allow",
-  "action": "accept"
+  "source_zone": "lan",
+  "dest_zone": "wan",
+  "action": "allow"
 }'
 
 # Delete an inter-zone policy
@@ -1226,12 +1225,10 @@ ebpfsentinel-agent routing gateways
 
 # Add a gateway
 ebpfsentinel-agent routing add-gateway --json '{
-  "id": "wan1",
   "name": "primary",
+  "ip": "192.0.2.1",
   "interface": "eth0",
-  "gateway_ip": "192.0.2.1",
-  "priority": 10,
-  "weight": 100
+  "weight": 10
 }'
 
 # Delete a gateway

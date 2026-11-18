@@ -219,7 +219,7 @@ ids:
       description: "Redis reached on the cache pods"
       workload:
         pods:
-          matchLabels:
+          match_labels:
             app: cache
 ```
 

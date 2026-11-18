@@ -87,11 +87,13 @@ Reference aliases by name in firewall and NAT rules:
 firewall:
   rules:
     - id: allow-internal-web
+      priority: 10
       action: allow
       src_alias: internal
       dst_port_alias: web_ports
 
     - id: block-scanners
+      priority: 20
       action: deny
       src_alias: external_blocklist
 

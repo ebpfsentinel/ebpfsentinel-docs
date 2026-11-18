@@ -49,8 +49,8 @@ auth:
     issuer: "https://auth.example.com"
     audience: "ebpfsentinel"
     public_key_path: /etc/ebpfsentinel/jwt.pub
-  oidc:
-    jwks_url: "https://auth.example.com/.well-known/jwks.json"
+  # oidc:                      # instead of jwt: the two are refused together
+  #   jwks_url: "https://auth.example.com/.well-known/jwks.json"
 ```
 
 ## Fields

@@ -108,9 +108,10 @@ Enable IPS for automatic blocking and threat intelligence:
 ```yaml
 ips:
   mode: block
-  blacklist_ttl: 86400
+  max_blacklist_duration_secs: 86400
   rules:
     - id: pci-auto-block-sqli
+      dst_port: 80                 # the port whose payload is captured
       pattern: "(?i)(union\\s+select|drop\\s+table)"
       severity: critical
       mode: block

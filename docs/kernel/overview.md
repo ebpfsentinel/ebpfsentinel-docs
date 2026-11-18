@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel ships 22 eBPF programs that run in the Linux kernel. Fourteen of them inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - five run on what a task does rather than on what it sends, one reads TLS plaintext inside the process, one steers the connections of selected workloads to the enterprise TLS proxy, and the twenty-second, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 29 eBPF programs that run in the Linux kernel. Fourteen of them (six XDP, eight TC) inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - four cgroup programs act on the sockets of a task (attribution, the workload firewall, the redirect to the enterprise TLS proxy, Service cluster address resolution), four raw tracepoints read what the kernel does (process exec and exit, signals, the reasons it drops a packet, TCP health per edge), four BPF LSM programs refuse what a task attempts, two uprobes read inside the process (TLS plaintext, calls into the system crypto library), and the twenty-ninth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -111,7 +111,7 @@ Six eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-eg
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:
 
 ```bash
-cargo xtask ebpf-build    # Builds all 16 programs
+cargo xtask ebpf-build    # Builds all 29 programs
 ```
 
 Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both kernel programs and the userspace agent.

@@ -33,28 +33,29 @@ threatintel:
       refresh_interval_secs: 1800
     - id: custom-iocs
       name: "Internal IOC Feed"
-      url: "https://threat-feeds.internal/iocs.json"
+      url: "https://iocs.example.com/iocs.json"
       format: json
       ip_field: ioc
       category_field: type
       refresh_interval_secs: 900
 
 dns:
-  cache_size: 200000
+  cache:
+    max_entries: 200000
   blocklist:
-    - domain: "*.tor2web.org"
-      action: block
-    - domain: "*.onion.to"
-      action: block
-  feeds:
-    - name: abuse-ch-domains
-      url: "https://urlhaus.abuse.ch/downloads/hostfile/"
-      format: plaintext
-      refresh_interval_secs: 3600
+    domains:
+      - "*.tor2web.org"
+      - "*.onion.to"
+    action: block
+    feeds:
+      - name: abuse-ch-domains
+        url: "https://urlhaus.abuse.ch/downloads/hostfile/"
+        format: hosts
+        refresh_interval_secs: 3600
   reputation:
     enabled: true
     auto_block_threshold: 0.85       # Auto-block high-score domains
-    decay_rate: 0.005                # Slow decay for persistent threats
+    decay_half_life_hours: 72        # Slow decay for persistent threats
 
 ids:
   mode: alert

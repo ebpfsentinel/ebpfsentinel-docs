@@ -45,26 +45,31 @@ Configure DLP to detect PHI patterns:
 
 ```yaml
 dlp:
-  enabled: true
-  mode: alert
-  patterns:                        # Enterprise: custom PHI patterns
-    - id: hipaa-mrn
-      name: "Medical Record Number"
-      regex: "\\b(MRN|mrn)[:\\s]*\\d{6,10}\\b"
-      severity: critical
-      data_type: phi
-      description: "Medical Record Number"
-    - id: hipaa-ssn
-      name: "Social Security Number"
-      regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-      severity: critical
-      data_type: phi
-      description: "Social Security Number (PHI)"
+  enabled: true                    # the built-in patterns
 
-tls:
-  enabled: true
-  cert_path: /etc/ebpfsentinel/server.crt
-  key_path: /etc/ebpfsentinel/server.key
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: alert
+    custom_patterns:
+      - id: hipaa-mrn
+        name: "Medical Record Number"
+        regex: "\\b(MRN|mrn)[:\\s]*\\d{6,10}\\b"
+        severity: critical
+        data_type: phi
+        description: "Medical Record Number"
+      - id: hipaa-ssn
+        name: "Social Security Number"
+        regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        severity: critical
+        data_type: phi
+        description: "Social Security Number (PHI)"
+
+agent:
+  tls:
+    enabled: true
+    cert_path: /etc/ebpfsentinel/server.crt
+    key_path: /etc/ebpfsentinel/server.key
 ```
 
 Transmission security hardening:

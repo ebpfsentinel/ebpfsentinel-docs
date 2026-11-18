@@ -17,6 +17,7 @@
     "check:ebpf-metric-slots": "node scripts/check-ebpf-metric-slots.mjs",
     "check:feature-counts": "node scripts/check-feature-counts.mjs",
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
+    "check:request-bodies": "node scripts/check-request-bodies.mjs",
     "check:vendored-openapi": "node scripts/check-vendored-openapi.mjs",
     "check:media-copy": "node scripts/check-media-copy.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",

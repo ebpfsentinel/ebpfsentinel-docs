@@ -46,15 +46,15 @@ Coverage that wide is a choice: on a shared node, set [`dlp.scope`](#scope) to
 ```yaml
 dlp:
   enabled: true              # enable/disable the DLP module
-  mode: alert                # alert or block (Professional and above)
-  patterns:                  # custom patterns (Professional and above)
-    - id: "pattern-id"
-      name: "Pattern Name"
-      regex: "regex-pattern"
-      severity: critical
-      data_type: pci
-      mode: block            # per-pattern override (Professional and above)
-      description: "Description"
+  mode: alert                # alert only; block is enterprise.advanced_dlp.mode
+  patterns:                  # re-tunes a built-in by its id; any other id is
+                             # an enterprise.advanced_dlp.custom_patterns entry
+    - id: "dlp-pii-email"
+      name: "Email Address"
+      regex: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
+      severity: medium
+      data_type: pii
+      description: "Email address"
       enabled: true
   scope:
     mode: all                # all or workloads; `all` reads every task on the node
@@ -267,53 +267,32 @@ ebpfsentinel-agent dlp scope
 
 ```yaml
 dlp:
-  mode: block
-  patterns:
-    - id: dlp-pci-visa
-      name: Visa Card Number
-      regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      data_type: pci
-      description: "Visa card number"
-    - id: dlp-pci-mastercard
-      name: Mastercard Number
-      regex: "\\b5[1-5][0-9]{14}\\b"
-      severity: critical
-      data_type: pci
-      description: "Mastercard number"
-    - id: dlp-pci-amex
-      name: Amex Card Number
-      regex: "\\b3[47][0-9]{13}\\b"
-      severity: critical
-      data_type: pci
-      description: "American Express number"
+  enabled: true              # the built-in dlp-pci-* patterns, Visa, Mastercard, Amex among them
+
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: block              # a match on any pattern blocks the flow
 ```
 
 ### Professional and above: Mixed mode with per-pattern override
 
 ```yaml
 dlp:
-  mode: alert
-  patterns:
-    - id: dlp-pci-visa
-      name: Visa Card Number
-      regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      data_type: pci
-      mode: block              # block credit cards even though global is alert
-    - id: dlp-pii-email
-      name: Email Address
-      regex: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
-      severity: medium
-      data_type: pii
-      # inherits global alert mode
-    - id: internal-project-code
-      name: Internal Project Code
-      regex: "PRJ-[A-Z]{3}-\\d{6}"
-      severity: high
-      data_type: custom
-      mode: block
-      description: "Internal project identifier leak"
+  enabled: true                # the built-in patterns, under the global mode
+
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: alert                # global mode
+    custom_patterns:
+      - id: internal-project-code
+        name: Internal Project Code
+        regex: "PRJ-[A-Z]{3}-\\d{6}"
+        severity: high
+        data_type: custom
+        mode: block            # blocks even though the global mode is alert
+        description: "Internal project identifier leak"
 ```
 
 ## Validation Rules

@@ -40,8 +40,7 @@ firewall:
     - id: gdpr-block-non-eu
       priority: 10
       action: deny
-      src_ip: "0.0.0.0/0"        # Block by default
-      description: "Block non-EU data transfers"
+      src_ip: "0.0.0.0/0"        # Block non-EU data transfers by default
 
 dlp:
   enabled: true    # OSS built-in patterns detect PII automatically

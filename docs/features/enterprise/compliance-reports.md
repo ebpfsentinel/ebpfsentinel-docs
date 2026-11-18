@@ -406,11 +406,12 @@ enterprise:
 | `retention_days` | u32 | `90` | Days to retain generated reports |
 | `output_dir` | string | - | Optional directory for disk persistence |
 | `schedule` | object | - | Optional automated generation config |
-| `schedule.frequency` | string | `daily` | `daily`, `weekly` or `monthly` |
+| `schedule.frequency` | string | required | `daily`, `weekly` or `monthly`; a schedule without one is refused |
 | `schedule.frameworks` | list | all 8 | Frameworks generated on each tick (empty means all eight) |
 | `schedule.email_recipients` | list | - | Addresses emailed each scheduled report (requires `schedule.smtp`) |
 | `schedule.smtp` | object | - | SMTP server for email delivery (`host`, `port`, `from`, `username?`, `password?`, `starttls`) |
 | `schedule.webhook_url` | string | - | URL POSTed a JSON report summary on each scheduled run |
+| `schedule.marker_path` | string | `/var/lib/ebpfsentinel/compliance-schedule.json` | File keeping the instant the schedule last ran, so the period runs across restarts rather than starting again at every boot |
 
 ## REST API
 

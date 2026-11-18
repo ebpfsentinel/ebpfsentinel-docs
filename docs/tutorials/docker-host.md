@@ -165,6 +165,10 @@ page says what the document cannot know.
 the resolver on the `homelab` gateway and give `web` its list:
 
 ```yaml
+container:
+  docker:
+    enabled: true          # on since step 2: a container is known by its bridge address
+
 dns:
   allowlist:
     enabled: true
@@ -182,6 +186,8 @@ cannot be bound. Then point the stack at it, by adding
 to each service:
 
 ```yaml
+services:
+  web:
     dns: [172.31.7.1]
 ```
 

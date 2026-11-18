@@ -779,7 +779,7 @@ refused.
 | `advanced_dlp.enabled` | bool | `true` | Enable advanced DLP |
 | `advanced_dlp.mode` | string | `alert` | Global mode: `alert` or `block` |
 | `advanced_dlp.custom_patterns` | list | `[]` | Custom pattern definitions |
-| `advanced_dlp.tls_inspection.enabled` | bool | `false` | Enable TLS deep inspection |
+| `advanced_dlp.tls_inspection.enabled` | bool | required | Enable TLS deep inspection. The block has no default: written at all, it says whether inspection runs |
 | `advanced_dlp.tls_inspection.ca_cert` | string | required | CA certificate PEM path |
 | `advanced_dlp.tls_inspection.ca_key` | string | required | CA private key PEM path |
 | `advanced_dlp.tls_inspection.bypass_domains` | list | `[]` | Domains to skip (exact or `*.suffix`) |

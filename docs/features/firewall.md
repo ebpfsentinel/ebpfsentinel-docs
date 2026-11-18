@@ -190,6 +190,7 @@ firewall:
 
   rules:
     - id: allow-trusted-web
+      priority: 10
       action: allow
       src_alias: trusted-networks
       dst_port_alias: web-ports
@@ -209,15 +210,15 @@ binding table and its limits.
 Rules can be activated/deactivated based on time schedules:
 
 ```yaml
-schedules:
-  business_hours:
-    entries:
-      - days: [mon, tue, wed, thu, fri]
-        time: "08:00-18:00"
-
 firewall:
+  schedules:
+    business_hours:
+      entries:
+        - days: [mon, tue, wed, thu, fri]
+          time: "08:00-18:00"
   rules:
     - id: guest-wifi
+      priority: 60
       action: allow
       schedule: business_hours
 ```
@@ -252,6 +253,9 @@ whatever priorities either picks: see
 Rules can be scoped to specific interface groups using the `interfaces` field. Interface groups are defined at the top level and assign named groups to physical interfaces. Rules reference group names to control where they apply.
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2, eth3]
+
 interface_groups:
   lan:
     interfaces: [eth0, eth1]
@@ -263,14 +267,17 @@ interface_groups:
 firewall:
   rules:
     - id: block-external-ssh
+      priority: 10
       action: deny
       protocol: tcp
       dst_port: 22
       interfaces: [wan]           # Only on WAN interfaces
     - id: allow-internal
+      priority: 20
       action: allow
       interfaces: ["!wan"]        # All interfaces EXCEPT WAN (inversion)
     - id: global-dns
+      priority: 30
       action: allow
       protocol: udp
       dst_port: 53                # No interfaces field = floating (all interfaces)

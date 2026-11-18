@@ -20,7 +20,7 @@ dns:
     grace_period_secs: 300            # Kept enforced this long past the DNS TTL
     feeds:                            # External blocklist feeds
       - name: "feed-name"
-        url: "https://..."
+        url: "https://feeds.example.com/blocklist.txt"
         format: plaintext             # plaintext or hosts
         refresh_interval_secs: 3600
   reputation:

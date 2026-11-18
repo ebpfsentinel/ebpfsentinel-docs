@@ -268,6 +268,10 @@ enterprise:
       - 10.0.0.2:9443               # what this node calls its peer
     listen_addr: "0.0.0.0:9443"     # what this node binds
     advertised_addr: "10.0.0.1:9443" # what its peers reach this node on
+    tls:                            # mutual TLS on the peer link
+      ca_cert_path: /etc/ebpfsentinel/ha-tls/ca.crt
+      cert_path: /etc/ebpfsentinel/ha-tls/tls.crt
+      key_path: /etc/ebpfsentinel/ha-tls/tls.key
     interface_assignments:          # a list, one entry per node
       - address: "10.0.0.1:9443"
         interfaces: [eth0, eth1]
@@ -478,6 +482,11 @@ of installing one and would otherwise never open again.
 ```yaml
 enterprise:
   ha:
+    peers: [10.0.0.2:9443]
+    tls:                            # mutual TLS on the peer link
+      ca_cert_path: /etc/ebpfsentinel/ha-tls/ca.crt
+      cert_path: /etc/ebpfsentinel/ha-tls/tls.crt
+      key_path: /etc/ebpfsentinel/ha-tls/tls.key
     degradation_policy: continue   # continue | read-only | fail-closed
 ```
 
@@ -549,6 +558,10 @@ enterprise:
     listen_addr: 0.0.0.0:9443               # what this node binds
     advertised_addr: "10.0.0.1:9443"        # what peers reach it on (active-active mode only)
     data_dir: /var/lib/ebpfsentinel/ha
+    tls:                            # mutual TLS on the peer link
+      ca_cert_path: /etc/ebpfsentinel/ha-tls/ca.crt
+      cert_path: /etc/ebpfsentinel/ha-tls/tls.crt
+      key_path: /etc/ebpfsentinel/ha-tls/tls.key
     interface_assignments:                  # active-active mode only (list, one entry per node)
       - address: "10.0.0.1:9443"
         interfaces: [eth0, eth1]

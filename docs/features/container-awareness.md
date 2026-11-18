@@ -292,6 +292,7 @@ container:
 firewall:
   rules:
     - id: ct-web-no-smtp
+      priority: 10
       action: deny
       protocol: tcp
       dst_port: 25

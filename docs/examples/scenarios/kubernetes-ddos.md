@@ -99,17 +99,22 @@ ratelimit:
   default_algorithm: token_bucket
 
 ddos:
-  syn:
+  enabled: true
+  syn_protection:
     enabled: true
-    threshold: 1000
-    action: syncookie
-  icmp:
+    threshold_mode: true
+    threshold_pps: 1000
+  icmp_protection:
     enabled: true
-    rate_limit: 100
-    oversized_threshold: 1024
-  amplification:
+    max_pps: 100
+    max_payload_size: 1024
+  amplification_protection:
     enabled: true
-    ports: [53, 123, 1900, 11211]
+    ports:
+      - { port: 53, protocol: udp, max_pps: 1000 }
+      - { port: 123, protocol: udp, max_pps: 500 }
+      - { port: 1900, protocol: udp, max_pps: 500 }
+      - { port: 11211, protocol: udp, max_pps: 100 }
 
 alerting:
   routes:

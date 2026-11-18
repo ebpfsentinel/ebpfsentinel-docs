@@ -157,6 +157,9 @@ moved to a hybrid ML-KEM-768 + X25519 recipient.
        pq_mode: require
        outbound_pq_mode: require   # only once every dialled peer answers the hybrid group
    auth:
+     jwt:                          # the dashboard's tokens, verified here
+       public_key_path: /etc/ebpfsentinel/jwt.pub
+       ml_dsa_public_key_path: /etc/ebpfsentinel/jwt-ml-dsa.pub
      pq_tokens: require            # tokens minted by the dashboard must carry the cosignature
    ```
 

@@ -278,40 +278,55 @@ for (const kind of KINDS.keys()) {
   }
 }
 
-// The program total is written on one marked page and restated on half a dozen
-// others, which is how it went stale in the first place: two programs were
-// added to the tree and every unmarked sentence kept saying sixteen. A marker
-// per restatement would mean marking a mermaid label and a workflow table, so
-// the phrase itself is the marker. Only a claim about the whole tree is read:
-// a sentence counting the programs that do one thing ("all 6 eBPF programs
-// that enforce rules") is a subset and says so, which is what the trailing
-// `that` excludes.
+// The program total is written on one marked page and restated on a dozen
+// others, which is how it went stale in the first place: programs were added
+// to the tree and every unmarked sentence kept the number it was written with,
+// so the same page set said sixteen, nineteen, twenty-two and twenty-eight. A
+// marker per restatement would mean marking a mermaid label, a code comment
+// and a workflow table, so the phrase itself is the marker: any number of ten
+// or more counting programs is a claim about the whole tree and must be the
+// number of directories under `crates/ebpf-programs/`. Smaller numbers count
+// the programs that do one thing ("6 eBPF programs that enforce rules") and
+// are subsets by construction.
+//
+// `xdp-pass` is peer-side test scaffolding, so a sentence counting what a
+// customer host runs is right to say one less, and it says so in the same
+// breath: the lower number is accepted only where `a host runs` follows it.
 const programTotal = countProgramDirectories();
-// `xdp-pass` is peer-side test scaffolding, so a page counting what a customer
-// host runs is right to say one less. Both numbers are read off the same tree,
-// and a page saying neither is the one that went stale.
 const programsRun = programTotal - 1;
-const TOTAL_CLAIMS = [
-  /(?:ships|includes|holds|each of the|Linux Kernel \(|\*\*|\ball\b)\s*(\d+|[A-Za-z]+) eBPF (?:kernel )?programs(?! that)/gi,
-  /\b(\d+|[A-Za-z]+) eBPF (?:kernel )?programs attached at\b/gi,
-];
+const PROGRAM_CLAIM =
+  /\b(\d+|[A-Za-z]+(?:-[A-Za-z]+)?) (?:eBPF |BPF |kernel )*programs\b(\s+a host runs)?/gi;
+const SUBSET_FLOOR = 10;
 
-for (const file of [...markdownFiles(docsRoot), join(repoRoot, 'README.md')]) {
+// The CLI total is restated the same way, in the intro, the architecture page
+// and the agent's own README, and drifted the same way: every sentence giving
+// the number of subcommands is a claim about `enum Command`.
+const commandTotal = countCommands();
+const COMMAND_CLAIM = /\b(\d+|[A-Za-z]+(?:-[A-Za-z]+)?) subcommands\b/gi;
+
+// The agent's README sells the same totals to the reader who never opens these
+// pages, so it is read with them.
+const restating = [...markdownFiles(docsRoot), join(repoRoot, 'README.md'), join(ossRoot, 'README.md')];
+
+for (const file of restating) {
   const shown = relative(repoRoot, file);
   readFileSync(file, 'utf8')
     .split('\n')
     .forEach((line, index) => {
-      const seen = new Set();
-      for (const claim of TOTAL_CLAIMS) {
-        for (const [, token] of line.matchAll(claim)) {
-          const written = numberFrom(token);
-          if (written === undefined || written === programTotal || written === programsRun) continue;
-          if (seen.has(token)) continue;
-          seen.add(token);
-          errors.push(
-            `${shown}:${index + 1} - crates/ebpf-programs/ holds ${programTotal} directories (${programsRun} a host runs), the line says ${token}`,
-          );
-        }
+      for (const [, token, hostRuns] of line.matchAll(PROGRAM_CLAIM)) {
+        const written = numberFrom(token);
+        if (written === undefined || written < SUBSET_FLOOR) continue;
+        if (written === programTotal) continue;
+        if (written === programsRun && hostRuns) continue;
+        errors.push(
+          `${shown}:${index + 1} - crates/ebpf-programs/ holds ${programTotal} directories (${programsRun} a host runs, said as such), the line says ${token}`,
+        );
+      }
+      for (const [, token] of line.matchAll(COMMAND_CLAIM)) {
+        const written = numberFrom(token);
+        if (written === undefined || written < SUBSET_FLOOR) continue;
+        if (written === commandTotal) continue;
+        errors.push(`${shown}:${index + 1} - \`enum Command\` has ${commandTotal} variants, the line says ${token}`);
       }
     });
 }

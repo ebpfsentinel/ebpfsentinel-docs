@@ -48,7 +48,7 @@ firewall:
       dst_port_alias: web-ports         # Named port alias for destination (optional)
       schedule: business_hours          # Time-based schedule name (optional)
       max_states: 1000                  # Per-rule connection state limit (optional)
-      interfaces: ["eth0"]              # Restrict rule to interfaces/groups (optional)
+      # interfaces: ["lan"]           # Restrict rule to interface groups (optional, see interface_groups)
 ```
 
 ## Fields
@@ -100,7 +100,7 @@ firewall:
 | `dst_mac_alias` | `string` | No | Named MAC alias for destination (ignored if `dst_mac` is also set) |
 | `schedule` | `string` | No | Time-based schedule name |
 | `max_states` | `integer` | No | Per-rule concurrent connection state limit |
-| `interfaces` | `[string]` | No | Restrict the rule to specific interfaces or interface groups |
+| `interfaces` | `[string]` | No | Restrict the rule to [interface groups](interface-groups.md), `!` inverting one; a bare interface name is refused |
 | `tenant_id` | `integer` | No | Tenant this rule belongs to. `0` (the default) is global: the rule applies to traffic from every tenant. A non-zero value makes the kernel skip the rule for traffic it resolves to any other tenant. An agent without tenant attribution resolves every packet to `0`, so leave it unset there |
 
 A rule scoped to a tenant is evaluated in the linear rule scan rather than the
@@ -356,13 +356,12 @@ firewall:
 ### Scheduled rules
 
 ```yaml
-schedules:
-  business_hours:
-    entries:
-      - days: [mon, tue, wed, thu, fri]
-        time: "08:00-18:00"
-
 firewall:
+  schedules:
+    business_hours:
+      entries:
+        - days: [mon, tue, wed, thu, fri]
+          time: "08:00-18:00"
   rules:
     - id: guest-wifi
       priority: 60

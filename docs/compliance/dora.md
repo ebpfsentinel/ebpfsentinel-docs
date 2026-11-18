@@ -62,6 +62,7 @@ ratelimit:
 
 l7:
   enabled: true
+  ports: [80, 443, 8080]
 
 alerting:
   enabled: true

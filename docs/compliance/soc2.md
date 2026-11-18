@@ -74,7 +74,7 @@ threatintel:
 ```yaml
 ips:
   mode: block
-  blacklist_ttl: 3600
+  max_blacklist_duration_secs: 3600
 
 alerting:
   routes:

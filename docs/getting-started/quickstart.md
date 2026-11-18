@@ -189,13 +189,13 @@ ebpfsentinel-agent firewall add --json '{
   "dst_port": 23
 }'
 
-# Add a rate limit rule
+# Add a rate limit rule for one source host
 ebpfsentinel-agent ratelimit add --json '{
   "id": "api-limit",
   "rate": 100,
   "burst": 200,
-  "algorithm": "sliding_window",
-  "scope": "per_ip"
+  "src_ip": "203.0.113.7",
+  "algorithm": "sliding_window"
 }'
 
 # Check alerts
@@ -233,14 +233,8 @@ threatintel:
 
 ```yaml
 dlp:
-  mode: alert
-  patterns:
-    - id: credit-card
-      name: "Credit Card Numbers"
-      regex: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
-      severity: critical
-      data_type: pci
-      description: "Credit card number detected"
+  enabled: true      # built-in patterns: card numbers, personal data, credentials
+  mode: alert        # alert is the open-source mode
 ```
 
 ### Add Alerting

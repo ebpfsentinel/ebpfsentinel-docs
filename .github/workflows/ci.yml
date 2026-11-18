@@ -97,6 +97,12 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:rest-routes
 
+      # Every JSON body a page sends, by curl or through `--json`, is held to
+      # the request schema the agent's OpenAPI document publishes for its route.
+      - name: Check the request bodies
+        working-directory: ebpfsentinel-docs
+        run: npm run check:request-bodies
+
       # The API explorer renders a copy of the agent's document rather than
       # reading it, because the page is prerendered. A copy nobody compares
       # drifts, and this one had: three routes and a release behind.

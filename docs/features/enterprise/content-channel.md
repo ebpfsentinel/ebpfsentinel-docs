@@ -327,6 +327,10 @@ else is the whole attack.
 
 ```yaml
 enterprise:
+  portal:
+    enabled: true          # content is fetched from the portal the agent is enrolled with
+    base_url: https://portal.ebpfsentinel.io
+    join_secret_file: /etc/ebpfsentinel/portal-join-secret
   content:
     enabled: true
     interval_seconds: 21600

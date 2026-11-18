@@ -163,6 +163,9 @@ This means the domain logic is fully testable without any infrastructure, eBPF, 
 Rules across multiple domains (firewall, NAT, IDS, rate limiting, QoS) can be scoped to specific **interface groups**. Define named groups of interfaces at the top level, then reference group names in the `interfaces` field on individual rules:
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2]
+
 interface_groups:
   lan:
     interfaces: [eth0, eth1]
@@ -172,12 +175,15 @@ interface_groups:
 firewall:
   rules:
     - id: wan-only-rule
+      priority: 10
       action: deny
       interfaces: [wan]        # Only applies on WAN interfaces
     - id: not-wan
+      priority: 20
       action: allow
       interfaces: ["!wan"]     # Applies everywhere EXCEPT WAN
     - id: floating-rule
+      priority: 30
       action: allow
       dst_port: 53             # No interfaces = floating (all interfaces)
 ```

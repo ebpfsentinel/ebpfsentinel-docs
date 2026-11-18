@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 28 eBPF kernel programs (the
+Detailed documentation for each of the 29 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -532,6 +532,14 @@ Two programs, `process_exec` on `sched_process_exec` and `process_exit` on `sche
 Four programs on the TCP stack's own tracepoints: `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`. Each adds one to a per-CPU counter in `TCP_EDGES`, keyed by the two addresses, the service port (the lower of the two ports), which end is local and the cgroup of the local socket. A reset sent where no socket exists is keyed with port zero, so a scan is counted apart from the services it probes. When `inet_sock_set_state` moves a socket into or out of the established state, it also reads `tcp_sock.srtt_us` and adds the smoothed round trip to the edge's histogram in `TCP_RTT`, a hash shared by every CPU and updated with atomic adds, since one value per CPU would multiply sixteen buckets by the CPU count for two samples a connection.
 
 The `sock`, `sock_common` and `tcp_sock` field offsets are read from the running kernel's BTF by userspace and written into `TCP_HEALTH_CONFIG` before the tracepoints attach, so the object is not compiled against one kernel's layout; an event arriving before that write is counted as `unconfigured`. `TCP_EDGES` is a plain hash of 8192 entries rather than an LRU, because an eviction would make a counter go backwards. `TCP_HEALTH_METRICS` counts `counted`, `keys_full`, `unconfigured` and `unreadable`. Nothing goes on a ring: the agent reads the counters on an interval. See [TCP Health Per Edge](../features/tcp-health.md).
+
+### tracepoint-drop-reason
+
+**Hook:** [raw tracepoint](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_RAW_TRACEPOINT/) | **Path:** `crates/ebpf-programs/tracepoint-drop-reason/`
+
+One program, `drop_reason_kfree_skb`, on `kfree_skb`: the kernel freeing a packet it did not deliver, with the reason it gives. A reason below the running kernel's first drop value is a normal consumption and returns at the first comparison, so a node pays one array read for each packet it delivers. A drop adds one to `DROP_COUNTS`, a per-CPU hash of 4096 entries keyed by reason and interface (the packet's device when it still has one, the index it arrived on otherwise). A reason from a subsystem keeps only its subsystem, a core reason is kept whole.
+
+While an investigation watches workloads, their cgroups sit in `DROP_WATCHED` (64 at most) and `DROP_WATCHING` holds how many: a drop whose socket, the one the receive path found or else the sender's, sits in a watched cgroup is also counted in `DROP_WORKLOADS` per cgroup and reason, and userspace removes a workload's rows when it stops watching it. Field offsets and the first drop value are read from the running kernel's BTF and written into `DROP_CONFIG` before the tracepoint attaches; a drop arriving before that write is counted as `unconfigured`. Both hashes are plain rather than LRU, because an eviction would make a counter go backwards; a full one is counted under `keys_full` in `DROP_METRICS`. Nothing goes on a ring. See [Kernel Drop Reasons](../features/kernel-drops.md).
 
 ### uprobe-crypto
 

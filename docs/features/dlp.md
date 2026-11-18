@@ -211,22 +211,20 @@ Built-in patterns are loaded automatically and do not need to be listed in the c
 
 ```yaml
 dlp:
-  enabled: true
-  mode: alert            # alert or block (global default)
-  patterns:
-    - id: dlp-pci-custom-visa
-      name: Custom Visa
-      regex: "\\b4[0-9]{12}(?:[0-9]{3})?\\b"
-      severity: critical
-      data_type: pci
-      description: "Visa card number"
-    - id: internal-project-code
-      name: Internal Project Code
-      regex: "PRJ-[A-Z]{3}-\\d{6}"
-      severity: high
-      data_type: custom
-      mode: block          # per-pattern override
-      description: "Internal project code leak"
+  enabled: true            # the built-in patterns
+
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: alert            # alert or block (global default)
+    custom_patterns:
+      - id: internal-project-code
+        name: Internal Project Code
+        regex: "PRJ-[A-Z]{3}-\\d{6}"
+        severity: high
+        data_type: custom
+        mode: block        # per-pattern override
+        description: "Internal project code leak"
 ```
 
 See [Configuration: DLP](../configuration/dlp.md) for the full reference.

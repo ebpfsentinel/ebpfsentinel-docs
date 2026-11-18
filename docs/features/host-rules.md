@@ -123,6 +123,10 @@ then. The keys, the matchers and what is refused are in
 [Host Rules Configuration](../configuration/host-rules.md).
 
 ```yaml
+response:
+  kill_process:
+    enabled: true          # what `kill_process` in `then` needs
+
 host_rules:
   rules:
     - id: shell-under-web-server

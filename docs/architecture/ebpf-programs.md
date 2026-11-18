@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 28 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-seven form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 29 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-eight form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -29,6 +29,7 @@ eBPFsentinel includes 28 eBPF kernel programs, all written in Rust using the [Ay
 | `cgroup-workload-firewall` | cgroup sock_addr | `crates/ebpf-programs/cgroup-workload-firewall/` | Firewall rules that name a workload, decided in `connect()`, `sendmsg()` and `bind()` |
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
 | `tracepoint-tcp-health` | raw tracepoint | `crates/ebpf-programs/tracepoint-tcp-health/` | Retransmissions, resets and connection outcomes counted per edge between two services |
+| `tracepoint-drop-reason` | raw tracepoint (`kfree_skb`) | `crates/ebpf-programs/tracepoint-drop-reason/` | Packets the kernel freed without delivering, counted per drop reason and interface, and per reason for the workloads an investigation is watching |
 | `tracepoint-signal` | raw tracepoint | `crates/ebpf-programs/tracepoint-signal/` | Signals an armed thread group at its next system call, refusing the protected ones (loaded only where the capability is on) |
 | `lsm-exec-network` | BPF LSM | `crates/ebpf-programs/lsm-exec-network/` | Refuses an internet socket to an executable outside the configured list, at `socket_create` and `socket_connect` (loaded only where the list is on and the BPF LSM is active) |
 | `lsm-bpf-guard` | BPF LSM | `crates/ebpf-programs/lsm-bpf-guard/` | Refuses every task but the agent and its warden a writable descriptor to the agent's maps and any descriptor to its links, at `bpf_map` and `bpf` (loaded wherever the BPF LSM is active) |
@@ -386,7 +387,7 @@ All features require Linux kernel **6.12+** with BTF, the kernel the managed nod
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 19 programs with nightly
+cargo xtask ebpf-build    # Builds all 29 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

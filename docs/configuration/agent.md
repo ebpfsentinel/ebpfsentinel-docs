@@ -314,6 +314,10 @@ RUST_LOG=info
 agent:
   interfaces: [eth0, eth1]
   bind_address: "0.0.0.0"
+  tls:                       # a reachable address is served over TLS
+    enabled: true
+    cert_path: /etc/ebpfsentinel/tls/server.crt
+    key_path: /etc/ebpfsentinel/tls/server.key
 ```
 
 ### Force native XDP for production
@@ -359,6 +363,7 @@ agent:
 firewall:
   rules:
     - id: block-guest-vlan
+      priority: 10
       action: deny
       vlan_id: 100         # matches 802.1Q VLAN 100
 ```

@@ -12,7 +12,7 @@ threatintel:
   feeds:
     - id: "feed-id"                # Unique identifier (required)
       name: "Human Name"           # Display name (required)
-      url: "https://..."           # Feed URL, http:// or https:// only (required)
+      url: "https://feeds.example.com/indicators.txt"           # Feed URL, http:// or https:// only (required)
       format: plaintext            # plaintext, csv, json, stix (default: plaintext)
       enabled: true                # Per-feed enable/disable (default: true)
       refresh_interval_secs: 3600  # Seconds between re-fetches (default: 3600)

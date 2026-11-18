@@ -15,6 +15,9 @@ Rules without an `interfaces` field are **floating rules** - they apply to all i
 Define named interface groups at the top level, then reference them in the `interfaces` field on individual rules:
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2, eth3]
+
 interface_groups:
   lan:
     interfaces: [eth0, eth1]
@@ -26,16 +29,19 @@ interface_groups:
 firewall:
   rules:
     - id: block-external-ssh
+      priority: 10
       action: deny
       protocol: tcp
       dst_port: 22
       interfaces: [wan]           # Only on WAN interfaces
 
     - id: allow-internal-all
+      priority: 20
       action: allow
       interfaces: ["!wan"]        # All interfaces EXCEPT WAN (inversion)
 
     - id: allow-dns
+      priority: 30
       action: allow
       protocol: udp
       dst_port: 53                # No interfaces = floating (all interfaces)
@@ -49,24 +55,35 @@ nat:
 
 ratelimit:
   rules:
-    - id: wan-ratelimit
-      rate: 5000
-      burst: 10000
+    - id: wan-scanner
+      src_ip: 203.0.113.10        # a rule limits one source host
+      rate: 50
+      burst: 100
       algorithm: token_bucket
-      interfaces: [wan]           # Stricter rate limits on WAN
+      interfaces: [wan]           # and only where it arrives on the WAN
 
 qos:
+  enabled: true
+  pipes:
+    - id: wan-uplink
+      bandwidth: "100mbps"
+      direction: egress
+  queues:
+    - id: https
+      pipe_id: wan-uplink
   classifiers:
-    - id: 1
-      queue_id: 1
+    - id: https-on-wan
+      queue_id: https
       priority: 10
-      protocol: 6
-      dst_port: 443
+      match:
+        protocol: tcp
+        dst_port: 443
       interfaces: [wan]           # Shape HTTPS only on WAN egress
 
 ids:
   rules:
     - id: dmz-strict
+      severity: medium
       protocol: tcp
       dst_port: 80
       pattern: ".*"

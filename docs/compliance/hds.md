@@ -35,24 +35,28 @@ patterns (Professional and above):
 
 ```yaml
 dlp:
-  enabled: true
-  mode: block
-  patterns:
-    - id: "hds-nir"
-      name: "NIR (numero de securite sociale)"
-      regex: "\\b[12][0-9]{2}(0[1-9]|1[0-2])(2[AB]|[0-9]{2})[0-9]{3}[0-9]{3}[0-9]{2}\\b"
-      severity: critical
-      data_type: health
-    - id: "hds-rpps"
-      name: "RPPS"
-      regex: "\\b10[0-9]{9}\\b"
-      severity: high
-      data_type: health
-    - id: "hds-finess"
-      name: "FINESS"
-      regex: "\\b[0-9]{2}[0-9AB][0-9]{6}\\b"
-      severity: medium
-      data_type: health
+  enabled: true                    # the built-in patterns
+
+enterprise:
+  advanced_dlp:
+    enabled: true
+    mode: block
+    custom_patterns:
+      - id: "hds-nir"
+        name: "NIR (numero de securite sociale)"
+        regex: "\\b[12][0-9]{2}(0[1-9]|1[0-2])(2[AB]|[0-9]{2})[0-9]{3}[0-9]{3}[0-9]{2}\\b"
+        severity: critical
+        data_type: health
+      - id: "hds-rpps"
+        name: "RPPS"
+        regex: "\\b10[0-9]{9}\\b"
+        severity: high
+        data_type: health
+      - id: "hds-finess"
+        name: "FINESS"
+        regex: "\\b[0-9]{2}[0-9AB][0-9]{6}\\b"
+        severity: medium
+        data_type: health
 ```
 
 IPP numbers are assigned by each establishment in its own format, so their pattern is the

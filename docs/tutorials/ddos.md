@@ -21,6 +21,9 @@ output below is what that run printed.
 - A DDoS policy for SYN floods, and an automated response for what it finds:
 
 ```yaml
+ratelimit:
+  enabled: true            # the guards run inside its program
+
 ddos:
   enabled: true
   syn_protection:

@@ -2342,12 +2342,12 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### POST /api/v1/ratelimit/rules
 
-Create a rate limit rule. Requires `admin` role.
+Create a rate limit rule for one source host. Requires `admin` role. `src_ip` is required (a bare address or a `/32`); `action` defaults to `drop`, `algorithm` to `token_bucket` and `enabled` to `true`. An unknown field is refused.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/ratelimit/rules \
   -H "Content-Type: application/json" \
-  -d '{"id":"rl-global","rate":1000,"burst":2000,"algorithm":"token_bucket","scope":"per_ip"}'
+  -d '{"id":"rl-scanner","rate":1000,"burst":2000,"src_ip":"203.0.113.7","algorithm":"token_bucket"}'
 ```
 
 #### DELETE /api/v1/ratelimit/rules/{id}
@@ -2355,7 +2355,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:808
 Delete a rate limit rule. Requires `admin` role.
 
 ```bash
-curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-global
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X DELETE http://localhost:8080/api/v1/ratelimit/rules/rl-scanner
 ```
 
 ### Threat Intelligence
@@ -2593,7 +2593,7 @@ held it, so the two are different requests rather than one.
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PATCH http://localhost:8080/api/v1/alerts/alert-001/triage \
   -H "Content-Type: application/json" \
-  -d '{"status":"investigating","assignee":"soc-l2","note":"matches last week's scan"}'
+  -d '{"status":"investigating","assignee":"soc-l2","note":"same scanner as last week"}'
 ```
 
 Returns the alert's whole triage after the change: `alert_id`, `status`,

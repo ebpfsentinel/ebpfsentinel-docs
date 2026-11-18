@@ -142,11 +142,13 @@ document no longer names is cleared at the end of that replay.
 firewall:
   rules:
     - id: nothing-under-nginx-dials-out
+      priority: 10
       action: deny
       workload:
         ancestor: /usr/sbin/nginx
         mode: enforce
     - id: cron-jobs-reach-the-backup-host-only
+      priority: 20
       action: deny
       dst_port: 443
       workload:

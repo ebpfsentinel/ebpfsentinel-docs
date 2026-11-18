@@ -94,6 +94,12 @@ Push security policies to member clusters with optional per-cluster overrides an
 
 ### Push Request
 
+`payload` is the rule list the member applies, in the shape its engine reads:
+for `firewall`, a list of rules whose addresses are written as a host-order
+integer and a prefix length (`167772160` is `10.0.0.0`). `target_clusters`
+left empty reaches every cluster, and an override's `override_payload`
+replaces the base payload on that cluster alone.
+
 ```json
 POST /api/v1/federation/policies/push
 {
@@ -101,13 +107,26 @@ POST /api/v1/federation/policies/push
     "id": "block-known-bad",
     "name": "Block Known Bad IPs",
     "policy_type": "firewall",
-    "payload": { ... },
-    "target_clusters": []           // empty = all clusters
+    "payload": [
+      {
+        "id": "deny-scanners",
+        "priority": 10,
+        "action": "Deny",
+        "protocol": "Any",
+        "src_ip": { "V4": { "addr": 167772160, "prefix_len": 8 } },
+        "dst_ip": null,
+        "src_port": null,
+        "dst_port": null,
+        "scope": "Global",
+        "enabled": true
+      }
+    ],
+    "target_clusters": []
   },
   "overrides": [
     {
       "cluster_id": "uuid-of-east",
-      "override_payload": { ... }   // replaces the base payload for this cluster
+      "override_payload": []
     }
   ],
   "dry_run": false

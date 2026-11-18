@@ -2,12 +2,12 @@
 
 eBPFsentinel is a single-binary agent with two execution layers:
 
-1. **Kernel-space** - 28 eBPF programs attached at XDP, TC, uprobe, cgroup socket, raw tracepoint and BPF LSM hook points
+1. **Kernel-space** - 29 eBPF programs attached at XDP, TC, uprobe, cgroup socket, raw tracepoint and BPF LSM hook points
 2. **Userspace** - Rust async runtime (Tokio) with domain engines, API servers, and alert pipeline
 
 ```mermaid
 flowchart TB
-    subgraph kernel["Linux Kernel (28 eBPF programs)"]
+    subgraph kernel["Linux Kernel (29 eBPF programs)"]
         direction TB
         subgraph xdp["XDP - wire-speed packet processing"]
             fw["xdp-firewall\n(stateful L3/L4)"]
@@ -161,4 +161,4 @@ ebpfsentinel/
 - **JWT/OIDC/API key auth** - role-based access control (Admin, Operator, Viewer)
 - **TLS 1.3** - REST and gRPC secured with rustls + aws_lc_rs; TLS 1.2 only when explicitly allowed
 - **OTLP export** - alerts as OpenTelemetry Logs to any OTLP-compatible collector
-- **CLI** - 37 subcommands covering all endpoints
+- **CLI** - 46 subcommands covering all endpoints
