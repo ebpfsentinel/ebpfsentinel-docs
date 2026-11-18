@@ -521,11 +521,14 @@ Response policies and webhook endpoints are persisted to a **redb** key-value
 store, in the `response_policies` and `response_webhooks` tables, and are
 restored on startup. The state store path is configured via
 `enterprise.response.state_path` (default:
-`/var/lib/ebpfsentinel/response_state.redb`). When that directory does not exist
-and the configuration names no path, the agent falls back to
-`ebpfsentinel_response_state.redb` in the system temporary directory, so a
-policy written on an agent running without `/var/lib/ebpfsentinel` survives a
-reload but not a reboot.
+`/var/lib/ebpfsentinel/response_state.redb`). The agent creates that directory,
+owner-only, when it is missing. Where it cannot, response still runs and the
+startup log says that policies and webhooks written through the API will not
+survive a restart; the store is never moved to the temporary directory.
+
+Automated response listens to the security event bus from before the datapath
+starts, so an alert raised while the rest of the agent is still being built is
+evaluated once the engine is up rather than missed.
 
 Two things are deliberately not in that store, and an operator planning a restart
 has to count on neither:

@@ -155,7 +155,12 @@ block at all rather than an empty one.
 
 ## Durable Buffer
 
-Events are buffered in a **redb-backed** durable store (not in-memory ring buffer):
+Events are buffered in a **redb-backed** durable store (not in-memory ring buffer),
+`/var/lib/ebpfsentinel/siem_buffer.redb`. The agent creates that directory,
+owner-only, when it is missing. Where it cannot, SIEM export does not start and
+the startup log names the directory and the reason; the buffer is never moved to
+the temporary directory, where it would claim to hold events across a restart
+and lose them at the next reboot.
 
 | Setting | Default | Description |
 |---------|---------|-------------|

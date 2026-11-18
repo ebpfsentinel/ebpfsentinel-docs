@@ -262,9 +262,11 @@ blind - which is exactly when an operator restarts an agent.
 The format is versioned. A state entry written by an incompatible version, or
 truncated, is **discarded with a log line naming how many entries went** rather
 than misread, and those entities relearn. The file lives at
-`/var/lib/ebpfsentinel/ml_state.redb`, so a container that does not mount a volume
-for that directory keeps its baselines in the temporary directory and loses them
-with the container.
+`/var/lib/ebpfsentinel/ml_state.redb`; the agent creates the directory when it
+is missing, so a container that does not mount a volume there keeps its
+baselines in the container's own layer and loses them with the container. Where
+the directory cannot be created at all, the startup log says the baselines will
+not survive a restart.
 
 #### What the probability means
 

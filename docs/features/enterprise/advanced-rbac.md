@@ -487,12 +487,11 @@ configuration file, so neither depends on any stored state.
 
 Everything created through the API - a custom role, and a subject-to-role
 assignment - is written to a redb file beside the response and tenant state,
-`/var/lib/ebpfsentinel/rbac_state.redb`, and read back at startup. Where that
-directory does not exist, the file is `ebpfsentinel_rbac_state.redb` in the
-system temporary directory instead: the API goes on answering, and what it
-created is exactly as durable as that directory is on the host, which on most
-of them means until the next reboot. The path the agent settled on is logged at
-startup. Two rules apply to that reading:
+`/var/lib/ebpfsentinel/rbac_state.redb`, and read back at startup. The agent
+creates that directory, owner-only, when it is missing. Where it cannot, the
+API goes on answering and the startup log says that what it creates will not
+survive a restart; the file is never moved to the temporary directory, which on
+most hosts is gone at the next reboot. Two rules apply to that reading:
 
 - A configured role wins over a persisted one carrying the same id, because the
   file is what the operator edits and the store is what the API wrote. The

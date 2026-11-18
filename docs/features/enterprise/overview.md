@@ -88,7 +88,10 @@ to it.
 The four alert routes are free of the license and not free of the
 configuration: they are mounted only where the OSS datapath was activated and
 its alert store opened, so an enterprise agent running no OSS datapath answers
-`404 Not Found` there too. Triage is `operator` where reading is `viewer`,
+`404 Not Found` there too. Where the datapath runs and `alerts.redb` alone could
+not be opened, the startup log says so and alerts are still detected, acted on,
+exported and streamed on `/api/v1/alerts/stream`; only the history these routes
+list is lost. Triage is `operator` where reading is `viewer`,
 because a status or an assignee is a claim about who is handling an incident
 and a note is written under the identity the agent authenticated, not under the
 `author` the caller sent. Bodies and responses are the open-source ones, in
