@@ -24,7 +24,7 @@ How each type binds to the data plane -- rule expansion, kernel IP set, or LPM d
 | `values` | list | `[]` | Values for `ip_set`, `port_set`, and `mac_set` types |
 | `aliases` | list | `[]` | Child alias names for `nested` type |
 | `url` | string | `null` | URL for `url_table` and `url_table_json` types |
-| `refresh_interval` | u64 | varies | Refresh interval in seconds for `url_table`, `url_table_json`, and `dynamic_dns` (default 3600 for URL types, 300 for DNS) |
+| `refresh_interval` | u64 | varies | Refresh interval in seconds for `url_table`, `url_table_json`, and `dynamic_dns` (default 3600 for URL types, 300 for DNS). Each alias is fetched on its own interval, whether or not GeoIP is enabled; a fetch that fails or returns no address keeps the members last loaded. `geoip`, `bgp_asn` and `interface_group` aliases are refreshed with the GeoIP database instead (`geoip.refresh_interval_hours`) |
 | `country_codes` | list | `[]` | ISO 3166-1 alpha-2 codes for `geoip` type |
 | `hostnames` | list | `[]` | Hostnames for `dynamic_dns` type |
 | `interfaces` | list | `[]` | Interface names for `interface_group` type |
