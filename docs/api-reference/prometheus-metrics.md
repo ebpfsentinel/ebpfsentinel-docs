@@ -150,7 +150,7 @@ reporting an idle datapath.
 | `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Time spent dispatching one datapath event. `program` is the event source: `firewall`, `ids`, `ratelimit`, `threatintel`, `ddos`, `lb`, `l7`, `dns`, `dlp`, or `unknown` for an event type this build does not know |
 | `ebpfsentinel_worker_events_total` | Counter | `worker_id` | Events processed per dispatch worker |
 | `ebpfsentinel_worker_processing_duration_seconds` | Histogram | `worker_id` | Event processing duration per dispatch worker |
-| `ebpfsentinel_events_dropped_total` | Counter | `reason` | Events dropped before the pipeline. `reason` is `channel_full`, `alert_channel_full` or `parse_error` |
+| `ebpfsentinel_events_dropped_total` | Counter | `reason` | Events dropped before the pipeline. `reason` is `channel_full`, `alert_channel_full` or `parse_error`; `alert_channel_full_deferred` counts an alert that met a full channel and waited for room instead, because its processing kills the process behind the flow |
 
 ### Datapath Ring Buffers
 
