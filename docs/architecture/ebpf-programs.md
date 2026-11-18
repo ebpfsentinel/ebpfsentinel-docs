@@ -152,6 +152,7 @@ object is loaded:
 | `SYN_RATE_TRACKER`, `ICMP_RATE_BUCKETS`, `AMP_RATE_BUCKETS`, `HALF_OPEN_COUNTERS`, `FLOOD_COUNTERS` | `ddos.max_tracked_sources` |
 | `CONN_TABLE` | `ddos.connection_tracking.max_entries` |
 | `CT_SRC_COUNTERS` | `conntrack.max_src_states` |
+| `CT_LIMIT_HOLDS` | `firewall.rules[].max_states` (and `conntrack.max_src_states`) |
 | `NAT_HAIRPIN_CT` | `nat.hairpin.enabled` |
 | `NAT_DNAT_REVERSE`, `NAT_DNAT_REVERSE_V6`, `NAT_SNAT_REVERSE`, `NAT_SNAT_REVERSE_V6` | `nat.enabled` |
 | `REJECT_RATELIMIT` | whether any firewall rule uses `reject` |

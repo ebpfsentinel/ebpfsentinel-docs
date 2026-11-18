@@ -112,7 +112,7 @@ Per-source connection limits prevent brute-force and state exhaustion attacks:
 - `max_src_conn_rate`: Maximum new connections per source within a time window
 - Per-rule `max_states`: Limit concurrent states matching a specific rule
 
-When a source exceeds limits, its IP is automatically added to the overload blacklist (IP set 255) and all further packets are dropped at the fast-path.
+Both ceilings count connections that are open: a connection that closes stops counting within about fifteen seconds, when the agent reads the kernel connection table. A source past `max_src_states`, or a rule past `max_states`, has its next connection refused. A source past `max_src_conn_rate` is added to the overload blacklist (IP set 255) and all further packets are dropped at the fast-path until `overload_ttl_secs` has passed.
 
 ### TCP Flags Matching
 
