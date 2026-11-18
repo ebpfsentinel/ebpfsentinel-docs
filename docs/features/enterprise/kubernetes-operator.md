@@ -34,8 +34,11 @@ reason and exits before any controller starts, the agent controller included,
 and Kubernetes restarts it until a licence that admits it is there. The Secret
 is read again every five minutes (`LICENSE_REFRESH_SECONDS`, thirty seconds at
 the least), so a licence that expires, is withdrawn or stops carrying the
-feature makes a running operator stand down the same way. Agents already
-deployed keep running; nothing reconciles them until the licence is back.
+feature makes a running operator stand down the same way. A read the API
+server does not answer is not a verdict: the operator logs it and asks again
+at the next interval, and stands down only after five unanswered reads in a
+row. Agents already deployed keep running; nothing reconciles them until the
+licence is back.
 
 ## How a policy reaches an agent
 
@@ -88,8 +91,9 @@ carried before the pass, so a restart or a new leader does not repeat them.
 | `Degraded` | Warning | the resource was running everywhere and no longer is; the note carries the `Ready` reason and message |
 | `Unselected` | Warning | no agent in the namespace selects the resource |
 | `Refused` | Warning | a value the resource sets was dropped for another resource's; the note names both and which one runs |
-| `Released` | Normal | an agent resource being deleted had its DaemonSet removed and is free to go |
-| `ReconcileFailed` | Warning | a pass failed and will be retried; repeats fold into one event series |
+| `Released` | Normal | an agent resource being deleted had its DaemonSet removed, or a suspended `TenantPolicy` being deleted had its tenant resumed, and is free to go |
+| `FieldsIgnored` | Warning | the resource sets a field the agent no longer reads; the note names them and the `FieldsIgnored` condition stays `True` while they are set |
+| `ReconcileFailed` | Warning | a pass failed and will be retried, after 5 seconds and then twice as long each time up to 5 minutes; repeats fold into one event series |
 | `NotLicensed` | Warning | an enterprise kind the licence does not carry |
 | `Drifted` | Warning | an agent resource's `ConfigDrift` condition turned `True`; the note names the nodes and why |
 
@@ -588,6 +592,12 @@ one of them lets go. `True` says every namespace the tenant claims is its own.
 Narrowed to a list of namespaces with `watchNamespaces`, the operator cannot
 read namespaces, so a tenant keeps the namespaces it names, the selector is
 left unresolved with a `reason`, and the condition is `Unknown`.
+
+A `TenantPolicy` with `state: Suspended` carries a finalizer. Deleting it
+resumes the tenant on every agent it reaches before the resource goes, so a
+deleted policy never leaves a tenant suspended with nothing left to say so.
+An agent that no longer knows the tenant counts as done; any other refusal
+keeps the resource until the next attempt succeeds.
 
 ```yaml
 apiVersion: ebpfsentinel.io/v1
