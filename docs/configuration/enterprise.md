@@ -109,7 +109,7 @@ enterprise:
     model_path: /opt/models/anomaly.onnx
     learning_days: 7               # baseline learning period
     anomaly_threshold: 2.0         # standard deviations
-    time_windows: [60, 300, 900]   # feature extraction windows (seconds)
+    time_windows: [60, 300, 900]   # any of 60, 300, 900 seconds; another value refuses the file
     ewma_enabled: true
     ewma_alpha: 0.01
     ewma_threshold: 3.0

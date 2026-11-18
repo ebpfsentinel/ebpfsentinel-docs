@@ -536,7 +536,7 @@ enterprise:
     model_path: /etc/ebpfsentinel/model.onnx    # optional ONNX model
     learning_days: 7
     anomaly_threshold: 2.0
-    time_windows: [60, 300, 900]
+    time_windows: [60, 300, 900]                # any of these three, in seconds
     # EWMA streaming engine
     ewma_enabled: true
     ewma_alpha: 0.01
