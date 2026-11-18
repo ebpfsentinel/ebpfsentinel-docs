@@ -6,6 +6,8 @@
 
 TLS Intelligence provides deep visibility into TLS handshake metadata across the network. It fingerprints clients using JA4 hashes (the [JA4 method by FoxIO](https://github.com/FoxIO-LLC/ja4), BSD 3-Clause), detects anomalous TLS behavior via statistical rarity scoring, tracks post-quantum cryptography adoption, and enforces cipher/protocol compliance policies. All analysis operates on handshake metadata extracted by eBPF - no decryption required.
 
+Its input is every TLS `ClientHello` the agent parses on the wire: with `l7.enabled: true`, a handshake on any port listed in `l7.ports` (443 among them for most estates) runs through every check below with no other step. The handshake is analysed on the addresses and destination port of the connection that carried it. `POST /api/v1/enterprise/tls-intelligence/events` takes an observation made somewhere else, a handshake read off a capture or another sensor, into the same analysis.
+
 Four sub-capabilities:
 
 <!-- feature-count: ja4-builtin-threats -->
@@ -389,7 +391,7 @@ Feature 5 comes from the `dst_port` on the submitted observation. An estate serv
 
 Instead of scoring a fingerprint against the whole estate, rarity is also scored inside the group the client belongs to. A workload whose JA4 is unheard of among its peers is reported even when that JA4 is common everywhere else, which is the case a global score cannot see: a compromised replica in a fleet of identical ones.
 
-The group is a label the submitter puts on the event, on the `peer_group` field. The enterprise agent resolves no container metadata of its own and does not map a `cgroup_id` to a pod or an image, so the grouping is whatever the submitter already knows a workload by - a container image, a Kubernetes namespace, a service name, a deployment. Events carrying no `peer_group` are scored globally only and create no group.
+On a handshake the agent parses, the group is the container image of the workload that opened the connection, where the socket and process tables could name one; a handshake from a process the agent could not place in a container is scored globally only. On an event posted to the events route, the group is the label the submitter puts on its `peer_group` field: whatever the submitter already knows a workload by - a container image, a Kubernetes namespace, a service name, a deployment. Events carrying no `peer_group` are scored globally only and create no group.
 
 An anomaly needs both halves of the comparison: the fingerprint is rarer inside the group than `rarity_threshold` allows, and rarer than that threshold nowhere else. The group is judged on nothing until it holds `min_group_observations` (default 50), so a group that has only just appeared reports nothing while it fills up. The whole capability is off unless `peer_group_rarity.enabled` is set, because a group label the deployment never explained is a key the engine would accumulate without knowing what it means.
 
