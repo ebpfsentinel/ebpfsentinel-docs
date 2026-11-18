@@ -123,6 +123,11 @@ export EBPFSENTINEL_TOKEN=$(sudo cat /var/lib/ebpfsentinel/auth/api-key)
 `ebpfsentinel-agent` reads the same variable, and takes `--token` instead. See
 [Authentication](../configuration/auth.md).
 
+A write refuses a field it does not know: a request body carrying a key the
+route does not read, a misspelt `dstport` for `dst_port` say, answers
+`422 Unprocessable Entity` naming the key, and nothing is changed. Without
+this the rule would be created without the field.
+
 ### Agent
 
 #### GET /api/v1/agent/status
@@ -2465,16 +2470,28 @@ Response:
 
 #### GET /api/v1/alerts
 
-List alerts. Supports query parameters:
+List stored alerts, newest first. Every parameter is optional; a parameter
+the route does not know, or a severity or status it cannot read, answers
+`400 Bad Request` rather than being ignored.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `component` | string | Filter by component (ids, ips, dlp, etc.) |
-| `severity` | string | Filter by severity (critical, high, medium, low) |
-| `limit` | integer | Maximum results to return |
+| `component` | string | Only alerts of this component (`ids`, `ips`, `dlp`, `threatintel`, ...) |
+| `min_severity` | string | Only alerts at or above this severity: `low`, `medium`, `high` or `critical` |
+| `rule_id` | string | Only alerts of this rule (exact match) |
+| `false_positive` | boolean | Only alerts marked (`true`) or not marked (`false`) as false positives |
+| `from` | integer | Start of the time range, nanoseconds since the epoch, inclusive |
+| `to` | integer | End of the time range, nanoseconds since the epoch, inclusive |
+| `tactic` | string | Only alerts mapped to this MITRE ATT&CK tactic (`exfiltration`, `impact`, ...) |
+| `technique` | string | Only alerts mapped to this MITRE ATT&CK technique (`T1041`, ...) |
+| `status` | string | Only alerts in this triage status: `open`, `acknowledged`, `investigating` or `resolved` |
+| `assignee` | string | Only alerts held by this assignee (exact match) |
+| `unassigned` | boolean | `true` keeps only the alerts nobody holds |
+| `limit` | integer | Most entries returned, default 100, at most 1000 |
+| `offset` | integer | Entries skipped before the first returned, default 0 |
 
 ```bash
-curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/alerts?component=ids&severity=high&limit=50"
+curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" "http://localhost:8080/api/v1/alerts?component=ids&min_severity=high&limit=50"
 ```
 
 #### The workload block

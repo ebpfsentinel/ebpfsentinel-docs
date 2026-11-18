@@ -23,7 +23,7 @@ geoip:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable GeoIP enrichment |
 | `source` | `GeoIpSource` | Required | Database provisioning mode |
-| `refresh_interval_hours` | `integer` | `24` | Hours between two downloads in `maxmind_account` and `url` modes, at least 1; ignored in `file` mode |
+| `refresh_interval_hours` | `integer` | `24` | Hours between two downloads in `maxmind_account` and `url` modes, where it is at least 1, and between two re-extractions of the `geoip`, `bgp_asn` and `interface_group` aliases in every mode; only `file` mode accepts `0`, which stops the re-extraction |
 | `database_dir` | `string` | `/var/lib/ebpfsentinel/geoip` | Directory `maxmind_account` and `url` download into; must be writable by the agent |
 
 ### GeoIpSource - Mode: `maxmind_account`
