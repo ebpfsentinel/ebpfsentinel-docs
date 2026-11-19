@@ -44,6 +44,15 @@ interface without a group, write `scope: { interface: eth0 }` instead: a
 bare interface name in `interfaces` is read as a group and refused if no
 group carries it.
 
+Every rule list scoped by group is held to the declared names when the
+configuration loads: firewall and IDS rules, rate limit rules, the three NAT
+rule lists and QoS pipes and classifiers. A name no group declares refuses
+the whole file, the way a firewall rule always did, rather than leaving that
+section empty behind a warning. Under the operator the same check runs before
+the document is written: the agent keeps the configuration it runs, the
+resource naming the group is never reported as carried, and the agent's
+events name it.
+
 When referencing interface groups in rules (firewall, QoS classifiers, QoS pipes, etc.), prefix the group name with `"!"` to invert the match. For example, `"!lan"` means "all interfaces except those in the lan group."
 
 ```yaml
