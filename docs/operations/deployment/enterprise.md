@@ -399,7 +399,6 @@ Key values:
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
 | `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
 | `daemonset.hostPID` | `false` | Host PID namespace, for the whole pod. DLP never needs it; the hidden process sweep is skipped without it |
-| `daemonset.bpfToken.bpffsEmptyDir` | `false` | Use an in-pod tmpfs bpffs on nested runtimes (kind, minikube) |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
 | `daemonset.preStopSleepSeconds` | `5` | Seconds the agent is held before `SIGTERM`, so the endpoint leaves every node's rules first; `0` removes the hook |

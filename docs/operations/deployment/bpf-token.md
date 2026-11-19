@@ -237,9 +237,10 @@ compose deployment uses on each node and runs the agent under it as
 [Kubernetes deployment](kubernetes.md#tailored-seccomp-profile-for-the-agent).
 
 `daemonset.bpfToken.bpffsPath` drives both the agent's `EBPFSENTINEL_BPFFS` mount
-target and its `agent.bpf_token.bpffs_path` config. The pod needs a writable
-`/sys/fs/bpf` (host `hostPath` with `mountPropagation: HostToContainer`, or
-`daemonset.bpfToken.bpffsEmptyDir=true` for an in-pod tmpfs on nested runtimes).
+target and its `agent.bpf_token.bpffs_path` config. The agent mounts the
+delegated bpffs in an in-memory `emptyDir` at `/sys/fs/bpf`, never on the node's
+bpffs: that one belongs to root (`0700` where systemd mounted it), and the
+agent's uid could not create a mountpoint in it.
 See the [full Kubernetes guide](kubernetes.md) for the complete DaemonSet.
 
 ```bash
@@ -253,8 +254,8 @@ helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
 > cluster-specific runtime configuration (the node must allow unprivileged user
 > namespaces; some Pod Security Admission levels or runtimes block
 > `CAP_SYS_ADMIN`). On nested runtimes such as **kind** or **minikube** the node
-> is itself a container - set `daemonset.bpfToken.bpffsEmptyDir=true`, and the
-> extra user-namespace layer can require relaxed runtime settings. Validate on
+> is itself a container with no bpffs - set
+> `daemonset.bpfToken.pinLinksOnNode=false`, and the extra user-namespace layer can require relaxed runtime settings. Validate on
 > your cluster before rolling out fleet-wide.
 
 ## Troubleshooting

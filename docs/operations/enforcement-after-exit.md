@@ -39,9 +39,9 @@ by `EBPFSENTINEL_LINK_PIN_DIR`.
   `docker stop`, `docker rm` and `docker compose down` leave the pins.
 - **Kubernetes**: the warden container mounts the node's `/sys/fs/bpf` through
   the DaemonSet's hostPath. Deleting or restarting the pod leaves the pins.
-  With `daemonset.bpfToken.bpffsEmptyDir=true` (nested runtimes such as kind
-  or minikube) there is no node bpffs behind the mount and the links go with
-  the pod.
+  With `daemonset.bpfToken.pinLinksOnNode=false` (nested runtimes such as
+  kind or minikube) the warden has no node bpffs and the links go with the
+  pod.
 
 ## A restart adopts, it does not attach again
 

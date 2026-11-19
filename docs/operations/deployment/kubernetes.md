@@ -205,15 +205,18 @@ Volumes:
 |--------|--------|------------|
 | warden socket | `emptyDir` | both containers |
 | config | the ConfigMap, mode `0640` | `/etc/ebpfsentinel` |
-| bpf | host `/sys/fs/bpf`, propagation `HostToContainer`; or an in-memory `emptyDir` when `daemonset.bpfToken.bpffsEmptyDir` is `true` | `/sys/fs/bpf` |
+| bpf | an in-memory `emptyDir`, where the agent mounts the bpffs the warden delegated | `/sys/fs/bpf` (agent) |
+| node bpf | host `/sys/fs/bpf`, where the warden pins the agent's links; left out when `daemonset.bpfToken.pinLinksOnNode` is `false` | `/sys/fs/bpf` (warden) |
 | debugfs | host `/sys/kernel/debug`, read-only | `/sys/kernel/debug` |
 | cgroup | host `/sys/fs/cgroup`, read-only | `/sys/fs/cgroup` |
 | host proc | host `/proc`, read-only | `/host/proc` (both containers) |
 | state | host `daemonset.state.hostPath`, by default `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` (`DirectoryOrCreate`); an `emptyDir` when `daemonset.state.ephemeral` is `true` | `/var/lib/ebpfsentinel` (agent, `state-dir`) |
 
-Set `daemonset.bpfToken.bpffsEmptyDir=true` on nested runtimes such as kind and
-minikube, whose node `/sys/fs/bpf` is read-only or absent. On a real node leave
-it `false`.
+The agent never mounts on the node's bpffs: it runs as 65534, and the node's
+bpffs belongs to root, so its uid could not create a mountpoint there. Set
+`daemonset.bpfToken.pinLinksOnNode=false` on nested runtimes such as kind and
+minikube, whose node has no bpffs; the links then go with the pod. On a real
+node leave it `true`.
 
 Probes: liveness on `/healthz`, readiness on `/readyz`, both on the `http` port.
 `/readyz` fails while the eBPF programs are not loaded, while a kernel helper
@@ -310,7 +313,7 @@ attached, reports `ebpfsentinel_bpf_token_used 0` and answers `503` on
 | `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
 | `daemonset.hostPID` | `false` | Host PID namespace, for the whole pod. DLP never needs it; the hidden process sweep is skipped without it |
 | `daemonset.bpfToken.bpffsPath` | `/sys/fs/bpf/ebpfsentinel` | Drives both `EBPFSENTINEL_BPFFS` and the agent's `bpf_token.bpffs_path`, so the two cannot drift |
-| `daemonset.bpfToken.bpffsEmptyDir` | `false` | In-pod tmpfs bpffs, for kind and minikube |
+| `daemonset.bpfToken.pinLinksOnNode` | `true` | Give the warden the node's bpffs to pin the links on; `false` for kind and minikube |
 | `daemonset.state.hostPath` | `""` | Host directory backing `/var/lib/ebpfsentinel`; empty means `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` |
 | `daemonset.state.ephemeral` | `false` | Keep the state in an `emptyDir`, lost when the pod is replaced |
 | `daemonset.warden.securityContext` | uid 0, the six capabilities above, Unconfined | Warden security context |
