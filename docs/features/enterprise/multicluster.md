@@ -443,6 +443,16 @@ presented client-cert SHA-256 fingerprint against the value recorded at
 registration. The transport presents the node's client certificate on every
 inter-cluster call.
 
+A client certificate names a cluster, never an operator, so the views an
+operator reads on a management cluster stay on the enterprise API as well,
+behind its API key or token, its role check and its tenant fence: the
+overview, the cluster registry and one cluster, the distribution history, the
+aggregated alerts and their live stream (`/api/v1/federation/alerts/stream`),
+the estate verdicts and the estate response mode. Every write (registering or
+removing a cluster, pushing a policy, ingesting alerts, promoting the estate
+response) and every call a member makes (heartbeat, apply, status, estate
+stop) is served on the mTLS listener only.
+
 ```yaml
 enterprise:
   multi_cluster:

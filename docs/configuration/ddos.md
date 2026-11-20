@@ -89,6 +89,8 @@ ddos:
 | `max_pps` | `integer` | `10` | Maximum ICMP packets per second |
 | `max_payload_size` | `integer` | `64` | Maximum ICMP payload size in bytes |
 
+With `icmp_protection` on, ICMP echo requests are judged by it alone. With it off, ICMP is a packet like any other: an IPv4 ICMP packet, or an ICMPv6 echo request, counts against the rate-limit rule naming its source. Every other ICMPv6 type, neighbour discovery among them, is always passed.
+
 ### AmplificationProtection
 
 | Field | Type | Default | Description |
