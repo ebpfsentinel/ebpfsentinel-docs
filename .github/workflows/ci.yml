@@ -128,6 +128,12 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:grpc-reference
 
+      # Read off the CRDs the operator generates from its types: a field the
+      # API server accepts is a field the reference names.
+      - name: Check the operator CRD reference
+        working-directory: ebpfsentinel-docs
+        run: npm run check:crd-reference
+
       - name: Check the CLI reference
         working-directory: ebpfsentinel-docs
         run: npm run check:cli-reference

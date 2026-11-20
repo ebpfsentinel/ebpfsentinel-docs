@@ -209,6 +209,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/rest-api',
         'api-reference/rest-api-enterprise',
         'api-reference/grpc-api',
+        'api-reference/operator-crds',
         'api-reference/openapi',
         {
           type: 'link',

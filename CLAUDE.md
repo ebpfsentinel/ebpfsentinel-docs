@@ -28,7 +28,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:request-bodies` | every JSON body a page sends (curl, `--json`, a request fence) is one its route's schema accepts |
 | `check:config-keys` | every key the OSS and enterprise configuration loaders accept is printed as a key by a page |
 | `check:cli-reference`, `check:cli-invocations` | every subcommand and every command written in a page parses |
-| `check:grpc-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables, `generate:*` rewrites them |
+| `check:grpc-reference`, `check:crd-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables, `generate:*` rewrites them |
 | `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor (6.12) wherever a matrix states one |
 | `check:cni-matrix`, `check:host-rule-limits`, `check:shipped-host-rules` | the CNI coexistence matrix and the host rule tables, generated from the sources |
 | `check:no-waf-claim`, `check:no-protection-claim` | the agent is never called a WAF, mass encryption is never sold as protection |
