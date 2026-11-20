@@ -287,7 +287,7 @@ credential names a tenant.
 | Credential | Reaches |
 |------------|---------|
 | `admin`, naming no tenant | Every tenant, and the node-wide tenant routes (list, create, suspend, activate, quota changes, quota metrics, attribution) |
-| `admin`, naming a tenant | Read and write within that tenant only |
+| `admin`, naming a tenant | Read and write within that tenant only; every node-wide route answers 404 |
 | `operator` | Read and write within its own tenant only |
 | `viewer` | Read only within its own tenant |
 
@@ -323,9 +323,33 @@ subject for audit only and confers no access.)
 
 Another tenant answers **404** `NOT_FOUND` ("tenant '{id}' not found"), exactly
 as a tenant that does not exist, so a confined caller learns nothing about who
-else the node holds. A node-wide route called by anyone other than an admin
-naming no tenant answers **403** `INSUFFICIENT_PERMISSION`; a caller below
-admin with no tenant in its credential answers **403** `MISSING_TENANT_CLAIM`.
+else the node holds. A caller below admin with no tenant in its credential
+answers **403** `MISSING_TENANT_CLAIM`, and a role too weak for the operation
+**403** `INSUFFICIENT_PERMISSION`.
+
+### The Tenant Fence
+
+When multi-tenancy is enabled, every request whose credential names a tenant
+passes a fence before any role is read, over every router of the agent, OSS
+and Enterprise alike. A credential names a tenant through its `tenant_id`
+claim, or through its first namespace when the node holds a tenant of that
+name; a key scoped to a namespace that is no tenant is left to the role check.
+The fence lets such a credential reach only:
+
+| Routes | What the credential gets |
+|--------|--------------------------|
+| `/api/v1/tenants/{id}`, `/api/v1/tenants/{id}/quota`, `/api/v1/tenants/{id}/quota/check`, `/api/v1/enterprise/tenants/{id}/suspend`, `/activate`, `/self-service`, `/self-service/check` | Its own tenant only; its role still decides what it may do there |
+| `GET /api/v1/alerts`, `GET /api/v1/alerts/{id}`, `GET /api/v1/alerts/stream` | Only the alerts attributed to its tenant, by subnet over the source then the destination address; `total` counts only those, and another tenant's alert answers 404 |
+| `GET /api/v1/enterprise/alerts`, `GET /api/v1/enterprise/audit`, `GET /api/v1/federation/alerts`, `GET /api/v1/federation/alerts/stream` | Filtered to its tenant by their own handlers |
+| Health and readiness probes | Unchanged |
+
+Everything else answers **404** with an empty body, exactly as a route that
+does not exist, whatever the credential's role: the tenant list, creation,
+attribution and quota metrics, configuration, firewall, IDS and every other
+engine's rules, the licence, RBAC, forensics, response, SIEM, federation
+control, ML, the OpenAPI document, and every alert write (triage and false
+positive marking). Another tenant's routes answer 404 as well. A node-wide
+operation is therefore made with a credential naming no tenant.
 
 ## Tenant Events
 
@@ -372,6 +396,13 @@ Dynamic tenant changes propagate to the kernel **live, without a restart**: afte
 | `active` | Tenant is operational, rules are enforced, self-service allowed |
 | `suspended` | Tenant rules are inactive, API operations blocked, alerts suppressed |
 
+A tenant written in YAML takes its starting status from its `state` key,
+`active` when omitted or `suspended`; any other value refuses the file. A
+suspension made through the API on a tenant from YAML lasts until the agent
+restarts, so a tenant meant to stay suspended is written `state: suspended`.
+The Kubernetes operator writes the `state` of a `TenantPolicy` into the file
+it renders, so its pods restart with the tenant as the resource says.
+
 | Source | Description |
 |--------|-------------|
 | `config` | Defined in YAML config (default) |
@@ -410,7 +441,9 @@ Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/se
 
 The Role column is the grant the RBAC layer checks. Creating, suspending and
 activating a tenant also need an administrator whose credential names no
-tenant: an operator-role key, or a tenant's own administrator, is answered 403.
+tenant: an operator-role key naming no tenant is answered 403, and a tenant's
+own administrator 403 on its own tenant and 404 everywhere else (see
+[The Tenant Fence](#the-tenant-fence)).
 The Kubernetes operator suspends and activates tenants through these routes, so
 the agent key it holds is an `admin` key naming no tenant.
 

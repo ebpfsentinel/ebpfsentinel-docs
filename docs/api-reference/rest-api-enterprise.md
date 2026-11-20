@@ -52,6 +52,18 @@ means the route sits outside RBAC. See
 [Advanced RBAC](../features/enterprise/advanced-rbac.md) for how roles and
 grants are defined.
 
+**Request bodies.** Every JSON body a person or a script writes refuses a
+key it does not declare, at every depth, with `422 Unprocessable Entity`
+naming the key: a policy, a webhook, a tenant quota, a role, a segmentation
+policy, a policy push. A misspelt optional key is therefore an error, never
+a field that silently keeps its default. Messages one node sends another
+accept fields they do not know, so nodes of different versions interoperate
+during a rolling upgrade: a member's cluster registration and heartbeat
+(with its tamper notice), the alerts it forwards, the policy the management
+cluster applies on it, an agent registration and heartbeat from the console,
+and the remote-identity list the console pushes. A field a newer node adds
+is ignored by an older one, never refused.
+
 ## Rate limiting
 
 Every request to `8444` is charged to a per-IP token bucket before anything
@@ -242,7 +254,7 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/agent/status` | viewer | `config:read` | none | Returns the current agent status including version, uptime, and eBPF state. |
 | `GET` | `/api/v1/alerts/stream` | viewer | `alerts:read` | none | Server-Sent Events live alert feed. |
 | `GET` | `/api/v1/aliases/status` | viewer | `firewall:read` | none | Alias service status. |
-| `PUT` | `/api/v1/aliases/{id}/content` | operator | `firewall:write` | none | Push content for an External alias. |
+| `PUT` | `/api/v1/aliases/{id}/content` | admin | `firewall:write` | none | Push content for an External alias. |
 | `GET` | `/api/v1/audit/logs` | viewer | `audit:read` | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | viewer | `audit:read` | none | Query rule version history. |
 | `GET` | `/api/v1/config` | viewer | `config:read` | none | Return the current (sanitized) agent configuration. |
@@ -473,8 +485,8 @@ and for the request and response bodies.
 | `POST` | `/api/v1/enterprise/response/policies` | operator | `config:write` | automated-response | Create a response policy. |
 | `DELETE` | `/api/v1/enterprise/response/policies/{id}` | operator | `config:write` | automated-response | Delete a response policy. |
 | `GET` | `/api/v1/enterprise/response/status` | viewer | `config:read` | automated-response | Service status (active policies, webhooks, cooldowns, audit depth). |
-| `GET` | `/api/v1/enterprise/response/webhooks` | viewer | `config:read` | automated-response | List all webhook endpoints. |
-| `POST` | `/api/v1/enterprise/response/webhooks` | operator | `config:write` | automated-response | Create a webhook endpoint. |
+| `GET` | `/api/v1/enterprise/response/webhooks` | viewer | `config:read` | automated-response | List all webhook endpoints, each header value and signing secret shown as `redacted`. |
+| `POST` | `/api/v1/enterprise/response/webhooks` | operator | `config:write` | automated-response | Create a webhook endpoint. `400` if a header value or the signing secret is the listing's `redacted` mask. |
 | `DELETE` | `/api/v1/enterprise/response/webhooks/{id}` | operator | `config:write` | automated-response | Delete a webhook endpoint. |
 
 ## Compliance reports
@@ -679,7 +691,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/ml/feedback/stats` | viewer | `config:read` | ml-detection | Feedback statistics. |
 | `GET` | `/api/v1/enterprise/ml/heavy-hitters` | viewer | `config:read` | ml-detection | Top-K heavy hitters by byte volume. |
 | `POST` | `/api/v1/enterprise/ml/model/reload` | operator | `config:write` | ml-detection | Hot-swap ONNX model. |
-| `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | `config:read` | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. |
+| `GET` | `/api/v1/enterprise/ml/rcf/attribution` | viewer | `config:read` | ml-detection | Per-feature attribution of an RCF anomaly score for a queried feature vector. `window` is `one_min` (the default), `five_min` or `fifteen_min`; any other value answers `400`. |
 | `POST` | `/api/v1/enterprise/ml/rcf/groups/{group_id}/reject` | operator | `config:write` | ml-detection | Say an alert group was wrongly collapsed. Tightens the similarity the next group needs. |
 | `GET` | `/api/v1/enterprise/ml/rcf/queue` | viewer | `config:read` | ml-detection | Anomalies ranked by calibrated probability, each with its explanation and group. |
 | `GET` | `/api/v1/enterprise/ml/rcf/scores` | viewer | `config:read` | ml-detection | Recent Random Cut Forest anomaly scores. |
@@ -777,6 +789,11 @@ and for the request and response bodies.
 | `GET` | `/api/v1/tenants/{id}/quota` | viewer | `config:read` | multi-tenancy | Current quota limits and usage. |
 | `PUT` | `/api/v1/tenants/{id}/quota` | operator | `config:write` | multi-tenancy | Update quota (admin naming no tenant, partial update, 429 on reduction below usage). |
 | `POST` | `/api/v1/tenants/{id}/quota/check` | operator | `config:write` | multi-tenancy | Check quota without consuming (read permission). |
+
+With multi-tenancy on, a credential naming a tenant reaches only its own
+tenant's routes and the alert reads, which carry only its tenant's alerts;
+every other route of the agent, OSS or Enterprise, answers it 404 whatever its
+role. See [The Tenant Fence](../features/enterprise/multitenancy.md#the-tenant-fence).
 
 ## Network forensics
 
