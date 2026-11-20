@@ -408,6 +408,18 @@ place, which is itself too short to be accepted, so a listing posted back as a
 new endpoint is refused rather than registering the mask as a secret. An
 endpoint created without a secret keeps sending unsigned.
 
+Headers are treated the same way, because a header is where a SOAR bearer
+token or API key travels. Every delivery sends the values as they were
+written, and a listing keeps each header's name and shows `redacted` in place
+of its value. An endpoint whose header value is `redacted` is refused with
+`400`, naming the header, so a listing posted back cannot register the mask
+as a token.
+
+A body carrying a key the endpoint does not know is refused with `422`, for
+webhooks and policies alike and at every level: a misspelt `dryrun`, or a
+`windows` inside `budget`, is an error rather than a rule that silently runs
+with the default.
+
 ### Example Setup
 
 ```bash

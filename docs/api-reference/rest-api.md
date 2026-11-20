@@ -289,6 +289,28 @@ Trigger configuration reload. Requires `admin` role.
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X POST http://localhost:8080/api/v1/config/reload
 ```
 
+The file is first put through the checks the agent runs at start, so a file
+the agent would not boot on answers `400 INVALID_CONFIG` before the reload
+runs. The answer then waits for the reload task: `ok` once the agent runs
+the file, `400 RELOAD_REFUSED` with the reason when the reload refused it
+(the agent keeps the configuration it was running), and `pending` when the
+reload had not finished in time.
+
+```json
+{
+  "status": "ok",
+  "message": "configuration reloaded; alerting take effect at the next restart",
+  "pending_restart": ["alerting"]
+}
+```
+
+`pending_restart` names what the file changes since the agent started that a
+reload does not apply: a block by its key (`alerting`), a key inside a
+reloaded block by its dotted path (`qos.enabled`), a kernel table sized at
+start by the setting that sizes it. It is empty when the agent runs
+everything the file says, and while the answer is `pending`. See
+[Hot Reload](../operations/hot-reload.md#not-reloaded).
+
 #### PUT /api/v1/config/{section}
 
 Write one section of the agent's configuration file and reload. Requires
@@ -304,17 +326,34 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080
   -d '{"yaml": "ids:\n  enabled: true\n"}'
 ```
 
-The merged document is validated in full before it replaces anything, and it
+The merged document goes through the checks the agent runs at start before it
+replaces anything (`400 INVALID_CONFIG` otherwise: a rule scoped to an
+interface the agent does not watch parses, and is still refused here), and it
 lands by rename, so a rejected edit leaves the file exactly as it was and an
-accepted one is never half-written. The answer is the reload answer: `ok`
-when the agent confirmed the reload, `pending` when it was triggered and had
-not finished in time.
+accepted one is never half-written. Writes are taken one at a time: a second
+write waits for the first to land and be answered. The answer is the reload
+answer above: `ok`, `pending`, or `400 RELOAD_REFUSED` when the reload refused
+the file the write just landed, with `pending_restart` naming what waits for
+a restart.
 
-Secrets are the one thing that does not round-trip. `GET /api/v1/config`
-masks every secret as `***`, so wherever the submitted document still holds
-that string, the value already on disk is kept; a masked value the file
-cannot answer is refused by name rather than guessed at, and the way to
-change a secret is to write it out.
+Secrets do not round-trip as such. `GET /api/v1/config` masks every secret as
+`***`, and a URL that can carry a token in its path or query (a threat feed,
+a DNS blocklist feed, an alias source, an alerting webhook) as its scheme and
+host followed by `/***`, for example `https://feeds.example.com/***`.
+Wherever the submitted document still holds a mask, the value already on disk
+is kept:
+
+- a URL mask is restored only when the file holds a URL with that scheme and
+  host at the same place; another host is refused;
+- an item of a list (a feed, an alerting route) is matched to the file by its
+  `id`, or by its `name` when it has no `id`, never by its position, so
+  removing or reordering an item cannot hand one item's secret to another.
+  An item with no key, or whose key names no item or several, keeps no
+  secret.
+
+A mask the file cannot answer is refused with `400 UNRESOLVED_MASK`, naming
+the key, rather than guessed at or written as asterisks; the way to change a
+secret is to write it out.
 
 #### GET /api/v1/ebpf/status
 
@@ -3207,13 +3246,19 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 #### PUT /api/v1/aliases/{id}/content
 
-Set content for an external alias. Only works for aliases with `type: external`. The addresses are loaded into the kernel IPv4 IP set the referencing firewall rules match against; members that are not IPv4 host addresses are reported in the agent log and stay out of the set.
+Set content for an external alias. Only works for aliases with `type: external`. Needs the admin role: the alias feeds the kernel IP set that node-wide firewall rules match against, so its content changes what those rules let through. The addresses are loaded into the kernel IPv4 IP set the referencing firewall rules match against; members that are not IPv4 host addresses are reported in the agent log and stay out of the set.
 
 ```bash
 curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080/api/v1/aliases/external_blocklist/content \
   -H "Content-Type: application/json" \
-  -d '{"ips": ["192.168.0.0/16", "10.0.0.0/8"]}'
+  -d '{"ips": ["192.168.0.10/32", "10.0.0.0/8"]}'
 ```
+
+```json
+{"status": "ok", "alias": "external_blocklist", "ips_loaded": 2, "kernel_set_entries": 1}
+```
+
+`ips_loaded` is how many members the alias now holds for rules resolved in userspace; `kernel_set_entries` is how many of them the kernel IP set matches on (IPv4 host addresses only). A content with an invalid address, or for an alias that is not external, answers 400. A kernel IP set that refuses the load answers 500 and the content pushed before stays in place.
 
 ### DLP
 
@@ -3986,7 +4031,7 @@ reads one table for the write roles, and this column is checked against it.
 | POST | `/api/v1/zones/policies` | Yes (admin) | Create an inter-zone policy |
 | DELETE | `/api/v1/zones/policies/{id}` | Yes (admin) | Remove an inter-zone policy |
 | GET | `/api/v1/aliases/status` | Yes | Alias count |
-| PUT | `/api/v1/aliases/{id}/content` | Yes (write) | Set external alias content |
+| PUT | `/api/v1/aliases/{id}/content` | Yes (admin) | Set external alias content |
 | GET | `/api/v1/dlp/status` | Yes | DLP status |
 | GET | `/api/v1/dlp/patterns` | Yes | List DLP patterns |
 | GET | `/api/v1/dlp/scope` | Yes | Workloads the probes read plaintext from |
