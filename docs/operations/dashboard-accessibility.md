@@ -18,10 +18,10 @@ violation. It covers six routes, each in the light and the dark theme: Overview
 (`/compliance`) and Audit & License (`/audit-license`). Every other route is
 covered by component tests and review, not by axe-core.
 
-The suite is a `workflow_dispatch` run rather than a pull-request gate: it pulls
-the `:dev` images of the agent, the enterprise agent and the dashboard, and the
-enterprise manifest is private, so the automatic triggers stay off until those
-images are published.
+The suite runs on every pull request and every push to main. It drives the
+built front served by the console itself, signed in through an OpenID Connect
+provider, reading agents that answer the console's calls, so each route is
+scanned with its data on it.
 
 ## Keyboard
 
