@@ -121,7 +121,7 @@ as a changed configuration file, datapath included. Each is described in
 | `GET` | `/api/v1/agent/status` | `status` | viewer | none | Returns the current agent status including version, uptime, and eBPF state. |
 | `GET` | `/api/v1/alerts/stream` | `watch` | viewer | none | Server-Sent Events live alert feed. |
 | `GET` | `/api/v1/aliases/status` | `aliases status` | viewer | none | Alias service status. |
-| `PUT` | `/api/v1/aliases/{id}/content` | `aliases set-content` | operator | none | Push content for an External alias. |
+| `PUT` | `/api/v1/aliases/{id}/content` | `aliases set-content` | admin | none | Push content for an External alias. |
 | `GET` | `/api/v1/audit/logs` | `audit logs` | viewer | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | `audit history` | viewer | none | Query rule version history. |
 | `GET` | `/api/v1/config` | `config show` | viewer | none | Return the current (sanitized) agent configuration. |

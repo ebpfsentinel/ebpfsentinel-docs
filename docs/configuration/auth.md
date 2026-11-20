@@ -111,8 +111,8 @@ rather than three dot-separated parts and it is what `--token` and
 | Role | Read | Write |
 |------|------|-------|
 | `viewer` | All endpoints | None |
-| `operator` | All endpoints | Namespaced firewall rules (see below), IPS rule modes, alert triage, learning sessions, packet traces and policy replays, threat-feed refresh, alias content, the DNS cache and the domain blocklist |
-| `admin` | All endpoints | Every write, including everything that changes the whole node: configuration reload and section writes, L7 rules, conntrack flush, IPS blacklist, rate limiting, NAT, DDoS, zones, routing, load balancing, QoS, manual responses and captures |
+| `operator` | All endpoints | Namespaced firewall rules (see below), IPS rule modes, alert triage, learning sessions, packet traces and policy replays, threat-feed refresh, the DNS cache and the domain blocklist |
+| `admin` | All endpoints | Every write, including everything that changes the whole node: configuration reload and section writes, L7 rules, external alias content, conntrack flush, IPS blacklist, rate limiting, NAT, DDoS, zones, routing, load balancing, QoS, manual responses and captures |
 
 The [endpoint summary](../api-reference/rest-api.md#endpoint-summary) gives
 the role of every write. A write the agent has no entry for needs `admin`. The
