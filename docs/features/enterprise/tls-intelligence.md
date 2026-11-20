@@ -203,6 +203,10 @@ PUT /api/v1/enterprise/tls-intelligence/anomalies/config
 GET /api/v1/enterprise/tls-intelligence/clusters
 ```
 
+A handshake whose fingerprint sits farther from every known cluster than the
+clustering engine's outlier threshold raises a medium-severity alert with rule
+`tls-cluster-outlier:<ja4>`, naming its distance and the nearest cluster.
+
 ## PQC Compliance Detection
 
 Tracks adoption of post-quantum key exchange groups across the network. Identifies which destinations negotiate ML-KEM (NIST FIPS 203) groups and which remain on classical-only key exchange.
@@ -349,7 +353,7 @@ Tracks per-destination cipher baselines. When a client that always used TLS 1.3+
 
 ### SNI / Certificate Mismatch Detection
 
-When the TLS proxy intercepts a connection, the upstream server certificate CN/SAN is checked against the ClientHello SNI. Mismatches (e.g., SNI `api.example.com` but cert for `evil.com`) trigger alerts. Supports wildcard matching (`*.example.com`). Requires `x509-parser` for cert parsing.
+When the TLS proxy intercepts a connection, the upstream server certificate CN/SAN is checked against the ClientHello SNI. Mismatches (e.g., SNI `api.example.com` but cert for `evil.com`) trigger alerts. Supports wildcard matching (`*.example.com`). The check runs on every connection the proxy intercepts once TLS intelligence is enabled, whichever of the two started first; with the proxy off there is no upstream certificate to read and nothing is checked. The alert names the client and, when it is of the same address family, the upstream server the proxy reached.
 
 ### Session Resumption Anomaly Tracking
 
@@ -357,7 +361,7 @@ Tracks TLS session ticket reuse across destinations. If the same session ticket 
 
 ### Handshake Timing for Beaconing
 
-Every ClientHello this service parses is a timestamp for the [C2 beaconing](ml-detection.md#c2-beaconing-detection) detector, keyed `(src, dst, dst_port, ja4)`: the same TLS fingerprint reaching the same destination at a regular interval is a suspect. Nothing here switches it on: `enterprise.beaconing.enabled` does, and it is refused while this service is disabled.
+Every ClientHello this service parses is a timestamp for the [C2 beaconing](ml-detection.md#c2-beaconing-detection) detector, keyed `(src, dst, dst_port, ja4)`: the same TLS fingerprint reaching the same destination at a regular interval is a suspect. A suspect raises a high-severity alert with rule `tls-beaconing:<ja4>`, on the destination port it beacons to, and is listed under `GET /api/v1/enterprise/ml/beaconing` as well. Every periodic handshake past the threshold raises one. Nothing here switches it on: `enterprise.beaconing.enabled` does, and it is refused while this service is disabled.
 
 ### ONNX TLS Feature Extraction
 
@@ -452,6 +456,24 @@ GET /api/v1/enterprise/tls-intelligence/peer-groups/status
 | SNI/Cert Mismatch | T1557 | Adversary-in-the-Middle | credential-access |
 | Session Resumption | T1550 | Use Alternate Authentication Material | defense-evasion |
 | Peer-Group Anomaly | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
+| Handshake Beaconing | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
+| Cluster Outlier | T1071.001 | Application Layer Protocol: Web Protocols | command-and-control |
+
+### Where the alerts go
+
+Every detection on this page is an alert like any other. Threat matches,
+behaviour, ONNX and peer-group anomalies, PQC and cipher compliance violations,
+cipher downgrades, SNI/certificate mismatches, session-resumption anomalies,
+beaconing suspects and cluster outliers are all published on the agent's event
+bus under the component `tls-intelligence`. From there they are:
+
+- listed on `GET /api/v1/alerts?component=tls-intelligence` and kept with the
+  agent's other alerts;
+- exported by every configured [SIEM connector](siem-integration.md);
+- read by automated response, forensics and analytics like any other alert.
+
+`GET /api/v1/enterprise/tls-intelligence/alerts` keeps listing the most recent
+ones, including those raised before the alert store opened at startup.
 
 ## Metrics
 

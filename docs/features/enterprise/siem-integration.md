@@ -98,7 +98,16 @@ off every destination.
 | `ebpfsentinel.workload.ancestry` | Up to eight ancestors on one line, parent first, since ECS names the parent and stops there; `ebpfsentinel.workload.ancestry_truncated` and `_incomplete` are written only when true |
 | `message` | Alert message |
 | `threat.indicator.type` | Threat type (if present) |
-| `threat.indicator.confidence` | Confidence (if present) |
+| `threat.indicator.confidence` | Confidence as the keyword ECS defines (if present): `None` for 0, `Low` for 1-29, `Medium` for 30-69, `High` for 70 and above |
+| `ebpfsentinel.confidence` | The same confidence as the 0-100 number, beside the keyword |
+| `threat.framework`, `threat.technique.id` | `MITRE ATT&CK` and the technique, when the L7 enrichment names one |
+| `threat.technique.name`, `threat.tactic.name` | The technique's name and its tactic, from the L7 enrichment |
+| `vulnerability.category` | The OWASP category, as a one-element array, from the L7 enrichment |
+| `http.request.method`, `url.path` | The HTTP request the L7 enrichment saw |
+| `ebpfsentinel.l7.http_fingerprint` | A stable hash of the HTTP method and path. ECS has no field for a request fingerprint, so it sits under the custom namespace |
+| `ebpfsentinel.l7.inspect_category`, `ebpfsentinel.l7.enrichment_source` | The L7 inspection category and which engine produced the enrichment |
+| `ebpfsentinel.l7.db_protocol`, `ebpfsentinel.l7.db_command`, `ebpfsentinel.l7.db_target`, `ebpfsentinel.l7.query_fragment` | The database request the L7 enrichment saw |
+| `ebpfsentinel.compliance.pci_dss` | The PCI DSS controls the L7 enrichment mapped |
 | `ebpfsentinel.tenant_id` | Tenant ID (custom field) |
 | `ebpfsentinel.component` | OSS component |
 
@@ -242,17 +251,32 @@ Index lifecycle (ILM on Elasticsearch, ISM on OpenSearch) is configured on the c
 
 - **Format**: `CEF:0|eBPFsentinel|Agent|1.0|{rule_id}|{message}|{severity}|{extensions}`
 - **CEF severity**: Low→3, Medium→5, High→7, Critical→10
-- **Extensions**: `act`, `externalId`, `rt`, then `src`, `dst`, `spt`, `dpt`, `proto` when a socket was resolved + custom fields (`cs1`-`cs6` for component, tenant_id, threat_type, confidence, attack_type, data_type)
-- **Process attribution**: `sproc` (binary name), `filePath` (full path), `spid`, `fileId` (executable inode), `flexString1`/`flexString1Label=ExecutableSource` and `flexString2`/`flexString2Label=FlowSource`
-- **Escaping**: `\|` in headers, `\=` in extension values
+- **Extensions**: `act`, `externalId` (the event id), `rt` (epoch milliseconds, one of the forms the CEF standard accepts), then `src`, `dst`, `spt`, `dpt`, `proto` when a socket was resolved, then the custom fields below
+- **Custom fields**, each written beside its label and only when the alert carries the value:
+
+  | Key | Label | Value |
+  |---|---|---|
+  | `cs1` | `Component` | The OSS component that raised the alert, always written |
+  | `cs2` | `TenantId` | The tenant, in multi-tenant mode |
+  | `cs3` | `ThreatType` | The threat type |
+  | `cn1` | `Confidence` | The threat-intelligence confidence, 0 to 100 |
+  | `cs4` | `AttackType` | The DDoS attack type |
+  | `cs5` | `MatchedDomain` | The domain a rule matched |
+  | `cs6` | `DataType` | The DLP data type |
+  | `flexString1` | `ExecutableSource` | How the executable path was obtained |
+  | `flexString2` | `FlowSource` | How the five-tuple was obtained |
+
+- **Process attribution**: `sproc` (binary name), `filePath` (full path), `spid`, `fileId` (executable inode)
+- **Escaping**: `\\` and `\|` in header fields, where a line break becomes a space; `\\` and `\=` in extension values, where a line break is written `\n` or `\r`
 - **Wrapped in RFC 5424 syslog** (facility=1/user, severity mapped to syslog levels)
 
 ### IBM QRadar (LEEF)
 
-- **Format**: `LEEF:2.0|eBPFsentinel|Agent|1.0|{event_id}|{tab-delimited key=value pairs}`
-- **Fields**: `devTime`, `sev` (string), `action`, `ruleId`, `msg`, `component`, then `src`, `dst`, `srcPort`, `dstPort`, `proto` when a socket was resolved + optional `tenantId`, `threatType`, etc.
+- **Format**: `LEEF:2.0|eBPFsentinel|Agent|1.0|{event_id}|x09|{tab-delimited key=value pairs}`; `x09` declares the tab as the attribute delimiter
+- **Fields**: `devTime` (ISO 8601 UTC with milliseconds, e.g. `2024-03-08T16:00:00.123Z`), `devTimeFormat` (`yyyy-MM-dd'T'HH:mm:ss.SSSX`, the pattern QRadar reads `devTime` with), `sev` (an integer from 1 to 10: Low→3, Medium→5, High→7, Critical→10, the same points as CEF), `action`, `ruleId`, `msg`, `component`, then `src`, `dst`, `srcPort`, `dstPort`, `proto` when a socket was resolved
+- **Optional fields**, each only when the alert carries the value: `tenantId`, `threatType`, `confidence` (0 to 100), `attackType`, `matchedDomain`, `dataType`
 - **Process attribution**: `processName`, `executablePath`, `processId`, `executableDev`, `executableInode`, `executableSource`, `flowSource`
-- **Escaping**: tabs replaced with spaces (tab is field delimiter)
+- **Escaping**: tabs and line breaks in values become spaces (tab is the attribute delimiter); `\\` and `\|` are escaped in the event id, a header field
 - **Wrapped in RFC 5424 syslog**
 
 ### Generic Syslog (JSON or OCSF)
@@ -558,7 +582,7 @@ Only configure the connectors you need. Unconfigured connectors are ignored.
 
 A connector that fails to start, a CA file that does not exist or an endpoint the client refuses, is dropped alone: the agent logs the connector and the reason, the others export, and `GET /api/v1/siem/status` lists it under `failed_connectors`. When no connector starts at all, the agent logs it and runs without export; response, forensics and analytics keep working.
 
-Automated response, forensics and analytics do not depend on this block. Every alert is published on an internal event bus that those engines read whether or not a SIEM is configured; the SIEM exporters receive each event from the same bus.
+Automated response, forensics and analytics do not depend on this block. Every alert is published on an internal event bus that those engines read whether or not a SIEM is configured; the SIEM exporters receive each event from the same bus. The enterprise detectors publish there too: a TLS intelligence detection, beaconing and fingerprint-cluster outliers included, reaches the exporters under the component `tls-intelligence`, exactly as an IDS or firewall alert does.
 
 ## REST API
 
