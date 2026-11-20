@@ -131,25 +131,6 @@ sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterpri
 journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
 ```
 
-To install from the enterprise checkout instead, with the OSS repository beside
-it, stage the same layout next to `dist/install.sh`:
-
-```bash
-# eBPF objects, from the OSS repository
-(cd ../ebpfsentinel && cargo xtask ebpf-build)
-cargo build --release --bin ebpfsentinel-enterprise-agent --bin enterprise-warden --bin ebpfsentinel-license
-
-# Stage what install.sh expects next to it
-cp target/release/{ebpfsentinel-enterprise-agent,enterprise-warden,ebpfsentinel-license} dist/
-mkdir -p dist/ebpf && cp ../ebpfsentinel/target/bpfel-unknown-none/release/* dist/ebpf/
-cp config/ebpfsentinel.yaml dist/
-
-sudo ./dist/install.sh
-sudo install -m 0640 my-license.key /etc/ebpfsentinel/license.key
-sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterprise
-journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
-```
-
 `install.sh` reads everything from its own directory. It checks the kernel
 version and BTF, then:
 
@@ -205,9 +186,12 @@ itself, on the key exchange `agent.tls.pq_mode` names, and the startup log
 says `transport="tls"`; without it the log says `transport="plain-http"`. See
 [TLS](../../configuration/tls.md).
 
-The enterprise agent builds its datapath once at boot: it has no config file
-watcher, no SIGHUP handling and no reload route, so the unit carries no
-`ExecReload`, and a config edit takes a stop and a start:
+The enterprise agent reloads its configuration on SIGHUP, on a change to the
+file and on `POST /api/v1/config/reload`: the community sections (firewall,
+IDS, IPS, rate limits and the rest) and the Sigma rule files are applied
+again without a restart. Its enterprise sections - tenants, SIEM, federation,
+HA and the rest of the `enterprise:` block - are read at startup only, so an
+edit to one of them takes a stop and a start:
 
 ```bash
 sudo ebpfsentinel-enterprise-agent stop --reason "config edit"
@@ -353,7 +337,7 @@ release's tarball and moving `ebpfsentinel.yaml` and `license.key` across: its
 
 ## Kubernetes (Helm)
 
-The `charts/ebpfsentinel-enterprise` chart deploys one agent per node as a
+The `ebpfsentinel-enterprise` chart deploys one agent per node as a
 DaemonSet with the warden as a **native sidecar** (init container with
 `restartPolicy: Always`, Kubernetes 1.30+). Each release publishes it
 beside the OSS chart, signed the same way, at
@@ -369,12 +353,12 @@ helm install ebpfsentinel-enterprise oci://ghcr.io/ebpfsentinel/charts/ebpfsenti
   --set-file license.key=./my-license.key
 ```
 
-From a checkout of `ebpfsentinel-enterprise`, install the chart directory
-`charts/ebpfsentinel-enterprise` with the same values instead.
-
 Provide the license either inline (`--set-file license.key=…`, which creates a
 Secret) or by referencing an existing one (`--set license.secretName=…` whose
-`license.key` data entry holds the signed license). It is mounted read-only at
+`license` data entry holds the signed license; `license.secretKey` names another
+entry). `license` is the key the operator reads too, so one Secret made with
+`kubectl create secret generic ebpfsentinel-license --from-file=license=license.key`
+serves both. It is mounted read-only at
 `/etc/ebpfsentinel-license/license.key` (the chart's `enterprise.license_path`).
 
 The agent keeps its state under `/var/lib/ebpfsentinel`: the redb stores
@@ -396,6 +380,7 @@ Key values:
 |-------|---------|---------|
 | `agent.interfaces` | `[eth0]` | Host NICs to attach eBPF to (REQUIRED) |
 | `license.secretName` / `license.key` | `""` | Enterprise license (OSS mode if unset) |
+| `license.secretKey` | `license` | Data key holding the license in the Secret |
 | `extendedTls.enabled` | `true` | Warden-brokered extended-TLS `/proc` scan |
 | `daemonset.podSecurityAdmission` | `privileged` | The PSA level these values are checked against at render time |
 | `daemonset.hostPID` | `false` | Host PID namespace, for the whole pod. DLP never needs it; the hidden process sweep is skipped without it |

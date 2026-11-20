@@ -59,9 +59,11 @@ A checksum of the rendered document is annotated on the pod template, so editing
 a policy rolls the DaemonSet. Each running agent is additionally asked to reload,
 and that ask is best effort: a pod that refuses is logged and the reconcile
 carries on, because the rollout the checksum triggers applies the document
-anyway. An enterprise agent refuses every time - it applies its configuration
-once, at startup, and mounts no reload route - so on an enterprise DaemonSet the
-rollout is the whole of how a policy lands.
+anyway. An enterprise agent takes the reload on `POST /api/v1/config/reload`, as
+on SIGHUP or a change to its file, and applies the community sections of the
+document at once; its enterprise sections (tenants, SIEM, federation and the
+rest) are read at startup only, so for an enterprise policy the rollout is what
+makes it land.
 
 ## What the operator says on a resource
 
@@ -91,11 +93,12 @@ carried before the pass, so a restart or a new leader does not repeat them.
 | `Degraded` | Warning | the resource was running everywhere and no longer is; the note carries the `Ready` reason and message |
 | `Unselected` | Warning | no agent in the namespace selects the resource |
 | `Refused` | Warning | a value the resource sets was dropped for another resource's; the note names both and which one runs |
-| `Released` | Normal | an agent resource being deleted had its DaemonSet removed, or a suspended `TenantPolicy` being deleted had its tenant resumed, and is free to go |
+| `Released` | Normal | an agent resource being deleted had its DaemonSet removed, a `TenantPolicy` being deleted had its tenant resumed, or a resource of a kind the licence no longer carries had the operator's finalizers taken off, and is free to go |
 | `FieldsIgnored` | Warning | the resource sets a field the agent no longer reads; the note names them and the `FieldsIgnored` condition stays `True` while they are set |
 | `ReconcileFailed` | Warning | a pass failed and will be retried, after 5 seconds and then twice as long each time up to 5 minutes; repeats fold into one event series |
 | `NotLicensed` | Warning | an enterprise kind the licence does not carry |
 | `Drifted` | Warning | an agent resource's `ConfigDrift` condition turned `True`; the note names the nodes and why |
+| `ActRefused` | Warning | an agent refused to suspend or resume a `TenantPolicy`'s tenant; the note names each pod and its answer, and the `ActApplied` condition stays `False` until every agent takes it |
 
 ```bash
 kubectl describe firewallpolicy edge-baseline
@@ -166,7 +169,9 @@ so the counts are read against them.
 | Open source policies | 21 kinds: `AlertPolicy`, `AliasSet`, `ConnectionTrackingConfig`, `DDoSProtection`, `DLPPolicy`, `DNSPolicy`, `FirewallPolicy`, `GeoIPConfig`, `IDSPolicy`, `IPSPolicy`, `InterfaceGroup`, `L7FirewallPolicy`, `LoadBalancerConfig`, `NATPolicy`, `PacketCapture`, `QoSPolicy`, `RateLimitPolicy`, `ResponsePolicy`, `RoutingPolicy`, `ThreatIntelFeed`, `ZonePolicy` |
 | Enterprise policies | 15 kinds: `AISecurityPolicy`, `AirGapBundle`, `AnalyticsConfig`, `BehavioralDetection`, `ComplianceReport`, `EnterpriseSettings`, `FederationPolicy`, `FleetConfig`, `ForensicsPolicy`, `HACluster`, `MLDetection`, `RBACConfig`, `SIEMExport`, `TLSIntelligence`, `TenantPolicy` |
 
-One example per kind ships with the operator repository under `config/samples`.
+One example per kind ships with every release as
+`ebpfsentinel-operator-samples.tar.gz`, signed with the rest of the release
+(see [Installing](#installing)).
 
 Each enterprise kind is watched only when the licence carries the feature it
 needs, so a kind the licence does not admit is left unreconciled rather than
@@ -182,10 +187,19 @@ release version:
 kubectl create namespace ebpfsentinel
 kubectl -n ebpfsentinel create secret generic ebpfsentinel-license \
     --from-file=license=license.key
+kubectl -n ebpfsentinel create secret generic ebpfsentinel-api \
+    --from-literal=operator-key="$(openssl rand -hex 32)"
 helm install ebpfsentinel-operator oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-operator \
     --namespace ebpfsentinel --version <version> \
     --set license.existingSecret=ebpfsentinel-license
 ```
+
+Two Secrets, each read under one key name everywhere on this page:
+
+| Secret | Key | Read by |
+|--------|-----|---------|
+| `ebpfsentinel-license` | `license` | the operator (chart values `license.existingSecret`, `license.secretKey`), and the enterprise agents through `EnterpriseSettings.spec.licenseSecretRef` |
+| `ebpfsentinel-api` | `operator-key` | the operator, as the credential it presents to every agent (chart values `agentAuth.secretName`, `agentAuth.secretKey`), and each agent, which lists it under `config.auth.apiKeys` |
 
 Releases are listed on the
 [releases page](https://github.com/ebpfsentinel/ebpfsentinel-release/releases).
@@ -201,6 +215,145 @@ version does not tell. `kubectl get nodes -o wide` shows each node's kernel,
 and `ebpfsentinel-agent ebpf host-check`, run on a node of each pool, answers
 for the BPF LSM. The chart prints both after an install. See
 [Prerequisites](../../getting-started/prerequisites.md).
+
+### Deploying an agent
+
+An `EbpfSentinelAgent` becomes a DaemonSet on every node it tolerates. The
+agent binds its API to loopback unless told otherwise, where neither the
+kubelet's probes nor the operator reach it, so `config.bindAddress` is
+`0.0.0.0`. A non-loopback address is refused at admission unless the API key
+is required (`config.auth`) and the reader says either that the API carries
+TLS (`config.serverTls`) or that it does not (`allowPlaintextApi: true`). The
+kubelet probes `/healthz` and `/readyz` in TLS when `config.serverTls` is on
+and over plain HTTP otherwise; the enterprise listener is always probed over
+plain HTTP. The agent below serves plain HTTP on the node's address, so the
+operator's key travels readable on the node network: turning `serverTls` on
+with a `secretRef` to a certificate Secret closes that.
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: default
+  namespace: ebpfsentinel
+spec:
+  image:
+    repository: ghcr.io/ebpfsentinel/ebpfsentinel
+    tag: "<version>"
+  wardenImage:
+    repository: ghcr.io/ebpfsentinel/ebpfsentinel-warden
+    tag: "<version>"
+  interfaces:
+    - eth0
+  tolerations:
+    - operator: Exists
+  config:
+    bindAddress: 0.0.0.0
+    allowPlaintextApi: true
+    auth:
+      enabled: true
+      apiKeys:
+        - name: operator
+          role: operator
+          secretRef:
+            name: ebpfsentinel-api
+            key: operator-key
+```
+
+`interfaces` names the node interfaces the programs attach to, `eth0` when
+the field is left out. `kubectl -n ebpfsentinel get ebpfsentinelagent default`
+shows whether the agent is ready and on how many nodes once applied.
+
+### Enterprise agents
+
+The enterprise agent is the same resource on the enterprise images, with
+`enterprisePort` set: the operator then passes the port to the agent, binds
+the enterprise listener to `config.bindAddress`, and points the probes and
+its own calls at that port instead of `httpPort`. `8444` is the port the
+enterprise agent uses everywhere else. The operator lists the tenants of an
+agent only with a key that carries the `admin` role, and the enterprise image
+holds more in memory than the open source one:
+
+```yaml
+apiVersion: ebpfsentinel.io/v1
+kind: EbpfSentinelAgent
+metadata:
+  name: default
+  namespace: ebpfsentinel
+spec:
+  image:
+    repository: ghcr.io/ebpfsentinel/ebpfsentinel-enterprise
+    tag: "<version>"
+  wardenImage:
+    repository: ghcr.io/ebpfsentinel/ebpfsentinel-enterprise-warden
+    tag: "<version>"
+  enterprisePort: 8444
+  interfaces:
+    - eth0
+  tolerations:
+    - operator: Exists
+  config:
+    bindAddress: 0.0.0.0
+    allowPlaintextApi: true
+    auth:
+      enabled: true
+      apiKeys:
+        - name: operator
+          role: admin
+          secretRef:
+            name: ebpfsentinel-api
+            key: operator-key
+  resources:
+    requests:
+      memory: 384Mi
+    limits:
+      memory: 640Mi
+---
+apiVersion: ebpfsentinel.io/v1
+kind: EnterpriseSettings
+metadata:
+  name: default
+  namespace: ebpfsentinel
+spec:
+  target:
+    all: true
+  licenseSecretRef:
+    name: ebpfsentinel-license
+    key: license
+```
+
+`EnterpriseSettings` names the licence the agents load, from the Secret
+created above, in the namespace of the agents it targets. Every other
+enterprise kind is reconciled only when the operator's licence carries its
+feature.
+
+### The samples
+
+One example per kind, the agent above with every section filled in, ships
+as a release asset next to the checksums it is listed in:
+
+```bash
+REL=<release>
+BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
+curl -fsSLO "$BASE/ebpfsentinel-operator-samples.tar.gz"
+curl -fsSLO "$BASE/operator-SHA256SUMS"
+curl -fsSLO "$BASE/operator-SHA256SUMS.sig"
+curl -fsSLO "$BASE/operator-SHA256SUMS.crt"
+cosign verify-blob \
+    --certificate operator-SHA256SUMS.crt \
+    --signature operator-SHA256SUMS.sig \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --certificate-identity-regexp '^https://github\.com/ebpfsentinel/ebpfsentinel-release/\.github/workflows/sign-blob\.yml@refs/tags/v.*$' \
+    --certificate-github-workflow-repository ebpfsentinel/ebpfsentinel-release \
+    operator-SHA256SUMS
+sha256sum --ignore-missing -c operator-SHA256SUMS
+tar xzf ebpfsentinel-operator-samples.tar.gz
+```
+
+`ebpfsentinel-operator-samples/agent.yaml` is the agent, `oss/` holds one
+resource per open source kind and `enterprise/` one per enterprise kind.
+They describe one estate rather than unrelated documents: read each before
+applying it, since addresses, interfaces and namespaces are examples.
 
 ### Reconciling some namespaces only
 
@@ -593,11 +746,24 @@ Narrowed to a list of namespaces with `watchNamespaces`, the operator cannot
 read namespaces, so a tenant keeps the namespaces it names, the selector is
 left unresolved with a `reason`, and the condition is `Unknown`.
 
-A `TenantPolicy` with `state: Suspended` carries a finalizer. Deleting it
-resumes the tenant on every agent it reaches before the resource goes, so a
-deleted policy never leaves a tenant suspended with nothing left to say so.
-An agent that no longer knows the tenant counts as done; any other refusal
-keeps the resource until the next attempt succeeds.
+`state: suspended` suspends the tenant on every agent the policy reaches,
+and `state: active`, the default, resumes it. The state is written into the
+configuration the agents load as well, so a pod that restarts comes back with
+the tenant as the policy says rather than running it. The `ActApplied`
+condition says whether every agent took the change: `False`, with the reason
+`ActRefused` and each refusing pod in the message, until the next pass
+succeeds. With no running agent pod to ask, the condition is absent rather
+than `True`: the state then rides the rendered configuration alone, and no
+agent has answered anything yet.
+
+A `TenantPolicy` carries a finalizer. Deleting it resumes the tenant on every
+agent it reaches before the resource goes, so a deleted policy never leaves a
+tenant suspended with nothing left to say so. An agent that no longer knows
+the tenant counts as done; any other refusal keeps the resource until the next
+attempt succeeds. Once the licence no longer carries `TenantPolicy`, or any
+other enterprise kind, nothing of it runs on an agent: deleting such a
+resource takes the operator's finalizers off and lets it go, and any other
+controller's finalizer stays.
 
 ```yaml
 apiVersion: ebpfsentinel.io/v1
@@ -650,7 +816,7 @@ spec:
     all: true
   licenseSecretRef:
     name: ebpfsentinel-license
-    key: license.lic
+    key: license
   multiTenancy:
     cgroupAttribution:
       enabled: true
@@ -1415,7 +1581,7 @@ spec:
     all: true
   licenseSecretRef:
     name: ebpfsentinel-license
-    key: license.lic
+    key: license
   portal:
     enabled: true
     baseUrl: https://portal.ebpfsentinel.io
