@@ -114,6 +114,8 @@ Per-source connection limits prevent brute-force and state exhaustion attacks:
 
 Both ceilings count connections that are open: a connection that closes stops counting within about fifteen seconds, when the agent reads the kernel connection table. A source past `max_src_states`, or a rule past `max_states`, has its next connection refused. A source past `max_src_conn_rate` is added to the overload blacklist (IP set 255) and all further packets are dropped at the fast-path until `overload_ttl_secs` has passed.
 
+These ceilings take effect on a configuration reload as they do at startup: a `max_src_states` or `max_src_conn_rate` added by a reload is enforced from that reload on, its counts are released as connections close the same way, and `conn_rate_window_secs` changed by a reload applies from the agent's next pass. One task does this release, started with the firewall program and stopped with it.
+
 ### TCP Flags Matching
 
 Rules can match on specific TCP flag combinations, using the `flags` field with `match/mask` notation:

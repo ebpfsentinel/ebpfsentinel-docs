@@ -109,7 +109,7 @@ ddos:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Enable TCP connection tracking |
-| `half_open_threshold` | `integer` | `100` | Max half-open connections per source before dropping |
+| `half_open_threshold` | `integer` | `100` | Max half-open connections per source before dropping. Counted per CPU, released on handshake completion, RST or FIN, halved every ten seconds; retransmitted SYNs count once. See [DDoS protection](../features/ddos.md) |
 | `rst_threshold` | `integer` | `50` | RST packets/sec per source before dropping |
 | `fin_threshold` | `integer` | `50` | FIN packets/sec per source before dropping |
 | `ack_threshold` | `integer` | `200` | ACK packets/sec per source before dropping |

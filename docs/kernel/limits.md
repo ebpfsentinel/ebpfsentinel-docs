@@ -92,7 +92,7 @@ No RingBuf. Reads the parsed offsets from `PKT_CTX`, shared with `xdp-firewall`.
 | Interface groups | 31 | Shared `INTERFACE_GROUPS` |
 | RingBuf size | 1 MB | `EVENTS` |
 
-**Memory footprint** at the defaults, measured on kernel 7.0.0-42-generic at 4 and at 8 vCPUs (`bytes_memlock`). Each additional CPU costs a slot's value once more: 64 bytes per slot for `RL_BUCKETS`, 24 for `CONN_TABLE`, 16 for the SYN, ICMP, amplification and flood tables and 8 for the half-open counters. The key, the LRU node and the hash bucket are paid once whatever the CPU count, which on 4 CPUs makes 84 bytes a slot per CPU for `RL_BUCKETS`, 46 for `CONN_TABLE` and 36 for the per-source tables:
+**Memory footprint** at the defaults, measured on kernel 7.0.0-42-generic at 4 and at 8 vCPUs (`bytes_memlock`). Each additional CPU costs a slot's value once more: 64 bytes per slot for `RL_BUCKETS`, 24 for `CONN_TABLE`, 16 for the SYN, ICMP, amplification, flood and half-open tables. The key, the LRU node and the hash bucket are paid once whatever the CPU count, which on 4 CPUs makes 84 bytes a slot per CPU for `RL_BUCKETS`, 46 for `CONN_TABLE` and 36 for the per-source tables:
 
 | CPUs | `RL_BUCKETS` only | All seven LruPerCpuHash tables combined |
 |------|-------------------|-----------------------------------------|

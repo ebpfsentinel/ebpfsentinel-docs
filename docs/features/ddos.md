@@ -39,6 +39,10 @@ Four independent protection subsystems run in XDP:
 
 **Connection Tracking** - Monitors TCP connection state to detect half-open connection floods and abnormal RST/FIN/ACK rates. Thresholds are independently configurable.
 
+A source's half-open count is the SYNs it sent whose handshake has neither completed nor closed. A handshake gives its slot back when the final ACK passes, or when a RST or FIN ends it before it completed, from either side. A retransmitted SYN for a handshake already counted is not counted again and is never refused by the ceiling its first copy passed. The count also halves every ten seconds, so a handshake whose end the node never sees (a reset leaving by another path, a lost SYN-ACK) stops holding the source back instead of refusing it for good. A source that completes its handshakes holds at any moment only the ones still in progress, however many it opens.
+
+The count is kept per CPU, like the other per-source tables: each CPU counts the SYNs it received from the source and compares its own count to `half_open_threshold`. When the NIC spreads one source's connections over several receive queues, the source can hold up to `half_open_threshold` half-open handshakes on each CPU that sees its traffic, so the ceiling effectively applied is between `half_open_threshold` and that value times the number of CPUs. A handshake completed or closed on another CPU than the one that counted its SYN is released only by the halving.
+
 ### Userspace Detection Engine
 
 The DDoS engine uses EWMA (α=0.3) to smooth traffic rate calculations and a state machine to track attack lifecycle:
