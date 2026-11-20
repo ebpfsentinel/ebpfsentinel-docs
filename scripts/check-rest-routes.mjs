@@ -3,6 +3,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readManifest, settle, summaryLine } from './lib/surface-manifest.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
@@ -110,9 +111,21 @@ const AGENT_WIDE = [
 const OSS_SURFACE_SOURCE = 'oss_surface.rs';
 const OSS_SURFACE_LIST = 'OSS_SERVED_PATHS';
 
-// Operations deliberately left out of the enterprise reference page. Add a pair
-// here only when the route is internal by design, with the reason beside it.
-const INTERNAL = new Set([]);
+// Operations deliberately left out of the reference pages live in
+// `rest-routes.toml` beside this script, one `[routes."<document> METHOD /path"]` line
+// each, with the reason the route is not public (or the gap, if it should be).
+const manifestPath = join(scriptDir, 'rest-routes.toml');
+const manifest = readManifest(manifestPath);
+const INTERNAL = new Set(
+  Object.keys(manifest.tables.routes ?? {})
+    .filter((key) => key.startsWith('enterprise '))
+    .map((key) => key.slice('enterprise '.length)),
+);
+
+// The scanner reads every operation of both documents; fewer than this means
+// a document moved or stopped parsing, not that the surface shrank.
+const OSS_FLOOR = 140;
+const ENTERPRISE_FLOOR = 350;
 
 function fail(lines) {
   for (const line of lines) console.error(line);
@@ -566,11 +579,52 @@ report(
   'Take the role from WRITE_ROLES in crates/agent/src/http/middleware/rbac.rs.',
 );
 
+if (spec.size < OSS_FLOOR || entSpec.size < ENTERPRISE_FLOOR) {
+  problems.push(
+    `only ${spec.size} open-source and ${entSpec.size} enterprise operations were read ` +
+      `(floors ${OSS_FLOOR} and ${ENTERPRISE_FLOOR}): the documents no longer read the way this check expects`,
+  );
+}
+
+// Every operation of both documents is a surface, once per document: named on
+// its reference page (open source: a section and a summary row; enterprise: a
+// row in the enterprise reference and on the feature page owning its prefix),
+// or listed. Manifest keys carry the document: `open-source GET /path`.
+const onEnterprisePages = (pair) => {
+  const doc = docFor(pair.slice(pair.indexOf(' ') + 1));
+  return entPage.has(pair) && Boolean(doc && pages.get(doc)?.has(pair));
+};
+const settled = settle({
+  surfaces: [
+    ...[...spec.keys()].map((pair) => `open-source ${pair}`),
+    ...[...entSpec.keys()].map((pair) => `enterprise ${pair}`),
+  ].sort(),
+  covered: (surface) => {
+    const pair = surface.slice(surface.indexOf(' ') + 1);
+    return surface.startsWith('enterprise ')
+      ? onEnterprisePages(pair)
+      : sections.has(pair) && rows.has(pair);
+  },
+  manifest,
+  kind: 'routes',
+});
+// An operation neither documented nor listed is already reported above with
+// the page it belongs on; what remains are the manifest's own faults.
+const manifestFaults = settled.errors.filter((e) => !e.endsWith('the manifest does not list it'));
+report(
+  problems,
+  `fault in ${relative(repoRoot, manifestPath)}`,
+  manifestFaults,
+  'A line names a route the pages already carry, a route no document has, or the gap count left its ceiling.',
+);
+
 if (problems.length > 0) fail(problems);
 
+for (const gap of settled.gaps) console.log(`gap: ${gap}`);
 console.log(
   `REST reference OK: ${spec.size} open-source operations in ` +
     `${relative(process.cwd(), openApiJson)}, each with a section and a summary row; ` +
     `${entSpec.size} enterprise operations in ${relative(process.cwd(), entOpenApiJson)}, ` +
     `each on the enterprise reference and on its own feature page.`,
 );
+console.log(summaryLine('docs/rest-routes', settled));

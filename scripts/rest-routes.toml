@@ -1,0 +1,12 @@
+# Operations of the open-source or enterprise OpenAPI document that the
+# reference pages do not carry, read by check-rest-routes.mjs. One line each,
+# exactly one of `reason` (internal by design, written as the reason) or `gap`
+# (should be documented, is not yet). `gap_ceiling` is the number of gap lines.
+# Only enterprise operations take a line: the open-source reference carries
+# every open-source operation, a section and a summary row each.
+#
+# [routes."enterprise GET /api/v1/example"]
+# reason = "called by the peer agent only, never by a person"
+
+gap_ceiling = 0
+

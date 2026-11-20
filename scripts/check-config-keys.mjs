@@ -20,6 +20,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readManifest, settle, summaryLine } from './lib/surface-manifest.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
@@ -105,6 +106,12 @@ const lanes = [
   },
 ];
 
+// A key no page should name (none today) carries a line in `config-keys.toml`
+// beside this script, keyed `<lane> Struct.key`, with its reason or its gap.
+const manifest = readManifest(join(scriptDir, 'config-keys.toml'));
+const surfaces = new Set();
+const named = new Set();
+
 const counts = [];
 for (const lane of lanes) {
   const names = namedKeys(lane.pages);
@@ -116,7 +123,10 @@ for (const lane of lanes) {
     );
   }
   for (const { file, struct, key } of keys) {
-    if (!names.has(key)) {
+    const surface = `${lane.label} ${struct}.${key}`;
+    surfaces.add(surface);
+    if (names.has(key)) named.add(surface);
+    else if (!(manifest.tables.keys ?? {})[surface]) {
       errors.push(
         `${lane.label} key \`${key}\` (${struct}, ${relative(resolve(repoRoot, '..'), file)}) is named by no page`,
       );
@@ -125,9 +135,19 @@ for (const lane of lanes) {
   counts.push(`${keys.length} ${lane.label}`);
 }
 
+const settled = settle({
+  surfaces: [...surfaces].sort(),
+  covered: (surface) => named.has(surface),
+  manifest,
+  kind: 'keys',
+});
+errors.push(...settled.errors.filter((e) => !e.endsWith('the manifest does not list it')));
+
 if (errors.length > 0) {
   for (const error of errors) console.error(error);
   console.error(`\n${errors.length} configuration key(s) the documentation does not name.`);
   process.exit(1);
 }
 console.log(`Configuration keys OK (${counts.join(', ')} keys named by a page).`);
+for (const gap of settled.gaps) console.log(`gap: ${gap}`);
+console.log(summaryLine('docs/config-keys', settled));

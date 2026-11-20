@@ -34,6 +34,11 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:no-waf-claim`, `check:no-protection-claim` | the agent is never called a WAF, mass encryption is never sold as protection |
 | `check:no-typographic-dash` | none of the four typographic dashes in any tracked file |
 
+`check:rest-routes` and `check:config-keys` are surface gates (meta `docs/COVERAGE.md`): what a page
+does not name carries a line in `scripts/rest-routes.toml` / `scripts/config-keys.toml` (`reason`
+or `gap`, the gap count equal to `gap_ceiling`), and each prints one summary line the meta runner
+`scripts/audit-surfaces.sh` collects.
+
 When a check fails, regenerate (`pnpm generate:<name>`) or fix the page; never edit a generated
 table by hand and never loosen a checker to make a page pass.
 

@@ -1,0 +1,10 @@
+# Configuration keys the loaders accept that no page names, read by
+# check-config-keys.mjs. One line each, keyed `<open-source|enterprise>
+# Struct.key`, exactly one of `reason` (never written by a reader, written as
+# the reason) or `gap` (should be named by a page, is not yet).
+# `gap_ceiling` is the number of gap lines.
+#
+# [keys."enterprise PortalConfig.example"]
+# gap = "named by no page yet"
+
+gap_ceiling = 0
