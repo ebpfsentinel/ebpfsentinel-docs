@@ -26,6 +26,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:metrics`, `check:ebpf-metric-slots` | every metric name and kernel counter slot a page names exists |
 | `check:rest-routes`, `check:vendored-openapi` | routes named on a page exist; the vendored OpenAPI is the agent's |
 | `check:request-bodies` | every JSON body a page sends (curl, `--json`, a request fence) is one its route's schema accepts |
+| `check:config-keys` | every key the OSS and enterprise configuration loaders accept is printed as a key by a page |
 | `check:cli-reference`, `check:cli-invocations` | every subcommand and every command written in a page parses |
 | `check:grpc-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables, `generate:*` rewrites them |
 | `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor (6.12) wherever a matrix states one |

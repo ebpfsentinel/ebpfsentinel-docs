@@ -103,6 +103,13 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:request-bodies
 
+      # Every key the two configuration loaders accept is named by a page, read
+      # off the loaders' own structs, so a setting added there and nowhere here
+      # fails before a reader goes looking for it.
+      - name: Check the configuration keys
+        working-directory: ebpfsentinel-docs
+        run: npm run check:config-keys
+
       # The API explorer renders a copy of the agent's document rather than
       # reading it, because the page is prerendered. A copy nobody compares
       # drifts, and this one had: three routes and a release behind.
