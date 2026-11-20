@@ -42,6 +42,7 @@ fast. Every value is validated below.
 | `scopes` | string list | `[openid, profile, email, groups]` | |
 | `tenant_claim` | string | `tenant` | OIDC claim mapped to the dashboard tenant id. |
 | `role_claim` | string | `groups` | OIDC claim mapped to the dashboard role list. |
+| `platform_admin_groups` | string list | `[]` | OIDC `groups` claim values that make the operator a platform administrator: role `admin`, which reaches every tenant, each access to a tenant they are not a member of being written to the audit log as `admin.override`. The only way to that role. A name here may not also appear in any tenant's `oidc_groups`, `admin_groups` or `viewer_groups`, and may not be blank. Empty means no platform administrator. |
 | `post_logout_redirect_uri` | URL | unset | Optional URL the IdP redirects to after `end_session_endpoint`. Must be `http(s)://` when set. |
 | `session_ttl_seconds` | u64 | `14400` | Lifetime of the per-user session JWT (`60..=2592000`). Default 4 h. Signing out withdraws the token, and an administrator can sign an operator out everywhere (see [Sessions and revocation](#sessions-and-revocation)); an expiry costs a live operator a silent redirect through the identity provider rather than a sign-in. |
 | `cookie_signing_key_file` | path | (required) | Path to a file holding the HMAC seed used to sign the short-lived `pkce_state` cookie. Same on-disk contract as every other secret (mode ≤ `0640`). An empty file falls back to an ephemeral key - sessions do not survive a restart. |
@@ -86,9 +87,21 @@ Static tenant catalogue. At least one entry required, all `id`s unique.
 | `id` | string | (required) | Non-empty, unique across the list. |
 | `display_name` | string | (required) | Non-empty. |
 | `agent_pool` | string | (required) | Non-empty pool name keyed by fleet discovery. |
-| `oidc_groups` | string list | `[]` | OIDC `groups` claim values that grant `analyst` access to this tenant. Any match elects the tenant for that user. |
-| `admin_groups` | string list | `[]` | OIDC `groups` claim values that grant `admin` access to this tenant. Membership implies tenant access too. |
+| `oidc_groups` | string list | `[]` | OIDC `groups` claim values that grant `analyst` on this tenant. Any match elects the tenant for that user. |
+| `admin_groups` | string list | `[]` | OIDC `groups` claim values that grant `tenant-admin` on this tenant, and on no other. Membership implies tenant access too. A tenant's administrator never becomes a platform administrator, whatever the number of tenants they administer: that comes only from `oidc.platform_admin_groups`. |
+| `viewer_groups` | string list | `[]` | OIDC `groups` claim values that grant `viewer` (read only) on this tenant. |
 | `require_second_approver` | bool | `false` | A stop one administrator asks for waits for a second administrator of the tenant, never the one who asked, before the console signs it. |
+| `license_org` | string | unset | The organisation the tenant's licences are issued to, compared exactly with the `org` of each agent's verified licence. An agent whose licence names another organisation, or listed under a tenant that sets none, stays out of the pool as `license_locked`. A blank value is refused. A console whose tenants list agents without this key keeps every one of those agents out of the pool, so set it on each tenant before moving to a console version that reads it. |
+
+An operator holds one role per tenant, the strongest their groups grant there:
+`tenant-admin` from `admin_groups`, else `analyst` from `oidc_groups`, else
+`viewer` from `viewer_groups`. The role decides what each request on that
+tenant may do; a member of `acme-admin` and `globex-soc` is `tenant-admin` on
+`acme` and `analyst` on `globex`. The session token carries this per-tenant
+map, so a token minted before it existed no longer verifies and its holder
+signs in once more. A group named in no list grants nothing, and a session
+holding no recognised role on a tenant is refused that tenant: nothing falls
+back to `analyst` or any other default role.
 
 ### `fleet_discovery`
 
@@ -105,7 +118,6 @@ How the dashboard learns about agents.
 | `static_agents[].tls_pin_sha256` | string | unset | Hex-encoded SHA-256 of the agent's TLS `SubjectPublicKeyInfo` DER. Pin mismatches are fatal - the agent is excluded and `ebpfsentinel_dashboard_tls_pin_mismatch_total{tenant}` increments. |
 | `poll_interval_seconds` | u64 | `60` | `5..=3600`. Legacy field - superseded by `refresh_interval_seconds` for the agent pool, kept for downstream consumers that still poll. |
 | `refresh_interval_seconds` | u64 | `60` | `5..=3600`. How often the agent pool re-probes every known agent's `/api/v1/license` + `/api/v1/agent/identity`. |
-| `management_cluster_url` | URL | unset | When set, the dashboard additionally GETs `<url>/api/v1/fleet/agents` on every refresh tick and merges the response into the static-agent list (deduped by `base_url`) before probing. Must be `https://`. |
 
 ### `clickhouse` (optional)
 
@@ -284,9 +296,9 @@ token - only the dashboard session JWT (HttpOnly + Secure cookie).
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/auth/login` | GET | Mints PKCE verifier + CSRF state + nonce, sets the signed `pkce_state` cookie (`Path=/auth`, 10 min, HttpOnly, Secure, SameSite=Lax), redirects to the IdP `authorize_url`. Honours `?next=<relative-path>` for post-login redirects (open-redirect-safe). |
-| `/auth/callback` | GET | Validates `state`, exchanges code, verifies `id_token`, fetches userinfo (for the `groups` claim), resolves tenant + role via `tenants[].oidc_groups` / `admin_groups`. On no match → 403 + styled "no tenant assigned" page + `auth.audit` event. On match → mints session JWT, sets `session` cookie (`Path=/`, `oidc.session_ttl_seconds`), redirects to original target. |
+| `/auth/callback` | GET | Validates `state`, exchanges code, verifies `id_token`, fetches userinfo (for the `groups` claim), resolves the tenants and the role on each via `tenants[].oidc_groups` / `admin_groups` / `viewer_groups`, and platform administration via `oidc.platform_admin_groups`. An identity provider error is answered as a bare `502 identity provider error`, its detail kept in the server log. On no match → 403 + styled "no tenant assigned" page + `auth.audit` event. On match → mints session JWT, sets `session` cookie (`Path=/`, `oidc.session_ttl_seconds`), redirects to original target. |
 | `/auth/logout` | POST | Reads the session sub, drops the stored session and its refresh token, revokes the token it was presented with, clears the `session` cookie, redirects to the IdP `end_session_endpoint` (with `post_logout_redirect_uri` when set) - falls back to `/`. |
-| `/auth/refresh` | POST | Reads the session JWT to find the stored refresh token, swaps it at the IdP, mints a fresh session JWT, replaces the cookie. Returns 204 on success or 401 on invalid / expired session. |
+| `/auth/refresh` | POST | Reads the session JWT to find the stored refresh token, swaps it at the IdP, resolves the tenants and roles again from the groups the IdP answers now, mints a fresh session JWT, replaces the cookie and revokes the token it replaced. Returns 204 on success or 401 on invalid / expired session. Groups the IdP no longer lists are gone; an answer listing none grants nothing, so the session is dropped, its token revoked, and the answer is 403. |
 
 The session JWT is signed with the active EdDSA key from
 the active entry of `jwt.signing_keys[]` (the first non-expired item).
@@ -468,6 +480,14 @@ manifest that is configured and unreadable or badly signed is fatal for
 the same reason. With the variable unset the gate is off and the licence
 verification alone admits an agent.
 
+A verified licence still has to belong to the tenant the agent is listed
+under: its `org` must equal that tenant's `license_org`. A licence copied
+from another customer verifies as well as the customer's own, so the
+signature alone says only that we issued it, not to whom. The licence's
+`machine_fingerprint` is not compared here: no agent reports the machine it
+measured, so the console has nothing to hold it against, and the agent
+already refuses at startup a licence bound to another machine.
+
 ### Post-quantum key exchange
 
 `server.tls.pq_mode` decides whether the dashboard's own listener advertises
@@ -521,14 +541,14 @@ openssl x509 -in agent.crt -pubkey -noout \
   | awk '{print $2}'
 ```
 
-### Fleet discovery merge
+### Where the fleet comes from
 
-When `fleet_discovery.management_cluster_url` is set, the dashboard
-additionally GETs `<url>/api/v1/fleet/agents` once per refresh tick
-and merges the response into the static-agent list. Entries are
-deduplicated by `base_url`; the static-config entry wins. The fleet
-endpoint must return JSON with the same shape as
-`fleet_discovery.static_agents[]`.
+The agents the dashboard probes are exactly `fleet_discovery.static_agents[]`,
+each with the tenant, address, pin and token variable the operator wrote.
+Nothing is learnt from a remote list: an agent named by an unauthenticated
+answer, carrying the name of an environment variable the console would read
+its token from, is an agent the operator never chose. A configuration still
+naming `management_cluster_url` is refused at startup as an unknown key.
 
 ### Metrics
 
@@ -543,6 +563,22 @@ Three Prometheus families track the pool, all surfaced via
   counter for the security-critical pin-mismatch case so an alert can
   fire without grepping `reason`.
 
+### Auditor links
+
+A tenant administrator issues an auditor a read-only link from
+`POST /api/v1/{tenant}/auditor/tokens` (`IssueAuditorToken`). The link lists
+tenants and paths; the caller must hold `IssueAuditorToken` on every tenant
+it lists, not only on the tenant in the path, or the answer is 403. With no
+path listed the token reads `/compliance`, `/audit-license` and `/alerts`.
+
+The link has the form `https://<console>/auditor/redeem#t=<token>`. The token
+rides in the fragment, which a browser never sends to a server, so it stays
+out of access logs, proxies and the `Referer` header. The redeem page reads
+it and posts it as `{"token": "..."}` to `POST /api/v1/auditor/redeem`, which
+answers 204 with the auditor session cookie, or 403 for a token invalid,
+expired, revoked or already redeemed. The auditor session reaches only the
+listed paths (see [Proxy fan-out](#proxy-fan-out)).
+
 ## Proxy fan-out
 
 Every dashboard API call is proxied through `/api/v1/{tenant}/{rest}`.
@@ -552,9 +588,15 @@ Three guards run before any agent traffic leaves the box:
    `Authorization: Bearer <session-jwt>` header and verify against the
    active session signer.
 2. **Tenant scope** - `TenantScope::can_access` rejects any tenant
-   not in the user's session-claim `tenants[]` list. Members of the
-   `admin` role bypass this check; their access is recorded as an
-   `auth.audit` event.
+   not in the user's session-claim `tenants[]` list. A platform
+   administrator (`oidc.platform_admin_groups`) bypasses this check; each
+   such access is written to the audit log as `admin.override`, never as a
+   sign-in. A tenant administrator does not: `acme`'s administrator
+   calling `/api/v1/globex/...` gets 403. An auditor session reaches only
+   the paths its token lists, matched on whole segments after the tenant
+   (`/compliance` admits `/api/v1/acme/compliance/controls`, not
+   `/api/v1/acme/compliance-export` nor `/api/v1/acme/alerts`); anything
+   else is 403, and an auditor is refused every cross-tenant route.
 3. **Resolve** - pull `agents_for_tenant(tenant)` out of the agent
    pool. An empty set returns `503 Service Unavailable` rather than a
    silent no-op.
@@ -575,6 +617,53 @@ Fan-out semantics:
 - Partial failures surface in the response body as
   `meta.failed_agents = [{agent_id, agent_name, reason}]` and the
   HTTP response carries `X-Partial-Response: true`.
+
+### The token the console hands an agent
+
+Every agent call carries a short-lived token the console mints for the tenant
+the agent is listed under, in one of the two scopes below. Through the generic
+proxy the token carries the role the session holds on that tenant. Calls the
+console makes on its own carry the least role the agent serves them to:
+`viewer` for every read (rule and feed listings, coverage, configuration,
+compliance, posture, process and alert walks, baselines, segments, the
+cross-cluster alert view), `operator` for a path trace, and `admin` only for
+the writes the agent reserves to it (pushing a configuration section,
+stopping an agent, refreshing the threat feeds, the response webhooks, the
+remote identities).
+
+An agent that serves several tenants answers a token naming a tenant only on
+that tenant's own routes and the reads it narrows to the tenant (alerts and
+the audit trail); every node-wide route answers 404. The console therefore
+mints in one of two scopes, both for the audience
+`agent_audience_pattern` with `{tenant_id}` replaced by the tenant the agent
+is listed under, and each cached apart:
+
+- **Tenant scope** - the token carries `tenant_id`. Every call through the
+  generic proxy, every alert read (the alert list and walks, the queue across
+  tenants, an alert a case keeps, the cross-cluster alert view) and the
+  alert and forensics streams the console subscribes to are made in it,
+  whoever asks. So are the readings the console takes on its own and keeps on
+  one tenant's record (compliance posture, the cryptography trend, the
+  exposure diff, control checks): a node another tenant shares answers them
+  404 and the reading shows the gap, never the other tenant's share.
+- **Node scope** - the token carries no `tenant_id`, so the agent fences it
+  to no tenant. The node-wide screens (rules, feeds, coverage, configuration
+  and rollouts, stop, baselines, process counts, segments, the service graph,
+  webhooks, a case's investigations and forensic evidence, the scanner
+  reports across tenants) use it only when the session is a platform
+  administrator. A session holding a role on the tenant alone, tenant
+  administrator included, keeps the tenant scope: on a node shared with
+  another tenant that screen lists the agent among `failed_agents`. The
+  console's own exchange of node addresses and peer lists, which belongs to
+  the node, is made in the node scope as well.
+
+The role a token carries is the same in either scope. An agent serving one
+tenant ignores the claim, so both scopes read the same there.
+
+The pool probe reads each agent's licence and identity with the key named by
+`api_token_env` and no minted token; the agent resolves that key to a caller
+naming no tenant. Keep the key out of any namespace that names a tenant on
+the agent, or a shared node fences the probe and leaves the pool.
 
 Every upstream call carries the inbound `X-Request-Id` header (or a
 freshly-minted UUID-v4 when missing). The same id is mirrored onto the
@@ -993,6 +1082,7 @@ The server exposes a single Axum router with the following route layout:
 | `GET/POST/PUT/DELETE /api/v1/{tenant}/*` | session | Proxy fan-out to agents for the tenant. |
 | `GET /api/v1/{tenant}/alerts/stream` | session | SSE merge from all agents (alerts). |
 | `GET /api/v1/{tenant}/forensics/stream` | session | SSE merge from all agents (forensics). |
+| `POST /api/v1/{tenant}/rules/replay` | session | Replay an IDS, L7, DLP or IPS rule body (`rule_type`, `rule_body`, `agent_id`) over the last 24 hours of that agent's forensic events in the history store: `total_hits`, a few `samples`, the echoed `agent_id`. No agent replays a rule, so nothing is asked of the agents. 400 for an unknown type or a missing or oversized body, 422 for a field the route does not read; 429 while another replay runs or within 2 s of the last; 503 without a history store; 502 when the store fails. |
 | `GET /api/queue/alerts` | session | The alert queue across every tenant the session reaches, or those named in `tenants`. 403 for a tenant outside the scope. See [Queue across tenants](#queue-across-tenants). |
 | `POST /api/queue/alerts/triage` | session | One triage change to alerts across tenants, answered per tenant; each agent checks the role exactly as for a change made inside the tenant. 400 when the change is refused. |
 | `GET /api/queue/cases` | session | The cases of every tenant the session reaches. 503 without a history store. |
@@ -1047,7 +1137,7 @@ Applied in order (outermost first):
 
 1. **Tracing** - structured request/response spans.
 2. **Compression** - gzip response compression.
-3. **CORS** - configurable origin allow-list (`server.cors_allow_origins`). Empty = permissive.
+3. **CORS** - configurable origin allow-list (`server.cors_allow_origins`). Empty = no other origin is allowed: no `Access-Control-Allow-Origin` is sent. A listed origin may send the session cookie and the `Accept`, `Authorization` and `Content-Type` headers.
 4. **CSP** - strict `Content-Security-Policy` header on every response. Allows `'self'`, `'wasm-unsafe-eval'` for scripts, `'unsafe-inline'` for styles, `data:` for images. `frame-ancestors 'none'`.
 
 ### Graceful shutdown
@@ -1058,13 +1148,19 @@ closing connections, giving the load balancer time to drain.
 
 ## Worked examples
 
-See `config/examples/` in the dashboard repo:
+The Helm chart renders this file from its values and carries three
+starting points, read with
+`helm pull oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel-dashboard --version <version> --untar`:
 
-- `dashboard.yaml` - default single-tenant, no ClickHouse.
-- `dashboard-airgap.yaml` - local OIDC, bundled assets, no history
+- `values.yaml` - one tenant, one replica, no state store, no ClickHouse.
+- `values-airgap.yaml` - a local registry, no ServiceMonitor, no history
   store.
-- `dashboard-mssp.yaml` - multi-tenant MSSP with rotating EdDSA keys
-  and ClickHouse history (90-day retention).
+- `values-mssp.yaml` - several tenants, the state store, ClickHouse
+  history with 90-day retention and autoscaling.
+
+[Dashboard on Kubernetes](../operations/deployment/dashboard-kubernetes.md)
+installs the chart from the identity provider registration to the first
+agent.
 
 ## Demo mode
 
