@@ -18,9 +18,9 @@ Management Cluster
   └── Alert Aggregation (deduplication, broadcast, persistent store)
         └── Rolling Buffer (10,000 alerts) + Dedup Set (100,000 event IDs)
 
-Member Cluster 1 ──── heartbeat ────► Management
-Member Cluster 2 ──── heartbeat ────► Management
-Member Cluster N ──── heartbeat ────► Management
+Member Cluster 1 ──── heartbeat, alerts ────► Management
+Member Cluster 2 ──── heartbeat, alerts ────► Management
+Member Cluster N ──── heartbeat, alerts ────► Management
 ```
 
 ## Cluster Registration
@@ -37,6 +37,27 @@ POST /api/v1/federation/clusters
   "active_policies": ["default-firewall"]
 }
 ```
+
+A member registers itself on its first heartbeat tick, under the name
+`member-<host>:<port>` and the `api_endpoint` the management cluster uses to
+reach it for health probes, policy pushes and estate stops. That endpoint is
+`advertise_endpoint` when it is written, and otherwise the agent's bind
+address with the port serving the federation routes (`mtls.listen_port` over
+`https` when mutual TLS is on, the enterprise API port otherwise). A loopback,
+`localhost` or unspecified address (`0.0.0.0`, `::`) names the management
+cluster's own host, so it is never registered: written in
+`advertise_endpoint` it is refused when the configuration is read, and
+derived from a bind address such as `0.0.0.0` the member logs why and
+registers nothing until `advertise_endpoint` is set.
+
+On Kubernetes the operator writes both keys from a `FederationPolicy`:
+`spec.advertiseEndpoint` becomes `advertise_endpoint`, and
+`spec.managementApiKeySecretRef` (a Secret `name` and `key`) is mounted into
+the agent pod and written as `management_api_key_file`. An agent the operator
+deploys binds to `0.0.0.0`, and the operator puts no Service in front of a
+member, so it has no address to fill in: a member without `advertiseEndpoint`
+registers nothing. Point it at a Service or load balancer address of your own
+that reaches the members' enterprise port.
 
 Validation:
 - Name and endpoint must be non-empty
@@ -176,6 +197,34 @@ policy payload (a JSON array of that engine's rules), and responds:
 
 Alerts from member clusters are collected, deduplicated, and stored at the management level.
 
+### Forwarding from a Member
+
+Every alert a member raises, from the datapath, the L7 analyzer, the AI guard
+or a response notice, is posted to the management cluster's
+`POST /api/v1/federation/alerts` in the ingest body below, with the alert's
+own `event_id`, its `tenant_id` (the default tenant when it has none), and
+`rule_id`, `action`, ports and protocol under `metadata`. The member sends
+through the same client as its heartbeat, so with `mtls` it presents its
+client certificate, and with `management_api_key_file` the same
+`X-API-Key`.
+
+- Nothing leaves before the member is registered, because an alert names its
+  cluster by the id the management cluster assigned; alerts raised meanwhile
+  wait.
+- Alerts leave in batches of up to 200, or after 2 seconds when fewer are
+  waiting.
+- A management cluster that cannot be reached, or that answers 503, 429 or
+  another 5xx, gets the same batch again after 1 second, then 2, 4, up to 60
+  seconds between attempts; a delivery resets the delay. Resending is safe
+  because ingest deduplicates by `event_id`.
+- Any other refusal (400, 401, 403) drops that batch with a warning, because
+  the same batch would meet the same answer.
+- At most 10,000 alerts wait. Past that the oldest is dropped first and the
+  count is logged, so an unreachable management cluster costs memory up to
+  the bound and no further.
+- A heartbeat answered 404 means the management cluster forgot the member: it
+  holds its alerts, registers again and forwards under the new id.
+
 ### Tenant Scoping
 
 Each `FederatedAlert` carries a `tenant_id` - the **stable tenant string id**
@@ -223,6 +272,7 @@ POST /api/v1/federation/alerts
       "event_id": "uuid",
       "cluster_id": "uuid",
       "cluster_name": "production-east",
+      "tenant_id": "__default__",
       "severity": "high",
       "component": "ids",
       "message": "SQL injection detected",
@@ -355,6 +405,7 @@ enterprise:
     enabled: true
     is_management: false
     management_endpoint: https://management.internal:9443
+    advertise_endpoint: https://east.internal:9443
     ca_cert: /etc/ebpfsentinel/cluster-ca.pem
     heartbeat_interval_secs: 30
 ```
@@ -364,6 +415,8 @@ enterprise:
 | `enabled` | bool | `true` | Enable federation |
 | `is_management` | bool | `false` | Whether this node is the management cluster |
 | `management_endpoint` | string | - | Management cluster URL. Required on an enabled member (`is_management: false`), which otherwise has nowhere to send its heartbeat. Must start with `http://` or `https://` |
+| `advertise_endpoint` | string | - | Base URL the management cluster reaches this member at (member only). Must start with `http://` or `https://`, name a host, carry no credentials; a loopback, `localhost` or unspecified host is refused. Absent, the bind address and the federation port are advertised when that address is routable, and nothing is registered otherwise |
+| `management_api_key_file` | string | - | File holding an API key the management cluster accepts, sent as `X-API-Key` on registration, heartbeats and forwarded alerts. Needed when the management cluster authenticates its API and the member presents no client certificate. Must not be empty when set; a file that cannot be read, or holds nothing, stops the agent at startup |
 | `ca_cert` | string | - | CA certificate for mTLS between clusters. Must not be empty when set |
 | `heartbeat_interval_secs` | u64 | `30` | Heartbeat interval, must be > 0 and strictly below `degraded_threshold_secs` |
 | `degraded_threshold_secs` | u64 | `90` | Seconds until degraded status, must be > 0 and strictly below `offline_threshold_secs` |
@@ -419,7 +472,12 @@ enterprise:
 `listen_port` must be > 0, and with `enabled: true` all five PEM paths must
 be non-empty. Both are checked when the configuration is read, because an
 mTLS transport that cannot be built aborts the agent at startup rather than
-falling back to plain HTTP.
+falling back to plain HTTP. The same holds for the client a member registers,
+heartbeats and forwards alerts with.
+
+A federation registry that cannot be opened under `data_dir` turns
+federation off with an error naming the path; no stand-in registry is opened
+elsewhere.
 
 ### Migration (phased rollout)
 

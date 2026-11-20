@@ -119,7 +119,9 @@ enterprise:
     cusum_threshold: 5.0
     heavy_hitter_enabled: true     # Space-Saving top-K talkers
     heavy_hitter_k: 100
-    heavy_hitter_threshold_pct: 10.0
+    heavy_hitter_threshold_pct: 10.0   # share of a window's bytes that flags a source
+    heavy_hitter_window_secs: 60       # window length, 1 to 3600
+    heavy_hitter_min_bytes: 67108864   # bytes a source must send in a window to be flagged
     rcf:                           # Random Cut Forest multi-feature detector
       enabled: true
       num_trees: 100               # AWS bound [50, 1000]
@@ -183,6 +185,7 @@ enterprise:
       - id: team-beta
         name: Team Beta
         namespaces: [ns-beta]
+        state: active                 # or suspended: the tenant starts suspended
     # Attribute containers to tenants from their labels (off by default).
     cgroup_attribution:
       enabled: false
@@ -272,6 +275,10 @@ enterprise:
     is_management: false                # true on the management cluster
     management_endpoint: http://mgmt.example.com:8444  # set on member clusters;
                                                        # https on mtls.listen_port when mtls is on
+    advertise_endpoint: http://10.0.0.12:8444  # how the management cluster reaches this member;
+                                               # loopback, localhost and 0.0.0.0 are refused
+    # management_api_key_file: /etc/ebpfsentinel/management-api-key  # X-API-Key sent to an
+                                               # authenticating management cluster without mtls
     ca_cert: /etc/ebpfsentinel/cluster-ca.crt
     heartbeat_interval_secs: 30
     degraded_threshold_secs: 90
@@ -506,8 +513,8 @@ connector adds is the rest of the `SiemEvent` as further attributes: `event.id`,
 `ebpfsentinel.tenant_id` when the event belongs to a tenant, and the L7
 enrichment under the names the other connectors already use
 (`threat.technique.id`, `threat.technique.name`, `threat.tactic.name`,
-`vulnerability.category`, `http.request.method`, `url.path`,
-`http.request.fingerprint`, the `ebpfsentinel.l7.*` fields and
+`vulnerability.category`, `http.request.method`, `url.path`, the
+`ebpfsentinel.l7.*` fields including `ebpfsentinel.l7.http_fingerprint`, and
 `ebpfsentinel.compliance.pci_dss`). The delivery bookkeeping the event carries -
 `export_timestamp_ms`, `destination_name` and `delivery_attempt` - is not on the
 wire: the moment of export is `observedTimeUnixNano`, and the other two describe
