@@ -27,7 +27,7 @@ A second bound is on the chain's length rather than its count: a walk landing mo
 
 ## PacketEvent Structure
 
-The `PacketEvent` (96 bytes) carries IPv6 addresses natively:
+The `PacketEvent` (104 bytes) carries IPv6 addresses natively:
 
 - `src_addr: [u32; 4]` - source address (IPv4 uses index 0 only)
 - `dst_addr: [u32; 4]` - destination address
@@ -66,6 +66,6 @@ threatintel:
 | Layer | Implementation |
 |-------|---------------|
 | `domain` | `IpNetwork::V6 { addr: [u8; 16], prefix_len }` in `crates/domain/src/firewall/entity.rs`; every engine handles IPv6 addresses via the `[u32; 4]` representation |
-| `ebpf-common` | `PacketEvent` in `crates/ebpf-common/src/event.rs`, 96 bytes with both address fields sized for IPv6 |
+| `ebpf-common` | `PacketEvent` in `crates/ebpf-common/src/event.rs`, 104 bytes with both address fields sized for IPv6 |
 | `ebpf-programs` | Dual-stack parsing, V6 LPM maps, `ConnKeyV6`/`ConnValueV6`, `NatRuleEntryV6` |
 | `infrastructure` | Config validation for IPv6 CIDRs |

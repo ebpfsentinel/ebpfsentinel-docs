@@ -133,7 +133,7 @@ for the maps that are read-only.
 
 All programs share types via `crates/ebpf-common/`:
 
-- `PacketEvent` (96 bytes) - the standard event emitted to userspace via RingBuf
+- `PacketEvent` (104 bytes) - the standard event emitted to userspace via RingBuf
 - `#[repr(C)]` structs for eBPF map keys and values
 - Shared constants (`FLAG_IPV6`, `FLAG_VLAN`, etc.)
 

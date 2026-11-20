@@ -350,9 +350,30 @@ bounded memory: one table of `heavy_hitter_k` counters per window, with the
 guarantee that any source above `total / k` of the window is resident in it.
 
 - Table size: `heavy_hitter_k` counters (100 by default), amortised constant cost per packet
-- Window rotation: resets each aggregation window, snapshots the previous one so a reader has something to compare against while the live window fills
-- **Threshold alerting:** sources exceeding X% of the window's bytes trigger alerts
+- Bytes counted: every datapath event the agent receives carries the length of
+  the packet it reports, link-layer header included (the frame length in XDP,
+  the socket buffer length in TC), and that length is what the table adds up.
+  A packet the datapath passes without an event is not counted, so the table
+  sees the traffic your rules log, drop or rate-limit: a `log` rule on the
+  ports you care about is what puts a flow in front of it.
+- Window: the service closes its own window every `heavy_hitter_window_secs`
+  (60 by default, 1 to 3600 accepted) on a timer that stops with the agent,
+  whether or not traffic arrives, and keeps the closed window so a reader has
+  something to compare against while the live one fills
+- **Threshold alerting:** when a window closes, every source whose share of
+  the window's bytes reached `heavy_hitter_threshold_pct`, and which sent at
+  least `heavy_hitter_min_bytes` in it (64 MiB by default, so the loudest of a
+  handful of packets is not called heavy), raises one alert. It goes through
+  the alert store and onto the event bus exactly as an ML anomaly does, so it
+  is listed by `/api/v1/alerts` and `/api/v1/enterprise/ml/alerts`, exported to
+  every SIEM and counted by `ebpfsentinel_ent_ml_heavy_hitter_alerts_total`.
+  The alert has component `ml-anomaly`, rule `ml-heavy-hitter`, engine
+  `heavy-hitter`, top feature `byte_rate` (hence the volumetric MITRE
+  mapping), the source as its source address, and the share in percent as its
+  score; it is High at half of the window or more, Medium below
 - Every row states its own slack: `estimated_bytes` is never an underestimate, and `error_bytes` is the worst case by which it overstates
+- `/api/v1/enterprise/ml/heavy-hitters` reads the live window, so it empties
+  each time a window closes
 
 This replaced a Count-Min sketch paired with a hand-written top-K heap, and three
 differences are worth knowing. A sketch can answer "how much did this key send"
@@ -550,6 +571,8 @@ enterprise:
     heavy_hitter_enabled: true
     heavy_hitter_k: 100
     heavy_hitter_threshold_pct: 10.0
+    heavy_hitter_window_secs: 60      # 1 to 3600
+    heavy_hitter_min_bytes: 67108864  # 64 MiB within one window
     # Random Cut Forest
     rcf:
       enabled: true
