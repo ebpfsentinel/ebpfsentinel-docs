@@ -260,6 +260,7 @@ const sidebars: SidebarsConfig = {
         'operations/deployment/pod-profile',
         'operations/deployment/bpf-token',
         'operations/deployment/enterprise',
+        'operations/deployment/dashboard-kubernetes',
         'operations/hot-reload',
         'operations/enforcement-after-exit',
         'operations/monitoring',

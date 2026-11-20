@@ -56,6 +56,13 @@ events name it.
 When referencing interface groups in rules (firewall, QoS classifiers, QoS pipes, etc.), prefix the group name with `"!"` to invert the match. For example, `"!lan"` means "all interfaces except those in the lan group."
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1, eth2]
+
+interface_groups:
+  lan:
+    interfaces: [eth0, eth1]
+
 qos:
   pipes:
     - id: shaped-wan

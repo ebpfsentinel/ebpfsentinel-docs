@@ -28,7 +28,8 @@ helm install ebpfsentinel oci://ghcr.io/ebpfsentinel/charts/ebpfsentinel \
   --set agent.interfaces='{eth0}'
 ```
 
-From a checkout of the agent repository, install the chart directory instead:
+Contributors building the chart from a checkout of the agent repository
+install its directory instead:
 
 ```bash
 helm install ebpfsentinel charts/ebpfsentinel \

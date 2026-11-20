@@ -175,6 +175,7 @@ services:
       - warden-sock:/run/ebpfsentinel
       - /proc:/host/proc:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys/fs/bpf:/sys/fs/bpf      # pinned links keep enforcing past a stop
 
   agent:
     image: ghcr.io/ebpfsentinel/ebpfsentinel:<release>
@@ -578,6 +579,7 @@ hosts even though the container uses host networking.
 | `ebpfsentinel-state` (named volume) | `/var/lib/ebpfsentinel` | agent | redb stores under `data/`, GeoIP databases, telemetry installation identifier |
 | `ebpfsentinel-captures` (named volume) | `/var/lib/ebpfsentinel/captures` | agent | packet capture files (`{id}.pcap`) |
 | `tmpfs` | `/sys/fs/bpf` | agent | mountpoint for the delegated bpffs |
+| `/sys/fs/bpf` | `/sys/fs/bpf` | warden | the host bpffs, where the warden pins the agent's XDP, TC and cgroup links so they keep enforcing after a stop or a crash |
 | `/proc` | `/host/proc` (ro) | both | container resolver and DLP library discovery |
 | `/sys/fs/cgroup` | `/sys/fs/cgroup` (ro) | agent | cgroup-id to container attribution |
 | `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | agent | Docker enricher: the `/events` stream and the inspect fallback. Removable, and the section above says what that costs |

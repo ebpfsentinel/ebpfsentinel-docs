@@ -398,13 +398,14 @@ What an agent says about its own tamper protection, so a peer that stops hearing
 
 An admitted signed stop.
 
-3 fields, in declaration order. The number is the wire tag and never changes.
+4 fields, in declaration order. The number is the wire tag and never changes.
 
 | # | Field | Type | Description |
 |---|-------|------|-------------|
 | 1 | `at_ms` | `uint64` | When it was admitted, in milliseconds since the epoch. |
-| 2 | `issuer` | `string` | `dashboard`, `portal` or `break-glass`; empty when not known. |
+| 2 | `issuer` | `string` | `dashboard` or `break-glass`; empty when not known. |
 | 3 | `requested_by` | `string` | Who asked for it; empty when not stated. |
+| 4 | `reason` | `string` | Why, as the one who asked wrote it; empty when not stated. |
 
 ### TamperDenial
 

@@ -70,7 +70,7 @@ missing. The Compose lab puts the agent on a bridge of its own,
 `sudo ./demo.sh agent <command>` runs `ebpfsentinel-agent <command>` inside
 the agent container, so everything after `agent` is the CLI documented in the
 [CLI reference](../cli-reference/). The configuration every Compose scenario
-reads is `demo/agent.yaml`, unchanged between them.
+reads is `ebpfsentinel-demo/agent.yaml`, unchanged between them.
 
 The GitOps lab is a one-node [kind](https://kind.sigs.k8s.io/) cluster on the
 same host, with Argo CD and a git server inside it:
@@ -82,7 +82,7 @@ eval "$(./gitops/gitops.sh env)"
 
 It needs `git` and `curl` beside Docker.
 `kind`, `kubectl`, `helm` and the Argo CD manifest are downloaded into
-`demo/gitops/.run/` at pinned versions and checked against their published
+`ebpfsentinel-demo/gitops/.run/` at pinned versions and checked against their published
 SHA-256 before they run, so nothing is installed on the host;
 `./gitops/gitops.sh down` deletes the cluster and that directory. `env`
 prints the two exports, `PATH` and `KUBECONFIG`, that point the shell at them.
