@@ -149,7 +149,7 @@ cloud_providers:
 
 ### `external` -- External Provider
 
-Placeholder for externally managed alias data. No additional fields required.
+Placeholder for externally managed alias data. No additional fields required. Its content is pushed through `PUT /api/v1/aliases/{id}/content`, which needs the admin role: the alias feeds the kernel IP set node-wide rules match on.
 
 ```yaml
 siem_watchlist:

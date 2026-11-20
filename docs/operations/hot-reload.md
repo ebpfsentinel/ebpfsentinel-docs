@@ -33,10 +33,17 @@ Each of these is handed to its service, which rewrites the kernel maps of the pr
 
 These are read once at startup and apply at the next start:
 
-- API keys (`auth.api_keys`)
-- DNS blocklists and reputation settings
+- API keys and every `auth` setting but the two above (`auth.api_keys`)
+- DNS blocklists, cache and reputation settings (`dns.enabled` is reloaded)
 - Alerting routes and audit settings
-- `agent.interfaces` (see [Limitations](#limitations))
+- `agent.interfaces` and every `agent` setting but `agent.config_writes` (see [Limitations](#limitations))
+- Turning QoS on or off (`qos.enabled`), the DLP scope (`dlp.scope`), CrowdSec (`threatintel.crowdsec`) and the threat intelligence table size (`threatintel.max_entries`)
+- The size of every kernel table sized at start: a reload rewrites its entries, never how many it holds
+
+A reload answered through the REST API (`POST /api/v1/config/reload` or
+`PUT /api/v1/config/{section}`) names in `pending_restart` each of these the
+file changes since the agent started, so an edit that waits for a restart is
+said to wait rather than reported as applied.
 
 ### Shared eBPF maps (re-synced)
 

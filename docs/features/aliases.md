@@ -158,6 +158,8 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" -X PUT http://localhost:8080
 
 This enables integration with external systems (CMDB, IPAM, orchestrators) that manage IP lists independently.
 
+The push needs the admin role. An external alias feeds the kernel IP set that node-wide firewall rules match on, so whoever writes its content decides what those rules let through. The answer states `ips_loaded`, the members the alias holds, and `kernel_set_entries`, the IPv4 host addresses the kernel set matches on. A kernel set that refuses the load answers 500 and keeps the content pushed before.
+
 ## Limits
 
 - Maximum 1000 aliases per configuration
@@ -168,6 +170,6 @@ This enables integration with external systems (CMDB, IPAM, orchestrators) that 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/aliases/status` | Total alias count |
-| PUT | `/api/v1/aliases/{id}/content` | Set content for an external alias |
+| PUT | `/api/v1/aliases/{id}/content` | Set content for an external alias (admin) |
 
 See [REST API Reference](../api-reference/rest-api.md) for details.
