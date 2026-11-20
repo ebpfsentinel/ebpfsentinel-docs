@@ -66,8 +66,8 @@ before the rename now reads a different subject, and the freeze counts are the
 | Old series | New series | Why |
 |--------|------|--------|
 | `ebpfsentinel_ent_forensics_captures_triggered_total` | `ebpfsentinel_ent_forensics_context_freezes_triggered_total` | A trigger starts a context freeze, not a capture |
-| `ebpfsentinel_ent_forensics_captures_completed_total` | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | A freeze either records events or fails; there is no separate completion step to count |
-| `ebpfsentinel_ent_forensics_captures_failed_total` | `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Same subject, named for what it freezes |
+| `ebpfsentinel_ent_forensics_captures_completed_total` | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | A freeze is recorded in one step; there is no separate completion step to count |
+| `ebpfsentinel_ent_forensics_captures_failed_total` | Nothing | A freeze always holds the alert that triggered it, so it cannot come back empty and there is no failure to count |
 | `ebpfsentinel_ent_forensics_captures_expired_total` | `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Retention sweeps frozen context, and no file is deleted with it |
 
 ## Removed series
@@ -670,7 +670,6 @@ at zero while it is off.
 | `ebpfsentinel_ent_forensics_ingestion_seconds_total` | Counter | - | Time spent ingesting forensic events |
 | `ebpfsentinel_ent_forensics_context_freezes_triggered_total` | Counter | `component` | Context freezes triggered by the alert component that fired them |
 | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | Counter | - | Context freezes that kept at least one event |
-| `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Counter | - | Context freezes that kept nothing, with the reason on the freeze itself |
 | `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Counter | - | Context freezes removed by the retention sweep |
 | `ebpfsentinel_ent_forensics_captures_written_total` | Counter | - | Packet captures written to disk |
 | `ebpfsentinel_ent_forensics_captures_failed_total` | Counter | `reason` | Packet captures that wrote nothing: `no_packets`, `volume_cap`, `disk_pressure`, `too_many_pending`, `write_failed` |

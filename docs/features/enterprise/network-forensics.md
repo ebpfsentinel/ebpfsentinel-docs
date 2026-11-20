@@ -570,7 +570,6 @@ An address that does not parse, or a pair mixing IPv4 and IPv6, is answered **40
 | `ebpfsentinel_ent_forensics_ring_buffer_depth` | Gauge | - | Current ring buffer depth |
 | `ebpfsentinel_ent_forensics_context_freezes_triggered_total` | Counter | `component` | Automatic context freezes triggered |
 | `ebpfsentinel_ent_forensics_context_freezes_recorded_total` | Counter | - | Freezes that kept at least one event |
-| `ebpfsentinel_ent_forensics_context_freezes_failed_total` | Counter | - | Freezes that kept nothing |
 | `ebpfsentinel_ent_forensics_context_freezes_expired_total` | Counter | - | Freezes expired by retention policy |
 | `ebpfsentinel_ent_forensics_ingestion_seconds_total` | Counter | - | Cumulative seconds spent ingesting events |
 | `ebpfsentinel_ent_forensics_captures_written_total` | Counter | - | Captures written to disk |
