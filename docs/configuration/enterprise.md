@@ -157,7 +157,7 @@ enterprise:
   tls_clustering:
     enabled: true
     k: 50                          # number of clusters
-    outlier_threshold: 8.0         # Euclidean distance threshold
+    outlier_threshold: 5.0         # distance in typical spreads between clients
     batch_size: 32                 # mini-batch size for centroid updates
 
   # ── C2 Beaconing Detection (TLS handshake timing) ─────────────

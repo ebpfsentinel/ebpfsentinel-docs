@@ -419,8 +419,9 @@ The alert carries the flow of the query and the full workload block with its anc
 Groups JA4 TLS fingerprints into behavioral clusters using **Mini-Batch K-Means** and flags outliers (novel or spoofed fingerprints).
 
 - 10-dimensional feature vector from `TlsClientHello` (cipher count, extension count, supported groups, signature algorithms, ALPN, versions, SNI, handshake version, key shares)
-- Pre-seeded with 8 known client profiles: Chrome, Firefox, Safari, Edge, curl, Python, Go, Java
-- Outlier detection: Euclidean distance to nearest centroid > threshold
+- Pre-seeded with 8 known client profiles: Chrome, Firefox, Safari, Edge, curl, Python, Go, Java; the other clusters up to `k` are taken by observed handshakes, never by an empty placeholder
+- Features are scaled before distances are measured: cipher suite and extension counts are divided by 4 (their typical spread between clients), every other feature counts one per unit, and TLS versions are compared by their minor number, so `outlier_threshold` is a number of typical spreads (default 5.0)
+- Outlier detection: a handshake farther than `outlier_threshold` from every cluster centre, judged before it is learned, is an outlier; while a cluster is free it opens one, so the next handshake from the same client is no longer an outlier
 - Memory: ~4 KB for K=50 clusters
 
 ---
@@ -608,7 +609,7 @@ enterprise:
   tls_clustering:
     enabled: true
     k: 50
-    outlier_threshold: 8.0
+    outlier_threshold: 5.0
     batch_size: 32
 
   # C2 beaconing detection (separate config section)
