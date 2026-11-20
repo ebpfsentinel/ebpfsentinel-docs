@@ -218,6 +218,11 @@ enterprise:
         listener_ipv4: 10.0.0.5
 ```
 
+The proxy checks the real server's certificate against the public web roots.
+An internal service signed by your own authority is refused there, before a
+byte is relayed, and so is never inspected: name that authority's PEM file in
+`upstream_ca_certs` and the proxy trusts it beside the public roots.
+
 It is the last resort, after symbols and the offset catalogue, because it
 costs the workload a trust it did not need before. It is opt-in per workload
 and nothing else moves: a task whose cgroup, or

@@ -67,6 +67,9 @@ enterprise:
       bypass_ips:
         - "10.0.0.0/8"
       listen_port: 8443          # where the proxy accepts connections
+      # Private authorities the real servers are signed by, trusted beside
+      # the public web roots when the proxy connects to them.
+      upstream_ca_certs: []
       # Opt-in, per workload: send the TCP connections of the selected
       # workloads through the proxy. Without this block the proxy only sees
       # what something else routes to it.
@@ -792,6 +795,7 @@ refused.
 | `advanced_dlp.tls_inspection.bypass_domains` | list | `[]` | Domains to skip (exact or `*.suffix`) |
 | `advanced_dlp.tls_inspection.bypass_ips` | list | `[]` | IPs/CIDRs to skip |
 | `advanced_dlp.tls_inspection.listen_port` | u16 | `8443` | Port the proxy listens on, and the port a redirected connection is sent to. Not `0` |
+| `advanced_dlp.tls_inspection.upstream_ca_certs` | list | `[]` | PEM files of authorities trusted beside the public web roots when the proxy connects to the real server. A server signed by a private authority not listed here is refused before anything is relayed, so nothing sent to it is inspected. A file that cannot be read or holds no certificate stops the proxy from starting |
 | `advanced_dlp.tls_inspection.redirect` | object | absent | Sends the TCP connections of selected workloads through the proxy. Refused while inspection is disabled, and the agent does not start when it is set and cannot be put in force |
 | `advanced_dlp.tls_inspection.redirect.cgroups` | list | `[]` | Cgroup paths, relative to the cgroup root, whose tasks and descendants are redirected. No `..` |
 | `advanced_dlp.tls_inspection.redirect.selectors` | list | `[]` | Workload selectors, the same shape as the DLP scope selectors, resolved against the running containers and pods. At least one cgroup or one selector is required |
