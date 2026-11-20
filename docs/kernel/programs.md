@@ -352,7 +352,7 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | Packet sizing | [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) | Measure the full packet, fragments included, so the payload copy is bounded by what the packet carries |
 | Payload copy | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | Reads across SKB fragments (jumbo frames, GRO aggregates) without linearizing |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
-| Tiered L7 events | fixed-size reservations | Up to 512 bytes of TCP payload go into `L7EventSmall` (608 bytes), more into `L7EventBuf` (2144 bytes, up to 2048 payload bytes) |
+| Tiered L7 events | fixed-size reservations | Up to 512 bytes of TCP payload go into `L7EventSmall` (616 bytes), more into `L7EventBuf` (2152 bytes, up to 2048 payload bytes) |
 | Mirroring | [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | Copy matched traffic to the interface named in `IDS_MIRROR_CONFIG` |
 | Cgroup attribution | `bpf_skb_cgroup_id` | On egress, tag the event with the sending container's cgroup, mapped to a tenant through `TENANT_CGROUP_MAP` |
 
@@ -405,8 +405,7 @@ QoS traffic shaping. The program sits on both hooks; a pipe shapes one direction
 | `QOS_CLASSIFIERS` | [`HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/) | 1024 | 5-tuple + DSCP classifier rules → queue_id |
 | `QOS_PIPE_STATE` | [`ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARRAY/) | 64 | Token bucket per pipe (tokens, last refill) |
 | `QOS_FLOW_STATE` | [`LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) | 65536 | Per-flow departure time for delay pacing |
-| `QOS_METRICS` | [`PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/) | 7 | Per-CPU shaping counters (total_seen, shaped, dropped_loss, dropped_queue, delayed, errors, events_dropped) |
-| `EVENTS` | [`RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/) | 1 MB | QoS events emitted to userspace |
+| `QOS_METRICS` | [`PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/) | 6 | Per-CPU shaping counters (total_seen, shaped, dropped_loss, dropped_queue, delayed, errors), the program's only report |
 
 #### Processing Pipeline
 
@@ -420,7 +419,7 @@ QoS traffic shaping. The program sits on both hooks; a pipe shapes one direction
 4. **Loss** - If the pipe has a loss rate, call [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) and drop with the configured probability.
 5. **Token bucket** - Refill the pipe's bucket in `QOS_PIPE_STATE` from the time elapsed ([`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/)). If tokens >= packet size, deduct and pass, marking the packet ECN CE with `bpf_skb_ecn_set_ce` once the bucket is below 25% of its burst. Otherwise drop (`TC_ACT_SHOT`).
 6. **Delay** - If the pipe has a delay, set the packet's earliest departure time with `bpf_skb_set_tstamp` to `max(now + delay, previous departure)` per flow (`QOS_FLOW_STATE`), `now` read from [`bpf_ktime_get_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_ns/) because the delivery time is `CLOCK_MONOTONIC`. The `fq` qdisc on the interface honours it; without `fq` the delay is not applied.
-7. **Emit** - Send a `PacketEvent` to the `EVENTS` RingBuf on a drop or a shaped packet. Same 75% backpressure pattern as other programs.
+7. **Count** - Add the outcome to its `QOS_METRICS` slot. No `PacketEvent` is sent: a saturated pipe shapes or drops nearly every packet, and one event each would fill the channel firewall and IDS alerts share, so the counters, polled into `ebpfsentinel_packets_total{interface="QOS_METRICS"}`, are the whole report.
 
 QoS pipes and classifiers carry a `group_mask` field for **interface group filtering** via the `INTERFACE_GROUPS` map. Rules with `group_mask == 0` are floating (apply everywhere). See [Interface Groups](../features/interface-groups.md).
 

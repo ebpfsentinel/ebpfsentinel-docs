@@ -172,7 +172,7 @@ Userspace resolves the ifindex from an IPv4 backend address via `ip route get` +
 
 #### [`BPF_MAP_TYPE_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/)
 
-**Kernel:** 5.8+ | **Used by:** xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, tc-qos, uprobe-dlp, tc-dns
+**Kernel:** 5.8+ | **Used by:** xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, uprobe-dlp, tc-dns
 
 Lock-free, MPSC (multi-producer, single-consumer) ring buffer for **kernel→userspace event streaming**. Replaces the older `perf_event_array` with better performance:
 
@@ -193,11 +193,10 @@ The submit flag depends on the backlog: below 64 KiB of unconsumed data a record
 | tc-ids | `EVENTS` | 4 MB (1024 pages) |
 | tc-threatintel | `EVENTS` | 1 MB (256 pages) |
 | uprobe-dlp | `EVENTS` | 4 MB (1024 pages) |
-| tc-qos | `EVENTS` | 1 MB (256 pages) |
 | tc-dns | `DNS_EVENTS` | 0.25 MB (64 pages) |
-| **Total** | | **13.25 MB** |
+| **Total** | | **12.25 MB** |
 
-Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egress, xdp-firewall-reject, xdp-ratelimit-syncookie, xdp-vip-announcer) do not emit events to userspace and therefore have zero RingBuf overhead.
+Programs without a RingBuf (tc-conntrack, tc-scrub, tc-nat-ingress, tc-nat-egress, tc-qos, xdp-firewall-reject, xdp-ratelimit-syncookie, xdp-vip-announcer) do not emit events to userspace and therefore have zero RingBuf overhead.
 
 Every packet program applies 75% backpressure: when the buffer exceeds 75% utilization, event emission is skipped and a drop counter is incremented instead. uprobe-dlp does not: it reserves directly and counts a failed reservation as a drop.
 

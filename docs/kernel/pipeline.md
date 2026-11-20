@@ -100,7 +100,6 @@ flowchart LR
         LB["xdp-loadbalancer"]
         IDS["tc-ids"]
         TI["tc-threatintel"]
-        QOS["tc-qos"]
         DNS["tc-dns\n(DNS_EVENTS)"]
         DLP["uprobe-dlp"]
     end
@@ -124,14 +123,13 @@ flowchart LR
     LB --> ER
     IDS --> ER
     TI --> ER
-    QOS --> ER
     DNS --> DNSR
     DLP --> DLPR
 ```
 
 tc-dns emits `DnsEvent` records and uprobe-dlp `DlpEvent` records; every other program emits `PacketEvent`.
 
-### PacketEvent Structure (96 bytes)
+### PacketEvent Structure (104 bytes)
 
 ```
 Offset  Field             Type             Notes
@@ -157,8 +155,12 @@ Offset  Field             Type             Notes
 80      rss_hash          u32 (4 B)        NIC RSS hash (XDP only)
 84      rss_hash_type     u32 (4 B)        RSS hash type bitmask
 88      rx_hw_timestamp   u64 (8 B)        NIC RX timestamp (XDP only)
+96      pkt_len           u32 (4 B)        bytes on the wire, link-layer header
+                                           included (XDP: frame length, TC: skb
+                                           length); 0 when not measured
+100     _pad              u32 (4 B)        always 0
 ------
-Total: 96 bytes, #[repr(C)], aligned to 8 bytes
+Total: 104 bytes, #[repr(C)], aligned to 8 bytes
 ```
 
 L7 events from tc-ids reserve a larger record with the payload after the header (512 or 2,048 bytes of payload, whichever fits).

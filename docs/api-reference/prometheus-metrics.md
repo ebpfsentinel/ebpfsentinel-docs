@@ -117,7 +117,7 @@ visible.
 | `SCRUB_METRICS` | `tc-scrub` | `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped` |
 | `DDOS_METRICS` | `xdp-ratelimit`, `xdp-ratelimit-syncookie` | `syn_rcv`, `syn_flood_drops`, `icmp_pass`, `icmp_drop`, `amp_passed`, `amp_dropped`, `oversized_icmp`, `errors`, `events_dropped`, `conn_tracked`, `half_open_drops`, `rst_flood_drops`, `fin_flood_drops`, `ack_flood_drops`, `total_seen`, `syncookie_sent`, `syncookie_valid`, `syncookie_invalid` |
 | `LB_METRICS` | `xdp-loadbalancer` | `forwarded`, `no_backend`, `bytes_forwarded`, `events_dropped`, `total_seen`, `mtu_exceeded` |
-| `QOS_METRICS` | `tc-qos` | `total_seen`, `shaped`, `dropped_loss`, `dropped_queue`, `delayed`, `errors`, `events_dropped` |
+| `QOS_METRICS` | `tc-qos` | `total_seen`, `shaped`, `dropped_loss`, `dropped_queue`, `delayed`, `errors` |
 
 Three of these repay reading in pairs.
 
@@ -150,14 +150,16 @@ reporting an idle datapath.
 | `ebpfsentinel_packet_processing_duration_seconds` | Histogram | `program` | Time spent dispatching one datapath event. `program` is the event source: `firewall`, `ids`, `ratelimit`, `threatintel`, `ddos`, `lb`, `l7`, `dns`, `dlp`, or `unknown` for an event type this build does not know |
 | `ebpfsentinel_worker_events_total` | Counter | `worker_id` | Events processed per dispatch worker |
 | `ebpfsentinel_worker_processing_duration_seconds` | Histogram | `worker_id` | Event processing duration per dispatch worker |
-| `ebpfsentinel_events_dropped_total` | Counter | `reason` | Events dropped before the pipeline. `reason` is `channel_full`, `alert_channel_full` or `parse_error`; `alert_channel_full_deferred` counts an alert that met a full channel and waited for room instead, because its processing kills the process behind the flow |
+| `ebpfsentinel_events_dropped_total` | Counter | `reason` | Events dropped before the pipeline. `reason` is `channel_full`, `alert_channel_full`, `parse_error`, or `unhandled_event_type` for a record whose type no handler reads (counted here rather than as a processed packet); `alert_channel_full_deferred` counts an alert that met a full channel and waited for room instead, because its processing kills the process behind the flow |
 
 ### Datapath Ring Buffers
 
 Each eBPF program hands its events to userspace through a ring buffer. These
 four metrics account for that handover, labelled by the producing program
 (`source`): `xdp-firewall`, `xdp-ratelimit`, `xdp-loadbalancer`, `tc-ids`,
-`tc-threatintel`, `tc-dns`, `tc-conntrack`, `tc-qos`, `uprobe-dlp`.
+`tc-threatintel`, `tc-dns`, `tc-conntrack`, `uprobe-dlp`. `tc-qos` has no ring
+buffer: it reports through its `QOS_METRICS` counters only, so a saturated
+pipe adds nothing to the channel security alerts travel through.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
@@ -712,8 +714,8 @@ Baseline learning, streaming detectors and the Random Cut Forest.
 | `ebpfsentinel_ent_ml_model_loaded` | Gauge | - | Whether an ML model is loaded (0/1) |
 | `ebpfsentinel_ent_ml_ewma_anomalies_total` | Counter | - | EWMA streaming anomalies detected |
 | `ebpfsentinel_ent_ml_cusum_drifts_total` | Counter | - | CUSUM change-point drifts detected |
-| `ebpfsentinel_ent_ml_heavy_hitter_alerts_total` | Counter | - | Top-talker threshold alerts emitted |
-| `ebpfsentinel_ent_ml_heavy_hitter_top1_bytes` | Gauge | - | Byte volume of current top-1 heavy hitter |
+| `ebpfsentinel_ent_ml_heavy_hitter_alerts_total` | Counter | - | Heavy-hitter alerts raised, one per source over the threshold when a window closes |
+| `ebpfsentinel_ent_ml_heavy_hitter_top1_bytes` | Gauge | - | Bytes of the heaviest source in the window that closed last |
 | `ebpfsentinel_ent_ml_rcf_anomalies_total` | Counter | - | Random Cut Forest anomaly observations recorded |
 | `ebpfsentinel_ent_ml_rcf_last_score` | Gauge | - | Most recent Random Cut Forest anomaly score |
 | `ebpfsentinel_ent_ml_rcf_trees_count` | Gauge | - | Number of trees in the active Random Cut Forest |

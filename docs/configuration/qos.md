@@ -142,6 +142,13 @@ The configuration enforces referential integrity at load time:
 ## Example
 
 ```yaml
+agent:
+  interfaces: [eth0, eth1]
+
+interface_groups:
+  lan:
+    interfaces: [eth1]
+
 qos:
   enabled: true
   pipes:

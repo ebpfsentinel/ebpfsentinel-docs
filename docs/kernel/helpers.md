@@ -40,10 +40,10 @@ eBPFsentinel calls 33 kernel helper functions across its 29 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | The eight event-emitting programs | Reserve space in ring buffer for event writing |
-| [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | The eight event-emitting programs | Submit a reserved ring buffer entry to userspace |
-| [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | The eight event-emitting programs | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
-| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | The eight event-emitting programs | Unconsumed bytes in the ring: the 75% backpressure check and the choice of wakeup flag on submit |
+| [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | The seven event-emitting programs | Reserve space in ring buffer for event writing |
+| [`bpf_ringbuf_submit`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_submit/) | 5.8+ | The seven event-emitting programs | Submit a reserved ring buffer entry to userspace |
+| [`bpf_ringbuf_discard`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_discard/) | 5.8+ | The seven event-emitting programs | Drop a reservation whose payload read failed, instead of submitting stale ring bytes |
+| [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | 5.8+ | The seven event-emitting programs | Unconsumed bytes in the ring: the 75% backpressure check and the choice of wakeup flag on submit |
 
 `RingBuf` is the sole event transport. Arena zero-copy delivery was evaluated but is not usable on the Rust `bpfel` target - see [KFuncs: Arena maps](kfuncs.md#arena-maps---evaluated-not-used).
 
@@ -80,18 +80,18 @@ eBPFsentinel calls 33 kernel helper functions across its 29 programs. This page 
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-threatintel, tc-qos | Stable per-connection identifier for flow correlation (TC context only) |
+| [`bpf_get_socket_cookie`](https://docs.ebpf.io/linux/helper-function/bpf_get_socket_cookie/) | 4.12+ | tc-ids, tc-threatintel | Stable per-connection identifier for flow correlation (TC context only) |
 | [`bpf_probe_read_user`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user/) | 5.5+ | uprobe-dlp | Read the user-space TLS plaintext buffer for DLP inspection |
 | [`bpf_probe_read_kernel`](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel/) | 5.5+ | tc-conntrack, xdp-firewall, uprobe-dlp | Read `nf_conn->status`, and the kernel TLS message iterator, at runtime BTF-resolved offsets |
 | [`bpf_get_current_pid_tgid`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_pid_tgid/) | 4.2+ | uprobe-dlp | Process identification for DLP alerts |
-| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns, tc-threatintel, tc-qos | Cgroup ID for container/pod correlation |
-| [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids | Cgroup ID of the socket behind an egress packet |
+| [`bpf_get_current_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_current_cgroup_id/) | 4.18+ | uprobe-dlp, tc-ids, tc-dns, tc-threatintel | Cgroup ID for container/pod correlation |
+| [`bpf_skb_cgroup_id`](https://docs.ebpf.io/linux/helper-function/bpf_skb_cgroup_id/) | 4.18+ | tc-ids, tc-qos | Cgroup ID of the socket behind an egress packet (IDS attribution, per-workload shaping) |
 
 ### System Info
 
 | Helper | Kernel | Used By | Purpose |
 |--------|--------|---------|---------|
-| [`bpf_get_smp_processor_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_smp_processor_id/) | 4.1+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, tc-qos | CPU recorded in each packet event |
+| [`bpf_get_smp_processor_id`](https://docs.ebpf.io/linux/helper-function/bpf_get_smp_processor_id/) | 4.1+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel | CPU recorded in each packet event |
 | [`bpf_map_lookup_elem`](https://docs.ebpf.io/linux/helper-function/bpf_map_lookup_elem/) | 3.19+ | All programs (the probe's base set) | Map read on every packet path |
 
 ## Backpressure Pattern

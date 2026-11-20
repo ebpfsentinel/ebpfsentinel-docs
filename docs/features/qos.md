@@ -264,7 +264,7 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 4. **Loss** - If `loss > 0`, draw from `bpf_get_prandom_u32` and drop with the configured probability
 5. **Token buckets** - Refill the queue's bucket in `QOS_QUEUE_STATE` and the pipe's in `QOS_PIPE_STATE` from the elapsed time; pass the packet on the queue's share or on the pipe's spare credit, mark ECN CE if the bucket it passed on is running low, drop if neither covers it
 6. **Pace** - If `delay > 0`, set the packet's departure timestamp in `skb->tstamp` to `now + delay`, held back behind the flow's previous departure in `QOS_FLOW_STATE`
-7. **Emit** - Send an event to the RingBuf with the shaping decision (shaped, dropped)
+7. **Count** - Add the outcome to the per-CPU `QOS_METRICS` slots. The shaper sends no per-packet event: on a saturated pipe that would be one event per packet, in the channel firewall and IDS alerts travel through, so the counters are its whole report
 
 ### Maps
 
@@ -276,13 +276,12 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | `QOS_CLASSIFIERS` | HashMap | 1024 | Classifier rules (5-tuple + DSCP + VLAN → queue_id) |
 | `QOS_PIPE_STATE` | Array | 64 | Per-pipe token bucket (tokens, last_refill_ns), shared across CPUs |
 | `QOS_FLOW_STATE` | LruPerCpuHashMap | 65536 | Per-flow pacing state (last departure time) |
-| `QOS_METRICS` | PerCpuArray | 7 | Per-CPU shaping counters |
+| `QOS_METRICS` | PerCpuArray | 6 | Per-CPU shaping counters, the program's only report |
 | `QOS_EDT_INTERFACES` | HashMap | 256 | Interfaces whose qdisc honours a departure time, where per-workload shaping acts |
 | `QOS_CGROUP_LINKS` | HashMap | 4096 | Container link ifindex to cgroup id, for traffic that leaves through a host-side veth |
 | `QOS_CGROUP_SHAPES` | HashMap | 4096 | cgroup id to rate (picoseconds per byte) and horizon |
 | `QOS_CGROUP_EDT` | HashMap | 4096 | cgroup id to next departure time |
 | `QOS_CGROUP_COUNTERS` | PerCpuHashMap | 4096 | cgroup id to bytes, packets and horizon drops |
-| `EVENTS` | RingBuf | 1 MB | Kernel-to-userspace QoS events |
 | `INTERFACE_GROUPS` | HashMap | 64 | Interface group membership bitmask per ifindex |
 | `TENANT_VLAN_MAP` | HashMap | 1024 | VLAN ID → tenant ID resolution |
 | `TENANT_SUBNET_V4` / `TENANT_SUBNET_V6` | LpmTrie | - | Subnet → tenant ID resolution |
@@ -299,7 +298,6 @@ See [REST API Reference](../api-reference/rest-api.md) for details.
 | 3 | `dropped_queue` | Packets dropped because the pipe had no credit left |
 | 4 | `delayed` | Packets given a departure timestamp |
 | 5 | `errors` | Processing errors (parse failures, map lookup errors) |
-| 6 | `events_dropped` | RingBuf events dropped due to backpressure (>75% full) |
 
 Prometheus metrics:
 
@@ -313,7 +311,6 @@ QoS exports no family of its own. Its counters are slots in the per-CPU
 - `action="dropped_queue"` - packets dropped for want of credit
 - `action="delayed"` - packets delayed
 - `action="errors"` - processing errors
-- `action="events_dropped"` - ring buffer backpressure drops
 
 Alongside them, `ebpfsentinel_rules_loaded{component="qos"}` is the loaded
 classifier count.
