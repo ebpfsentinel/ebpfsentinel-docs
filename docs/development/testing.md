@@ -86,7 +86,7 @@ cargo fuzz run fuzz_dns_parser -- -max_total_time=60
 | Target | Scope |
 |--------|-------|
 | `fuzz_feed_parser` | Threat intel feeds (plaintext, CSV, JSON) |
-| `fuzz_l7_parsers` | L7 protocol detection (HTTP, TLS, gRPC, SMTP, FTP, SMB) |
+| `fuzz_l7_parsers` | L7 protocol detection and every L7 parser (HTTP, TLS ClientHello and ServerHello, gRPC, SMTP, FTP, SMB, SSH, Redis, MySQL, PostgreSQL, DNS over TCP, IMAP, POP3), and the shape of the JA4 fingerprint of every accepted ClientHello |
 | `fuzz_dlp_scan` | DLP pattern matching |
 | `fuzz_packet_event` | `PacketEvent` ring buffer parsing |
 | `fuzz_dns_parser` | DNS wire format, blocklist feeds, DGA entropy |
@@ -109,3 +109,4 @@ cargo fuzz run fuzz_dns_parser -- -max_total_time=60
 | `fuzz_routing` | Gateway selection, health state |
 | `fuzz_threatintel_engine` | IOC store operations |
 | `fuzz_zone` | Zone policy evaluation |
+| `fuzz_warden_netlink` | Warden readers of kernel buffers: `bpf_prog_info`, `bpf_link_info`, `RTM_NEWLINK` and `RTM_NEWTFILTER` payloads, fanotify records |
