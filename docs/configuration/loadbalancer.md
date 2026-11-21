@@ -366,6 +366,7 @@ loadbalancer:
     bgp:
       enabled: true
       local_asn: 64512
+      local_port: 179                   # default; the port BIRD listens on
       router_id: "10.0.0.11"            # optional; BIRD picks one when unset
       socket: /run/bird/bird.ctl        # default
       config_path: /run/bird/ebpfsentinel.conf  # default
@@ -382,6 +383,7 @@ loadbalancer:
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Turns BGP announcement on. Refused with `role: disabled`. |
 | `local_asn` | integer | - | Autonomous system of this node. Required when enabled. |
+| `local_port` | integer | `179` | Port BIRD listens on. The sessions it opens still reach each peer on `peers[].port`; set another port where something else on the node already listens on 179, such as Calico in BGP mode, or BIRD cannot open its listening socket and every session stays down with `No listening socket`. |
 | `router_id` | string | - | IPv4 router ID. Unset lets BIRD derive one from the node's addresses. |
 | `socket` | string | `/run/bird/bird.ctl` | BIRD control socket. The agent must be allowed to connect to it. |
 | `config_path` | string | `/run/bird/ebpfsentinel.conf` | File the agent writes BIRD's configuration to, mode `0600`. BIRD must be able to read it. |
@@ -419,7 +421,7 @@ protocol device {}
 ```
 
 Run BIRD with `bird -f -c <base> -s /run/bird/bird.ctl -u <agent uid> -g <agent gid>`.
-It binds the BGP port as root and then drops to the agent's user, which is
+It binds `local_port` as root and then drops to the agent's user, which is
 what makes the socket one the agent may dial and the configuration file one
 BIRD may read. No BIRD image is published under this project's name: use the
 one your estate already trusts. Under the Kubernetes operator, name it in
