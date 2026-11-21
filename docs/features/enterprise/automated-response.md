@@ -98,7 +98,7 @@ Policies map alert conditions to response actions. Multiple actions can be confi
 | Field | Description |
 |-------|-------------|
 | `components` | Alert components that trigger this policy (empty = all) |
-| `min_severity` | Minimum severity: `Low`, `Medium`, `High`, `Critical` |
+| `min_severity` | Minimum severity: `low`, `medium`, `high` or `critical`, in any case (the API answers them capitalised) |
 | `mitre_tactics` | Optional MITRE ATT&CK tactic filter (empty = all) |
 
 ### Cooldown

@@ -153,10 +153,14 @@ assert!(policy.evaluate(&req).is_allow());
 
 ## REST API
 
-A `PUT` merges into the policy already loaded: a list it sends is added to
-what is there, and a list it leaves empty clears nothing. There is no
-route that removes a rule, so a blocked command, a denied collection or a
-weak algorithm leaves the policy when the agent restarts and not before.
+A `PUT` replaces the protocol's policy: the body is applied to the policy
+the agent starts with, never on top of what an earlier `PUT` wrote, so a
+rule left out of the body is gone. The built-in lists are the exception
+in one direction only: leaving `blocked_commands` (Redis) or
+`admin_commands` (MongoDB) out keeps the built-in blocklist, while sending
+the key replaces it with exactly the list given, empty included. The
+built-in LDAP sensitive attributes always stay, and `sensitive_attributes`
+adds to them. Writing `{}` puts a protocol back to how the agent started.
 
 A `GET` on a protocol is not the policy. It answers how that protocol's
 last decisions came out - how many were counted, denied, alerted and
@@ -167,17 +171,17 @@ reading the configuration file that wrote it.
 |--------|------|---------|------|-----------------|-------------|
 | `GET` | `/api/v1/enterprise/l7/policy/decisions` | `l7-inspect decisions` | viewer | advanced-dlp | The last 500 decisions, every protocol together. |
 | `GET` | `/api/v1/enterprise/l7/policy/redis` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent Redis decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/redis` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the Redis policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/redis` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the Redis policy. |
 | `GET` | `/api/v1/enterprise/l7/policy/mongodb` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent MongoDB decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/mongodb` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the MongoDB policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/mongodb` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the MongoDB policy. |
 | `GET` | `/api/v1/enterprise/l7/policy/kafka` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent Kafka decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/kafka` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the Kafka policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/kafka` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the Kafka policy. |
 | `GET` | `/api/v1/enterprise/l7/policy/sql` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent SQL decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/sql` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the SQL policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/sql` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the SQL policy. |
 | `GET` | `/api/v1/enterprise/l7/policy/ldap` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent LDAP decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/ldap` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the LDAP policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ldap` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the LDAP policy. |
 | `GET` | `/api/v1/enterprise/l7/policy/ssh` | `l7-inspect policy` | viewer | advanced-dlp | Outcome counts over the recent SSH decisions. |
-| `PUT` | `/api/v1/enterprise/l7/policy/ssh` | `l7-inspect set-policy` | operator | advanced-dlp | Merge rules into the SSH policy. |
+| `PUT` | `/api/v1/enterprise/l7/policy/ssh` | `l7-inspect set-policy` | operator | advanced-dlp | Replace the SSH policy. |
 
 ## Code Architecture
 
