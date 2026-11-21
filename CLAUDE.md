@@ -12,7 +12,7 @@ built with Docusaurus. Last updated: 2026-11-06. Cross-repo rules live in `../CL
 - `sidebars.ts` - every page is reachable from it; a page missing there is a page nobody finds.
 - `scripts/` - one checker or generator per fact the pages state about another tree.
 - `.github/workflows/ci.yml` - checks out `ebpfsentinel`, `ebpfsentinel-enterprise` and
-  `ebpfsentinel-operator` beside this tree (through `SIBLING_READ_TOKEN`), runs every check, then
+  `ebpfsentinel-operator` (and the console server crate) beside this tree (through `SIBLING_READ_TOKEN`), runs every check, then
   `typecheck` and `build`.
 
 ## A number on a page is read from the tree it describes
@@ -27,6 +27,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:rest-routes`, `check:vendored-openapi` | routes named on a page exist; the vendored OpenAPI is the agent's |
 | `check:request-bodies` | every JSON body a page sends (curl, `--json`, a request fence) is one its route's schema accepts |
 | `check:config-keys` | every key the OSS and enterprise configuration loaders accept is printed as a key by a page |
+| `check:feature-suites` | every page under `docs/features/` names in `scripts/feature-suites.toml` the suites behind it (OSS, enterprise, operator lanes, console server tests), each existing and holding a test |
 | `check:cli-reference`, `check:cli-invocations` | every subcommand and every command written in a page parses |
 | `check:grpc-reference`, `check:crd-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables, `generate:*` rewrites them |
 | `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor (6.12) wherever a matrix states one |
@@ -34,7 +35,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:no-waf-claim`, `check:no-protection-claim` | the agent is never called a WAF, mass encryption is never sold as protection |
 | `check:no-typographic-dash` | none of the four typographic dashes in any tracked file |
 
-`check:rest-routes` and `check:config-keys` are surface gates (meta `docs/COVERAGE.md`): what a page
+`check:rest-routes`, `check:config-keys` and `check:feature-suites` are surface gates (meta `docs/COVERAGE.md`): what a page
 does not name carries a line in `scripts/rest-routes.toml` / `scripts/config-keys.toml` (`reason`
 or `gap`, the gap count equal to `gap_ceiling`), and each prints one summary line the meta runner
 `scripts/audit-surfaces.sh` collects.

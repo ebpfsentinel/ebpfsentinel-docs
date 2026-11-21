@@ -19,6 +19,7 @@
     "check:rest-routes": "node scripts/check-rest-routes.mjs",
     "check:request-bodies": "node scripts/check-request-bodies.mjs",
     "check:config-keys": "node scripts/check-config-keys.mjs",
+    "check:feature-suites": "node scripts/check-feature-suites.mjs",
     "check:vendored-openapi": "node scripts/check-vendored-openapi.mjs",
     "check:media-copy": "node scripts/check-media-copy.mjs",
     "generate:grpc-reference": "node scripts/generate-grpc-reference.mjs",

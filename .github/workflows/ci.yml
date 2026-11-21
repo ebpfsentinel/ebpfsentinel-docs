@@ -71,6 +71,18 @@ jobs:
           sparse-checkout: media/manifest.json
           sparse-checkout-cone-mode: false
 
+      # The console's own tests stand behind the pages of its screens (cases,
+      # hunting, segments). Only the server crate is read, to find the test
+      # files those pages name.
+      - name: Check out the console
+        uses: actions/checkout@v5
+        with:
+          repository: ebpfsentinel/ebpfsentinel-dashboard
+          path: ebpfsentinel-dashboard
+          token: ${{ secrets.SIBLING_READ_TOKEN }}
+          sparse-checkout: crates/dashboard-server
+          sparse-checkout-cone-mode: true
+
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -109,6 +121,14 @@ jobs:
       - name: Check the configuration keys
         working-directory: ebpfsentinel-docs
         run: npm run check:config-keys
+
+      # Every page under docs/features/ names the suites that stand behind it,
+      # in the four trees that hold them, and each suite named exists and runs
+      # a test, so a page selling what no suite drives is a line nobody can
+      # write without saying so.
+      - name: Check the suites behind every feature page
+        working-directory: ebpfsentinel-docs
+        run: npm run check:feature-suites
 
       # The API explorer renders a copy of the agent's document rather than
       # reading it, because the page is prerendered. A copy nobody compares

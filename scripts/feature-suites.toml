@@ -1,0 +1,276 @@
+# The suites behind every page under docs/features/ (and the few pages outside
+# it the website matrix links as a capability's page), read by
+# check-feature-suites.mjs. One line per page, keyed by its path under docs/
+# without the extension, exactly one of `suites` (oss/<name>, enterprise/<name>,
+# operator/<lane>/<name>, dashboard/<path under crates/dashboard-server>),
+# `reason` (a page that sells nothing a suite could run) or `gap` (sells
+# something no suite runs yet). `gap_ceiling` is the number of gap lines.
+
+gap_ceiling = 0
+
+[pages."configuration/flow-export"]
+suites = ["oss/141-flow-export-sinks"]
+
+[pages."configuration/workload-firewall"]
+suites = ["oss/92-workload-matchers", "oss/91-network-executables", "oss/70-workload-lineage", "oss/100-ordinary-work-under-enforcement", "oss/107-identity-across-hosts", "oss/99-workload-hooks-refused"]
+
+[pages."operations/enforcement-after-exit"]
+suites = ["oss/140-enforcement-survives-the-agent"]
+
+[pages."features/alerting"]
+suites = ["oss/25-alert-end-to-end", "oss/61-alert-sink-delivery", "oss/34-sse-alerts-stream"]
+
+[pages."features/aliases"]
+suites = ["oss/16-rest-api-extended", "oss/145-alias-refresh-interval"]
+
+[pages."features/audit"]
+suites = ["oss/04-rest-api-domains"]
+
+[pages."features/authentication"]
+suites = ["oss/07-authentication", "oss/36-agent-jwks", "oss/08-tls"]
+
+[pages."features/bandwidth-fairness"]
+suites = ["oss/103-workload-shaping", "oss/28-ebpf-qos-scenarios"]
+
+[pages."features/capture"]
+suites = ["oss/49-capture-pcap-export", "oss/142-auto-capture"]
+
+[pages."features/cluster-ip"]
+suites = ["operator/coexistence/03-clusterip"]
+
+[pages."features/conntrack"]
+suites = ["oss/18-ebpf-conntrack-scenarios", "oss/47-conntrack-kernel-ct-kill", "oss/65-conntrack-source-guard"]
+
+[pages."features/container-awareness"]
+suites = ["oss/54-container-cgroup-enrichment", "oss/130-podman-attribution", "oss/131-cri-runtimes-attribution", "oss/72-lxc-containers", "oss/138-docker-bridge-dns-and-segmentation"]
+
+[pages."features/ddos"]
+suites = ["oss/22-ebpf-ddos-scenarios", "oss/15-rest-api-ddos", "oss/43-xdp-ratelimit-syncookie", "oss/40-scapy-amplification", "oss/147-ddos-half-open-released"]
+
+[pages."features/deployment-matrix"]
+suites = ["oss/09-docker", "oss/10-kubernetes", "oss/72-lxc-containers", "oss/73-hypervisor-guests", "oss/75-libvirt-guest", "oss/134-kubernetes-tailored-seccomp", "oss/57-bpf-token-only-load", "oss/132-start-up-refusals", "oss/133-every-object-both-loaders"]
+
+[pages."features/dlp"]
+suites = ["oss/27-ebpf-dlp-scenarios", "oss/60-container-dlp-cross"]
+
+[pages."features/dns-intelligence"]
+suites = ["oss/19-ebpf-dns-scenarios", "oss/45-dns-doh-dot-detect", "oss/95-dns-clients", "oss/138-docker-bridge-dns-and-segmentation"]
+
+[pages."features/enterprise/advanced-rbac"]
+suites = ["enterprise/09-enterprise-rbac", "enterprise/54-enterprise-rbac-roles"]
+
+[pages."features/enterprise/ai-security"]
+suites = ["enterprise/13-enterprise-ai-security"]
+
+[pages."features/enterprise/airgap"]
+suites = ["enterprise/10-enterprise-airgap"]
+
+[pages."features/enterprise/analytics"]
+suites = ["enterprise/11-enterprise-analytics", "enterprise/68-enterprise-heavy-hitter-on-the-bus"]
+
+[pages."features/enterprise/automated-response"]
+suites = ["enterprise/16-enterprise-response", "enterprise/25-enterprise-response-approval", "enterprise/26-enterprise-quarantine"]
+
+[pages."features/enterprise/bare-metal-load-balancer"]
+suites = ["enterprise/41-enterprise-vip-bgp-elected", "operator/coexistence/07-vip-speaker"]
+
+[pages."features/enterprise/base-model"]
+suites = ["enterprise/40-enterprise-delivered-content", "enterprise/03-enterprise-ml"]
+
+[pages."features/enterprise/cases"]
+suites = ["enterprise/24-enterprise-investigation", "dashboard/src/routes/cases", "dashboard/tests/case_log_clickhouse"]
+
+[pages."features/enterprise/compliance-reports"]
+suites = ["enterprise/06-enterprise-compliance", "enterprise/57-enterprise-compliance-schedule", "enterprise/48-enterprise-crypto-and-reachability"]
+
+[pages."features/enterprise/content-channel"]
+suites = ["enterprise/40-enterprise-delivered-content"]
+
+[pages."features/enterprise/dashboard"]
+suites = ["dashboard/tests/agent_paths_contract", "dashboard/tests/state_pg", "dashboard/tests/tls_links"]
+
+[pages."features/enterprise/dlp"]
+suites = ["enterprise/02-enterprise-dlp", "enterprise/18-enterprise-dlp-network-detect", "enterprise/44-enterprise-tls-catalogue-restart", "enterprise/17-enterprise-rootless-tls-probe"]
+
+[pages."features/enterprise/fleet-management"]
+suites = ["enterprise/12-enterprise-fleet", "enterprise/33-enterprise-host-rule-promotion", "enterprise/36-enterprise-firewall-tiers-and-promotion", "enterprise/49-enterprise-provider-tier-fence", "enterprise/56-enterprise-portal-enrolment", "enterprise/43-enterprise-remote-identities"]
+
+[pages."features/enterprise/high-availability"]
+suites = ["enterprise/07-enterprise-ha", "enterprise/21-enterprise-ha-active-active", "enterprise/42-enterprise-ha-host-kill", "enterprise/47-enterprise-ha-flow-survives-failover", "enterprise/66-enterprise-ha-tls"]
+
+[pages."features/enterprise/hunting"]
+suites = ["dashboard/src/routes/hunts", "dashboard/src/routes/saved_hunts", "dashboard/tests/hunt_clickhouse"]
+
+[pages."features/enterprise/kubernetes-operator"]
+suites = ["operator/integration/01-operator-forces-managed", "operator/integration/02-operator-namespace-scope", "operator/integration/05-admission-webhook", "operator/enterprise/01-licence-and-settings", "operator/enterprise/02-detection-kinds", "operator/enterprise/03-data-and-export-kinds", "operator/enterprise/04-control-kinds", "operator/enterprise/05-oss-kinds"]
+
+[pages."features/enterprise/l7-alert-enrichment"]
+suites = ["enterprise/29-enterprise-l7-block-source", "enterprise/20-enterprise-otlp-siem"]
+
+[pages."features/enterprise/l7-deep-inspection"]
+suites = ["enterprise/29-enterprise-l7-block-source"]
+
+[pages."features/enterprise/l7-per-protocol-policies"]
+suites = ["enterprise/70-enterprise-l7-policy-on-the-wire", "enterprise/46-enterprise-extended-l7-protocols"]
+
+[pages."features/enterprise/license"]
+suites = ["enterprise/01-enterprise-license", "enterprise/55-enterprise-licence-revocation", "enterprise/58-enterprise-licence-clock", "enterprise/69-enterprise-licence-gating"]
+
+[pages."features/enterprise/ml-detection"]
+suites = ["enterprise/03-enterprise-ml", "enterprise/28-enterprise-ml-restart", "enterprise/31-enterprise-reset-baseline", "enterprise/64-enterprise-ml-anomaly-on-the-bus", "enterprise/60-enterprise-beaconing", "enterprise/30-enterprise-dns-entropy-workload", "enterprise/68-enterprise-heavy-hitter-on-the-bus"]
+
+[pages."features/enterprise/multicluster"]
+suites = ["enterprise/08-enterprise-federation", "enterprise/59-enterprise-federation-mtls", "enterprise/72-enterprise-api-tls-and-federation-links"]
+
+[pages."features/enterprise/multitenancy"]
+suites = ["enterprise/04-enterprise-tenants", "enterprise/23-enterprise-tenant-attribution", "enterprise/67-enterprise-tenant-fence"]
+
+[pages."features/enterprise/network-forensics"]
+suites = ["enterprise/15-enterprise-forensics", "enterprise/39-enterprise-packet-capture"]
+
+[pages."features/enterprise/overview"]
+reason = "an index of the licensed pages, each of which names its own suites"
+
+[pages."features/enterprise/reachable-vulnerabilities"]
+suites = ["enterprise/32-enterprise-scanner-reports", "enterprise/48-enterprise-crypto-and-reachability"]
+
+[pages."features/enterprise/regulated-estates"]
+suites = ["enterprise/65-enterprise-runtime-attestation", "dashboard/src/routes/seals", "dashboard/src/routes/controls", "dashboard/src/routes/cases"]
+
+[pages."features/enterprise/siem-integration"]
+suites = ["enterprise/05-enterprise-siem", "enterprise/20-enterprise-otlp-siem", "enterprise/53-enterprise-siem-backends", "enterprise/51-enterprise-ancestry-on-siem"]
+
+[pages."features/enterprise/sigma-rules"]
+suites = ["enterprise/34-enterprise-sigma-import"]
+
+[pages."features/enterprise/tamper-protection"]
+suites = ["enterprise/62-enterprise-signed-stop", "enterprise/45-enterprise-estate-stop-rootless"]
+
+[pages."features/enterprise/threat-intel-platforms"]
+suites = ["enterprise/38-enterprise-intel-platforms", "enterprise/37-enterprise-suricata-and-crowdsec"]
+
+[pages."features/enterprise/tls-intelligence"]
+suites = ["enterprise/14-enterprise-tls-intelligence", "enterprise/22-enterprise-tls-downgrade", "enterprise/27-enterprise-tls-redirect", "enterprise/44-enterprise-tls-catalogue-restart", "enterprise/50-enterprise-tls-redirect-dry-run", "enterprise/63-enterprise-tls-intelligence-on-the-wire"]
+
+[pages."features/file-integrity"]
+suites = ["oss/94-file-watch", "oss/97-fim-inside-a-container"]
+
+[pages."features/firewall"]
+suites = ["oss/11-ebpf-firewall-scenarios", "oss/03-rest-api-firewall", "oss/42-xdp-firewall-reject", "oss/76-firewall-shadow", "oss/26-hot-reload-rules", "oss/23-ebpf-scrub-scenarios", "oss/46-scrub-byte-level"]
+
+[pages."features/foreign-programs"]
+suites = ["oss/88-host-integrity"]
+
+[pages."features/geoip"]
+suites = ["oss/30-ebpf-geoip-scenarios"]
+
+[pages."features/hidden-ports"]
+suites = ["oss/79-hidden-ports-and-processes"]
+
+[pages."features/hidden-processes"]
+suites = ["oss/79-hidden-ports-and-processes"]
+
+[pages."features/host-rules"]
+suites = ["oss/78-host-rules-shadow-and-enforce", "oss/135-host-rules-sequences-and-counts"]
+
+[pages."features/ids"]
+suites = ["oss/12-ebpf-ids-scenarios", "oss/102-suricata-ruleset-import", "oss/66-ids-kernel-ct-kill"]
+
+[pages."features/installed-packages"]
+suites = ["oss/80-the-surface-of-this-host"]
+
+[pages."features/interface-groups"]
+suites = ["oss/143-interface-groups"]
+
+[pages."features/ips"]
+suites = ["oss/13-ebpf-ips-scenarios", "oss/136-ips-rule-stops-the-process"]
+
+[pages."features/ipv6"]
+suites = ["oss/55-ipv6-full-path-sweep", "oss/50-nptv6-prefix-translation"]
+
+[pages."features/ja4-fingerprinting"]
+suites = ["oss/41-ja4-fingerprint-diversity"]
+
+[pages."features/kernel-drops"]
+suites = ["oss/90-network-readings"]
+
+[pages."features/l7-firewall"]
+suites = ["oss/29-ebpf-l7-scenarios", "oss/56-l7-smtp-ftp-smb-edge", "oss/38-mhddos-l7-attacks"]
+
+[pages."features/learning-mode"]
+suites = ["oss/87-restart-state-and-posture", "oss/138-docker-bridge-dns-and-segmentation"]
+
+[pages."features/listening-sockets"]
+suites = ["oss/80-the-surface-of-this-host", "oss/90-network-readings"]
+
+[pages."features/loadbalancer"]
+suites = ["oss/20-ebpf-loadbalancer-scenarios", "oss/44-lb-dsr-maglev", "oss/139-lb-dnat-connections"]
+
+[pages."features/mass-encryption"]
+suites = ["oss/81-mass-encryption-shadow", "oss/82-mass-encryption-detected-and-stopped", "oss/85-encryption-over-the-network", "oss/101-encryption-written-through-a-file-share", "oss/108-encryption-from-another-machine", "oss/96-entropy-blind-spots"]
+
+[pages."features/mitre-attack"]
+suites = ["oss/51-mitre-assertions-sweep"]
+
+[pages."features/nat"]
+suites = ["oss/21-ebpf-nat-scenarios", "oss/50-nptv6-prefix-translation"]
+
+[pages."features/network-cryptography"]
+suites = ["oss/89-tls-handshakes-and-crypto-posture", "oss/104-encryption-calls"]
+
+[pages."features/network-policy"]
+suites = ["operator/coexistence/04-networkpolicy-enforce", "oss/87-restart-state-and-posture"]
+
+[pages."features/operational-essentials"]
+suites = ["oss/49-capture-pcap-export", "oss/48-responses-time-bounded", "oss/87-restart-state-and-posture", "oss/05-grpc-streaming"]
+
+[pages."features/overview"]
+reason = "an index of the open-source pages, each of which names its own suites"
+
+[pages."features/packet-trace"]
+suites = ["oss/87-restart-state-and-posture"]
+
+[pages."features/pq-tls"]
+suites = ["oss/58-pqc-handshake"]
+
+[pages."features/process-detections"]
+suites = ["oss/93-process-detections", "oss/70-workload-lineage"]
+
+[pages."features/qos"]
+suites = ["oss/28-ebpf-qos-scenarios"]
+
+[pages."features/ratelimit"]
+suites = ["oss/14-ebpf-ratelimit-scenarios"]
+
+[pages."features/raw-sockets"]
+suites = ["oss/88-host-integrity"]
+
+[pages."features/red-metrics"]
+suites = ["oss/90-network-readings"]
+
+[pages."features/response"]
+suites = ["oss/48-responses-time-bounded"]
+
+[pages."features/routing"]
+suites = ["oss/32-ebpf-routing-scenarios", "oss/53-multiwan-failover"]
+
+[pages."features/segments"]
+suites = ["oss/87-restart-state-and-posture", "dashboard/src/routes/segments", "dashboard/src/routes/segment_policy"]
+
+[pages."features/service-map"]
+suites = ["oss/90-network-readings"]
+
+[pages."features/tcp-health"]
+suites = ["oss/71-tcp-health"]
+
+[pages."features/threatintel"]
+suites = ["oss/17-ebpf-threatintel-scenarios", "oss/33-api-stix-feed"]
+
+[pages."features/vlan"]
+suites = ["oss/11-ebpf-firewall-scenarios"]
+
+[pages."features/write-refusal"]
+suites = ["oss/83-a-write-is-refused", "oss/84-a-write-is-refused-without-the-bpf-lsm"]
+
+[pages."features/zones"]
+suites = ["oss/31-ebpf-zone-scenarios"]
