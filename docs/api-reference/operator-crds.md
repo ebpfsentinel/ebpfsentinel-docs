@@ -266,13 +266,19 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `api` | object |  | TLS terminated by the enterprise listener itself. Absent, the listener is plain HTTP for a terminator in front of it, and the agent says so at startup. |
 | `content` | object |  | Detection content fetched from the vendor portal over the reporting relationship. Needs `portal.enabled`. |
+| `extendedL7` | object |  | Rules on the parsed fields of MQTT, AMQP, NATS and Cassandra. Needs `extended-l7-protocols` on the licence. |
+| `fileWatch` | object |  | File watch profiles from the signed content, watched beside the community file watch paths. Needs `content.enabled`. |
 | `firewallTiers` | array of object |  | The firewall tiers, in the order the agent evaluates them. Each `FirewallPolicy` naming a tier in `tier` brings its rules into it; the node's own rules are the tier named `default`, last unless listed. Needs fleet-management, and the tier `provider` multi-tenancy as well: it must come first and name the role that alone may change it. |
+| `hostRules` | object |  | Host rule profiles from the signed content, loaded beside the community host rules. Needs `content.enabled`. |
+| `intel` | object |  | TAXII 2.1 servers and MISP instances this estate already runs, polled for indicators. Needs `threat-intel-platforms` on the licence. |
 | `investigation` | object |  | The bounds every investigation of one workload, started from the console, runs inside. Absent keeps the agent's defaults: on, five minutes at most, four at once, the last fifty kept. |
 | `licenseSecretRef` | object, required |  | Secret holding the signed licence key. The operator mounts it and the agent verifies the signature itself, so a licence that never reaches the agent is a licence the agent does not honour. |
 | `multiTenancy` | object | `{"cgroupAttribution":{"criSockets":["/run/containerd/containerd.sock","/run/crio/crio.sock"],"criTimeoutMs":2000,"enabled":false,"pollIntervalSeconds":10,"tenantLabel":"ebpfsentinel.io/tenant"},"enabled":true}` | Whether the data plane is partitioned at all. Off means every rule is evaluated against every packet regardless of the tenant it was created under. |
 | `portal` | object |  | Reporting this deployment to the vendor portal. |
 | `response` | object | `{"auditMaxEntries":10000,"enabled":true,"statePath":null}` | Tuning for the automated response engine. What it actually does is a `ResponsePolicy`. |
+| `sigma` | object |  | Sigma rules compiled into detection rules at load. Needs `sigma-rules` on the licence. |
 | `tamperProtection` | object |  | Who may stop a protected agent. Absent leaves the agents unprotected. Needs `tamper-protection` on the licence and the BPF LSM at boot. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 
@@ -503,7 +509,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `autoCapture` | object |  | Open a capture automatically when an alert matches. |
-| `manual` | object |  | Start a capture once, when this resource is created. Leave it out to configure only the automatic side. |
+| `manual` | object |  | Start a capture on every agent the target selects, once per node for each generation of this resource: editing the resource starts the next one, a pod that restarts does not. What each node started is listed under `status.captures`, and the files are read and stopped from the console or with `ebpfsentinel-agent capture`. Leave it out to configure only the automatic side. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 
 ### QoSPolicy
