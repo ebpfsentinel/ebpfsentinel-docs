@@ -2406,11 +2406,11 @@ contexts frozen around alerts, the mirror and timelines.
 | `mirror` / `mirror-start <IFACE>` / `mirror-stop` | `GET /api/v1/enterprise/forensics/mirror`, `POST .../start`, `.../stop` | Where traffic is mirrored; start or stop |
 | `timeline <ALERT> [--before S] [--after S]` | `GET /api/v1/enterprise/forensics/timeline/{alert_id}` | What happened around one alert, 300 seconds each side by default |
 | `flow-timeline --src --dst --src-port --dst-port [--protocol] --from-ns --to-ns` | `GET /api/v1/enterprise/forensics/timeline/flow` | What happened on one flow over a window |
-| `events [--severity-min] [--component] [--technique]` | `GET /api/v1/forensics/events/stream` | Follow forensic events live, one JSON document per line, until the agent ends the stream |
+| `events [--follow] [--severity-min] [--component] [--technique]` | `GET /api/v1/forensics/events/stream` | The forensic events the agent still holds, one JSON document per line; with `--follow`, every event as it happens until the agent ends the stream |
 
 ```bash
 ebpfsentinel-enterprise-agent forensics download 0193f2c4-7a1e-7c00-9d2a-5b1f00000002 --out incident.pcapng
-ebpfsentinel-enterprise-agent forensics events --severity-min high | jq .
+ebpfsentinel-enterprise-agent forensics events --follow --severity-min high | jq .
 ```
 
 ### investigations
