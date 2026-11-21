@@ -82,10 +82,9 @@ Safe wrappers: `skb_packet_size` (tc-ids) and `xdp_frame_size` (xdp-firewall) re
 
 | KFunc | Kernel | Acquire/Release | Purpose |
 |-------|--------|-----------------|---------|
-| `bpf_skb_get_fou_encap` | 6.4+ | - | Read FOU/GUE encap parameters attached to a TC skb |
 | `bpf_skb_set_fou_encap` | 6.4+ | - | Install FOU or GUE encap parameters on a TC egress skb |
 
-Safe wrappers: `skb_get_fou_encap` (tc-ids), `skb_set_fou_encap` (tc-nat-egress). Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
+Safe wrapper: `skb_set_fou_encap` (tc-nat-egress). Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
 
 ### Arena maps - evaluated, not used
 

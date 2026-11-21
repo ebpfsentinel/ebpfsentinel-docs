@@ -151,7 +151,7 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya 0.16 
 | `bpf_skb_get_xfrm_info` / `bpf_skb_set_xfrm_info` | 6.2+ | tc-nat-ingress (get), tc-nat-egress (set) | IPsec interface steering via `xfrmi` devices |
 | `bpf_xdp_metadata_rx_hash` / `bpf_xdp_metadata_rx_timestamp` | 6.3+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer | NIC RSS hash and hardware RX timestamp |
 | `bpf_dynptr_from_skb` / `bpf_dynptr_from_xdp` / `bpf_dynptr_size` | 6.4+ | tc-ids (skb), xdp-firewall (xdp) | Full packet length, fragments included |
-| `bpf_skb_get_fou_encap` / `bpf_skb_set_fou_encap` | 6.4+ | tc-ids (get), tc-nat-egress (set) | FOU/GUE encapsulation metadata |
+| `bpf_skb_set_fou_encap` | 6.4+ | tc-nat-egress | FOU/GUE encapsulation metadata |
 | `bpf_xdp_metadata_rx_vlan_tag` | 6.8+ | xdp-firewall | Hardware-offloaded VLAN tag |
 | `bpf_xdp_get_xfrm_state` / `bpf_xdp_xfrm_state_release` | 6.8+ | xdp-firewall | XDP-side `xfrm_state` lookup |
 

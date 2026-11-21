@@ -30,10 +30,10 @@ BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmli
 
 ### Kernel Modules
 
-Five programs call kfuncs that a kernel module registers rather than the kernel itself: the firewall, conntrack and IDS programs need `nf_conntrack`, the IDS and NAT egress programs need `fou`, and the two NAT programs need `xfrm_interface`. A module's kfuncs exist only while it is loaded, and a minimal host loads none of these on its own: a stock Ubuntu 26.04 cloud image with no firewall rules has none of them. The agent checks before loading and refuses with the module and the program, for example:
+Five programs call kfuncs that a kernel module registers rather than the kernel itself: the firewall, conntrack and IDS programs need `nf_conntrack`, the NAT egress program needs `fou`, and the two NAT programs need `xfrm_interface`. A module's kfuncs exist only while it is loaded, and a minimal host loads none of these on its own: a stock Ubuntu 26.04 cloud image with no firewall rules has none of them. The agent checks before loading and refuses with the module and the program, for example:
 
 ```text
-`tc_ids` calls `bpf_skb_ct_lookup` and `bpf_skb_get_fou_encap`, registered by kernel modules `nf_conntrack` and `fou`, which are not loaded on this host (absent from /sys/kernel/btf): load them with `modprobe nf_conntrack fou` or list them in /etc/modules-load.d, then restart the agent
+`tc_nat_egress` calls `bpf_skb_set_fou_encap` and `bpf_skb_set_xfrm_info`, registered by kernel modules `fou` and `xfrm_interface`, which are not loaded on this host (absent from /sys/kernel/btf): load them with `modprobe fou xfrm_interface` or list them in /etc/modules-load.d, then restart the agent
 ```
 
 `fou6` registers no kfunc but carries IPv6 FOU encapsulation, so it is loaded alongside. Load them now and at every boot:
