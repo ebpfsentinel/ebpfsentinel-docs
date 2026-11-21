@@ -98,7 +98,7 @@ carried before the pass, so a restart or a new leader does not repeat them.
 | `ReconcileFailed` | Warning | a pass failed and will be retried, after 5 seconds and then twice as long each time up to 5 minutes; repeats fold into one event series |
 | `NotLicensed` | Warning | an enterprise kind the licence does not carry |
 | `Drifted` | Warning | an agent resource's `ConfigDrift` condition turned `True`; the note names the nodes and why |
-| `ActRefused` | Warning | an agent refused to suspend or resume a `TenantPolicy`'s tenant; the note names each pod and its answer, and the `ActApplied` condition stays `False` until every agent takes it |
+| `ActRefused` | Warning | an agent refused to suspend or resume a `TenantPolicy`'s tenant, or to start the capture a `PacketCapture`'s `manual` block asks for; the note names each pod and its answer, and the `ActApplied` condition stays `False` until every agent takes it |
 
 ```bash
 kubectl describe firewallpolicy edge-baseline
@@ -1030,6 +1030,34 @@ size it from the per-forest cost the agent reports. `minObservations`,
 `adaptiveThreshold` and the explanation settings are tuning a cluster rarely
 changes on day one and are set through `spec.config.raw` when they are.
 
+### Starting a packet capture
+
+`PacketCapture` holds two things. `autoCapture` is the standing rule that an
+alert of a given severity opens a capture on its own, written into the
+configuration the agents load. `manual` asks for one capture now:
+
+```yaml
+spec:
+  target:
+    all: true
+  manual:
+    filter: host 10.0.4.12 and port 443
+    durationSecs: 60
+    snapLength: 1500
+```
+
+A capture is an action rather than a state, so the operator asks each running
+agent the resource selects for it and records, under `status.captures`, the
+node, the pod, the capture's identifier and the file the agent writes. It is
+asked once per node for each generation of the resource: a later pass skips a
+node already recorded and a pod that restarts does not capture again, while
+editing the resource asks every node again. Without `interface` the capture
+listens on every interface of the node and the filter is what narrows it.
+The `ActApplied` condition says whether every agent started its capture; one
+that refused is asked again on the next pass. Deleting the resource leaves
+running captures to end at their duration; `ebpfsentinel-agent capture list`
+and `capture stop` on the node, or the console, read and stop them.
+
 ### Packet capture on a preserved timeline
 
 `ForensicsPolicy` takes a `capture` block that keeps a ring of recent frames
@@ -1190,6 +1218,62 @@ on an agent whose pod profile turns the table off. See
 [Network inventory](../../configuration/network-inventory.md),
 [Protocol on the wrong port](../../configuration/l7.md#protocol-on-the-wrong-port)
 and [Shipped rules](../../configuration/host-rules.md#shipped-rules).
+
+### Learning, hidden entries, packages and flow records
+
+Four more node sections are typed under `config`. The first three are on in
+the agent unless switched off, so a resource names them only to change a
+bound; flow records are off until `enabled`:
+
+```yaml
+spec:
+  config:
+    learning:
+      maxEdges: 16384          # 64 to 131072
+      sampleIntervalSecs: 10   # 1 to 300
+    hiddenChecks:
+      ports:
+        intervalSecs: 300      # 60 to 86400
+        wellKnown: true
+        extraPorts: [31337]
+      processes:
+        intervalSecs: 900      # 60 to 86400
+        pidsPerSecond: 100000
+    packageInventory:
+      intervalSecs: 900        # 60 to 86400
+    flowExport:
+      enabled: true
+      ipfix:
+        enabled: true
+        targets:
+          - address: collector.observability.svc:4739
+            transport: udp
+      syslog:
+        enabled: true
+        targets:
+          - address: syslog.observability.svc:6514
+            transport: tls
+        caSecretRef:
+          name: syslog-ca
+          key: ca.crt
+      jsonLines:
+        enabled: true
+        fileName: flows.jsonl
+```
+
+Two fields differ from the agent's file. The authority a `tls` syslog or CEF
+target is verified against is a Secret key the operator mounts and renders as
+`ca_cert`; a `tls` target without `caSecretRef` is refused at admission, and
+IPFIX takes no `tls` target at all. The JSON lines file is a `fileName` inside
+the agent's state directory on the node (`/var/lib/ebpfsentinel`), so a
+resource never names a path on the host. `flowExport.otlp` sends to the
+collector an `AlertPolicy`'s `otlp` block names, and the agent refuses it
+without one. A port sweep with `wellKnown: false` and no `extraPorts` is
+refused at admission, since it would probe nothing. See
+[Learning mode](../../configuration/learning.md),
+[Hidden checks](../../configuration/hidden-checks.md),
+[Package inventory](../../configuration/package-inventory.md) and
+[Flow export](../../configuration/flow-export.md).
 
 `EnterpriseSettings` carries `investigation`, the bounds on the investigations
 an operator runs against one workload on a node:

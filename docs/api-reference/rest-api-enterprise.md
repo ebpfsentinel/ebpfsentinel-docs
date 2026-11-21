@@ -173,7 +173,7 @@ deployment that needs roles turns authentication on.
 | Feature | Endpoints | Feature guide |
 |---------|-----------|---------------|
 | [Always mounted](#always-mounted) | 11 | n/a |
-| [Open-source surface](#open-source-surface) | 127 | [Enterprise overview](../features/enterprise/overview.md#the-open-source-surface) |
+| [Open-source surface](#open-source-surface) | 130 | [Enterprise overview](../features/enterprise/overview.md#the-open-source-surface) |
 | [Advanced RBAC](#advanced-rbac) | 12 | [Advanced RBAC](../features/enterprise/advanced-rbac.md) |
 | [AI and LLM security](#ai-and-llm-security) | 20 | [AI and LLM security](../features/enterprise/ai-security.md) |
 | [Air-gap](#air-gap) | 4 | [Air-gap](../features/enterprise/airgap.md) |
@@ -257,6 +257,9 @@ are this edition's, decided by the same middleware as every other route.
 | `PUT` | `/api/v1/aliases/{id}/content` | admin | `firewall:write` | none | Push content for an External alias. |
 | `GET` | `/api/v1/audit/logs` | viewer | `audit:read` | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | viewer | `audit:read` | none | Query rule version history. |
+| `GET` | `/api/v1/captures` | viewer | `config:read` | none | List packet capture sessions. |
+| `POST` | `/api/v1/captures/manual` | admin | `config:write` | none | Start a manual packet capture. |
+| `DELETE` | `/api/v1/captures/{id}` | admin | `config:write` | none | Stop a running capture. |
 | `GET` | `/api/v1/config` | viewer | `config:read` | none | Return the current (sanitized) agent configuration. |
 | `POST` | `/api/v1/config/reload` | admin | `config:write` | none | Trigger a configuration reload via the API. |
 | `PUT` | `/api/v1/config/{section}` | admin | `config:write` | none | Write one section of the agent configuration file and reload. |

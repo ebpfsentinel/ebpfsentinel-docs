@@ -775,7 +775,6 @@ Vectorscan pattern matching, per-protocol policy decisions and the analysis pipe
 | `ebpfsentinel_ent_l7_inspect_scans_total` | Counter | - | Total L7 inspection scans (hits + misses) |
 | `ebpfsentinel_ent_l7_policy_decisions_total` | Counter | `protocol`, `outcome` | Per-protocol L7 policy decisions by protocol and outcome |
 | `ebpfsentinel_ent_l7_policy_violations_total` | Counter | `code` | L7 policy violations by machine-readable code |
-| `ebpfsentinel_ent_l7_policy_rules_loaded` | Gauge | `protocol` | Number of rules currently loaded per L7 policy engine |
 | `ebpfsentinel_ent_l7_enrichments_produced_total` | Counter | `source`, `technique` | L7 alert enrichments emitted by source detector and MITRE technique |
 | `ebpfsentinel_ent_l7_analyze_requests_total` | Counter | `protocol` | Requests to the L7 `/analyze` admin pipeline by protocol |
 | `ebpfsentinel_ent_l7_analyze_duration_seconds` | Gauge | - | Most recent `/analyze` pipeline duration in seconds |

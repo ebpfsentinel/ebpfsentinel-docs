@@ -99,17 +99,19 @@ and a note is written under the identity the agent authenticated, not under the
 
 ### The open-source surface
 
-The enterprise agent also serves 127 operations of the open-source agent, with
+The enterprise agent also serves 130 operations of the open-source agent, with
 the open-source handlers and bodies: the firewall, IDS, IPS, rate-limit,
 DDoS, NAT, routing, load-balancer, QoS, zone and alias rules, connection
 tracking, DNS, GeoIP, threat-intel indicators, L7 rules, DLP, TLS handshakes
 and posture, JA4 fingerprints, the service graph, the audit trail, manual
-responses, flow export status, the configuration and its reload, the eBPF
-program status and the host surface. Packet capture and the TLS library
-probes are the two open-source surfaces it does not serve: they answer
-`404 Not Found`, and this edition captures through
-[network forensics](network-forensics.md) and probes TLS libraries under
-`/api/v1/enterprise/tls-probes`. They are mounted
+responses, manual packet capture, flow export status, the configuration and
+its reload, the eBPF program status and the host surface. The TLS library
+probes are the one open-source surface it does not serve: it answers
+`404 Not Found`, and this edition probes TLS libraries under
+`/api/v1/enterprise/tls-probes`. Manual capture is the open-source one,
+started by hand and written under `/var/lib/ebpfsentinel/captures`; the
+captures this edition records on its own, around a trigger and kept under
+custody, are [network forensics](network-forensics.md). They are mounted
 whatever the license carries, once the open-source datapath services are built
 from the configuration, and `POST /api/v1/config/reload` runs the same reload
 as a changed configuration file, datapath included. Each is described in
@@ -124,6 +126,9 @@ as a changed configuration file, datapath included. Each is described in
 | `PUT` | `/api/v1/aliases/{id}/content` | `aliases set-content` | admin | none | Push content for an External alias. |
 | `GET` | `/api/v1/audit/logs` | `audit logs` | viewer | none | Query stored audit log entries. |
 | `GET` | `/api/v1/audit/rules/{id}/history` | `audit history` | viewer | none | Query rule version history. |
+| `GET` | `/api/v1/captures` | `capture list` | viewer | none | List packet capture sessions. |
+| `POST` | `/api/v1/captures/manual` | `capture start` | admin | none | Start a manual packet capture. |
+| `DELETE` | `/api/v1/captures/{id}` | `capture stop` | admin | none | Stop a running capture. |
 | `GET` | `/api/v1/config` | `config show` | viewer | none | Return the current (sanitized) agent configuration. |
 | `POST` | `/api/v1/config/reload` | `config reload` | admin | none | Trigger a configuration reload via the API. |
 | `PUT` | `/api/v1/config/{section}` | `config set` | admin | none | Write one section of the agent configuration file and reload. |
