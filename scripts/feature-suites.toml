@@ -102,7 +102,7 @@ suites = ["enterprise/07-enterprise-ha", "enterprise/21-enterprise-ha-active-act
 suites = ["dashboard/src/routes/hunts", "dashboard/src/routes/saved_hunts", "dashboard/tests/hunt_clickhouse"]
 
 [pages."features/enterprise/kubernetes-operator"]
-suites = ["operator/integration/01-operator-forces-managed", "operator/integration/02-operator-namespace-scope", "operator/integration/05-admission-webhook", "operator/enterprise/01-licence-and-settings", "operator/enterprise/02-detection-kinds", "operator/enterprise/03-data-and-export-kinds", "operator/enterprise/04-control-kinds", "operator/enterprise/05-oss-kinds"]
+suites = ["operator/integration/01-operator-forces-managed", "operator/integration/02-operator-namespace-scope", "operator/integration/05-admission-webhook", "operator/coexistence/09-cilium-import", "operator/enterprise/01-licence-and-settings", "operator/enterprise/02-detection-kinds", "operator/enterprise/03-data-and-export-kinds", "operator/enterprise/04-control-kinds", "operator/enterprise/05-oss-kinds"]
 
 [pages."features/enterprise/l7-alert-enrichment"]
 suites = ["enterprise/29-enterprise-l7-block-source", "enterprise/20-enterprise-otlp-siem"]
@@ -165,10 +165,10 @@ suites = ["oss/88-host-integrity"]
 suites = ["oss/30-ebpf-geoip-scenarios"]
 
 [pages."features/hidden-ports"]
-suites = ["oss/79-hidden-ports-and-processes"]
+suites = ["oss/79-hidden-ports-and-processes", "dashboard/tests/hidden_across_nodes", "console/app/contexts/fleet/domain/hidden-findings.domain"]
 
 [pages."features/hidden-processes"]
-suites = ["oss/79-hidden-ports-and-processes"]
+suites = ["oss/79-hidden-ports-and-processes", "agent/crates/adapters/tests/hidden_process_simulation", "dashboard/tests/hidden_across_nodes", "console/app/contexts/fleet/domain/hidden-findings.domain"]
 
 [pages."features/host-rules"]
 suites = ["oss/78-host-rules-shadow-and-enforce", "oss/135-host-rules-sequences-and-counts"]

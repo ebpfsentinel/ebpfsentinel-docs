@@ -72,15 +72,18 @@ jobs:
           sparse-checkout-cone-mode: false
 
       # The console's own tests stand behind the pages of its screens (cases,
-      # hunting, segments). Only the server crate is read, to find the test
-      # files those pages name.
+      # hunting, segments). The server crate and the front's sources are read,
+      # to find the test files those pages name: a reading the front computes
+      # and no back end holds is driven beside the front file performing it.
       - name: Check out the console
         uses: actions/checkout@v5
         with:
           repository: ebpfsentinel/ebpfsentinel-dashboard
           path: ebpfsentinel-dashboard
           token: ${{ secrets.SIBLING_READ_TOKEN }}
-          sparse-checkout: crates/dashboard-server
+          sparse-checkout: |
+            crates/dashboard-server
+            web/src
           sparse-checkout-cone-mode: true
 
       - uses: actions/setup-node@v5

@@ -16,9 +16,22 @@
 // A suite is named by its tree and its file, without the extension:
 //
 //   oss/<name>                ebpfsentinel/tests/integration/suites/<name>.bats
+//   agent/<path>              ebpfsentinel/<path>.rs
 //   enterprise/<name>         ebpfsentinel-enterprise/tests/integration/suites/<name>.bats
 //   operator/<lane>/<name>    ebpfsentinel-operator/tests/<lane>/suites/<name>.bats
 //   dashboard/<path>          ebpfsentinel-dashboard/crates/dashboard-server/<path>.rs
+//   console/<path>            ebpfsentinel-dashboard/web/src/<path>.spec.ts
+//
+// `agent/` names a test of the agent tree that is not a bats suite, for a
+// claim a suite on a host cannot drive: a hidden process is one, since the
+// positive case needs a procfs listing that disagrees with the kernel, which
+// a test supplies as an argument and a suite would need a rootkit for.
+//
+// `console/` names a front specification because some of what the product
+// sells is a reading the front computes and no back end holds: the console
+// folding every node's answer into the estate's one question is the whole
+// capability, and the only place it can be driven is beside the domain file
+// that performs it.
 //
 // and it must exist and hold at least one test. A page added without a line,
 // a line naming a page that is gone, or a suite renamed away from its line
@@ -48,6 +61,9 @@ function suiteFile(id) {
   if (parts[0] === 'oss' && parts.length === 2) {
     return join(parent, 'ebpfsentinel', 'tests', 'integration', 'suites', `${parts[1]}.bats`);
   }
+  if (parts[0] === 'agent' && parts.length >= 2) {
+    return join(parent, 'ebpfsentinel', `${parts.slice(1).join('/')}.rs`);
+  }
   if (parts[0] === 'enterprise' && parts.length === 2) {
     return join(parent, 'ebpfsentinel-enterprise', 'tests', 'integration', 'suites', `${parts[1]}.bats`);
   }
@@ -57,12 +73,18 @@ function suiteFile(id) {
   if (parts[0] === 'dashboard' && parts.length >= 2) {
     return join(parent, 'ebpfsentinel-dashboard', 'crates', 'dashboard-server', `${parts.slice(1).join('/')}.rs`);
   }
+  if (parts[0] === 'console' && parts.length >= 2) {
+    return join(parent, 'ebpfsentinel-dashboard', 'web', 'src', `${parts.slice(1).join('/')}.spec.ts`);
+  }
   return null;
 }
 
 function holdsATest(path) {
   const text = readFileSync(path, 'utf8');
-  return path.endsWith('.bats') ? /^@test /m.test(text) : /#\[(tokio::)?test\]/.test(text);
+  if (path.endsWith('.bats')) return /^@test /m.test(text);
+  if (path.endsWith('.spec.ts')) return /\b(it|test)\(/.test(text);
+  // `#[tokio::test(flavor = "multi_thread")]` is a test like `#[test]` is.
+  return /#\[(?:tokio::)?test[\]()]/.test(text);
 }
 
 // Pages outside `features/` that the website's matrix links as the page of a
@@ -95,7 +117,9 @@ const settled = settle({
   checkSuites: (_page, suites) => {
     for (const id of suites) {
       const file = suiteFile(id);
-      if (!file) return `${id} is not a suite name (oss/, enterprise/, operator/<lane>/, dashboard/)`;
+      if (!file) {
+        return `${id} is not a suite name (oss/, agent/, enterprise/, operator/<lane>/, dashboard/, console/)`;
+      }
       if (!existsSync(file)) return `${id}: ${relative(parent, file)} does not exist`;
       if (!holdsATest(file)) return `${id}: ${relative(parent, file)} holds no test`;
     }
