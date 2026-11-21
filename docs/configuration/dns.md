@@ -60,7 +60,7 @@ dns:
 |-------|------|---------|-------------|
 | `max_entries` | `integer` | `100000` | Maximum DNS cache entries |
 | `min_ttl_secs` | `integer` | `60` | Minimum TTL floor applied to cached records |
-| `purge_interval_secs` | `integer` | `30` | Interval between expired-entry sweeps |
+| `purge_interval_secs` | `integer` | `30` | Shortest interval between expired-entry sweeps; a sweep runs with the first response cached or domain looked up once it has passed |
 
 ### Blocklist
 
