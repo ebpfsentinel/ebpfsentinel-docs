@@ -80,7 +80,7 @@ agent set to `pq_tokens: require` refuses them.
 
 ### `tenants[]`
 
-Static tenant catalogue. At least one entry required, all `id`s unique.
+Static tenant catalogue. At least one entry required, all `id`s unique. `auditor` and `federation` are refused as an `id`: the console serves `/api/v1/auditor/` and `/api/v1/federation/` itself, and every other `/api/v1/<name>/` path is a tenant's.
 
 | Field | Type | Default | Validation |
 |---|---|---|---|
