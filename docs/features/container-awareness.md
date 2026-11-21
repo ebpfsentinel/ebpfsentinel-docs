@@ -165,21 +165,31 @@ container:
     timeout_ms: 2000
 ```
 
-### Volume mount
+### Reaching the socket
 
-When running eBPFsentinel itself inside Docker, mount the daemon socket
-read-only into the container:
+The Docker API is root on the host: one of its calls starts a privileged
+container, and a read-only mount stops writes to the socket file, not requests
+through it. So when the agent runs beside a warden, as the shipped
+`docker-compose.yml` and the release's `compose.yaml` run it, the socket is
+mounted in the warden and not in the agent. The agent's own connect finds no
+socket, it asks the warden for a relay, and the warden:
 
-```bash
-docker run ... -v /var/run/docker.sock:/var/run/docker.sock:ro ...
-```
+- checks that the socket and the process listening on it both belong to root;
+- reads one request from the agent and refuses it with `403` unless it is a
+  `GET` of one of six reads: `/_ping`, the container list, one container's
+  inspect, the network list, one network's inspect, and the event stream;
+- sends a request of its own for that path, so no header or body the agent
+  wrote reaches Docker, and copies the answer back until either side closes.
 
-The shipped `docker-compose.yml` makes that mount and enables the enricher.
-The mount hands the agent the Docker API, which is root on the host: `:ro`
-stops writes to the socket file, not requests through it. The agent issues
-GETs only and runs as uid 65534, so the socket's group ownership decides what
-it may do. Removing the two lines and setting `container.docker.enabled: false`
-runs without it, at the cost named under graceful degradation.
+A compromised agent therefore reads what the enricher reads and nothing else:
+no `exec`, no `create`, no `archive`. A container's inspect does carry its
+environment, so a secret passed as an environment variable is readable by the
+agent; pass secrets as files instead. An agent running as root without a
+warden, as the systemd unit runs it, connects to the socket itself.
+
+Removing the socket line from the warden and setting
+`container.docker.enabled: false` runs without it, at the cost named under
+graceful degradation.
 
 ## Podman Enricher
 
@@ -212,8 +222,12 @@ the warden instead: the warden connects to
 `/run/user/<uid>/podman/podman.sock` on the host, checks that the
 socket and the process listening on it both belong to that uid, and
 hands the open connection over. The agent names a user and never a
-path, root's runtime is never connected this way, and a warden running
-in a container needs the host's `/run/user` mounted for it. Neither condition is the agent's to fix, so neither is
+path, and a warden running in a container needs the host's `/run/user`
+mounted for it, with `rslave` propagation so a user logging in later is
+seen, and `DAC_OVERRIDE` to connect to a socket of mode `0600`. Root's
+runtime is root on the host, so it is never handed over: it goes
+through the same relay as Docker's, which forwards only the reads the
+enricher makes. Neither condition is the agent's to fix, so neither is
 hidden: the first time a runtime cannot be reached the agent logs one
 warning naming the user, the socket and the reason, and
 `ebpfsentinel-agent status` lists every Podman runtime it has gone to
@@ -229,7 +243,7 @@ with the same reason:
 |-------|---------|------------|
 | `reachable` | The runtime answers; its containers are named | - |
 | `no_socket` | No socket at that path | `systemctl --user enable --now podman.socket` as that user, and mount `/run/user` when the agent runs in a container |
-| `refused` | The socket exists and refused the agent, and no warden connected for it | Run the agent beside a warden, as root, or as the owning user |
+| `refused` | The socket exists and refused the agent, and no warden connected for it | Run the agent beside a warden, as root, or as the owning user; a warden in a container needs `DAC_OVERRIDE` for a user's socket |
 | `unavailable` | The socket accepted nothing in time | Check the user's `podman.socket` unit |
 | `rootless_off` | `container.podman.rootless` is false | Set it to true to name rootless containers |
 
@@ -252,14 +266,24 @@ container:
     timeout_ms: 2000
 ```
 
-With `rootless: false` and no rootful socket there is nothing to name,
-so the agent turns the enricher off at startup with one warning, the
-way the Docker enricher does when its socket is missing. When the
-agent runs in a container, mount the sockets read-only:
+With `rootless: false`, no rootful socket and no warden there is
+nothing to name, so the agent turns the enricher off at startup with
+one warning, the way the Docker enricher does when its socket is
+missing. When the agent runs in a container beside a warden, mount the
+runtime directories in the warden, read-only, never in the agent; the
+shipped compose files do:
 
-```bash
-podman run ... -v /run/podman/podman.sock:/run/podman/podman.sock:ro \
-               -v /run/user:/run/user:ro ...
+```yaml
+  warden:
+    cap_add: [..., DAC_OVERRIDE]
+    volumes:
+      - /run/podman:/run/podman:ro
+      - type: bind
+        source: /run/user
+        target: /run/user
+        read_only: true
+        bind:
+          propagation: rslave
 ```
 
 ## LXC Enricher

@@ -69,7 +69,10 @@ point:
 
 - **Docker Enricher, bare metal** - the enricher is not Kubernetes-only and not
   container-only: it reads `/var/run/docker.sock`, so an agent installed as a
-  systemd unit on a host running Docker enriches that host's containers. It is
+  systemd unit on a host running Docker enriches that host's containers. In
+  the shipped compose files the socket is mounted in the warden, which relays
+  the enricher's reads and refuses every other call; see
+  [reaching the socket](container-awareness.md#reaching-the-socket). It is
   a warning rather than a tick because the socket is not there on a host that
   runs no Docker.
 - **Docker Enricher, DaemonSet** - the Helm chart mounts no Docker socket, and
@@ -78,8 +81,9 @@ point:
 - **Podman Enricher, bare metal and container** - rootful Podman is reached
   on `/run/podman/podman.sock` once its `podman.socket` unit listens. Every
   rootless user is a runtime of their own, named only while that user's
-  socket is enabled and readable by the agent, which takes root or the owning
-  user and, from a container, a `/run/user` mount. A runtime the agent cannot
+  socket is enabled. The agent reaches a socket it cannot open itself through
+  the warden, which needs `/run/user` and `/run/podman` mounted when it runs
+  in a container, as the shipped compose files do. A runtime the agent cannot
   reach is reported by name, never guessed; see
   [what a rootless runtime costs](container-awareness.md#what-a-rootless-runtime-costs).
 - **LXC Enricher, container** - a Proxmox CT is named from

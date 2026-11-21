@@ -167,7 +167,7 @@ services:
     command: ["serve", "/run/ebpfsentinel/warden.sock", "--uid", "65534"]
     network_mode: host           # conntrack, routes, ARP in the init netns
     cap_drop: [ALL]
-    cap_add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH, NET_BIND_SERVICE]
+    cap_add: [SYS_ADMIN, NET_ADMIN, NET_RAW, SYS_PTRACE, BPF, PERFMON, DAC_READ_SEARCH, NET_BIND_SERVICE, DAC_OVERRIDE]
     security_opt:
       - apparmor=unconfined      # delegation does fsconfig/move_mount
       - seccomp=unconfined       # mount/bpf/netlink syscalls
@@ -176,6 +176,14 @@ services:
       - /proc:/host/proc:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /sys/fs/bpf:/sys/fs/bpf      # pinned links keep enforcing past a stop
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # relayed, reads only
+      - /run/podman:/run/podman:ro
+      - type: bind                   # each user's rootless Podman
+        source: /run/user
+        target: /run/user
+        read_only: true
+        bind:
+          propagation: rslave
 
   agent:
     image: ghcr.io/ebpfsentinel/ebpfsentinel:<release>
@@ -194,7 +202,6 @@ services:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
       - warden-sock:/run/ebpfsentinel:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ebpfsentinel-state:/var/lib/ebpfsentinel
       - ebpfsentinel-captures:/var/lib/ebpfsentinel/captures
       - /etc/machine-id:/etc/machine-id:ro
@@ -320,9 +327,13 @@ container:
 
 The Docker enricher is off in the agent's own defaults and on in the
 `compose.yaml` and the default configuration the release ships, because the compose file is the Docker deployment and an alert carrying a
-64-hex id there is an alert nobody reads. It needs the daemon socket mounted
-read-only into the agent container
-(`-v /var/run/docker.sock:/var/run/docker.sock:ro`).
+64-hex id there is an alert nobody reads. The daemon socket is mounted in the
+warden, not in the agent: the Docker API is root on the host, so the warden
+connects to it, checks that root owns the socket and listens on it, and
+forwards only the enricher's reads (`/_ping`, the container and network lists,
+one container's or one network's inspect, `/events`), answering `403` to
+everything else. See
+[reaching the socket](../../features/container-awareness.md#reaching-the-socket).
 
 With the socket, the agent opens `/events` and keeps the connection, so a
 container created, started, stopped or removed while the agent runs is in the
@@ -560,6 +571,7 @@ hosts even though the container uses host networking.
 | `CAP_NET_RAW` | warden | `AF_PACKET` pcap sockets and gratuitous ARP |
 | `CAP_SYS_PTRACE`, `CAP_BPF`, `CAP_PERFMON` | warden | read a neighbour container's `/proc/<pid>/root` and create the DLP uprobe link |
 | `CAP_DAC_READ_SEARCH` | warden | name the directory a watched file changed in, from the handle the kernel reports, and read a changed file for its baseline whatever its permissions ([file watch](../../configuration/file-watch.md)) |
+| `CAP_DAC_OVERRIDE` | warden | connect to a user's rootless Podman socket, mode `0600` in a `0700` directory, to hand that one connection to the agent; Docker's and rootful Podman's sockets belong to root and need nothing more |
 | `CAP_NET_BIND_SERVICE` | warden | bind port 53 on the bridge gateway for the [DNS allow-list](../../configuration/dns.md#allowlist) resolver and hand both sockets to the agent; port 53 is the only one it binds |
 | `apparmor=unconfined`, `seccomp=unconfined` | warden | the default profiles block the `mount` family and netlink |
 | no capability at all | agent | the whole point of the split; the token authorises every eBPF syscall |
@@ -582,7 +594,9 @@ hosts even though the container uses host networking.
 | `/sys/fs/bpf` | `/sys/fs/bpf` | warden | the host bpffs, where the warden pins the agent's XDP, TC and cgroup links so they keep enforcing after a stop or a crash |
 | `/proc` | `/host/proc` (ro) | both | container resolver and DLP library discovery |
 | `/sys/fs/cgroup` | `/sys/fs/cgroup` (ro) | agent | cgroup-id to container attribution |
-| `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | agent | Docker enricher: the `/events` stream and the inspect fallback. Removable, and the section above says what that costs |
+| `/var/run/docker.sock` | `/var/run/docker.sock` (ro) | warden | Docker enricher: the warden relays the `/events` stream and the inspect fallback, and refuses every other call. Removable, and the section above says what that costs |
+| `/run/podman` | `/run/podman` (ro) | warden | rootful Podman, relayed the same way |
+| `/run/user` | `/run/user` (ro, `rslave`) | warden | each user's rootless Podman socket, handed to the agent one connection at a time after the warden checks the socket and its listener belong to that user |
 | `/etc/machine-id` | `/etc/machine-id` (ro) | agent | the telemetry installation identifier is derived from it |
 
 ## Health Check

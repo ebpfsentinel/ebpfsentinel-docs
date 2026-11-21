@@ -96,11 +96,15 @@ a reload. The vocabulary and its compose examples are on the
 The option loads the cgroup hooks on its own, and the agent refuses to start
 with it on when those hooks cannot attach.
 
-> Requires bind mount: `-v /var/run/docker.sock:/var/run/docker.sock:ro`
+> In a container, the socket is mounted in the warden, never in the agent:
+> `/var/run/docker.sock:/var/run/docker.sock:ro`
 
-The mount is the Docker API, which is root on the host; `:ro` stops writes to
-the socket file and not requests through it. The agent issues GETs only and
-runs as 65534, so the socket's group ownership is what decides. Leaving it out
+The socket is the Docker API, which is root on the host; `:ro` stops writes to
+the socket file and not requests through it. So the agent, when its own
+connect finds nothing, asks the warden, which forwards only the enricher's
+reads and answers `403` to anything else
+([reaching the socket](../features/container-awareness.md#reaching-the-socket)).
+An agent running as root on the host connects itself. Leaving it out
 and setting `docker.enabled: false` keeps the container id on every alert, from
 the resolver, and loses the name, the image and the labels. Either way the
 agent states the choice once at startup, including when the enricher is on and
@@ -129,8 +133,11 @@ while it does not answer, so nothing has to be listed in advance.
 
 The agent refuses to start with the enricher on and an empty `socket`, an
 empty `run_user_root` while `rootless` is on, or a zero `cache_size` or
-`timeout_ms`. With `rootless` off and no rootful socket it turns the
-enricher off at startup with one warning.
+`timeout_ms`. With `rootless` off, no rootful socket and no warden to
+relay one, it turns the enricher off at startup with one warning. In a
+container, the runtime directories are mounted in the warden, which
+relays root's runtime the way it relays Docker's and hands over a
+user's socket one connection at a time.
 
 A rootless socket is readable only by root or its owning user, and exists
 only while that user's `podman.socket` unit listens. An agent that cannot
@@ -139,7 +146,7 @@ reach one logs it once, naming the user, the socket and the reason, and
 their id and runtime from the resolver. The limits are spelled out on the
 [feature page](../features/container-awareness.md#what-a-rootless-runtime-costs).
 
-> Requires bind mounts when containerized: `-v /run/podman/podman.sock:/run/podman/podman.sock:ro`, and `-v /run/user:/run/user:ro` for rootless runtimes
+> Requires, when containerized, mounts in the warden and not in the agent: `/run/podman:/run/podman:ro`, and for rootless runtimes `/run/user` read-only with `rslave` propagation plus `DAC_OVERRIDE`
 
 ## LXC Enricher
 
