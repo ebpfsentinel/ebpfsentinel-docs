@@ -190,7 +190,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `icmpProtection` | object | `{"enabled":true,"maxPayloadSize":64,"maxPps":10}` | ICMP flood protection. |
 | `maxTrackedSources` | integer |  | Capacity of each per-source kernel table the guards keep (SYN, ICMP and amplification rates, half-open counts, RST, FIN and ACK floods), in sources tracked at once. Each table is per CPU and evicts the least recently seen source when full. Unset leaves the agent's own default of 16384. Read at agent start only. Minimum `1024`. Maximum `1048576`. |
 | `policies` | array of object | `[]` | Named mitigation policies. |
-| `synProtection` | object | `{"enabled":true,"thresholdMode":false,"thresholdPps":10000}` | SYN flood protection. |
+| `synProtection` | object | `{"enabled":true,"thresholdMode":true,"thresholdPps":10000}` | SYN flood protection. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 
 ### DLPPolicy
