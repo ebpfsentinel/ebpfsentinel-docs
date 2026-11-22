@@ -201,6 +201,7 @@ services:
       - ./ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
+      - /sys/kernel/security:/sys/kernel/security:ro   # the active LSMs
       - warden-sock:/run/ebpfsentinel:ro
       - ebpfsentinel-state:/var/lib/ebpfsentinel
       - ebpfsentinel-captures:/var/lib/ebpfsentinel/captures
@@ -290,6 +291,7 @@ docker run -d --name ebpfsentinel \
   -v ./ebpfsentinel.yaml:/etc/ebpfsentinel/config.yaml \
   -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
   -v /proc:/host/proc:ro \
+  -v /sys/kernel/security:/sys/kernel/security:ro \
   -v warden-sock:/run/ebpfsentinel:ro \
   -v ebpfsentinel-state:/var/lib/ebpfsentinel \
   -v ebpfsentinel-captures:/var/lib/ebpfsentinel/captures \

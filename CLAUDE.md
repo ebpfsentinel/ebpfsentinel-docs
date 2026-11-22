@@ -53,6 +53,7 @@ table by hand and never loosen a checker to make a page pass.
 - Self-serve: written contact is an exception path, never a step.
 - No story or epic reference, no version other than what the release stamps.
 - Licensed features name the licence feature that gates them and live under `features/enterprise/`.
+- A limitation ("cannot", "without", "only if") cites a test or an upstream source; otherwise it is the agent's gap and the page says so, never that the other tool cannot. A claim about how a feature behaves without a socket, a mount or a privilege names the deployments it holds in (packages, compose, chart, operator) and is checked against `ebpfsentinel/tests/integration/host-paths.toml`.
 
 ## Commands
 

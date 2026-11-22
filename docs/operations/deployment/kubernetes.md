@@ -116,7 +116,7 @@ one rather than as a blanket requirement:
 | The warden's `CAP_SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH` | bpffs delegation, conntrack and routes, the pcap pool, reading a neighbour's procfs, creating the DLP uprobe link, naming the directory a watched file changed in | `baseline` |
 | `seccompProfile: Unconfined` and `appArmorProfile: Unconfined` on both containers | the agent unshares a user namespace and loads eBPF through its token without `CAP_SYS_ADMIN`; the warden issues `fsconfig`, netlink and `bpf` | `baseline` |
 | `allowPrivilegeEscalation: true` on the agent | it gains inside its own user namespace the capabilities it holds none of on the host | `restricted` |
-| hostPath volumes (`/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/fs/cgroup`, `/proc`, the state directory, `/etc/machine-id`) | the programs, the pinned maps and the node's procfs live on the node, not in the pod | `baseline` |
+| hostPath volumes (`/sys/fs/bpf`, `/sys/kernel/debug`, `/sys/kernel/security`, `/sys/fs/cgroup`, `/proc`, the state directory, `/etc/machine-id`) | the programs, the pinned maps and the node's procfs live on the node, not in the pod | `baseline` |
 | Host ports 8080, 50051 and 9090 | `hostNetwork` makes every declared port a host port | `baseline` |
 
 Cross-container DLP is not on that list, and `hostPID` is in neither the
@@ -209,6 +209,7 @@ Volumes:
 | bpf | an in-memory `emptyDir`, where the agent mounts the bpffs the warden delegated | `/sys/fs/bpf` (agent) |
 | node bpf | host `/sys/fs/bpf`, where the warden pins the agent's links; left out when `daemonset.bpfToken.pinLinksOnNode` is `false` | `/sys/fs/bpf` (warden) |
 | debugfs | host `/sys/kernel/debug`, read-only | `/sys/kernel/debug` |
+| securityfs | host `/sys/kernel/security`, read-only: the active security modules, without which the agent cannot tell the BPF LSM is on | `/sys/kernel/security` (agent) |
 | cgroup | host `/sys/fs/cgroup`, read-only | `/sys/fs/cgroup` |
 | host proc | host `/proc`, read-only | `/host/proc` (both containers) |
 | state | host `daemonset.state.hostPath`, by default `/var/lib/ebpfsentinel/k8s/<namespace>/<release>` (`DirectoryOrCreate`); an `emptyDir` when `daemonset.state.ephemeral` is `true` | `/var/lib/ebpfsentinel` (agent, `state-dir`) |
