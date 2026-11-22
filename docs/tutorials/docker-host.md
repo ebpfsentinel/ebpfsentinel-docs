@@ -18,7 +18,8 @@ watch the stack.
 
 - The agent runs on the host from the release's compose file, as described on
   the [Docker deployment page](../operations/deployment/docker.md), with the
-  Docker socket mounted read-only and `container.docker.enabled: true`.
+  Docker socket mounted read-only in the warden, which relays the agent's
+  reads, and `container.docker.enabled: true`.
 - `agent.interfaces` names the interface traffic from your network arrives
   on, called `eth0` below.
 - You have a second machine on the same network to test from. Traffic sent

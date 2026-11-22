@@ -28,6 +28,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/gitops-rollout',
         'tutorials/first-policy-from-observation',
         'tutorials/docker-host',
+        'tutorials/proxmox-host',
       ],
     },
     {

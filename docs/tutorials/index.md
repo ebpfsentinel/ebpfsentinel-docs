@@ -4,14 +4,14 @@ slug: /tutorials
 
 # Tutorials
 
-Six scenarios, each run end to end on one Linux host you control, with
+Seven scenarios, each run end to end on one Linux host you control, with
 nothing to sign up for. The first four were run as written against the lab
 in the agent repository, every output shown is what they printed, and each
-of those pages carries the recording of that run. The last two run on your own
+of those pages carries the recording of that run. The last three run on your own
 host rather than in the lab, because a policy learned from a machine nobody
-documented, and the Docker host you already have, are the whole point of
-them, so their outputs are the shape the commands print rather than a
-recording of yours.
+documented, and the Docker or Proxmox host you already have, are the whole
+point of them, so their outputs are the shape the commands print rather than
+a recording of yours.
 
 | Tutorial | What you watch happen | Lab |
 |---|---|---|
@@ -21,6 +21,7 @@ recording of yours.
 | [Roll a rule out through GitOps](./gitops-rollout.md) | A policy change committed, synced to the cluster by Argo CD, and reverted the same way | kind + Argo CD |
 | [From observation to a deny-by-default policy](./first-policy-from-observation.md) | A window watching one host, the allow-list it writes, and each workload turned to enforce once its deny has counted nothing | Your own host |
 | [Put a firewall in front of a Docker host](./docker-host.md) | A published port refused before Docker translates it, a policy read off each container's labels, a bridge segmented, and a container refused every name outside its DNS allow-list | Your own Docker host |
+| [Watch a Proxmox host and its guests](./proxmox-host.md) | Every CT and VM listed under its Proxmox name, a CT refused a port by its hostname, a VM's traffic alerted on and dropped on its tap | Your own Proxmox host |
 
 ## The lab
 
