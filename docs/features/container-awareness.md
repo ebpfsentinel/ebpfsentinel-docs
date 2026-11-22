@@ -73,7 +73,7 @@ from whichever enricher reaches that runtime.
 | containerd under Kubernetes | `cri-containerd-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
 | CRI-O under Kubernetes | `crio-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
 | Podman, rootful | `libpod-<id>` | ✅ | Podman enricher |
-| Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs); otherwise name and image from the user's container store on a host install, see [without a socket](#without-a-socket) |
+| Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs); otherwise name, image and labels from the user's container store, see [without a socket](#without-a-socket) |
 | containerd or CRI-O outside Kubernetes | as above | ✅ | none: the id and the runtime only |
 | LXC, Incus, LXD | `lxc.payload.<name>` | ✅ | LXC enricher, from the Incus API; the name is the cgroup's |
 | Proxmox CT, older LXC | `lxc/<vmid>`, `lxc/<name>` | ✅ | LXC enricher, from the CT's configuration file |
@@ -252,28 +252,54 @@ with the same reason:
 
 Podman is daemonless, and a stock install enables no `podman.socket`, so
 on many hosts no socket answers at all. What every Podman writes, socket
-or not, is its container store: `containers.json` under
-`/var/lib/containers/storage/<driver>-containers/` for root, and under
-`~/.local/share/containers/storage/` in a user's home, the home being
-read from `/etc/passwd`. Where an owner's socket does not answer and
-their store is there, the enricher reads it instead and reports the
-runtime as `store`:
+or not, is its container store: `/var/lib/containers/storage` for root,
+`~/.local/share/containers/storage` in a user's home, the home being read
+from `/etc/passwd`. Where an owner's socket does not answer and their
+store is there, the enricher reads the one container it is naming from it
+and reports the runtime as `store`:
 
 ```text
-             podman root: named from the container store, without labels (no socket answered) (/run/podman/podman.sock)
+             podman root: named from the container store (no socket answered) (/run/podman/podman.sock)
 ```
 
-The store gives the container's name and the image it was created from.
-It does not give the labels, which Podman keeps in its own database and
-serves only through its API, so a selector by label matches nothing for
-a container named this way, while a selector by name or image does. The
-file is parsed again only when it changes, and the socket is still tried
-every minute: once it answers, the container is named through the API,
-labels included.
+Podman 4.8 and later keep their own state in `db.sql`, an SQLite database
+at the top of the store, and that is read first: it gives the container's
+name, its image, its labels, its creation time and its state, so a
+selector by label matches as it does through the API. The database is
+walked by the same reader the agent walks the rpm database with; no
+SQLite library is linked. A host whose Podman still keeps its state in
+`BoltDB`, the default before 4.8 and kept by an upgrade, has no `db.sql`:
+there the enricher falls back to `containers/storage`'s list,
+`<driver>-containers/containers.json`, which gives the name and the image
+and no labels, so a selector by label matches nothing for such a
+container while a selector by name or image does. `podman info --format
+'{{.Host.DatabaseBackend}}'` says which one a host runs. The socket is
+still tried every minute; once it answers, the container is named through
+the API.
 
-The store is root's to read, so this is for an agent installed on the
-host from the packages, running as root. An agent in a container reaches
-Podman through its sockets, as above, and is not given the store.
+The store is root's to read and the agent runs in a user namespace of its
+own, so the warden reads it and hands back the name, the image, the
+labels, the creation time and the state of the one container asked,
+nothing else. It reads a store only where the directory is owned by the
+container's owner, and a database or list only where it is a plain file
+owned by them rather than a link, so one user cannot point the read at a
+store that is not theirs. Without a warden, an agent running as root on
+the host reads the store itself, with the same code. This works the same
+for the packages and for compose, where the warden gets root's store
+mounted read-only by default:
+
+```yaml
+  warden:
+    volumes:
+      - /var/lib/containers/storage:/var/lib/containers/storage:ro
+      # Users' stores, under their homes: uncomment both to name rootless
+      # containers without their sockets.
+      # - /home:/home:ro
+      # - /etc/passwd:/etc/passwd:ro
+```
+
+On a host without Podman, drop the first line, or Docker creates the
+directory empty. The chart mounts no container store.
 
 A container the enricher cannot name still carries its id, its runtime
 `podman` and its cgroup path from the resolver, so a rule scoped by
