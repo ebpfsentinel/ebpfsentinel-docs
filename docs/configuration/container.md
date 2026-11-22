@@ -127,14 +127,17 @@ while it does not answer, so nothing has to be listed in advance.
 | `podman.socket` | string | `/run/podman/podman.sock` | The rootful runtime's socket |
 | `podman.rootless` | bool | `true` | Also name rootless containers, through each user's own socket |
 | `podman.run_user_root` | string | `/run/user` | Directory holding each user's runtime directory; required when `rootless` is on |
+| `podman.storage_root` | string | `/var/lib/containers/storage` | Root's container store, read where root's socket does not answer: names the container and its image, never its labels. Empty to never read it |
+| `podman.rootless_storage` | string | `.local/share/containers/storage` | Each user's container store, relative to the home `/etc/passwd` gives them, read where that user's socket does not answer. Empty to never read users' stores |
 | `podman.cache_size` | usize | `1024` | Max cached container metadata entries, shared by every runtime |
 | `podman.cache_ttl_seconds` | u64 | `300` | Cache TTL in seconds |
 | `podman.timeout_ms` | u64 | `2000` | Podman API request timeout |
 
 The agent refuses to start with the enricher on and an empty `socket`, an
-empty `run_user_root` while `rootless` is on, or a zero `cache_size` or
-`timeout_ms`. With `rootless` off, no rootful socket and no warden to
-relay one, it turns the enricher off at startup with one warning. In a
+empty `run_user_root` while `rootless` is on, an absolute
+`rootless_storage`, or a zero `cache_size` or `timeout_ms`. With `rootless`
+off, no rootful socket, no root container store and no warden to relay
+one, it turns the enricher off at startup with one warning. In a
 container, the runtime directories are mounted in the warden, which
 relays root's runtime the way it relays Docker's and hands over a
 user's socket one connection at a time.
@@ -143,7 +146,9 @@ A rootless socket is readable only by root or its owning user, and exists
 only while that user's `podman.socket` unit listens. An agent that cannot
 reach one logs it once, naming the user, the socket and the reason, and
 `ebpfsentinel-agent status` lists it with that reason; its containers keep
-their id and runtime from the resolver. The limits are spelled out on the
+their id and runtime from the resolver, or are named from that owner's
+container store, without labels, where the agent runs on the host and can
+read it ([without a socket](../features/container-awareness.md#without-a-socket)). The limits are spelled out on the
 [feature page](../features/container-awareness.md#what-a-rootless-runtime-costs).
 
 > Requires, when containerized, mounts in the warden and not in the agent: `/run/podman:/run/podman:ro`, and for rootless runtimes `/run/user` read-only with `rslave` propagation plus `DAC_OVERRIDE`

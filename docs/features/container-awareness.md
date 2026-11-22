@@ -73,7 +73,7 @@ from whichever enricher reaches that runtime.
 | containerd under Kubernetes | `cri-containerd-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
 | CRI-O under Kubernetes | `crio-<id>` | ✅ | Kubernetes enricher (pod, namespace, labels) |
 | Podman, rootful | `libpod-<id>` | ✅ | Podman enricher |
-| Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs) |
+| Podman, rootless | `libpod-<id>` under `user@<uid>.service` | ✅ | Podman enricher, while that user's `podman.socket` is reachable - see [what a rootless runtime costs](#what-a-rootless-runtime-costs); otherwise name and image from the user's container store on a host install, see [without a socket](#without-a-socket) |
 | containerd or CRI-O outside Kubernetes | as above | ✅ | none: the id and the runtime only |
 | LXC, Incus, LXD | `lxc.payload.<name>` | ✅ | LXC enricher, from the Incus API; the name is the cgroup's |
 | Proxmox CT, older LXC | `lxc/<vmid>`, `lxc/<name>` | ✅ | LXC enricher, from the CT's configuration file |
@@ -246,6 +246,34 @@ with the same reason:
 | `refused` | The socket exists and refused the agent, and no warden connected for it | Run the agent beside a warden, as root, or as the owning user; a warden in a container needs `DAC_OVERRIDE` for a user's socket |
 | `unavailable` | The socket accepted nothing in time | Check the user's `podman.socket` unit |
 | `rootless_off` | `container.podman.rootless` is false | Set it to true to name rootless containers |
+| `store` | No socket answered, and the owner's container store was read instead | Enable that owner's `podman.socket` to get the labels as well |
+
+### Without a socket
+
+Podman is daemonless, and a stock install enables no `podman.socket`, so
+on many hosts no socket answers at all. What every Podman writes, socket
+or not, is its container store: `containers.json` under
+`/var/lib/containers/storage/<driver>-containers/` for root, and under
+`~/.local/share/containers/storage/` in a user's home, the home being
+read from `/etc/passwd`. Where an owner's socket does not answer and
+their store is there, the enricher reads it instead and reports the
+runtime as `store`:
+
+```text
+             podman root: named from the container store, without labels (no socket answered) (/run/podman/podman.sock)
+```
+
+The store gives the container's name and the image it was created from.
+It does not give the labels, which Podman keeps in its own database and
+serves only through its API, so a selector by label matches nothing for
+a container named this way, while a selector by name or image does. The
+file is parsed again only when it changes, and the socket is still tried
+every minute: once it answers, the container is named through the API,
+labels included.
+
+The store is root's to read, so this is for an agent installed on the
+host from the packages, running as root. An agent in a container reaches
+Podman through its sockets, as above, and is not given the store.
 
 A container the enricher cannot name still carries its id, its runtime
 `podman` and its cgroup path from the resolver, so a rule scoped by
