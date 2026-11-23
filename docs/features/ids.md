@@ -112,7 +112,7 @@ protocol. It finds a flow's application protocol from its bytes for HTTP/1,
 TLS, SSH, SMTP, FTP, DNS, SMB and DCE/RPC, whatever the port, RDP and
 Telnet on their ports, and decodes HTTP/1, DNS and
 TLS into the buffers Suricata names, the JA3, JA3S and JA4 fingerprints
-included; the fields of the other protocols are not decoded yet. 52,934 of
+included; the fields of the other protocols are not decoded yet. 53,001 of
 the 53,073 enabled rules of the Emerging Threats Open Suricata 8 build
 compile, and the rest are refused by name before
 anything loads (the corpus measured in
@@ -164,7 +164,7 @@ engine's gaps, not choices Suricata leaves open:
 | Suricata capability | Here |
 |---|---|
 | Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `sip`, `ike` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
-| An HTTP buffer and a content on the payload in the same rule | No, Suricata loads it. 67 rules of the measured corpus |
+| An HTTP buffer and a content on the payload in the same rule | Yes, inspected when Suricata inspects it: on the stream of the transaction's direction once its message is whole, the payload content reading that window and the buffers the transaction it belongs to (held to Suricata by `crates/domain/tests/fixtures/suricata/http-payload-verdicts.txt`) |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |

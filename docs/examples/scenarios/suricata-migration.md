@@ -64,38 +64,38 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 52,934 |
-| Native detection rules | 52,934 |
-| Refused share | 0.3% |
+| Compiled | 53,001 |
+| Native detection rules | 53,001 |
+| Refused share | 0.1% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 19,487 | 0.1% |
+| `emerging-malware.rules` | 19,511 | 19,508 | 0.0% |
 | `emerging-dyn_dns.rules` | 6,108 | 6,108 | 0.0% |
-| `emerging-web_specific_apps.rules` | 6,103 | 6,080 | 0.4% |
-| `emerging-info.rules` | 4,550 | 4,546 | 0.1% |
+| `emerging-web_specific_apps.rules` | 6,103 | 6,102 | 0.0% |
+| `emerging-info.rules` | 4,550 | 4,547 | 0.1% |
 | `emerging-phishing.rules` | 2,951 | 2,950 | 0.0% |
 | `emerging-exploit_kit.rules` | 2,718 | 2,718 | 0.0% |
-| `emerging-exploit.rules` | 1,717 | 1,685 | 1.9% |
+| `emerging-exploit.rules` | 1,717 | 1,698 | 1.1% |
 | `emerging-hunting.rules` | 1,422 | 1,412 | 0.7% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| An HTTP buffer beside a content on the payload in the same rule (`http.method`, `http.uri` and the rest) | 67 |
 | A field of a protocol the agent does not decode yet, or a protocol it does not find (`dcerpc.iface`, `file.magic`, `ssh.software` and the rest) | 50 |
 | An HTTP or file buffer read on SMTP | 17 |
 | `asn1` | 4 |
 | An HTTP/2 field | 1 |
 
-Most refusals are rules mixing an HTTP buffer with the payload, then rules
-reading a field this engine does not decode yet, DCE/RPC interfaces first;
-RDP, SMB, DCE/RPC and Telnet flows are found the way Suricata finds them, and
-HTTP/1, DNS and TLS are decoded, JA3, JA3S and JA4 included. A rule reading an HTTP buffer and the payload together is refused:
-that mix is the engine's gap, Suricata loads it. Suricata runs every one of them. This engine does not,
+Most refusals are rules reading a field this engine does not decode yet,
+DCE/RPC interfaces first; RDP, SMB, DCE/RPC and Telnet flows are found the way
+Suricata finds them, and HTTP/1, DNS and TLS are decoded, JA3, JA3S and JA4
+included. A rule reading an HTTP buffer and the payload together compiles and
+is inspected when Suricata inspects it, on the stream of the transaction's
+direction. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
 
