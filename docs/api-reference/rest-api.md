@@ -633,7 +633,8 @@ the `fallback` that runs instead and, where a change on the host would help, a
 `hint`: the `lsm=` boot parameter to set. Every entry rests on something the
 kernel floor already guarantees exists, so no hint names a kernel to install. A
 capability the probe could not ask for lack of privilege carries no hint,
-because no kernel would change that answer. The same identifiers label the `ebpfsentinel_kernel_capability_active` gauge.
+because no kernel would change that answer. The same identifiers label the
+`ebpfsentinel_kernel_capability_active` gauge.
 
 ```json
 {
