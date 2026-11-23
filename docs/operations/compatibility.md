@@ -62,6 +62,27 @@ is out says so at startup rather than loading half its programs.
 | AKS, Azure Linux 3.0 and Ubuntu 22.04 node images | No | 6.6 and 5.15 | Move the node pool to Ubuntu 26.04; Azure Linux 4.0 runs 6.18 and qualifies once AKS offers it |
 | Scaleway Kapsule | Not measured | Not published | Read `uname -r` on one node before rolling out |
 
+## The BPF LSM at Boot
+
+Three protections need the BPF LSM, `bpf` among the LSMs the kernel starts
+with: the warden refusing a program load nobody signed, the
+[network executables list](../configuration/workload-firewall.md) and the agent's
+self-protection guard. Without them the agent runs and says which is off. A
+kernel started without `lsm=` on its command line starts the list it was built
+with, read for every image above from the kernel each one installs
+([record](https://github.com/ebpfsentinel/ebpfsentinel/blob/main/tests/integration/records/2026-11-23-bpf-lsm-by-distribution.md),
+script `tests/integration/scripts/lsm-defaults.py`):
+
+| `bpf` at boot | Distributions and node images |
+|---|---|
+| Yes | Ubuntu 26.04 and 24.04 HWE (AKS included), Debian 13 backports, Fedora, openSUSE Tumbleweed, Arch Linux, NixOS 26.05, Talos, Amazon Linux 2023 and Bottlerocket on 6.18 (EKS) |
+| No, add `bpf` to `lsm=` | Alpine `linux-lts`, Flatcar |
+| Not measured | Container-Optimized OS (GKE): read `/sys/kernel/security/lsm` on a node |
+
+A command line that sets `lsm=` overrides the built list.
+`ebpfsentinel-agent ebpf host-check` answers for your host in one line and names
+the `lsm=` value to set.
+
 ## Architectures
 
 | Architecture | Status |

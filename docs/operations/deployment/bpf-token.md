@@ -58,11 +58,14 @@ fails that one step. It passes the `fs_fd` to the warden over `SCM_RIGHTS`, the
 warden stamps the delegation, and the agent resumes. Token creation and every
 later `bpf()` then happen entirely in the agent's own user namespace.
 
-**What the token carries.** Commands and map types are delegated whole. Program
-and attach types are delegated only as far as the agent's own programs go:
+**What the token carries.** Each list goes only as far as the agent's own
+objects go. The kernel reads a token on three commands, so only those three are
+delegated, and only the map types the shipped objects create:
 
 | Option | Values |
 |---|---|
+| `delegate_cmds` | `map_create`, `prog_load`, `btf_load` |
+| `delegate_maps` | `hash`, `array`, `prog_array`, `percpu_hash`, `percpu_array`, `lru_hash`, `lru_percpu_hash`, `lpm_trie`, `hash_of_maps`, `devmap`, `ringbuf`, `user_ringbuf` |
 | `delegate_progs` | `xdp`, `sched_cls`, `kprobe`, `cgroup_skb`, `cgroup_sock`, `cgroup_sock_addr`, `sock_ops`, `raw_tracepoint`, `lsm`, `syscall` |
 | `delegate_attachs` | `cgroup_inet_ingress`, `cgroup_inet_egress`, `cgroup_inet_sock_release`, the `cgroup_inet4/6` `bind`, `post_bind`, `connect` and `getpeername` hooks, the `cgroup_udp4/6` `sendmsg` and `recvmsg` hooks, `cgroup_sock_ops`, `xdp`, `tcx_ingress`, `tcx_egress`, `trace_uprobe_multi`, `trace_kprobe_multi`, `trace_kprobe_session`, `lsm_mac` |
 
@@ -93,8 +96,8 @@ narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
 - **gratuitous ARP** on VIP takeover.
 - on-demand **pcap** capture sockets.
 - the DLP **`/proc` scan** for processes linking `libssl` (reading another
-  process's `/proc/<pid>/root` needs `CAP_SYS_PTRACE`), and the DLP **uprobe
-  `BPF_LINK_CREATE`** on the agent's program fd (`CAP_BPF` + `CAP_PERFMON`).
+  process's `/proc/<pid>/root` needs `CAP_SYS_PTRACE`), and the **attach of
+  every program that reads the kernel**, which the warden holds (below).
 - the **executable behind a pid** (`/proc/<pid>/exe`), which names the binary
   in process identities and DLP alerts. The link is guarded by a ptrace access
   check the agent fails against every process outside its own user namespace,
@@ -106,6 +109,45 @@ with `--user ebpfsentinel`; in a container, or started as root by hand, the
 agent drops to `65534` before unsharing and the warden serves its default,
 `65534`. `--uid <n>` names a numeric id instead; `--uid` and `--user` together
 are refused.
+
+### Load before input, hand over
+
+On the floor kernel, creating a raw tracepoint, `kprobe_multi` or
+`uprobe_multi` link checks no capability: whoever holds the descriptor of such a
+program chooses which kernel function or which process it reads. So the agent
+does not keep them. Under a warden, before it opens a listener or reads a byte
+of input, the agent:
+
+1. loads every object that reads the kernel (process, signal, drop-reason and
+   TCP health tracepoints, the DLP and crypto uprobes, the four LSM objects);
+2. hands each tracepoint, kprobe and uprobe program to the warden, which keeps
+   one only under a name and a type it knows, and closes its own copy.
+
+From then on the agent names a held program and, for a uprobe, the executable
+and offset; the warden attaches the raw tracepoints to the one tracepoint
+compiled in for each and the kTLS kprobes to their fixed symbols. The agent
+loads no kernel-reading object after the hand-over: a feature asking for one it
+did not load at start-up is answered with a restart. The LSM programs stay with
+the agent: their attach point is fixed by the program itself.
+
+The agent keeps the capabilities it was started with, `CAP_PERFMON` included,
+because the datapath needs them. The hand-over stops a compromised agent from
+aiming a program we shipped somewhere else; what stops it from loading a
+program of its own is the kernel refusing an unsigned load, which needs `bpf`
+in `lsm=` ([which distributions boot with it](../compatibility.md#the-bpf-lsm-at-boot)).
+`ebpfsentinel-agent ebpf host-check` answers for your host.
+
+The answer is on each host:
+
+```bash
+ebpfsentinel-agent ebpf kernel-features
+curl -s localhost:8080/api/v1/ebpf/kernel-features | jq .preload
+```
+
+`preload.handed_over`, the programs the warden holds in `preload.held`, and
+when nothing was handed over the reason (no warden configured: the agent then
+loads each object when a feature asks for it and attaches every program
+itself).
 
 ### What the warden answers
 
@@ -169,7 +211,8 @@ the capabilities in the init network namespace:
 | Multi-WAN policy routing (`ip rule` / `ip route`) | warden netlink | warden (`CAP_NET_ADMIN`) |
 | Gratuitous ARP on VIP takeover | warden `AF_PACKET` | warden (`CAP_NET_RAW`) |
 | DLP target discovery (`libssl` in other processes and containers) | warden `/proc` scan | warden (`CAP_SYS_PTRACE`) |
-| DLP uprobe attach | warden `BPF_LINK_CREATE` on the agent's program fd | warden (`CAP_BPF` + `CAP_PERFMON`) |
+| DLP and crypto uprobe attach, kTLS kprobes | warden `BPF_LINK_CREATE` on a program it holds, named by the agent | warden (`CAP_BPF` + `CAP_PERFMON`) |
+| Process, signal, drop-reason and TCP health raw tracepoints | warden attaches the program it holds to the one tracepoint compiled in for it | warden (`CAP_BPF` + `CAP_PERFMON`) |
 | Executable behind a process (process identity, DLP alert) | warden reads `/proc/<pid>/exe` | warden (init user namespace) |
 
 Because the warden runs in the init network namespace, the host-netns operations

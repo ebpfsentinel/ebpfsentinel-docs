@@ -564,6 +564,25 @@ and its warden when it runs rootless. A node without the BPF LSM answers
 and what it does not is on
 [Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects).
 
+`preload` says whether the agent has handed the programs that read the kernel
+to its warden, and which programs the warden holds for it:
+
+```json
+{
+  "preload": {
+    "handed_over": true,
+    "held": ["crypto_call", "process_exec", "ssl_write"],
+    "reason": null
+  }
+}
+```
+
+Under a warden the agent loads every tracepoint, kprobe, uprobe and LSM object
+before it reads any input and hands the tracepoint, kprobe and uprobe programs
+to the warden; `held` lists them. Without a warden `handed_over` is `false` and
+`reason` says so. How the hand-over works is on
+[BPF Token](../operations/deployment/bpf-token.md#load-before-input-hand-over).
+
 `file_kfuncs` says whether the kfuncs that read a task's executable, a path and
 an extended attribute are usable on this host, and which condition failed where
 one is not:
