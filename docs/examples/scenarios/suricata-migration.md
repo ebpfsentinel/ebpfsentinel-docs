@@ -7,7 +7,7 @@ the engine runs, which it refuses, and why each refusal is the right answer.
 
 A team runs Suricata with the Emerging Threats Open ruleset and wants the
 agent to carry the rules it can. The engine compiles a rule only when it means
-here exactly what it means in Suricata, so most of the corpus is refused. The
+here exactly what it means in Suricata, so a fifth of the corpus is refused. The
 refusal report is the useful half of this walkthrough: it says what is not
 evaluated, rule by rule, before anything is loaded.
 
@@ -35,11 +35,10 @@ Against the ruleset fetched on 2026-11-23:
 
 ```text
 RULESET              ENABLED  COMPILED  NATIVE  REFUSED  SHARE  DISABLED
-emerging-scan.rules      286       284     284        2   0.7%        81
+emerging-scan.rules      286       285     285        1   0.3%        81
 
 Refused in emerging-scan.rules, by keyword:
 KEYWORD    RULES
-dns.query      1
 ssh_proto      1
 ```
 
@@ -48,10 +47,10 @@ How to read it:
 - **Enabled** is the rules not commented out; the 81 disabled ones are not read.
 - **Compiled** is the Suricata rules that load, and **native** the detection
   rules they become: a rule naming two ports becomes two native rules.
-- **Refused, by keyword** is the reason. `dns.query` means the rule is
-  written against a parsed DNS field, which the engine does not evaluate yet;
-  `ssh_proto` the same for SSH. Rules reading HTTP/1 fields (`http.uri`,
-  `http.user_agent`, `file.data` and the rest) compile. Rules over
+- **Refused, by keyword** is the reason. `ssh_proto` means the rule is
+  written against a parsed SSH field, which the engine does not evaluate yet.
+  Rules reading HTTP/1 fields (`http.uri`, `http.user_agent`, `file.data` and
+  the rest) or DNS fields (`dns.query`, `dns.rrtype` and the rest) compile. Rules over
   UDP or ICMP, rules reading the TCP flags or the packet size, rules asking
   whether a connection is established, and rules whose protocol is `http`,
   `tls`, `ssh`, `smtp`, `ftp` or `dns` with no decoded field compile.
@@ -65,33 +64,33 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 28,971 |
-| Native detection rules | 28,971 |
-| Refused share | 45.4% |
+| Compiled | 42,895 |
+| Native detection rules | 42,895 |
+| Refused share | 19.2% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 7,234 | 62.9% |
+| `emerging-malware.rules` | 19,511 | 14,123 | 27.6% |
+| `emerging-dyn_dns.rules` | 6,108 | 6,106 | 0.0% |
 | `emerging-web_specific_apps.rules` | 6,103 | 6,080 | 0.4% |
-| `emerging-dyn_dns.rules` | 6,108 | 3,049 | 50.1% |
-| `emerging-phishing.rules` | 2,951 | 2,283 | 22.6% |
-| `emerging-exploit.rules` | 1,717 | 1,645 | 4.2% |
-| `emerging-hunting.rules` | 1,422 | 1,305 | 8.2% |
-| `emerging-info.rules` | 4,550 | 1,048 | 77.0% |
-| `tor.rules` | 851 | 851 | 0.0% |
+| `emerging-phishing.rules` | 2,951 | 2,697 | 8.6% |
+| `emerging-info.rules` | 4,550 | 2,353 | 48.3% |
+| `emerging-exploit.rules` | 1,717 | 1,651 | 3.8% |
+| `emerging-exploit_kit.rules` | 2,718 | 1,645 | 39.5% |
+| `emerging-hunting.rules` | 1,422 | 1,354 | 4.8% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| A buffer of a protocol the agent does not decode yet, or a protocol it does not find (`dns.query`, `tls.sni`, `tls.cert_subject`, `rdp`, `smb`, `file.magic` and the rest) | 24,031 |
+| A buffer of a protocol the agent does not decode yet, or a protocol it does not find (`tls.sni`, `tls.cert_subject`, `rdp`, `smb`, `file.magic` and the rest) | 10,107 |
 | An HTTP buffer beside a content on the payload in the same rule (`http.method`, `http.uri` and the rest) | 67 |
 | `asn1` | 4 |
 
 Every refusal but seventy-one is a rule written against a field of a protocol
-this engine finds but does not decode yet, DNS and TLS first; HTTP/1 is
+this engine finds but does not decode yet, TLS first; HTTP/1 and DNS are
 decoded. A rule reading an HTTP buffer and the payload together is refused:
 that mix is the engine's gap, Suricata loads it. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
@@ -283,12 +282,22 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `http_server_body` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
 | `http.server` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
 | `http.location` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `dns.query` | Compiled | Read on each DNS request over UDP and TCP, one buffer per question, the name as it travelled with its labels joined by a dot. |
+| `dns_query` | Compiled | The older name of `dns.query`. Read on each DNS request over UDP and TCP, one buffer per question. |
+| `dns.queries.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per question name. |
+| `dns.answers.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per answer owner name. |
+| `dns.authorities.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per authority owner name. |
+| `dns.additionals.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per additional owner name. |
+| `dns.response.rrname` | Compiled | Read on each DNS response over UDP and TCP: the questions, every owner name, and the names NS, CNAME, PTR, MX and the SOA primary server point to. |
 | `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `ipv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `udp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `icmpv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `icmpv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `dns.opcode` | Compiled | Compared on each DNS message over UDP and TCP. |
+| `dns.rcode` | Compiled | Compared on each DNS message over UDP and TCP, a request carrying its own. |
+| `dns.rrtype` | Compiled | Compared on the question types of a DNS request and the answer types of a response, any one matching. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
 | `rawbytes` | Accepted, changes nothing | The payload is already matched as raw bytes. |
@@ -327,13 +336,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `tld` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `file.name` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
 | `http2.header_name` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
-| `dns.query` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns_query` | Parsed, not yet inspected | The older name of `dns.query`. Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.queries.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.answers.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.authorities.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.additionals.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.response.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
 | `mdns.queries.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for mDNS. |
 | `mdns.answers.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for mDNS. |
 | `mdns.authorities.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for mDNS. |
@@ -473,9 +475,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `sctp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `igmp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `ether.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `dns.opcode` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.rcode` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
-| `dns.rrtype` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
 | `tls.version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
 | `ssl_version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
 | `ssl_state` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
