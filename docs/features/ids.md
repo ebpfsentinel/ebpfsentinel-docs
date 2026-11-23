@@ -125,10 +125,13 @@ What an imported rule can do here:
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
+| State across packets and rules: `flowbits`, `xbits` and `hostbits` on a flow, a host or a pair of hosts, `flowint`, `noalert`, `detection_filter` | Yes. A bit lives on the flow in both directions, on an address or on a pair with its `expire`; a rule writing state runs before a rule reading it on the same segment. Not yet: `xbits` with `track tx`, `detection_filter` with `unique_on`, `flowvar` and `pktvar` |
 
 Each of these decides as Suricata 8 decides: `crates/domain/tests/suricata_inspect.rs`
 in the agent tree runs a few hundred rules and payloads through a real Suricata
-(the script beside its fixture) and asserts the same verdict here, case by case.
+(the script beside its fixture) and asserts the same verdict here, case by case;
+`crates/domain/tests/suricata_flow.rs` does the same for the state rules keep
+across segments, replaying packets in order through one loaded engine.
 
 What it cannot do, each one refused at import with the keyword that stopped
 it (the refusals are asserted by the compiler's tests in
@@ -140,7 +143,6 @@ engine's gaps, not choices Suricata leaves open:
 | Application-layer buffers: `http.*`, `tls.*`, `dns.*`, `ja3`, `file.*`, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is `http`, `tls`, `dns` or another application protocol | No. Nine refused rules in ten in the measured corpus are refused for this |
 | Rules over UDP, ICMP or IP (`alert udp`, `alert icmp`, `alert ip`) | No, only a TCP payload is captured |
 | Stream reassembly by sequence number, `stream_size`, `flow:only_stream` | No. A pattern split across two segments is not seen |
-| State across packets or rules: `flowbits`, `xbits`, `flowint`, `noalert` | No |
 | Packet fields: `dsize`, `flags`, `ttl`, `seq`, `ack`, `window`, `ipopts` and the rest | No; `dsize` because the payload is cut at 2048 bytes |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | Rules with `any` port on both sides, a port on both sides, a negated port, or a range naming more than 16 ports | No, a rule is keyed on a port the kernel captures for |

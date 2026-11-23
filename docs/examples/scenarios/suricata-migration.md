@@ -175,6 +175,12 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `entropy` | Compiled | Shannon entropy in bits per byte over the bytes named; a window past the buffer does not match. |
 | `base64_decode` | Compiled | Decodes from the start of the buffer or from the cursor, padding optional. |
 | `base64_data` | Compiled | Inspects what the last base64_decode produced. |
+| `flowbits` | Compiled | Every command, `noalert`, and `a\|b` as any of the names on `isset` and `isnotset`; elsewhere `\|` and `&` are part of the name, as in Suricata. A bit set on a packet is seen on that packet by the rules that test it, and by both directions of the flow after it. |
+| `xbits` | Compiled | On `ip_src`, `ip_dst` and `ip_pair`, with `expire` (30 seconds when unnamed; setting a live bit again keeps its expiry), and `noalert`. A rule naming no `track`, which Suricata keeps nowhere, and `track tx` are refused. |
+| `hostbits` | Compiled | On the source, the destination or both, sharing the host bits of `xbits`, with `expire`. |
+| `flowint` | Compiled | Every operator, against a number or another flow variable. A comparison of a variable never set fails, a variable never set reads 0 on the right of one, and adding to one starts it from 0. A rule writes only once every test of it held. |
+| `noalert` | Compiled | The rule raises no alert and still writes the state it names. |
+| `detection_filter` | Compiled | Alerts on every match past `count` in a window of `seconds` opened by the first match, tracked by source, destination, both, rule or flow. `unique_on` is refused. |
 | `to_lowercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_uppercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_md5` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
@@ -201,22 +207,16 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `asn1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `urilen` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `uricontent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `flowbits` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `xbits` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `hostbits` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flowint` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `noalert` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `detection_filter` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.age` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.pkts` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.pkts_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.pkts_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.bytes` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.bytes_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.bytes_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
-| `flow.elephant` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the flow table keeps the state it reads. |
+| `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the flow. |
+| `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the packet. |
+| `flow.age` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.pkts` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.pkts_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.pkts_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.bytes` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.bytes_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.bytes_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.elephant` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
 | `stream_size` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
 | `tcp.session` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
 | `dataset` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
