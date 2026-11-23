@@ -182,8 +182,10 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `xbits` | Compiled | On `ip_src`, `ip_dst` and `ip_pair`, with `expire` (30 seconds when unnamed; setting a live bit again keeps its expiry), and `noalert`. A rule naming no `track`, which Suricata keeps nowhere, and `track tx` are refused. |
 | `hostbits` | Compiled | On the source, the destination or both, sharing the host bits of `xbits`, with `expire`. |
 | `flowint` | Compiled | Every operator, against a number or another flow variable. A comparison of a variable never set fails, a variable never set reads 0 on the right of one, and adding to one starts it from 0. A rule writes only once every test of it held. |
+| `flowvar` | Compiled | Holds when the flow's variable contains the bytes, anywhere in it. The variable is what a `pcre` capture `flow_name` (or `flow:name` after its flags) took on the last match of a rule that held, on either side of the flow; it is set before the rules that read it run on the same packet. |
+| `pktvar` | Compiled | Holds when the packet's variable contains the bytes: what a `pcre` capture `pkt_name` took on that packet, read by any rule matching it and forgotten after. An `alert_name` capture, which only decorates Suricata's alert record, is accepted and kept nowhere. |
 | `noalert` | Compiled | The rule raises no alert and still writes the state it names. |
-| `detection_filter` | Compiled | Alerts on every match past `count` in a window of `seconds` opened by the first match, tracked by source, destination, both, rule or flow. `unique_on` is refused. |
+| `detection_filter` | Compiled | Alerts on every match past `count` in a window of `seconds` opened by the first match, tracked by source, destination, both, rule or flow; with `unique_on`, past `count` distinct source or destination ports. |
 | `flow.age` | Compiled | Whole seconds: the packet's second minus the second the flow began, as Suricata counts it. |
 | `flow.pkts` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
 | `flow.pkts_toserver` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
@@ -192,6 +194,9 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `flow.bytes_toserver` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
 | `flow.bytes_toclient` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
 | `stream_size` | Compiled | Each side's bytes as Suricata counts them: its SYN, every byte up to the highest sequence number sent, and its FIN from the packet after it. Read on every packet of a connection whose SYN was seen; never matches midstream. |
+| `dataset` | Compiled | Over the sets the configuration names with their type and file, or a set a rule creates empty with its type; string, md5 and sha256 sets. A rule loading a file the configuration does not name, saving a set or naming a set of addresses is refused; a set a rule fills starts empty again on reload. |
+| `datarep` | Compiled | Over the sets the configuration names, a value without a reputation counting 0; the operators '<', '>' and '==', as Suricata 8 accepts them. |
+| `iprep` | Compiled | Over the categories file and the lists the configuration names. An address listed on its own scores in every category, 0 where no line gives one, and hides the networks it sits in; 'isnotset' holds for an address not listed or scoring 0. A rule naming a category the file does not name, or with no lists configured, is refused. |
 | `flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -356,13 +361,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `requires` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the requirements it states are checked against the engine. |
 | `absent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `asn1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the flow. |
-| `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the packet. |
 | `flow.elephant` | Parsed, not yet inspected | Parsed and checked; refused until the agent measures a flow's rate the way Suricata decides an elephant. |
 | `tcp.session` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the session phases it names are compared with Suricata. |
-| `dataset` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
-| `datarep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
-| `iprep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the reputation lists the configuration names are loaded. |
 | `geoip` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the GeoIP database answers it. |
 | `vlan.id` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `vlan.layers` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |

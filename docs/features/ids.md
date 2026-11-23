@@ -139,7 +139,8 @@ What an imported rule can do here:
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
-| State across packets and rules: `flowbits`, `xbits` and `hostbits` on a flow, a host or a pair of hosts, `flowint`, `noalert`, `detection_filter` | Yes. A bit lives on the flow in both directions, on an address or on a pair with its `expire`; a rule writing state runs before a rule reading it on the same segment. Not yet: `xbits` with `track tx`, `detection_filter` with `unique_on`, `flowvar` and `pktvar` |
+| State across packets and rules: `flowbits`, `xbits` and `hostbits` on a flow, a host or a pair of hosts, `flowint`, `noalert`, `detection_filter` | Yes. A bit lives on the flow in both directions, on an address or on a pair with its `expire`; a rule writing state runs before a rule reading it on the same segment. A `pcre` capture is kept on the flow or the packet and read back by `flowvar` and `pktvar`; `detection_filter` with `unique_on`, which Suricata parses from version 9, counts distinct source or destination ports. Not yet: `xbits` with `track tx` |
+| Sets and reputation: `dataset`, `datarep`, `iprep` | Yes, over the files the configuration names (`ids.suricata.datasets`, `ids.suricata.reputation`, see [IDS configuration](../configuration/ids.md#suricata-rulesets)): string, md5 and sha256 sets, the `datarep` operators Suricata 8 accepts, and `iprep` scores with an address listed on its own hiding the networks it sits in (held to Suricata by `crates/domain/tests/fixtures/suricata/dataset-verdicts.txt` and `iprep-verdicts.txt`). A set of addresses and `save`/`state` are refused; a set a rule fills starts empty again on reload: our gap |
 
 Each of these decides as Suricata 8 decides: `crates/domain/tests/suricata_inspect.rs`
 in the agent tree runs a few hundred rules and payloads through a real Suricata
@@ -174,7 +175,7 @@ engine's gaps, not choices Suricata leaves open:
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | `pass`, `drop`, `reject` actions | Yes, as far as Suricata reaches them in IDS mode: a `pass` silences every match of the same inspection, and a `pass`, `drop` or `reject` matched on the stream or a transaction leaves the rest of the flow uninspected, one matched on a packet that packet alone (held to Suricata by `crates/domain/tests/fixtures/suricata/action-verdicts.txt`). The match is decided after the packet has gone through, so the matched packet is never stopped: a `drop` has the IPS block the source from its next packet, a `reject` has the firewall answer its next packets with a TCP reset or an ICMP unreachable, both for the IPS blacklist duration and installed only when the IPS is enabled and in `block` mode, as every IPS block. `rejectdst` and `rejectboth` are refused: the agent answers only the sender. A block restored after a restart drops, whichever action installed it: our gap |
 | Inline blocking of the matched packet | No: the agent reads a copy of the packet after it went through |
-| `lua`, `replace`, `filestore`, `dataset`, `iprep`, file extraction | No |
+| `lua`, `replace`, `filestore`, file extraction | No |
 
 How a captured payload differs from what Suricata inspects:
 

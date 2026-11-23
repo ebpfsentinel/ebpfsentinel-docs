@@ -33,6 +33,14 @@ ids:
       ports:
         HTTP_PORTS: "[80,8080]"
     max_refused_share: 0.5            # refused share above which the load fails
+    datasets:                         # sets dataset and datarep rules read, by name
+      bad-domains:
+        type: string                  # string, md5 or sha256
+        path: /etc/ebpfsentinel/suricata/bad-domains.lst
+    reputation:                       # lists iprep rules read
+      categories: /etc/ebpfsentinel/suricata/categories.txt
+      lists:
+        - /etc/ebpfsentinel/suricata/reputation.list
 ```
 
 ## Fields
@@ -124,8 +132,21 @@ not load. What was refused is read with `ids suricata` or
 | `vars.addresses` | `map` | stock | Address variables by name without the `$`, laid over the ones Suricata ships in its own `suricata.yaml` |
 | `vars.ports` | `map` | stock | Port variables, the same way |
 | `max_refused_share` | `float` | `0.5` | The share of a ruleset's enabled rules that may be refused, from 0 to 1. A ruleset refusing more fails the load |
+| `datasets.<name>.type` | `string` | - | `string`, `md5` or `sha256`, as Suricata's `datasets` section names it. At most 1024 sets |
+| `datasets.<name>.path` | `string` | - | The set's file, one value per line: base64 for a string, hex for a digest, each optionally followed by `,` and its reputation for `datarep`. At most 256 MiB |
+| `reputation.categories` | `string` | - | Suricata's `reputation-categories-file`: `id,short name,description` per line |
+| `reputation.lists` | `[string]` | `[]` | Suricata's `reputation-files`: `address[/prefix],category id,score` per line, the score from 0 to 127 |
 
 What holds across the import:
+
+- **A set or a list is read only where the configuration names it.** A
+  `dataset` or `datarep` rule naming a set the configuration does not name,
+  or whose file cannot be read, is refused, never run against an empty set; a
+  rule creating a set with `type` and no `load` starts it empty, as in
+  Suricata. An `iprep` rule is refused without `reputation`, when one of its
+  files cannot be read, or when it names a category the categories file does
+  not. A line Suricata would skip (a bad value, a score above 127) is skipped
+  and logged.
 
 - **The stock variables apply unless replaced.** `HOME_NET` defaults to
   `[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]` and `EXTERNAL_NET` to
