@@ -179,13 +179,20 @@ socket, it asks the warden for a relay, and the warden:
   `GET` of one of six reads: `/_ping`, the container list, one container's
   inspect, the network list, one network's inspect, and the event stream;
 - sends a request of its own for that path, so no header or body the agent
-  wrote reaches Docker, and copies the answer back until either side closes.
+  wrote reaches Docker;
+- reads a container's inspect and the container list whole and answers with
+  what the enricher reads of them: the id, the name, the image, the labels,
+  when it was created and its state. The environment, the command line, the
+  mounts and the rest of the host configuration stay in the warden. A field
+  a later Docker adds is dropped too, since only named fields are kept. The
+  network reads and the event stream are copied back until either side
+  closes.
 
 A compromised agent therefore reads what the enricher reads and nothing else:
-no `exec`, no `create`, no `archive`. A container's inspect does carry its
-environment, so a secret passed as an environment variable is readable by the
-agent; pass secrets as files instead. An agent running as root without a
-warden, as the systemd unit runs it, connects to the socket itself.
+no `exec`, no `create`, no `archive`, and no secret passed to a container as
+an environment variable or an argument. An agent running as root without a
+warden, as the systemd unit runs it, connects to the socket itself and reads
+whole answers.
 
 Removing the socket line from the warden and setting
 `container.docker.enabled: false` runs without it, at the cost named under
@@ -221,13 +228,13 @@ whatever its capabilities, so when its own connect is refused it asks
 the warden instead: the warden connects to
 `/run/user/<uid>/podman/podman.sock` on the host, checks that the
 socket and the process listening on it both belong to that uid, and
-hands the open connection over. The agent names a user and never a
-path, and a warden running in a container needs the host's `/run/user`
+hands the agent a relay over that connection, the one Docker's goes
+through, with the same six reads and the same answers: one call of a
+user's API starts a container as that user. The agent names a user and
+never a path, and a warden running in a container needs the host's `/run/user`
 mounted for it, with `rslave` propagation so a user logging in later is
 seen, and `DAC_OVERRIDE` to connect to a socket of mode `0600`. Root's
-runtime is root on the host, so it is never handed over: it goes
-through the same relay as Docker's, which forwards only the reads the
-enricher makes. Neither condition is the agent's to fix, so neither is
+runtime is reached through the same relay without a user to name. Neither condition is the agent's to fix, so neither is
 hidden: the first time a runtime cannot be reached the agent logs one
 warning naming the user, the socket and the reason, and
 `ebpfsentinel-agent status` lists every Podman runtime it has gone to

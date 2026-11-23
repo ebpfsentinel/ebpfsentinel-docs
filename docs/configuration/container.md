@@ -139,8 +139,8 @@ an absolute `rootless_storage`, either one climbing with `..`, or a zero `cache_
 off, no rootful socket, no root container store and no warden to relay
 one, it turns the enricher off at startup with one warning. In a
 container, the runtime directories are mounted in the warden, which
-relays root's runtime the way it relays Docker's and hands over a
-user's socket one connection at a time.
+relays root's runtime and each user's the way it relays Docker's, one
+connection at a time.
 
 A rootless socket is readable only by root or its owning user, and exists
 only while that user's `podman.socket` unit listens. An agent that cannot
