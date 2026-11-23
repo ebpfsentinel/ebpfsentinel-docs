@@ -105,11 +105,12 @@ compiler works from.
 Suricata is a stream and protocol engine: it reassembles each TCP connection
 by sequence number, decodes some thirty application protocols, and lets a
 rule look at a decoded field such as an HTTP URI, a TLS server name or a DNS
-query. This engine is a payload matcher. It sees the bytes of one TCP segment
-at a time, on the ports a rule names, and decodes nothing for the rules to
-read. Most of the Emerging Threats Open corpus is written against what
-Suricata decodes, so most of it is refused: 534 of the 53,073 enabled rules of
-the Suricata 8 build compile, and the rest are refused by name before
+query. This engine reads packets: a TCP rule on listed ports sees the payload
+of one segment at a time, and every other rule sees the whole packet, headers
+included, for any protocol. It decodes no application protocol for the rules
+to read. Most of the Emerging Threats Open corpus is written against what
+Suricata decodes, so most of it is refused: 5,021 of the 53,073 enabled rules
+of the Suricata 8 build compile, and the rest are refused by name before
 anything loads (the corpus measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
 
@@ -121,7 +122,9 @@ What an imported rule can do here:
 | `pcre` on PCRE2 with flags `i`, `s`, `m`, `x`, `A`, `E`, `G`, `R`, lookarounds and backreferences | Yes; an expression PCRE2 refuses is refused, as Suricata refuses it |
 | `isdataat`, `bsize`, `byte_test`, `byte_jump`, `byte_extract`, `byte_math`, `entropy`, `base64_decode`, `base64_data` | Yes, on the captured payload |
 | Transforms: `to_lowercase`, `to_uppercase`, `strip_whitespace`, `compress_whitespace`, `url_decode`, `from_base64`, `to_md5`, `to_sha1`, `to_sha256`, `xor`, `pcrexform`, `dotprefix`, `header_lowercase`, `strip_pseudo_headers` | Yes |
-| `flow` with `established`, `stateless` and the direction words | Yes, from the side of the rule's port |
+| Rules over TCP, UDP, ICMP, ICMPv6 or IP, on any port shape: `any` on both sides, ports on both sides, negations, ranges | Yes. The kernel hands up whole every packet a loaded rule can match, by protocol and port, read off the ruleset |
+| Packet fields: `dsize`, `flags`, `seq`, `ack`, `window`, `tcp.mss`, `tcp.wscale`, `ttl`, `id`, `tos`, `ipopts`, `fragbits`, `fragoffset`, `sameip`, `ip_proto`, `itype`, `icode`, `icmp_id`, `icmp_seq`, `icmpv6.mtu`, and the header buffers `ipv4.hdr`, `ipv6.hdr`, `tcp.hdr`, `udp.hdr`, `icmpv4.hdr`, `icmpv6.hdr` | Yes, on every packet of the rule's protocol and ports |
+| `flow` with `established`, `not_established`, `stateless` and the direction words; `flow.age`, `flow.pkts`, `flow.bytes` and their per-direction forms | Yes. A rule read on the packet asks the session kept from the flow's packets: the client sent the first one, TCP is established after its handshake, another protocol once answered. A TCP rule read on the payload is captured on an established connection, its direction the side of its port |
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
@@ -131,7 +134,11 @@ Each of these decides as Suricata 8 decides: `crates/domain/tests/suricata_inspe
 in the agent tree runs a few hundred rules and payloads through a real Suricata
 (the script beside its fixture) and asserts the same verdict here, case by case;
 `crates/domain/tests/suricata_flow.rs` does the same for the state rules keep
-across segments, replaying packets in order through one loaded engine.
+across segments, replaying packets in order through one loaded engine, and
+`crates/domain/src/ids/suricata_header_tests.rs` for the header keywords on
+crafted packets and for `flow` and its counters on whole conversations: a TCP
+handshake and close, a connection seen without its handshake, a refused one,
+UDP and ICMP exchanges.
 
 What it cannot do, each one refused at import with the keyword that stopped
 it (the refusals are asserted by the compiler's tests in
@@ -141,21 +148,29 @@ engine's gaps, not choices Suricata leaves open:
 | Suricata capability | Here |
 |---|---|
 | Application-layer buffers: `http.*`, `tls.*`, `dns.*`, `ja3`, `file.*`, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is `http`, `tls`, `dns` or another application protocol | No. Nine refused rules in ten in the measured corpus are refused for this |
-| Rules over UDP, ICMP or IP (`alert udp`, `alert icmp`, `alert ip`) | No, only a TCP payload is captured |
-| Stream reassembly by sequence number, `stream_size`, `flow:only_stream` | No. A pattern split across two segments is not seen |
-| Packet fields: `dsize`, `flags`, `ttl`, `seq`, `ack`, `window`, `ipopts` and the rest | No; `dsize` because the payload is cut at 2048 bytes |
+| Stream reassembly by sequence number, `stream_size`, `flow:only_stream`, `flow:no_stream` | No. A pattern split across two segments is not seen |
+| Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
-| Rules with `any` port on both sides, a port on both sides, a negated port, or a range naming more than 16 ports | No, a rule is keyed on a port the kernel captures for |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |
 | `lua`, `replace`, `filestore`, `dataset`, `iprep`, file extraction | No |
 
 How a captured payload differs from what Suricata inspects:
 
 - **One segment, up to 2048 bytes.** The kernel copies at most 2048 bytes of a
-  segment's payload; `offset` and `depth` count within that. A pattern beyond
-  it, or across two segments, does not match.
-- **Captured on the rule's ports.** The kernel copies payload only on the
-  ports content rules name, so a protocol on another port is not inspected.
+  segment's payload, or of a whole packet from its IP header; `offset` and
+  `depth` count within that. A pattern beyond it, or across two segments, does
+  not match. `dsize` still reads the length the IP header declares, so a
+  packet cut short keeps its size.
+- **Captured for the loaded rules.** The kernel copies a TCP payload only on
+  the ports content rules name, and hands up a whole packet only for the
+  protocols and ports the rules read on the packet need: a ruleset with none
+  costs one table read per packet, a rule with `any` on both sides takes its
+  protocol whole. A packet copied, lost to a full ring buffer or cut short is
+  counted (`packets_captured`, `packets_lost`, `packets_truncated` below).
+- **Sessions from the first packet seen.** A flow's session starts with the
+  first packet the kernel hands up: a TCP connection opened before the rules
+  loaded is never established for them, as in a Suricata that started after it
+  (with `stream.midstream` off, its default).
 - **Fail-open under load.** When the ring buffer to userspace is more than
   three quarters full, the kernel skips the event rather than slow the
   traffic: under a burst a segment can go uninspected.
@@ -274,4 +289,4 @@ Both rule listings add a `kernel_slot` block to any rule whose `(protocol, dst_p
 - `ebpfsentinel_alerts_dropped_total{reason}` - alerts suppressed before delivery, `reason="dedup"` inside the dedup window and `reason="throttle"` for the per-rule rate limit
 - `ebpfsentinel_ids_domain_matches_total{rule_id}` - matches driven by a domain pattern
 - `ebpfsentinel_packet_processing_duration_seconds{program="ids"}` - IDS event dispatch latency
-- `ebpfsentinel_packets_total{interface="IDS_METRICS", action}` - kernel-side counters (`matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`, `ct_kill_confirmed`, and `l7_flow_dropped` for packets of a connection an [L7 rule refused](l7-firewall.md#what-a-deny-blocks))
+- `ebpfsentinel_packets_total{interface="IDS_METRICS", action}` - kernel-side counters (`matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`, `ct_kill_confirmed`, `l7_flow_dropped` for packets of a connection an [L7 rule refused](l7-firewall.md#what-a-deny-blocks), and `packets_captured`, `packets_lost`, `packets_truncated` for the whole packets handed up to the rules read on the packet: copied, lost to a full ring buffer, or cut at 2048 bytes)

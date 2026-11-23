@@ -35,20 +35,19 @@ Against the ruleset fetched on 2026-11-23:
 
 ```text
 RULESET              ENABLED  COMPILED  NATIVE  REFUSED  SHARE  DISABLED
-emerging-scan.rules      286        23      24      263  92.0%        81
+emerging-scan.rules      286        87      87      199  69.6%        81
 
 Refused in emerging-scan.rules, by keyword:
-KEYWORD    RULES
-http         187
-udp           24
-flags         16
-icmp          12
-http1          6
-dsize          3
-byte_test      2
-ftp            2
-pcre           2
-ssh            2
+KEYWORD            RULES
+http.user_agent      108
+http.method           32
+http.uri              24
+http.header           10
+http                   8
+ftp                    2
+http.request_body      2
+http.request_line      2
+urilen                 2
 ...
 ```
 
@@ -57,11 +56,11 @@ How to read it:
 - **Enabled** is the rules not commented out; the 81 disabled ones are not read.
 - **Compiled** is the Suricata rules that load, and **native** the detection
   rules they become: a rule naming two ports becomes two native rules.
-- **Refused, by keyword** is the reason. `http` means the rule is written
-  against a parsed HTTP field, which the engine does not evaluate. `udp` and
-  `icmp` mean the rule watches a protocol whose payload is not captured.
-  `flags` means the rule needs the TCP flags of the segment, which a
-  payload match does not see.
+- **Refused, by keyword** is the reason. `http.user_agent` and the other
+  `http` keywords mean the rule is written against a parsed HTTP field, which
+  the engine does not evaluate; `ftp` the same for FTP. Rules over UDP or ICMP,
+  rules reading the TCP flags or the packet size, and rules asking whether a
+  connection is established compile.
 
 Add `--refusals` to list every refused rule with its line, sid and reason.
 
@@ -72,33 +71,33 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 534 |
-| Native detection rules | 611 |
-| Refused share | 99.0% |
+| Compiled | 5,021 |
+| Native detection rules | 5,021 |
+| Refused share | 90.5% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 120 | 99.4% |
-| `emerging-exploit.rules` | 1,717 | 87 | 94.9% |
-| `emerging-info.rules` | 4,550 | 53 | 98.8% |
-| `emerging-sql.rules` | 191 | 27 | 85.9% |
-| `emerging-scan.rules` | 286 | 23 | 92.0% |
-| `emerging-misc.rules` | 21 | 17 | 19.0% |
+| `emerging-malware.rules` | 19,511 | 1,304 | 93.3% |
+| `tor.rules` | 851 | 851 | 0.0% |
+| `emerging-hunting.rules` | 1,422 | 558 | 60.8% |
+| `emerging-netbios.rules` | 392 | 361 | 7.9% |
+| `emerging-exploit.rules` | 1,717 | 335 | 80.5% |
+| `ciarmy.rules` | 300 | 300 | 0.0% |
+| `emerging-info.rules` | 4,550 | 211 | 95.4% |
+| `emerging-sql.rules` | 191 | 190 | 0.5% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb` and the rest) | 47,828 |
-| State across packets or rules (`flowbits`, `stream_size`, ...) | 1,465 |
-| A port shape the kernel cannot key on (`any` on both sides, ranges, negation) | 1,248 |
-| A protocol whose payload is not captured (`ip`, `udp`, `icmp`, `tcp-pkt`) | 1,152 |
-| A packet field or payload decoding (`dsize`, `pcre` constructs, `byte_test`, `isdataat`, `flags`, ...) | 846 |
+| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb`, `telnet` and the rest) | 47,845 |
+| The reassembled stream (`stream_size`, `flow:only_stream`, `flow:no_stream`) | 203 |
+| `asn1` | 4 |
 
-Nine refusals in ten are rules written against a field Suricata decodes and
-this engine does not. Suricata runs every one of them. This engine does not,
+Every refusal but seven is a rule written against a field Suricata decodes
+or a stream it reassembles, and this engine does neither. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
 
@@ -154,7 +153,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `classtype` | Compiled | Kept with the rule, and sets the severity from the stock classification priorities. |
 | `priority` | Compiled | Sets the severity: 1 is high, 2 medium, 3 and above low. |
 | `reference` | Compiled | Kept with the rule. |
-| `flow` | Compiled | `established`, `stateless` and the four direction words. A payload is only captured on an established connection, and direction is already the header's port side. |
+| `flow` | Compiled | `established`, `not_established`, `stateless` and the four direction words. A rule read on every packet asks the session the agent keeps from them: the client sent the first packet, TCP is established after its handshake, another protocol once answered. A TCP rule read on the payload is captured only on an established connection, its direction the header's port side. `only_stream`, `no_stream`, `only_frag` and `no_frag` are refused. |
 | `content` | Compiled | Literal and `\|hex\|` bytes, negated with `!`. A match moves the cursor to its end, and when a later match fails the engine tries the next occurrence, as Suricata does. |
 | `nocase` | Compiled | ASCII case-insensitive match of the content before it. |
 | `offset` | Compiled | From the start of the buffer. |
@@ -168,6 +167,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `threshold` | Compiled | Types `limit`, `threshold` and `both`, tracked by source, destination or both. |
 | `isdataat` | Compiled | Absolute or relative to the cursor, negated with `!`. |
 | `bsize` | Compiled | The length of the buffer it follows. |
+| `dsize` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `byte_test` | Compiled | Every operator, string and binary reads, endianness, `dce` read little-endian, bitmask, relative. |
 | `byte_jump` | Compiled | Every option: multiplier, align, from_beginning, from_end, post_offset, relative, bitmask. |
 | `byte_extract` | Compiled | Sets a variable that a later offset, depth, distance, within, isdataat or byte keyword reads. A variable read before it is set refuses the rule. |
@@ -181,6 +181,37 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `flowint` | Compiled | Every operator, against a number or another flow variable. A comparison of a variable never set fails, a variable never set reads 0 on the right of one, and adding to one starts it from 0. A rule writes only once every test of it held. |
 | `noalert` | Compiled | The rule raises no alert and still writes the state it names. |
 | `detection_filter` | Compiled | Alerts on every match past `count` in a window of `seconds` opened by the first match, tracked by source, destination, both, rule or flow. `unique_on` is refused. |
+| `flow.age` | Compiled | Whole seconds: the packet's second minus the second the flow began, as Suricata counts it. |
+| `flow.pkts` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flow.pkts_toserver` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flow.pkts_toclient` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flow.bytes` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flow.bytes_toserver` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flow.bytes_toclient` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `ack` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.ack` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `window` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.window` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.mss` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.wscale` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `ttl` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `id` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tos` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `ipopts` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `fragbits` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `fragoffset` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `sameip` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `ip_proto` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `l3_proto` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `itype` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icode` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icmp_id` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icmp_seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icmpv6.mtu` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `to_lowercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_uppercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_md5` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
@@ -195,6 +226,12 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `dotprefix` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `strip_pseudo_headers` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `xor` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `ipv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `tcp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `udp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icmpv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `icmpv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
 | `rawbytes` | Accepted, changes nothing | The payload is already matched as raw bytes. |
@@ -202,51 +239,19 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `tag` | Accepted, changes nothing | Packets after the alert are not logged; the alert itself is raised. |
 | `prefilter` | Accepted, changes nothing | A prefilter hint; the engine chooses its own prefilter. |
 | `requires` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the requirements it states are checked against the engine. |
-| `dsize` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `absent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `asn1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `urilen` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `uricontent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the flow. |
 | `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the packet. |
-| `flow.age` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.pkts` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.pkts_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.pkts_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.bytes` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.bytes_toserver` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.bytes_toclient` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
-| `flow.elephant` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over every packet of the flow, which its counters count. |
+| `flow.elephant` | Parsed, not yet inspected | Parsed and checked; refused until the agent measures a flow's rate the way Suricata decides an elephant. |
 | `stream_size` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
 | `tcp.session` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
 | `dataset` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
 | `datarep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
 | `iprep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the reputation lists the configuration names are loaded. |
 | `geoip` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the GeoIP database answers it. |
-| `flags` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.flags` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `seq` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.seq` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `ack` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.ack` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `window` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.window` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.mss` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.wscale` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `ttl` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `id` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tos` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `ipopts` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `fragbits` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `fragoffset` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `sameip` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `ip_proto` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `l3_proto` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `itype` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icode` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icmp_id` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icmp_seq` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icmpv6.mtu` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `vlan.id` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `vlan.layers` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `igmp.type` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
@@ -469,12 +474,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `sdp.media.session_info` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until a SDP parser exposes its fields. |
 | `sdp.media.connection_data` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until a SDP parser exposes its fields. |
 | `sdp.media.encryption_key` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until a SDP parser exposes its fields. |
-| `ipv4.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `ipv6.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tcp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `udp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icmpv4.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `icmpv6.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `sctp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `igmp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `ether.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
