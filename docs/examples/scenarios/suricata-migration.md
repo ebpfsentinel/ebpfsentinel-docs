@@ -87,9 +87,11 @@ What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| A field of a protocol the agent does not decode yet, or a protocol it does not find (`file.magic`, `ftp-data`, `sip` and the rest) | 19 |
+| `file.magic`, which needs libmagic, which the agent does not link | 9 |
 | `asn1` | 4 |
-| An HTTP/2 field | 1 |
+| `ftp-data`, a protocol the agent does not find | 3 |
+| `app-layer-event` | 2 |
+| One each: `ike`, `sip` and `bittorrent-dht` as protocols, `http2.frametype`, `snmp.version`, `ftpbounce` | 6 |
 
 Most refusals are rules reading a field this engine does not decode yet,
 a file type first; RDP, SMB and Telnet flows are found
@@ -101,6 +103,13 @@ is inspected when Suricata inspects it, on the stream of the transaction's
 direction. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
+
+Loading is half of it; the other half is alerting where Suricata alerts. The
+agent's tests run the whole release through Suricata 8.0.8 over 53 crafted
+conversations, hostile and benign, and the same packets through this engine:
+55 rules alert there, the same 55 alert here on the same packets, and none
+of the other 52,994 that compiled raises anything Suricata did not. The
+agent's CI repeats it on each day's download.
 
 ## Step 4: load what compiles
 
