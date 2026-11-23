@@ -52,13 +52,14 @@ Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The L
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
-**Kernel:** 4.10+ | **Used by:** tc-threatintel, tc-nat-ingress, xdp-firewall-reject, uprobe-dlp
+**Kernel:** 4.10+ | **Used by:** tc-threatintel, tc-nat-ingress, xdp-firewall-reject, tc-ids, uprobe-dlp
 
 Hash table with built-in **LRU eviction**. Used for:
 
 - `THREATINTEL_IOCS` and `THREATINTEL_IOCS_V6`: IOC exact-match lookups after the Bloom filter pre-check. LRU eviction keeps the map within capacity when large feed volumes are loaded. The DNS blocklist writes the addresses its blocked domains resolve to into the same maps.
 - `NAT_HAIRPIN_CT`: hairpin NAT reverse mappings (see [Hairpin NAT Maps](#hairpin-nat-maps)).
 - `REJECT_RATELIMIT`: per-source throttle on forged TCP RST / ICMP unreachable replies.
+- `L7_DENIED_FLOWS` (32,768): TCP connections an L7 `deny` or `reject` refused, one entry per direction, with the time until which they stay refused (ten minutes) and the rule. tc-ids drops every packet of a listed connection and marks its conntrack entry dying; an opening SYN on the same addresses and ports removes both entries. Written by the agent from the L7 verdict.
 - `SSL_READ_ARGS` (10,240): `SSL_read` arguments saved by the uprobe for the uretprobe, so an entry left by a process killed mid-call is reclaimed rather than leaked.
 - `GO_READ_ARGS` (10,240): the Go `crypto/tls` read buffer saved at `(*Conn).Read` entry, keyed by `(tgid, goroutine)` rather than by thread.
 - `KTLS_READ_ARGS` (10,240): the destination buffer `tls_sw_recvmsg` was entered with, for the kretprobe. A map of its own because `SSL_read` reaches `tls_sw_recvmsg` inside its own frame on the same thread, so sharing `SSL_READ_ARGS` would overwrite the uprobe's saved arguments.

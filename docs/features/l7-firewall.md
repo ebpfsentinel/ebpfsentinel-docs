@@ -1,6 +1,6 @@
 # L7 Firewall
 
-> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols with rules, 3 more named, licence feature `extended-l7-protocols`)** | **Enforcement: Userspace**
+> **Edition: OSS (13 built-in protocols) + Enterprise (4 extended protocols with rules, 3 more named, licence feature `extended-l7-protocols`)** | **Enforcement: userspace verdict, connection dropped in the datapath (`tc-ids`)**
 
 ## Overview
 
@@ -8,25 +8,81 @@ The L7 firewall provides application-layer filtering with protocol-aware rules. 
 
 ## How It Works
 
-The L7 firewall operates in userspace. Packets forwarded from TC programs are parsed by protocol-specific parsers, then evaluated against L7 rules:
+The `tc-ids` classifier copies the payload of every TCP segment on a port
+listed in `l7.ports` to the agent, which decides in userspace:
 
 1. **Protocol detection** - identify the application protocol from the payload
-2. **Field extraction** - parse protocol-specific fields (HTTP path, TLS SNI, gRPC method, etc.)
+2. **Field extraction** - parse protocol-specific fields (HTTP path, TLS SNI, gRPC service and method, etc.)
 3. **Rule evaluation** - match extracted fields against configured rules in priority order
-4. **Action** - record the decision, and for `deny` raise an alert
+4. **Action** - `allow` and `log` record the decision; `deny` and `reject` refuse the connection
 
-The payload reaching step 1 is a copy: the packet that carried it has
-already been forwarded by the time the parser sees it. A `deny` therefore
-marks the flow as denied in the audit trail and raises an alert an automated
-response can act on; it does not drop that packet in the data path. Dropping
-traffic at line rate is the job of the L3/L4 firewall and the IPS.
+### What a `deny` blocks
+
+A `deny` (or `reject`, which behaves the same) writes both directions of the
+connection into the classifier's table of refused connections. From then on
+`tc-ids` drops every packet of that connection, on ingress and on egress, and
+marks its conntrack entry dying; each dropped packet counts on
+`ebpfsentinel_packets_total{interface="IDS_METRICS",action="l7_flow_dropped"}`.
+The audit entry reads `Drop`, the alert is raised as before, and
+`ebpfsentinel_l7_flow_refusals_total{outcome="refused"}` counts the verdict.
+
+What it does not block, by construction:
+
+- **The request that matched.** The rule reads a copy of a segment that has
+  already been forwarded, so the server receives the matching request. What
+  is blocked is everything on that connection once the agent has written the
+  verdict: an answer the server sends before that moment can still reach the
+  client, anything later is dropped, and the client sees the connection
+  stall, then time out. The refusal is a consequence of the decision, not a
+  gate in front of the server: a request that must never reach the server
+  belongs to the L3/L4 firewall or the IPS.
+- **Another connection.** The refusal is per connection. A client that opens
+  a new one is judged again on its first request; an opening SYN on the same
+  addresses and ports clears the old entry. A refusal lasts ten minutes from
+  the verdict, and the table holds 16384 refused connections, the least
+  recently used going first.
+- **UDP.** Only TCP connections are refused.
+
+When the classifier is not loaded (its load failed, or it was detached at
+runtime), a `deny` cannot be enforced: the audit entry reads `Alert` with
+`not enforced` and the reason, and `ebpfsentinel_l7_flow_refusals_total{outcome="not_enforced"}`
+counts it, so a refusal is never reported that did not happen. With
+`l7.enabled`, the classifier is attached on egress as well as ingress, since
+the answer of a refused connection leaves through egress.
+
+The refusal is asserted end to end by integration suite 29
+(`29-ebpf-l7-scenarios.bats`): after a denied HTTP request or gRPC call, a
+server that answers a moment later reaches no one, the connection carries
+nothing more, the `l7_flow_dropped` slot grows, and an allowed request on a
+new connection is answered.
+
+### HTTP/2 and gRPC
+
+A cleartext HTTP/2 connection is read from its first segment, the one that
+carries the client preface. Every HEADERS and CONTINUATION frame the client
+sends is decoded with HPACK (RFC 7541), Huffman-coded strings and dynamic
+table references included, so the `:path`, `:method` and `:authority` a rule
+reads are those the server reads, on every request of the connection, not
+only the first. A request whose `content-type` starts with `application/grpc`
+and whose path is `/package.Service/Method` is matched by `grpc` rules; any
+other HTTP/2 request is matched by `http` rules.
+
+The reader knows from each segment's TCP sequence number and length on the
+wire which bytes it did not see. Missing bytes inside a DATA frame cost
+nothing; missing bytes in a frame header or a header block leave the HPACK
+table unknown, and the connection is no longer read. Each such connection
+counts once on `ebpfsentinel_l7_http2_unread_total` by reason, and its later
+requests are not judged. A connection opened before the agent started is not
+read, and gRPC over TLS is invisible to the L7 firewall, as is any payload
+inside TLS. These behaviours are covered by the decoder's tests on captures
+curl (nghttp2) wrote, in `crates/domain/src/l7/http2/tests.rs`.
 
 ### Supported Protocols - OSS
 
 | Protocol | Detection | Matchable Fields |
 |----------|-----------|-----------------|
 | **HTTP/1.1** | Request-line methods | Method, path, host, headers, user-agent |
-| **HTTP/2 (gRPC)** | Connection preface `PRI * HTTP/2.0` | Service name, method |
+| **HTTP/2 cleartext (gRPC)** | Connection preface `PRI * HTTP/2.0`, then every frame of the connection | gRPC service and method; method, path, authority, content type and headers of other requests (HPACK decoded) |
 | **TLS** | Handshake content type `0x16` | SNI, JA4, ALPN, supported groups |
 | **SMTP** | Banner + EHLO/HELO/MAIL/RCPT/DATA/QUIT/RSET/NOOP/VRFY/EXPN | Command |
 | **FTP** | USER/PASS/LIST/RETR/… commands or `220` banner mentioning FTP | Command |
@@ -110,7 +166,7 @@ enterprise:
         src_ip: 10.0.0.0/8
 ```
 
-A match is handled the way any L7 rule match is: logged, audited, and for `deny` and `reject` recorded as a drop with an alert an automated response can act on. A built-in L7 rule that matched the same payload decides first; the extended rules are consulted when none did.
+A match is handled the way any L7 rule match is: logged, audited, and for `deny` and `reject` the connection is [refused in the datapath](#what-a-deny-blocks) and an alert is raised. A built-in L7 rule that matched the same payload decides first; the extended rules are consulted when none did.
 
 The section is refused at startup, and the agent does not start, when:
 
@@ -129,15 +185,15 @@ L7 rules support `src_country_codes` and `dst_country_codes` fields for geograph
 ```yaml
 l7:
   rules:
-    # Block all HTTP traffic from sanctioned countries
-    - id: block-http-sanctioned
+    # Refuse HTTP connections from sanctioned countries
+    - id: deny-http-sanctioned
       priority: 5
       action: deny
       protocol: http
       src_country_codes: [KP, IR, SY]
 
-    # Block TLS to destinations in high-risk countries
-    - id: block-tls-high-risk-dst
+    # Refuse TLS connections to destinations in high-risk countries
+    - id: deny-tls-high-risk-dst
       priority: 6
       action: deny
       protocol: tls
@@ -154,12 +210,12 @@ l7:
   # empty list, since no rule below could ever be evaluated.
   ports: [80, 443, 445]
   rules:
-    - id: block-admin-panel
+    - id: deny-admin-panel
       priority: 10
       action: deny
       protocol: http
       path: "/admin"
-    - id: block-sensitive-api
+    - id: deny-sensitive-api
       priority: 20
       action: deny
       protocol: http
@@ -170,7 +226,7 @@ l7:
       protocol: grpc
       service: "grpc.health.v1.Health"
       grpc_method: "Check"
-    - id: block-legacy-smb1
+    - id: deny-legacy-smb1
       priority: 40
       action: deny
       protocol: smb
@@ -181,8 +237,8 @@ l7:
       protocol: tls
       sni: "*.malware-domain.com"
 
-    # Block SSH from an outdated client build
-    - id: block-old-openssh
+    # Refuse SSH connections from an outdated client build
+    - id: deny-old-openssh
       priority: 60
       action: deny
       protocol: ssh
@@ -202,7 +258,7 @@ l7:
       protocol: mysql
       path: "DROP TABLE"
 
-    # Block PostgreSQL superuser connections (example)
+    # Log PostgreSQL SELECT statements
     - id: alert-postgres-select
       priority: 81
       action: log
@@ -216,8 +272,8 @@ l7:
       protocol: dns-tcp
       host: "suspicious.example.com"
 
-    # Block IMAP LOGIN from untrusted subnets
-    - id: block-imap-login
+    # Refuse an IMAP connection that sends LOGIN from an untrusted subnet
+    - id: deny-imap-login
       priority: 95
       action: deny
       protocol: imap
@@ -286,7 +342,7 @@ ebpfsentinel-agent l7 list
 
 # Add a rule
 ebpfsentinel-agent l7 add --json '{
-  "id": "block-uploads",
+  "id": "deny-uploads",
   "priority": 15,
   "action": "deny",
   "protocol": "http",
@@ -295,7 +351,7 @@ ebpfsentinel-agent l7 add --json '{
 }'
 
 # Delete a rule
-ebpfsentinel-agent l7 delete block-uploads
+ebpfsentinel-agent l7 delete deny-uploads
 ```
 
 ## REST API

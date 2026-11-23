@@ -108,7 +108,7 @@ visible.
 |--------|------|--------|
 | `FIREWALL_METRICS` | `xdp-firewall`, `xdp-firewall-reject` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected`, `mtu_exceeded`, `reject_throttled` |
 | `RATELIMIT_METRICS` | `xdp-ratelimit` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `mtu_exceeded`, `throttled_passed` |
-| `IDS_METRICS` | `tc-ids` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed` |
+| `IDS_METRICS` | `tc-ids` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`, `ct_kill_confirmed`, `l7_flow_dropped` (packets of a connection an L7 rule refused) |
 | `THREATINTEL_METRICS` | `tc-threatintel` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen` |
 | `DNS_METRICS` | `tc-dns` | `inspected`, `emitted`, `errors`, `events_dropped`, `total_seen` |
 | `DLP_METRICS` | `uprobe-dlp` | `write_events`, `read_events`, `errors`, `events_dropped`, `total_seen`, `out_of_scope`, `ktls_events`, `ktls_suppressed`, `ktls_unreadable` |
@@ -279,6 +279,8 @@ a request and a failure for each protocol, and how a service is named, is in
 |--------|------|--------|-------------|
 | `ebpfsentinel_l7_port_promise_total` | Counter | `port`, `verdict` | Connections on a port that promises a protocol, judged `match`, `mismatch` or `unclassified` |
 | `ebpfsentinel_l7_port_promise_uncounted_total` | Counter | - | Connections left unjudged because the table of judged connections was full |
+| `ebpfsentinel_l7_flow_refusals_total` | Counter | `outcome` | L7 `deny` and `reject` verdicts: `refused` when the connection was written into the classifier's table of refused connections, `not_enforced` when it could not be (no classifier loaded, a UDP flow, the table write failed); the audit entry then reads `Alert` instead of `Drop` |
+| `ebpfsentinel_l7_http2_unread_total` | Counter | `reason` | Cleartext HTTP/2 connections whose header blocks stopped being decoded: `lost_bytes` (bytes of a frame header or header block were not captured), `hpack`, `too_large` (a header block over 16 KiB), `bad_frame`, `evicted` (more than 1024 connections read at once). Later requests on such a connection are not judged by L7 rules |
 
 `port` takes only the twenty ports with a promise, so the label stays bounded.
 What each port promises and when a connection is judged is in

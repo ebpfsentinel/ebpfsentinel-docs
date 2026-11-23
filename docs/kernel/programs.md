@@ -342,7 +342,7 @@ Source NAT for outgoing packets (IPv4 and IPv6):
 
 ### tc-ids
 
-**Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress, and egress when `inspect_egress` or the resolver is enabled) | **Path:** `crates/ebpf-programs/tc-ids/`
+**Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress, and egress when `inspect_egress`, the resolver or `l7` is enabled) | **Path:** `crates/ebpf-programs/tc-ids/`
 
 Kernel-side intrusion detection with sampling and L7 protocol awareness.
 
@@ -352,7 +352,8 @@ Kernel-side intrusion detection with sampling and L7 protocol awareness.
 | Packet sizing | [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) | Measure the full packet, fragments included, so the payload copy is bounded by what the packet carries |
 | Payload copy | [`bpf_skb_load_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_load_bytes/) | Reads across SKB fragments (jumbo frames, GRO aggregates) without linearizing |
 | Backpressure | [`bpf_ringbuf_query`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_query/) | Skip emission when ring buffer >75% full |
-| Tiered L7 events | fixed-size reservations | Up to 512 bytes of TCP payload go into `L7EventSmall` (616 bytes), more into `L7EventBuf` (2152 bytes, up to 2048 payload bytes) |
+| Tiered L7 events | fixed-size reservations | Up to 512 bytes of TCP payload go into `L7EventSmall` (624 bytes), more into `L7EventBuf` (2160 bytes, up to 2048 payload bytes); each carries the segment's TCP sequence number and length on the wire, so userspace knows which bytes it did not see |
+| L7 refusal | `L7_DENIED_FLOWS` lookup | Drop every packet, both directions, of a connection an L7 `deny` refused, counted on the `l7_flow_dropped` slot of `IDS_METRICS` |
 | Mirroring | [`bpf_clone_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_clone_redirect/) | Copy matched traffic to the interface named in `IDS_MIRROR_CONFIG` |
 | Cgroup attribution | `bpf_skb_cgroup_id` | On egress, tag the event with the sending container's cgroup, mapped to a tenant through `TENANT_CGROUP_MAP` |
 
