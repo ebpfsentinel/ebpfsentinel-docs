@@ -92,7 +92,7 @@ rules:
 Suricata rulesets listed under `ids.suricata` are compiled at load into
 ordinary detection rules, decided on the payload in userspace. A rule using a
 keyword the engine cannot evaluate - a field of a protocol it does not decode,
-such as an SSH software version or an SMB share - is refused rather than loaded with that part
+such as a SIP method or an SMB share - is refused rather than loaded with that part
 ignored, and each refusal names its keyword. A ruleset refusing more than the
 configured share fails the load. See
 [Configuration: IDS](../configuration/ids.md#suricata-rulesets) for the
@@ -110,10 +110,11 @@ saw, and reads each rule on the packet, on the stream or on both, as Suricata
 decides; every other rule sees the whole packet, headers included, for any
 protocol. It finds a flow's application protocol from its bytes for HTTP/1,
 TLS, SSH, SMTP, FTP, DNS, SMB and DCE/RPC, whatever the port, RDP and
-Telnet on their ports, and decodes HTTP/1, DNS, TLS and DCE/RPC (over TCP,
-UDP and the named pipes of SMB) into the buffers Suricata names, the JA3, JA3S
+Telnet on their ports, and decodes HTTP/1, DNS, TLS, DCE/RPC (over TCP,
+UDP and the named pipes of SMB), SSH identification strings and the
+attachments of SMTP mail into the buffers Suricata names, the JA3, JA3S
 and JA4 fingerprints included; the fields of the other protocols are not
-decoded yet. 53,028 of
+decoded yet. 53,049 of
 the 53,073 enabled rules of the Emerging Threats Open Suricata 8 build
 compile, and the rest are refused by name before
 anything loads (the corpus measured in
@@ -164,9 +165,11 @@ engine's gaps, not choices Suricata leaves open:
 
 | Suricata capability | Here |
 |---|---|
-| Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond HTTP bodies, `smb`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `sip`, `ike` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
+| Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond `file.data`, `smb`, `ssh.hassh`, `smtp` and `email` fields, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `sip`, `ike` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
 | An HTTP buffer and a content on the payload in the same rule | Yes, inspected when Suricata inspects it: on the stream of the transaction's direction once its message is whole, the payload content reading that window and the buffers the transaction it belongs to (held to Suricata by `crates/domain/tests/fixtures/suricata/http-payload-verdicts.txt`) |
 | DCE/RPC: `dcerpc.iface`, `dcerpc.opnum`, `dcerpc.stub_data` | Yes, over TCP, over the named pipes of SMB1 and SMB2, and the stub over UDP, matched on the packets Suricata matches them on (held to Suricata by `crates/domain/tests/fixtures/suricata/dcerpc-verdicts.txt`). Where a segment carries several PDUs this engine reads every one, which Suricata 8 does not always do (`every_pdu_of_a_segment_is_read` in `crates/domain/src/ids/dcerpc.rs`) |
+| SSH: `ssh.proto`, `ssh.software` | Yes, over TCP on any port, each side's first line read as its identification, the software version up to its first space (held to Suricata by `crates/domain/tests/fixtures/suricata/ssh-verdicts.txt`) |
+| SMTP attachments: `file.data` on SMTP | Yes, every part naming a file name at any depth of multiparts, decoded from base64 or quoted-printable, inspected when the server answers the message (held to Suricata by `crates/domain/tests/fixtures/suricata/smtp-verdicts.txt`). A message is read up to its first MiB and eight levels of nested multiparts; past them, this engine reads no further, where Suricata reads to its own limits: our gap |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |

@@ -7,7 +7,7 @@ the engine runs, which it refuses, and why each refusal is the right answer.
 
 A team runs Suricata with the Emerging Threats Open ruleset and wants the
 agent to carry the rules it can. The engine compiles a rule only when it means
-here exactly what it means in Suricata, so a few dozen rules of the corpus are refused. The
+here exactly what it means in Suricata, so two dozen rules of the corpus are refused. The
 refusal report is the useful half of this walkthrough: it says what is not
 evaluated, rule by rule, before anything is loaded.
 
@@ -47,10 +47,12 @@ How to read it:
 - **Enabled** is the rules not commented out; the 81 disabled ones are not read.
 - **Compiled** is the Suricata rules that load, and **native** the detection
   rules they become: a rule naming two ports becomes two native rules.
-- **Refused, by keyword** is the reason. `ssh_proto` means the rule is
-  written against a parsed SSH field, which the engine does not evaluate yet.
+- **Refused, by keyword** is the reason. `snmp.version` means the rule is
+  written against a parsed SNMP field, which the engine does not evaluate yet.
   Rules reading HTTP/1 fields (`http.uri`, `http.user_agent`, `file.data` and
-  the rest) or DNS fields (`dns.query`, `dns.rrtype` and the rest) compile. Rules over
+  the rest), DNS fields (`dns.query`, `dns.rrtype` and the rest), SSH
+  identification strings (`ssh.software`, `ssh.proto`) and SMTP attachments
+  (`file.data` on `smtp`) compile. Rules over
   UDP or ICMP, rules reading the TCP flags or the packet size, rules asking
   whether a connection is established, and rules whose protocol is `http`,
   `tls`, `ssh`, `smtp`, `ftp` or `dns` with no decoded field compile.
@@ -64,9 +66,9 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 53,028 |
-| Native detection rules | 53,028 |
-| Refused share | 0.1% |
+| Compiled | 53,049 |
+| Native detection rules | 53,049 |
+| Refused share | 0.05% |
 
 The categories that compile the most:
 
@@ -75,24 +77,24 @@ The categories that compile the most:
 | `emerging-malware.rules` | 19,511 | 19,508 | 0.0% |
 | `emerging-dyn_dns.rules` | 6,108 | 6,108 | 0.0% |
 | `emerging-web_specific_apps.rules` | 6,103 | 6,102 | 0.0% |
-| `emerging-info.rules` | 4,550 | 4,547 | 0.1% |
+| `emerging-info.rules` | 4,550 | 4,549 | 0.0% |
 | `emerging-phishing.rules` | 2,951 | 2,950 | 0.0% |
 | `emerging-exploit_kit.rules` | 2,718 | 2,718 | 0.0% |
-| `emerging-exploit.rules` | 1,717 | 1,698 | 1.1% |
+| `emerging-exploit.rules` | 1,717 | 1,715 | 0.1% |
 | `emerging-hunting.rules` | 1,422 | 1,412 | 0.7% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| A field of a protocol the agent does not decode yet, or a protocol it does not find (`file.magic`, `ssh.software`, `ftp-data` and the rest) | 23 |
-| An HTTP or file buffer read on SMTP | 17 |
+| A field of a protocol the agent does not decode yet, or a protocol it does not find (`file.magic`, `ftp-data`, `sip` and the rest) | 19 |
 | `asn1` | 4 |
 | An HTTP/2 field | 1 |
 
 Most refusals are rules reading a field this engine does not decode yet,
-an SMTP attachment or a file type first; RDP, SMB and Telnet flows are found
-the way Suricata finds them, and HTTP/1, DNS, TLS and DCE/RPC are decoded, JA3,
+a file type first; RDP, SMB and Telnet flows are found
+the way Suricata finds them, and HTTP/1, DNS, TLS, DCE/RPC, SSH identification
+strings and SMTP attachments are decoded, JA3,
 JA3S and JA4 included, DCE/RPC whether it runs over TCP, UDP or the named
 pipes of an SMB conversation. A rule reading an HTTP buffer and the payload together compiles and
 is inspected when Suricata inspects it, on the stream of the transaction's
@@ -229,8 +231,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `dotprefix` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `strip_pseudo_headers` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `xor` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
-| `file.data` | Compiled | The body of an HTTP request or response, decompressed from gzip or deflate as Suricata does. Files carried by other protocols are not read yet: such a rule is refused. |
-| `file_data` | Compiled | The older name of `file.data`. The body of an HTTP request or response, decompressed from gzip or deflate as Suricata does. Files carried by other protocols are not read yet: such a rule is refused. |
+| `file.data` | Compiled | The content of a file: the body of an HTTP request or response, decompressed from gzip or deflate, and an attachment of a mail sent over SMTP, decoded from base64 or quoted-printable, as Suricata reads them. Files carried by other protocols are not read yet: such a rule is refused. |
+| `file_data` | Compiled | The older name of `file.data`. The content of a file: the body of an HTTP request or response, decompressed from gzip or deflate, and an attachment of a mail sent over SMTP, decoded from base64 or quoted-printable, as Suricata reads them. Files carried by other protocols are not read yet: such a rule is refused. |
 | `http.uri` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
 | `http.uri.normalized` | Compiled | The older name of `http.uri`. Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
 | `http_uri` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
@@ -317,6 +319,10 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `ja3s.string` | Compiled | Read on the server's side of a TLS handshake over TCP: the JA3S string of the ServerHello. |
 | `ja4.hash` | Compiled | Read on the client's side of a TLS handshake over TCP: the JA4 fingerprint of the ClientHello. |
 | `ja4_hash` | Compiled | The older name of `ja4.hash`. Read on the client's side of a TLS handshake over TCP. |
+| `ssh.proto` | Compiled | The protocol version of a side's identification string, between its first two hyphens. Read over TCP, once the side's first line is whole. |
+| `ssh_proto` | Compiled | The older name of `ssh.proto`, read alike. |
+| `ssh.software` | Compiled | The software version of a side's identification string, up to its first space: the comments are not part of it. Read over TCP, once the side's first line is whole. |
+| `ssh_software` | Compiled | The older name of `ssh.software`, read alike. |
 | `dcerpc.stub_data` | Compiled | The stub of a DCE/RPC request or response: what follows its header to the end of the PDU, an authentication verifier included, each fragment alone. Read over TCP, in the named pipes of SMB and over UDP. |
 | `dce_stub_data` | Compiled | The older name of `dcerpc.stub_data`, read alike. |
 | `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -389,10 +395,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `llmnr.authorities.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
 | `llmnr.additionals.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
 | `llmnr.response.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
-| `ssh.proto` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
-| `ssh_proto` | Parsed, not yet inspected | The older name of `ssh.proto`. Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
-| `ssh.software` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
-| `ssh_software` | Parsed, not yet inspected | The older name of `ssh.software`. Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh.hassh` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh.hassh.string` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh.hassh.server` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
