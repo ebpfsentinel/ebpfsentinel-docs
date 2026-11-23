@@ -35,7 +35,7 @@ Against the ruleset fetched on 2026-11-23:
 
 ```text
 RULESET              ENABLED  COMPILED  NATIVE  REFUSED  SHARE  DISABLED
-emerging-scan.rules      286        87      87      199  69.6%        81
+emerging-scan.rules      286        99      99      187  65.4%        81
 
 Refused in emerging-scan.rules, by keyword:
 KEYWORD            RULES
@@ -43,11 +43,11 @@ http.user_agent      108
 http.method           32
 http.uri              24
 http.header           10
-http                   8
-ftp                    2
 http.request_body      2
 http.request_line      2
 urilen                 2
+dns.query              1
+file.data              1
 ...
 ```
 
@@ -58,9 +58,10 @@ How to read it:
   rules they become: a rule naming two ports becomes two native rules.
 - **Refused, by keyword** is the reason. `http.user_agent` and the other
   `http` keywords mean the rule is written against a parsed HTTP field, which
-  the engine does not evaluate; `ftp` the same for FTP. Rules over UDP or ICMP,
-  rules reading the TCP flags or the packet size, and rules asking whether a
-  connection is established compile.
+  the engine does not evaluate yet; `dns.query` the same for DNS. Rules over
+  UDP or ICMP, rules reading the TCP flags or the packet size, rules asking
+  whether a connection is established, and rules whose protocol is `http`,
+  `tls`, `ssh`, `smtp`, `ftp` or `dns` with no decoded field compile.
 
 Add `--refusals` to list every refused rule with its line, sid and reason.
 
@@ -71,32 +72,32 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 5,223 |
-| Native detection rules | 5,223 |
-| Refused share | 90.2% |
+| Compiled | 5,606 |
+| Native detection rules | 5,606 |
+| Refused share | 89.4% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 1,472 | 92.5% |
+| `emerging-malware.rules` | 19,511 | 1,601 | 91.8% |
 | `tor.rules` | 851 | 851 | 0.0% |
-| `emerging-hunting.rules` | 1,422 | 564 | 60.3% |
+| `emerging-hunting.rules` | 1,422 | 605 | 57.5% |
+| `emerging-exploit.rules` | 1,717 | 400 | 76.7% |
 | `emerging-netbios.rules` | 392 | 361 | 7.9% |
-| `emerging-exploit.rules` | 1,717 | 341 | 80.1% |
 | `ciarmy.rules` | 300 | 300 | 0.0% |
-| `emerging-info.rules` | 4,550 | 226 | 95.0% |
+| `emerging-info.rules` | 4,550 | 243 | 94.7% |
 | `emerging-sql.rules` | 191 | 190 | 0.5% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb`, `telnet` and the rest) | 47,846 |
+| An application-layer buffer, or a protocol the agent does not find (`http.uri`, `dns.query`, `tls.sni`, `rdp`, `smb`, `telnet` and the rest) | 47,463 |
 | `asn1` | 4 |
 
 Every refusal but four is a rule written against a field Suricata decodes,
-and this engine decodes none. Suricata runs every one of them. This engine does not,
+and this engine finds the protocol but decodes none of its fields yet. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
 
@@ -212,6 +213,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `icmp_id` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `icmp_seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `icmpv6.mtu` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
+| `app-layer-protocol` | Compiled | The protocol is found from the traffic for HTTP/1, TLS, SSH, SMTP, FTP and DNS, and `failed`, `unknown` and every mode are read as Suricata reads them; another protocol is refused. |
 | `to_lowercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_uppercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `to_md5` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
@@ -258,7 +260,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `stream-event` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the engine reports the events it names. |
 | `engine-event` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the engine reports the events it names. |
 | `app-layer-event` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the engine reports the events it names. |
-| `app-layer-protocol` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the application protocol is detected from the traffic. |
 | `app-layer-state` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the application protocol is detected from the traffic. |
 | `ftpbounce` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the FTP parser exposes its buffers. |
 | `filename` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
