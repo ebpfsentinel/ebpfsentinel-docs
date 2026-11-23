@@ -100,6 +100,66 @@ variables, the limits and what an imported rule costs per segment. [Importing Em
 walks a public ruleset through the check, with the keyword table the
 compiler works from.
 
+### Compared with Suricata
+
+Suricata is a stream and protocol engine: it reassembles each TCP connection
+by sequence number, decodes some thirty application protocols, and lets a
+rule look at a decoded field such as an HTTP URI, a TLS server name or a DNS
+query. This engine is a payload matcher. It sees the bytes of one TCP segment
+at a time, on the ports a rule names, and decodes nothing for the rules to
+read. Most of the Emerging Threats Open corpus is written against what
+Suricata decodes, so most of it is refused: 534 of the 53,073 enabled rules of
+the Suricata 8 build compile, and the rest are refused by name before
+anything loads (the corpus measured in
+[Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
+
+What an imported rule can do here:
+
+| Suricata capability | Here |
+|---|---|
+| `content` with `nocase`, `offset`, `depth`, `distance`, `within`, `startswith`, `endswith` | Yes, on one captured segment |
+| `pcre` with flags `i`, `s`, `m`, `x`, `A`, `E` | Yes; a backreference or a lookaround refuses the rule |
+| `flow` with `established`, `stateless` and the direction words | Yes, from the side of the rule's port |
+| `threshold` (`limit`, `threshold`, `both`) | Yes |
+| Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
+| Several alerts for one segment | Yes, every matching rule raises its own alert |
+
+What it cannot do, each one refused at import with the keyword that stopped
+it (the refusals are asserted by the compiler's tests in
+`crates/domain/src/ids/suricata.rs` of the agent tree). These are the
+engine's gaps, not choices Suricata leaves open:
+
+| Suricata capability | Here |
+|---|---|
+| Application-layer buffers: `http.*`, `tls.*`, `dns.*`, `ja3`, `file.*`, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is `http`, `tls`, `dns` or another application protocol | No. Nine refused rules in ten in the measured corpus are refused for this |
+| Rules over UDP, ICMP or IP (`alert udp`, `alert icmp`, `alert ip`) | No, only a TCP payload is captured |
+| Stream reassembly by sequence number, `stream_size`, `flow:only_stream` | No. A pattern split across two segments is not seen |
+| State across packets or rules: `flowbits`, `xbits`, `flowint`, `noalert` | No |
+| Packet fields: `dsize`, `flags`, `ttl`, `seq`, `ack`, `window`, `ipopts` and the rest | No; `dsize` because the payload is cut at 2048 bytes |
+| Payload decoding: `byte_test`, `byte_jump`, `byte_extract`, `byte_math`, `isdataat` | No |
+| Negated `content`, a pcre flag reading a buffer or `R` (relative to the previous match), a `content` placed relative to a pcre | No |
+| Rules with `any` port on both sides, a port on both sides, a negated port, or a range naming more than 16 ports | No, a rule is keyed on a port the kernel captures for |
+| `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |
+| `lua`, `replace`, `filestore`, `dataset`, `iprep`, file extraction | No |
+
+How a captured payload differs from what Suricata inspects:
+
+- **One segment, up to 2048 bytes.** The kernel copies at most 2048 bytes of a
+  segment's payload; `offset` and `depth` count within that. A pattern beyond
+  it, or across two segments, does not match.
+- **Captured on the rule's ports.** The kernel copies payload only on the
+  ports content rules name, so a protocol on another port is not inspected.
+- **Fail-open under load.** When the ring buffer to userspace is more than
+  three quarters full, the kernel skips the event rather than slow the
+  traffic: under a burst a segment can go uninspected.
+- **The L7 reassembler, when enabled, delays the match.** With
+  `l7.reassembly.enabled` the rules see a flow's bytes once the reassembler
+  calls the message complete (an HTTP body by its `Content-Length`, a TLS
+  record by its length) or after five idle seconds, concatenated in arrival
+  order rather than by sequence number. It is off by default.
+
+Where the refused rules matter, keep Suricata beside the agent.
+
 ## Configuration
 
 ```yaml

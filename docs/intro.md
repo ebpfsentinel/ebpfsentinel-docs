@@ -64,7 +64,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **Security engineers** who need kernel-speed network detection and response without kernel modules
 - **Platform teams** deploying network security on Linux hosts, VMs, or Kubernetes nodes
 - **Compliance teams** needing audit trails, DLP, and threat detection for PCI-DSS, HIPAA, NIS2, DORA
-- **Teams migrating** from iptables + Suricata + tc + ipset + fail2ban to a single unified agent
+- **Teams migrating** from iptables + tc + ipset + fail2ban to a single unified agent, keeping Suricata where its application-layer rules matter (see [Compared with Suricata](features/ids.md#compared-with-suricata))
 
 ## OSS vs Enterprise
 

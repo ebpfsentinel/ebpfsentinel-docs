@@ -14,7 +14,7 @@ evaluated, rule by rule, before anything is loaded.
 ## Step 1: fetch the ruleset
 
 ```bash
-curl -sSfLO https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules.tar.gz
+curl -sSfLO https://rules.emergingthreats.net/open/suricata-8.0/emerging.rules.tar.gz
 tar xzf emerging.rules.tar.gz
 ```
 
@@ -31,7 +31,7 @@ ebpfsentinel-agent ids suricata-check rules/emerging-scan.rules \
   --address-var HOME_NET=10.0.0.0/8
 ```
 
-Against the ruleset published on 2026-07-21:
+Against the ruleset fetched on 2026-11-23:
 
 ```text
 RULESET              ENABLED  COMPILED  NATIVE  REFUSED  SHARE  DISABLED
@@ -71,25 +71,36 @@ The same check run over every category of that release:
 
 | Measure | Value |
 |---------|-------|
-| Enabled rules | 52,798 |
+| Enabled rules | 53,073 |
 | Compiled | 534 |
 | Native detection rules | 611 |
 | Refused share | 99.0% |
-| Time to compile the corpus | 207 ms |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,375 | 120 | 99.4% |
-| `emerging-exploit.rules` | 1,714 | 87 | 94.9% |
-| `emerging-info.rules` | 4,549 | 53 | 98.8% |
+| `emerging-malware.rules` | 19,511 | 120 | 99.4% |
+| `emerging-exploit.rules` | 1,717 | 87 | 94.9% |
+| `emerging-info.rules` | 4,550 | 53 | 98.8% |
 | `emerging-sql.rules` | 191 | 27 | 85.9% |
 | `emerging-scan.rules` | 286 | 23 | 92.0% |
 | `emerging-misc.rules` | 21 | 17 | 19.0% |
 
-Suricata runs every one of the refused rules. This engine does not, and the
-report is where that is said rather than a feature table.
+What the refused rules ask for, by the first keyword that stopped each one:
+
+| Refused for | Rules |
+|-------------|-------|
+| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb` and the rest) | 47,828 |
+| State across packets or rules (`flowbits`, `stream_size`, ...) | 1,465 |
+| A port shape the kernel cannot key on (`any` on both sides, ranges, negation) | 1,248 |
+| A protocol whose payload is not captured (`ip`, `udp`, `icmp`, `tcp-pkt`) | 1,152 |
+| A packet field or payload decoding (`dsize`, `pcre` constructs, `byte_test`, `isdataat`, `flags`, ...) | 846 |
+
+Nine refusals in ten are rules written against a field Suricata decodes and
+this engine does not. Suricata runs every one of them. This engine does not,
+and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
+says capability by capability what it does instead.
 
 ## Step 4: load what compiles
 
@@ -144,8 +155,8 @@ reading an application-layer buffer.
 | `nocase` | Compiled | ASCII case-insensitive match of the content before it. |
 | `offset` | Compiled | From the start of the captured payload, up to its 2048-byte limit. |
 | `depth` | Compiled | Counted from `offset`, as Suricata counts it. |
-| `distance` | Compiled | Relative to the previous content. A negative distance is refused. |
-| `within` | Compiled | Relative to the previous content. A window shorter than the content is refused. |
+| `distance` | Compiled | Relative to the previous content. A negative distance is refused, and so is a distance relative to a pcre. |
+| `within` | Compiled | Relative to the previous content. A window shorter than the content is refused, and so is a window relative to a pcre. |
 | `startswith` | Compiled | Anchors the content to the start of the payload. |
 | `endswith` | Compiled | Anchors the content to the end of the payload, only as the last of its chain. |
 | `pcre` | Compiled | Flags `i`, `s`, `m`, `x`, `A` and `E`. A construct the matcher does not implement, such as a backreference or a lookaround, refuses the rule; so does a buffer or relative flag. |
