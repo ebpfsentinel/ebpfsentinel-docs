@@ -91,8 +91,8 @@ rules:
 
 Suricata rulesets listed under `ids.suricata` are compiled at load into
 ordinary detection rules, decided on the payload in userspace. A rule using a
-keyword the engine cannot evaluate - an HTTP, DNS or TLS field, a header it
-does not decode - is refused rather than loaded with that part
+keyword the engine cannot evaluate - a field of a protocol it does not decode,
+such as RDP or SMB - is refused rather than loaded with that part
 ignored, and each refusal names its keyword. A ruleset refusing more than the
 configured share fails the load. See
 [Configuration: IDS](../configuration/ids.md#suricata-rulesets) for the
@@ -109,11 +109,11 @@ query. This engine reassembles TCP the same way on a connection whose handshake 
 saw, and reads each rule on the packet, on the stream or on both, as Suricata
 decides; every other rule sees the whole packet, headers included, for any
 protocol. It finds a flow's application protocol from its bytes for HTTP/1,
-TLS, SSH, SMTP, FTP and DNS, whatever the port, and decodes HTTP/1 and DNS
-into the buffers Suricata names; the fields of the other protocols are not
-decoded yet. Much of the rest of the Emerging Threats Open corpus is written
-against TLS fields, so 42,895 of the 53,073 enabled rules
-of the Suricata 8 build compile, and the rest are refused by name before
+TLS, SSH, SMTP, FTP and DNS, whatever the port, and decodes HTTP/1, DNS and
+TLS into the buffers Suricata names, the JA3, JA3S and JA4 fingerprints
+included; the fields of the other protocols are not decoded yet. 52,764 of
+the 53,073 enabled rules of the Emerging Threats Open Suricata 8 build
+compile, and the rest are refused by name before
 anything loads (the corpus measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
 
@@ -132,6 +132,7 @@ What an imported rule can do here:
 | The application protocol: a rule whose protocol is `http`, `http1`, `tls`, `ssl`, `ssh`, `smtp`, `ftp` or `dns`, and `app-layer-protocol` with `unknown`, `failed`, negation and the modes `to_server`, `to_client`, `either`, `final`, `original` | Yes. The protocol is found from the bytes each side sent, once the other side acknowledged them, by the patterns and ports Suricata uses, and fails as Suricata fails it at the first close; a rule of `app-layer-protocol` alone alerts on the packet where the protocol was settled. `original` never matches, as the agent does not follow a flow changing protocol. Another protocol name is refused |
 | HTTP/1: every `http.*` buffer and its older modifier (`http_uri`, `http_header` and the rest), the URI normalised as Suricata normalises it and raw, `urilen`, `uricontent`, the request and response lines and headers one by one, cookies, the bodies once dechunked and decompressed from gzip or deflate up to 100 KiB, `file.data` on them | Yes, per transaction, pipelined requests each their own, read on the packet after the one the other side acknowledged as Suricata reads them, each rule alerting once per transaction. A rule mixing request and response buffers, a request buffer under `flow:to_client` or a response buffer other than the body under `flow:to_server`, `http.header.raw` without a direction and `http.host` with an uppercase content are refused, as Suricata refuses them |
 | DNS over UDP and TCP: `dns.query` (and `dns_query`), `dns.queries.rrname`, `dns.answers.rrname`, `dns.authorities.rrname`, `dns.additionals.rrname`, `dns.response.rrname`, `dns.opcode`, `dns.rcode`, `dns.rrtype`, beside payload contents read on the message | Yes, one buffer per name, the name as it travelled with compression pointers followed, its case and any dot, space or zero byte inside a label kept. A query over UDP alerts on its datagram, over TCP on the client's next packet once the server acknowledged it, each framed message its own transaction. `dns.response.rrname` holds the questions, every owner name and the names NS, CNAME, PTR, MX and the SOA primary server point to; `dns.rrtype` the question types of a request and the answer types of a response. `dns.query` under `flow:to_client`, `dns.response.rrname` under `flow:to_server` and a DNS buffer on `tcp-pkt` or another protocol are refused, as Suricata refuses them. Port 5353 is mDNS, which has no `dns.query` |
+| TLS: `tls.sni`, `tls.cert_subject`, `tls.cert_issuer`, `tls.cert_serial`, `tls.cert_fingerprint`, `tls.certs`, `tls.subjectaltname`, `tls.alpn`, `tls.random`, `tls.random_time`, `tls.random_bytes`, `tls.version`, `ssl_version`, `ssl_state`, `tls.cert_chain_len`, `tls_cert_notbefore`, `tls_cert_notafter`, `tls_cert_expired`, `tls_cert_valid`, the older `tls.subject`, `tls.issuerdn` and `tls.fingerprint`, and the fingerprints `ja3.hash`, `ja3.string`, `ja3s.hash`, `ja3s.string` and `ja4.hash` | Yes, read off the ClientHello, the ServerHello and the certificate chain the server sent, once per connection: the client's fields alert on the client's packets, the server's on the server's, and a dated keyword is decided against the time of the packet. JA3 and JA3S (Salesforce, BSD 3-Clause) and JA4 (FoxIO, BSD 3-Clause) are built as Suricata builds them, GREASE left out. A client field under `flow:to_client`, a server field under `flow:to_server`, the two mixed in one rule, and `ssl_state` naming `client_keyx`, `server_keyx` or `unknown` are refused; the handshake of TLS 1.3 past the ServerHello is encrypted, so its certificate is read on TLS 1.2 and below only |
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
@@ -150,7 +151,9 @@ usual ports and on others, and the HTTP/1 buffers of requests and responses:
 odd URIs, chunked, compressed, split and close-delimited bodies, pipelined
 requests, `HEAD` and `100 Continue`; and the DNS buffers of queries and
 answers over UDP and TCP: compressed, dotted, root and truncated names, two
-messages in one segment, one message over two, and every record section.
+messages in one segment, one message over two, and every record section; and
+the TLS buffers and fingerprints of handshakes a real client and server made,
+TLS 1.2 and 1.3, the certificate dates checked against the capture's clock.
 
 What it cannot do, each one refused at import with the keyword that stopped
 it (the refusals are asserted by the compiler's tests in
@@ -159,7 +162,7 @@ engine's gaps, not choices Suricata leaves open:
 
 | Suricata capability | Here |
 |---|---|
-| Application-layer buffers of the other protocols: `tls.*`, `mdns.*`, `ja3`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `smb`, `rdp`, `telnet` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
+| Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `smb`, `rdp`, `telnet` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
 | An HTTP buffer and a content on the payload in the same rule | No, Suricata loads it. 67 rules of the measured corpus |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |

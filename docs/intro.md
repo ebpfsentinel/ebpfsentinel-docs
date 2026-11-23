@@ -43,7 +43,7 @@ Plus **policy routing** (multi-WAN failover with health checks and automatic def
 - **XDP_TX packet forging** - firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation
 - **Parallel event dispatch** - configurable worker count (default 4), deterministic per-source partitioning, lock-free ArcSwap service access
 - **MITRE ATT&CK mapping** - every alert tagged with technique + tactic ID
-- **JA4 TLS fingerprinting** - ClientHello parsing in eBPF, JA4 client fingerprint computed in userspace (the JA4 method by FoxIO, BSD 3-Clause)
+- **JA4, JA3 and JA3S TLS fingerprinting** - ClientHello parsing in eBPF, JA4 client fingerprint computed in userspace (the JA4 method by FoxIO, BSD 3-Clause); JA3 and JA3S (Salesforce, BSD 3-Clause) matched by imported Suricata rules
 - **Shared `ebpf-helpers` crate** - deduplicated network helpers, header parsing, metrics macros across all eBPF programs
 - **Container link hot-plug** - auto-attach TC programs to every container and pod link as it appears (veth, netkit, macvlan, ipvlan, bridge members)
 - **RingBuf adaptive backpressure** - skip event emission when buffer >75% full

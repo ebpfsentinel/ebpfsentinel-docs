@@ -143,11 +143,13 @@ What holds across the import:
   read, or a ruleset refusing more than `max_refused_share`, rejects the whole
   configuration; on a reload the one already running stays in place.
 
-The default share is deliberately strict. A whole Emerging Threats Open
-corpus is mostly rules on HTTP, DNS and TLS fields, which the engine does
-not evaluate yet, so it refuses about 90% of its rules and fails
-the load at `0.5`. Import the categories written on raw content, such as scan
-or exploit rulesets, and check one first without an agent:
+The default share is deliberately strict. Every category of the Emerging
+Threats Open build for Suricata 8 loads under it: the one refusing the most,
+`emerging-current_events.rules`, refuses 7 of its 60 rules, and the whole
+corpus 0.6% (measured in
+[Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
+A ruleset of your own written against a protocol the engine does not decode
+yet, such as SMB or RDP, refuses more; check one first without an agent:
 
 ```bash
 ebpfsentinel-agent ids suricata-check emerging-scan.rules --address-var HOME_NET=10.0.0.0/8

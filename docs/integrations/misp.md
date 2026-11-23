@@ -81,7 +81,9 @@ address is v4 or v6 is decided by reading it rather than by the type name.
 
 `ja3-fingerprint-md5` is deliberately absent. The TLS path matches JA4, so a
 JA3 hash stored in a JA4 list would be an indicator that can never fire, which
-is worse than not importing it.
+is worse than not importing it. A JA3 hash is matched by a Suricata rule
+instead, through `ja3.hash` (see
+[JA3 and JA3S in Suricata rules](../features/ja4-fingerprinting.md#ja3-and-ja3s-in-suricata-rules)).
 
 | Attribute field | What it becomes |
 |-----------------|-----------------|

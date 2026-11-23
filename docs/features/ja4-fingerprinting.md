@@ -1,8 +1,21 @@
-# JA4 TLS Fingerprinting
+# JA4, JA3 and JA3S TLS Fingerprinting
 
-eBPFsentinel computes the JA4 fingerprint of TLS ClientHello messages, enabling identification of clients by their TLS behavior without decrypting traffic.
+eBPFsentinel computes the JA4 fingerprint of TLS ClientHello messages, enabling identification of clients by their TLS behavior without decrypting traffic. Imported Suricata rules also match JA3 and JA3S, the client and server fingerprints most published rulesets are written with.
 
 The fingerprint follows the [JA4 method by FoxIO](https://github.com/FoxIO-LLC/ja4), which is licensed BSD 3-Clause. Only the client fingerprint is computed: the other methods FoxIO publishes beside it (for servers, HTTP, certificates, SSH, latency and TCP) are under a different licence and are not implemented.
+
+## JA3 and JA3S in Suricata rules
+
+Imported Suricata rules match the older fingerprints too. `ja3.hash` and
+`ja3.string` read the JA3 fingerprint of the ClientHello, `ja3s.hash` and
+`ja3s.string` the JA3S fingerprint of the ServerHello, and `ja4.hash` the JA4
+fingerprint above: the methods published by Salesforce (JA3 and JA3S, BSD
+3-Clause) and FoxIO (JA4 client, BSD 3-Clause). The strings and their MD5 are
+built as Suricata builds them, GREASE left out, and a test plays real
+handshakes through the agent and through Suricata 8 and compares what each
+alerted on. A JA3 rule from Emerging Threats or an in-house set loads and
+fires as written; see
+[Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md).
 
 ## How It Works
 

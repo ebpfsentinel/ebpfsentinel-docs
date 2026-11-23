@@ -72,7 +72,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [Interface Groups](interface-groups.md) | OSS | XDP, TC | Scope rules to interface groups, floating rules, bitmask enforcement |
 <!-- feature-count: mitre-techniques -->
 | [MITRE ATT&CK Mapping](mitre-attack.md) | OSS | Userspace | 40 techniques mapped, filter by tactic/technique, coverage dashboard |
-| [JA4 Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | TLS ClientHello fingerprints, GREASE filtering, flow cache |
+| [JA4, JA3 and JA3S Fingerprinting](ja4-fingerprinting.md) | OSS | Userspace | JA4 client fingerprints, GREASE filtering, flow cache; JA3 and JA3S matched by imported Suricata rules |
 | [Encrypted DNS Detection](operational-essentials.md#encrypted-dns-detection-dohdot) | OSS | Userspace | DoH/DoT passive detection with built-in resolvers |
 
 ### Infrastructure

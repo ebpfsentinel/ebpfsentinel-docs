@@ -64,34 +64,36 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 42,895 |
-| Native detection rules | 42,895 |
-| Refused share | 19.2% |
+| Compiled | 52,764 |
+| Native detection rules | 52,764 |
+| Refused share | 0.6% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 14,123 | 27.6% |
-| `emerging-dyn_dns.rules` | 6,108 | 6,106 | 0.0% |
+| `emerging-malware.rules` | 19,511 | 19,364 | 0.8% |
+| `emerging-dyn_dns.rules` | 6,108 | 6,108 | 0.0% |
 | `emerging-web_specific_apps.rules` | 6,103 | 6,080 | 0.4% |
-| `emerging-phishing.rules` | 2,951 | 2,697 | 8.6% |
-| `emerging-info.rules` | 4,550 | 2,353 | 48.3% |
-| `emerging-exploit.rules` | 1,717 | 1,651 | 3.8% |
-| `emerging-exploit_kit.rules` | 2,718 | 1,645 | 39.5% |
-| `emerging-hunting.rules` | 1,422 | 1,354 | 4.8% |
+| `emerging-info.rules` | 4,550 | 4,525 | 0.5% |
+| `emerging-phishing.rules` | 2,951 | 2,950 | 0.0% |
+| `emerging-exploit_kit.rules` | 2,718 | 2,718 | 0.0% |
+| `emerging-exploit.rules` | 1,717 | 1,661 | 3.3% |
+| `emerging-hunting.rules` | 1,422 | 1,410 | 0.8% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| A buffer of a protocol the agent does not decode yet, or a protocol it does not find (`tls.sni`, `tls.cert_subject`, `rdp`, `smb`, `file.magic` and the rest) | 10,107 |
+| A buffer of a protocol the agent does not decode yet, or a protocol it does not find (`rdp`, `smb`, `dcerpc.iface`, `file.magic` and the rest) | 220 |
 | An HTTP buffer beside a content on the payload in the same rule (`http.method`, `http.uri` and the rest) | 67 |
+| An HTTP or file buffer read on SMTP | 17 |
 | `asn1` | 4 |
+| An HTTP/2 field | 1 |
 
-Every refusal but seventy-one is a rule written against a field of a protocol
-this engine finds but does not decode yet, TLS first; HTTP/1 and DNS are
-decoded. A rule reading an HTTP buffer and the payload together is refused:
+Most refusals are rules written against a protocol this engine does not
+decode yet, RDP and SMB first; HTTP/1, DNS and TLS are decoded, JA3, JA3S and
+JA4 included. A rule reading an HTTP buffer and the payload together is refused:
 that mix is the engine's gap, Suricata loads it. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
@@ -289,6 +291,30 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `dns.authorities.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per authority owner name. |
 | `dns.additionals.rrname` | Compiled | Read on each DNS message over UDP and TCP, one buffer per additional owner name. |
 | `dns.response.rrname` | Compiled | Read on each DNS response over UDP and TCP: the questions, every owner name, and the names NS, CNAME, PTR, MX and the SOA primary server point to. |
+| `tls.sni` | Compiled | Read on the client's side of a TLS handshake over TCP: the server name of the ClientHello, case kept. |
+| `tls_sni` | Compiled | The older name of `tls.sni`. Read on the client's side of a TLS handshake over TCP. |
+| `tls.cert_subject` | Compiled | Read on the server's leaf certificate over TCP, the subject as an RFC 4514 string. |
+| `tls_cert_subject` | Compiled | The older name of `tls.cert_subject`. Read on the server's leaf certificate over TCP. |
+| `tls.cert_issuer` | Compiled | Read on the server's leaf certificate over TCP, the issuer as an RFC 4514 string. |
+| `tls_cert_issuer` | Compiled | The older name of `tls.cert_issuer`. Read on the server's leaf certificate over TCP. |
+| `tls.cert_serial` | Compiled | Read on the server's leaf certificate over TCP, the serial in uppercase hex bytes joined by colons. |
+| `tls_cert_serial` | Compiled | The older name of `tls.cert_serial`. Read on the server's leaf certificate over TCP. |
+| `tls.cert_fingerprint` | Compiled | Read on the server's leaf certificate over TCP, its SHA-1 in lowercase hex bytes joined by colons. |
+| `tls_cert_fingerprint` | Compiled | The older name of `tls.cert_fingerprint`. Read on the server's leaf certificate over TCP. |
+| `tls.certs` | Compiled | Read on the server's certificate chain over TCP, one buffer per certificate as it travelled. |
+| `tls.subjectaltname` | Compiled | Read on the server's leaf certificate over TCP, one buffer per DNS name or address of its alternative names. |
+| `tls.alpn` | Compiled | Read on a TLS handshake over TCP, one buffer per protocol: those the client offers, the one the server selects. |
+| `tls.random` | Compiled | Read on a TLS handshake over TCP, the 32 bytes of each side's hello; the server's once the client's hello was read, as Suricata does. |
+| `tls.random_time` | Compiled | Read on a TLS handshake over TCP, the first 4 bytes of each side's hello random. |
+| `tls.random_bytes` | Compiled | Read on a TLS handshake over TCP, the last 28 bytes of each side's hello random. |
+| `ja3.hash` | Compiled | Read on the client's side of a TLS handshake over TCP: the JA3 fingerprint of the ClientHello, its MD5 in lowercase hex, GREASE left out. |
+| `ja3_hash` | Compiled | The older name of `ja3.hash`. Read on the client's side of a TLS handshake over TCP. |
+| `ja3.string` | Compiled | Read on the client's side of a TLS handshake over TCP: the JA3 string of the ClientHello, GREASE left out. |
+| `ja3_string` | Compiled | The older name of `ja3.string`. Read on the client's side of a TLS handshake over TCP. |
+| `ja3s.hash` | Compiled | Read on the server's side of a TLS handshake over TCP: the JA3S fingerprint of the ServerHello, its MD5 in lowercase hex. |
+| `ja3s.string` | Compiled | Read on the server's side of a TLS handshake over TCP: the JA3S string of the ServerHello. |
+| `ja4.hash` | Compiled | Read on the client's side of a TLS handshake over TCP: the JA4 fingerprint of the ClientHello. |
+| `ja4_hash` | Compiled | The older name of `ja4.hash`. Read on the client's side of a TLS handshake over TCP. |
 | `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `ipv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -298,6 +324,17 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `dns.opcode` | Compiled | Compared on each DNS message over UDP and TCP. |
 | `dns.rcode` | Compiled | Compared on each DNS message over UDP and TCP, a request carrying its own. |
 | `dns.rrtype` | Compiled | Compared on the question types of a DNS request and the answer types of a response, any one matching. |
+| `tls.version` | Compiled | Compared on each side of a TLS handshake over TCP: the record version until a hello is read, then the hello's, then the one `supported_versions` names. |
+| `ssl_version` | Compiled | Compared on each side of a TLS handshake over TCP, the version read as `tls.version` reads it, any listed one matching. |
+| `ssl_state` | Compiled | Compared on a TLS handshake over TCP for `client_hello` and `server_hello`, the state frozen at the server's second read as Suricata freezes it. `client_keyx`, `server_keyx` and `unknown` are refused: the key exchange states are not yet followed the way Suricata moves them. |
+| `tls.cert_chain_len` | Compiled | Compared on the server's side of a TLS handshake over TCP, once its chain is known: read, or passed over by the handshake. |
+| `tls_cert_expired` | Compiled | Compared on the server's leaf certificate over TCP against the packet's time. |
+| `tls_cert_valid` | Compiled | Compared on the server's leaf certificate over TCP against the packet's time. |
+| `tls_cert_notbefore` | Compiled | Compared on the server's leaf certificate over TCP, before, after or at a date; a range is refused. |
+| `tls_cert_notafter` | Compiled | Compared on the server's leaf certificate over TCP, before, after or at a date; a range is refused. |
+| `tls.fingerprint` | Compiled | Compared on the server's leaf certificate over TCP, its SHA-1 equal to the value, case aside. |
+| `tls.subject` | Compiled | Compared on the server's leaf certificate over TCP, the value contained in its subject, or with `!` absent from a subject present. |
+| `tls.issuerdn` | Compiled | Compared on the server's leaf certificate over TCP, the value contained in its issuer, or with `!` absent from an issuer present. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
 | `rawbytes` | Accepted, changes nothing | The payload is already matched as raw bytes. |
@@ -346,30 +383,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `llmnr.authorities.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
 | `llmnr.additionals.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
 | `llmnr.response.rrname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers for LLMNR. |
-| `tls.sni` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_sni` | Parsed, not yet inspected | The older name of `tls.sni`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.cert_subject` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_subject` | Parsed, not yet inspected | The older name of `tls.cert_subject`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.cert_issuer` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_issuer` | Parsed, not yet inspected | The older name of `tls.cert_issuer`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.cert_serial` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_serial` | Parsed, not yet inspected | The older name of `tls.cert_serial`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.cert_fingerprint` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_fingerprint` | Parsed, not yet inspected | The older name of `tls.cert_fingerprint`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.certs` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.subjectaltname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.alpn` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.random` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.random_time` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.random_bytes` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3.hash` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3_hash` | Parsed, not yet inspected | The older name of `ja3.hash`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3.string` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3_string` | Parsed, not yet inspected | The older name of `ja3.string`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3s.hash` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja3s.string` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja4.hash` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ja4_hash` | Parsed, not yet inspected | The older name of `ja4.hash`. Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
 | `ssh.proto` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh_proto` | Parsed, not yet inspected | The older name of `ssh.proto`. Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh.software` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
@@ -475,17 +488,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `sctp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `igmp.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
 | `ether.hdr` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `tls.version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ssl_version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `ssl_state` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.cert_chain_len` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_expired` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_valid` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_notbefore` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls_cert_notafter` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.fingerprint` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.subject` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
-| `tls.issuerdn` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the TLS parser exposes its buffers. |
 | `ssh.protoversion` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `ssh.softwareversion` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SSH parser exposes its buffers. |
 | `http2.frametype` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
