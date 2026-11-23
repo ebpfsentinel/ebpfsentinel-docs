@@ -163,6 +163,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `within` | Compiled | From the cursor the previous content or pcre left. A window shorter than the content is refused, as Suricata refuses it. |
 | `startswith` | Compiled | Anchors the content to the start of the buffer. |
 | `endswith` | Compiled | Anchors the content to the end of the buffer. |
+| `fast_pattern` | Compiled | Names the content the prefilter looks for, `chop` naming a slice of it; without it the longest content of the payload is the one. A payload without that content runs no more of the rule, and the rule is then matched in full. |
 | `pcre` | Compiled | PCRE2, on bytes. Flags `i`, `s`, `m`, `x`, `A`, `E`, `G` and `R`, and the buffer flags of the buffers the engine inspects; lookarounds and back-references run as Suricata runs them. |
 | `threshold` | Compiled | Types `limit`, `threshold` and `both`, tracked by source, destination or both. |
 | `isdataat` | Compiled | Absolute or relative to the cursor, negated with `!`. |
@@ -190,7 +191,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `xor` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
-| `fast_pattern` | Accepted, changes nothing | A prefilter hint; every pattern is matched in full. |
 | `rawbytes` | Accepted, changes nothing | The payload is already matched as raw bytes. |
 | `pkt_data` | Accepted, changes nothing | The payload is the only buffer there is. |
 | `tag` | Accepted, changes nothing | Packets after the alert are not logged; the alert itself is raised. |
