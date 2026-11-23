@@ -79,7 +79,7 @@ The trampoline is a no-op when no warden socket is configured
 
 ## The warden broker
 
-The warden is a small privileged binary (`warden serve <socket> [--uid <n> | --user <name>]`) that
+The warden is a small privileged binary (`warden serve <socket> [--uid <n> | --user <name>] [--policy <file>]`) that
 loads no eBPF and holds no maps. It runs in the **initial network namespace**
 with `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW`, plus `CAP_SYS_PTRACE` /
 `CAP_BPF` / `CAP_PERFMON` for DLP, and answers only a
@@ -106,6 +106,51 @@ with `--user ebpfsentinel`; in a container, or started as root by hand, the
 agent drops to `65534` before unsharing and the warden serves its default,
 `65534`. `--uid <n>` names a numeric id instead; `--uid` and `--user` together
 are refused.
+
+### What the warden answers
+
+Serving one uid says who may ask; the policy says what that uid may ask for.
+The agent binary writes it from the configuration the agent will read, before
+the warden starts:
+
+```bash
+ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy \
+  --output /run/ebpfsentinel/warden-policy.json
+```
+
+and the warden reads it once, at `serve ... --policy <file>`. Every family of
+requests the configuration does not use is refused, and the families it does
+use are fenced by the values it names:
+
+| Family | On when | Fenced to |
+|---|---|---|
+| `routing` | `routing.enabled` | the default route through each configured gateway, on its interface |
+| `neighbour` | the load balancer announces (`loadbalancer.announce.role` not `disabled`) | the configured VIPs, on the announce interface |
+| `conntrack-restore` | high availability is on (enterprise) | |
+| `runtime` | `container.docker` or `container.podman` enabled | those runtimes |
+| `file-watch`, `write-refusal` | `file_watch.enabled`, `file_watch.write_refusal.enabled` | the canary paths the configuration names |
+| `uprobe` | `dlp.enabled` or `file_watch.enabled` | |
+| `resolver` | `dns.allowlist.enabled` | `dns.allowlist.listen` |
+| `hidden-ports`, `hidden-processes` | `hidden_checks.ports` / `.processes` enabled | the probed ports |
+| `package-inventory`, `network-inventory` | the inventory is enabled | |
+| `extension` | an enterprise feature needs one (extended TLS discovery) | the extensions named |
+
+What the datapath needs on every host (bpffs delegation, the module-BTF and
+pcap fds, conntrack read and teardown, the executable behind a pid) belongs to
+no family and is always answered. A refused request is answered `Refused` with
+its family and reason, and the warden logs
+`[warden] refused (<family>): <reason>`; at start it logs the families it
+switched on. A warden started without `--policy` answers only what belongs to
+no family.
+
+The policy is the configuration as it stood when the warden started. A setting
+changed later that needs another family, or another gateway, VIP or port,
+reaches the warden at its next restart: `systemctl restart ebpfsentinel-warden
+ebpfsentinel`, a new rollout of the chart, or
+`docker compose up -d --force-recreate warden-policy warden`. The file is
+written by root (or, in a pod, by a container holding no capability) into a
+directory the agent cannot write, and the agent never reads it, so a
+compromised agent cannot widen what it may ask.
 
 ## Capability matrix
 
@@ -157,7 +202,8 @@ waits for its socket before starting).
 
 ```ini
 # ebpfsentinel-warden.service
-ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel
+ExecStartPre=/usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy --output /run/ebpfsentinel/warden-policy.json
+ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel --policy /run/ebpfsentinel/warden-policy.json
 
 # ebpfsentinel.service
 User=ebpfsentinel
@@ -341,6 +387,12 @@ The uid the warden serves must be the one the agent presents over
 `SO_PEERCRED`: the `ebpfsentinel` user on a host (`--user ebpfsentinel` in the
 shipped unit), `65534` in a container or for an agent started as root by hand,
 which drops to it before unsharing. Root is never served.
+
+**The warden answers `Refused` (`[warden] refused (<family>): ...`).**
+The request belongs to a family the configuration did not use when the warden
+started, or names a gateway, VIP, port or path it does not. Restart the warden
+after the configuration change so its policy is written again; see
+[what the warden answers](#what-the-warden-answers).
 
 **A conntrack teardown, route change, or VIP ARP does nothing.**
 Confirm the warden is reachable - these are brokered to it. If the agent runs

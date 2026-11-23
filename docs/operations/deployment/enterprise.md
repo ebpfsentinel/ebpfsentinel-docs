@@ -153,9 +153,14 @@ It enables and starts nothing.
 What the units do:
 
 - **`ebpfsentinel-enterprise-warden.service`** runs
-  `enterprise-warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel`,
+  `enterprise-warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel --policy /run/ebpfsentinel/warden-policy.json`,
   with `RuntimeDirectory=ebpfsentinel` creating the socket directory; the
   `ebpfsentinel` user is the only peer it serves, and root is never served.
+  Before it, `ebpfsentinel-enterprise-agent --config /etc/ebpfsentinel/config.yaml warden-policy`
+  writes what the warden answers from the configuration: the OSS families,
+  plus the flow restore when `enterprise.ha` is on and the extended TLS
+  discovery when `enterprise.advanced_dlp.extended_tls.enabled`
+  ([what the warden answers](bpf-token.md#what-the-warden-answers)).
 - **`ebpfsentinel-enterprise.service`** sets `EBPFSENTINEL_WARDEN_SOCK` and
   `EBPFSENTINEL_LICENSE=/etc/ebpfsentinel/license.key`, waits up to ten seconds
   for the warden socket, then runs
