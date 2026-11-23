@@ -117,12 +117,18 @@ What an imported rule can do here:
 
 | Suricata capability | Here |
 |---|---|
-| `content` with `nocase`, `offset`, `depth`, `distance`, `within`, `startswith`, `endswith` | Yes, on one captured segment |
-| `pcre` with flags `i`, `s`, `m`, `x`, `A`, `E` | Yes; a backreference or a lookaround refuses the rule |
+| `content` with `nocase`, `offset`, `depth`, `distance`, `within`, `startswith`, `endswith`, negated or not, with Suricata's backtracking | Yes, on one captured segment |
+| `pcre` on PCRE2 with flags `i`, `s`, `m`, `x`, `A`, `E`, `G`, `R`, lookarounds and backreferences | Yes; an expression PCRE2 refuses is refused, as Suricata refuses it |
+| `isdataat`, `bsize`, `byte_test`, `byte_jump`, `byte_extract`, `byte_math`, `entropy`, `base64_decode`, `base64_data` | Yes, on the captured payload |
+| Transforms: `to_lowercase`, `to_uppercase`, `strip_whitespace`, `compress_whitespace`, `url_decode`, `from_base64`, `to_md5`, `to_sha1`, `to_sha256`, `xor`, `pcrexform`, `dotprefix`, `header_lowercase`, `strip_pseudo_headers` | Yes |
 | `flow` with `established`, `stateless` and the direction words | Yes, from the side of the rule's port |
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
+
+Each of these decides as Suricata 8 decides: `crates/domain/tests/suricata_inspect.rs`
+in the agent tree runs a few hundred rules and payloads through a real Suricata
+(the script beside its fixture) and asserts the same verdict here, case by case.
 
 What it cannot do, each one refused at import with the keyword that stopped
 it (the refusals are asserted by the compiler's tests in
@@ -136,8 +142,7 @@ engine's gaps, not choices Suricata leaves open:
 | Stream reassembly by sequence number, `stream_size`, `flow:only_stream` | No. A pattern split across two segments is not seen |
 | State across packets or rules: `flowbits`, `xbits`, `flowint`, `noalert` | No |
 | Packet fields: `dsize`, `flags`, `ttl`, `seq`, `ack`, `window`, `ipopts` and the rest | No; `dsize` because the payload is cut at 2048 bytes |
-| Payload decoding: `byte_test`, `byte_jump`, `byte_extract`, `byte_math`, `isdataat` | No |
-| Negated `content`, a pcre flag reading a buffer or `R` (relative to the previous match), a `content` placed relative to a pcre | No |
+| A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | Rules with `any` port on both sides, a port on both sides, a negated port, or a range naming more than 16 ports | No, a rule is keyed on a port the kernel captures for |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |
 | `lua`, `replace`, `filestore`, `dataset`, `iprep`, file extraction | No |

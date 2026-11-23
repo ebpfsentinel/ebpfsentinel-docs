@@ -155,16 +155,39 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `priority` | Compiled | Sets the severity: 1 is high, 2 medium, 3 and above low. |
 | `reference` | Compiled | Kept with the rule. |
 | `flow` | Compiled | `established`, `stateless` and the four direction words. A payload is only captured on an established connection, and direction is already the header's port side. |
-| `content` | Compiled | Literal and `\|hex\|` bytes. Contents chained by `distance` or `within` compile into one expression; independent contents must each match. |
+| `content` | Compiled | Literal and `\|hex\|` bytes, negated with `!`. A match moves the cursor to its end, and when a later match fails the engine tries the next occurrence, as Suricata does. |
 | `nocase` | Compiled | ASCII case-insensitive match of the content before it. |
-| `offset` | Compiled | From the start of the captured payload, up to its 2048-byte limit. |
+| `offset` | Compiled | From the start of the buffer. |
 | `depth` | Compiled | Counted from `offset`, as Suricata counts it. |
-| `distance` | Compiled | Relative to the previous content. A negative distance is refused, and so is a distance relative to a pcre. |
-| `within` | Compiled | Relative to the previous content. A window shorter than the content is refused, and so is a window relative to a pcre. |
-| `startswith` | Compiled | Anchors the content to the start of the payload. |
-| `endswith` | Compiled | Anchors the content to the end of the payload, only as the last of its chain. |
-| `pcre` | Compiled | Flags `i`, `s`, `m`, `x`, `A` and `E`. A construct the matcher does not implement, such as a backreference or a lookaround, refuses the rule; so does a buffer or relative flag. |
+| `distance` | Compiled | From the cursor the previous content or pcre left, negative included. |
+| `within` | Compiled | From the cursor the previous content or pcre left. A window shorter than the content is refused, as Suricata refuses it. |
+| `startswith` | Compiled | Anchors the content to the start of the buffer. |
+| `endswith` | Compiled | Anchors the content to the end of the buffer. |
+| `pcre` | Compiled | PCRE2, on bytes. Flags `i`, `s`, `m`, `x`, `A`, `E`, `G` and `R`, and the buffer flags of the buffers the engine inspects; lookarounds and back-references run as Suricata runs them. |
 | `threshold` | Compiled | Types `limit`, `threshold` and `both`, tracked by source, destination or both. |
+| `isdataat` | Compiled | Absolute or relative to the cursor, negated with `!`. |
+| `bsize` | Compiled | The length of the buffer it follows. |
+| `byte_test` | Compiled | Every operator, string and binary reads, endianness, `dce` read little-endian, bitmask, relative. |
+| `byte_jump` | Compiled | Every option: multiplier, align, from_beginning, from_end, post_offset, relative, bitmask. |
+| `byte_extract` | Compiled | Sets a variable that a later offset, depth, distance, within, isdataat or byte keyword reads. A variable read before it is set refuses the rule. |
+| `byte_math` | Compiled | Every operator; a division by zero does not match. Sets a variable as byte_extract does. |
+| `entropy` | Compiled | Shannon entropy in bits per byte over the bytes named; a window past the buffer does not match. |
+| `base64_decode` | Compiled | Decodes from the start of the buffer or from the cursor, padding optional. |
+| `base64_data` | Compiled | Inspects what the last base64_decode produced. |
+| `to_lowercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `to_uppercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `to_md5` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `to_sha1` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `to_sha256` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `strip_whitespace` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `compress_whitespace` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `url_decode` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `header_lowercase` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `pcrexform` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `from_base64` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `dotprefix` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `strip_pseudo_headers` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `xor` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
 | `fast_pattern` | Accepted, changes nothing | A prefilter hint; every pattern is matched in full. |
@@ -173,17 +196,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `tag` | Accepted, changes nothing | Packets after the alert are not logged; the alert itself is raised. |
 | `prefilter` | Accepted, changes nothing | A prefilter hint; the engine chooses its own prefilter. |
 | `requires` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the requirements it states are checked against the engine. |
-| `isdataat` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `bsize` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `dsize` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the kernel hands over the packet header it reads. |
-| `byte_test` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `byte_jump` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `byte_extract` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `byte_math` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `entropy` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `absent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `base64_decode` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `base64_data` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `asn1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `urilen` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `uricontent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
@@ -249,20 +263,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `filesha1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
 | `filesha256` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
 | `filesize` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
-| `to_lowercase` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `to_uppercase` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `to_md5` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `to_sha1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `to_sha256` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `strip_whitespace` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `compress_whitespace` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `url_decode` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `header_lowercase` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `pcrexform` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `from_base64` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `dotprefix` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `strip_pseudo_headers` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `xor` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `gunzip` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `zlib_deflate` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `domain` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
