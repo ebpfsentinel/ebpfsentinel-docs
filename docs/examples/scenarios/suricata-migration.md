@@ -7,7 +7,7 @@ the engine runs, which it refuses, and why each refusal is the right answer.
 
 A team runs Suricata with the Emerging Threats Open ruleset and wants the
 agent to carry the rules it can. The engine compiles a rule only when it means
-here exactly what it means in Suricata, so a fifth of the corpus is refused. The
+here exactly what it means in Suricata, so a few dozen rules of the corpus are refused. The
 refusal report is the useful half of this walkthrough: it says what is not
 evaluated, rule by rule, before anything is loaded.
 
@@ -64,8 +64,8 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 53,001 |
-| Native detection rules | 53,001 |
+| Compiled | 53,028 |
+| Native detection rules | 53,028 |
 | Refused share | 0.1% |
 
 The categories that compile the most:
@@ -85,15 +85,16 @@ What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| A field of a protocol the agent does not decode yet, or a protocol it does not find (`dcerpc.iface`, `file.magic`, `ssh.software` and the rest) | 50 |
+| A field of a protocol the agent does not decode yet, or a protocol it does not find (`file.magic`, `ssh.software`, `ftp-data` and the rest) | 23 |
 | An HTTP or file buffer read on SMTP | 17 |
 | `asn1` | 4 |
 | An HTTP/2 field | 1 |
 
 Most refusals are rules reading a field this engine does not decode yet,
-DCE/RPC interfaces first; RDP, SMB, DCE/RPC and Telnet flows are found the way
-Suricata finds them, and HTTP/1, DNS and TLS are decoded, JA3, JA3S and JA4
-included. A rule reading an HTTP buffer and the payload together compiles and
+an SMTP attachment or a file type first; RDP, SMB and Telnet flows are found
+the way Suricata finds them, and HTTP/1, DNS, TLS and DCE/RPC are decoded, JA3,
+JA3S and JA4 included, DCE/RPC whether it runs over TCP, UDP or the named
+pipes of an SMB conversation. A rule reading an HTTP buffer and the payload together compiles and
 is inspected when Suricata inspects it, on the stream of the transaction's
 direction. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
@@ -316,6 +317,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `ja3s.string` | Compiled | Read on the server's side of a TLS handshake over TCP: the JA3S string of the ServerHello. |
 | `ja4.hash` | Compiled | Read on the client's side of a TLS handshake over TCP: the JA4 fingerprint of the ClientHello. |
 | `ja4_hash` | Compiled | The older name of `ja4.hash`. Read on the client's side of a TLS handshake over TCP. |
+| `dcerpc.stub_data` | Compiled | The stub of a DCE/RPC request or response: what follows its header to the end of the PDU, an authentication verifier included, each fragment alone. Read over TCP, in the named pipes of SMB and over UDP. |
+| `dce_stub_data` | Compiled | The older name of `dcerpc.stub_data`, read alike. |
 | `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `ipv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -336,6 +339,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `tls.fingerprint` | Compiled | Compared on the server's leaf certificate over TCP, its SHA-1 equal to the value, case aside. |
 | `tls.subject` | Compiled | Compared on the server's leaf certificate over TCP, the value contained in its subject, or with `!` absent from a subject present. |
 | `tls.issuerdn` | Compiled | Compared on the server's leaf certificate over TCP, the value contained in its issuer, or with `!` absent from an issuer present. |
+| `dcerpc.iface` | Compiled | The interface a DCE/RPC request's context was bound to, once the server accepted the binding, and its major version; `any_frag` changes nothing, every fragment is read alike. Read over TCP and in the named pipes of SMB; over UDP Suricata matches it on no request, nor does this engine. |
+| `dcerpc.opnum` | Compiled | The operation number of a DCE/RPC request, on the request's side and the response's. Read over TCP and in the named pipes of SMB; over UDP Suricata matches it on no request, nor does this engine. |
 | `metadata` | Accepted, changes nothing | Read and not kept. |
 | `target` | Accepted, changes nothing | Read and not kept. |
 | `rawbytes` | Accepted, changes nothing | The payload is already matched as raw bytes. |
@@ -409,14 +414,12 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `email.url` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMTP parser exposes its buffers. |
 | `email.received` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMTP parser exposes its buffers. |
 | `email.body_md5` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMTP parser exposes its buffers. |
-| `smb.named_pipe` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb_named_pipe` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb.share` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb_share` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb.ntlmssp_user` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb.ntlmssp_domain` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `dcerpc.stub_data` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `dce_stub_data` | Parsed, not yet inspected | The older name of `dcerpc.stub_data`. Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
+| `smb.named_pipe` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
+| `smb_named_pipe` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
+| `smb.share` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
+| `smb_share` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
+| `smb.ntlmssp_user` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
+| `smb.ntlmssp_domain` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
 | `krb5_cname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the Kerberos parser exposes its buffers. |
 | `krb5_sname` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the Kerberos parser exposes its buffers. |
 | `snmp.community` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SNMP parser exposes its buffers. |
@@ -497,9 +500,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `http2.window` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
 | `http2.size_update` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
 | `http2.settings` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
-| `dcerpc.iface` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `dcerpc.opnum` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
-| `smb.version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB and DCE/RPC parsers expose their buffers. |
+| `smb.version` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the SMB parser exposes its fields. |
 | `krb5_err_code` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the Kerberos parser exposes its buffers. |
 | `krb5_msg_type` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the Kerberos parser exposes its buffers. |
 | `krb5.ticket_encryption` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the Kerberos parser exposes its buffers. |

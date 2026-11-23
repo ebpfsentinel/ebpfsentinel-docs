@@ -145,11 +145,11 @@ What holds across the import:
 
 The default share is deliberately strict. Every category of the Emerging
 Threats Open build for Suricata 8 loads under it: the one refusing the most,
-`emerging-netbios.rules`, refuses 31 of its 392 rules, DCE/RPC interfaces
-for the most part, and the whole corpus 0.1% (measured in
+`emerging-ftp.rules`, refuses 1 of its 58 rules, and the whole corpus 0.1%
+(measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
 A ruleset of your own reading the fields of a protocol the engine does not
-decode yet, such as DCE/RPC interfaces, refuses more; check one first without an agent:
+decode yet, such as SSH software versions, refuses more; check one first without an agent:
 
 ```bash
 ebpfsentinel-agent ids suricata-check emerging-scan.rules --address-var HOME_NET=10.0.0.0/8
