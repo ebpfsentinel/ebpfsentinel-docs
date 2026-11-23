@@ -2,59 +2,65 @@
 
 ## Platform
 
-**Linux only.** Requires kernel **6.12+** with BTF support.
+**Linux only.** Requires kernel **6.18+** with BTF support.
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
-The 6.12 floor is the kernel the managed node images converge on (GKE Container-Optimized OS, EKS Amazon Linux 2023, Ubuntu's HWE line). Everything the agent needs is older:
+The 6.18 floor is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program (Ubuntu 26.04, Ubuntu 24.04's HWE line, Talos 1.12, GKE Container-Optimized OS 133 and EKS Amazon Linux 2023 run it or later). Everything the agent needs is older:
 **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) is how the agent loads
 its programs without holding `CAP_BPF` or `CAP_SYS_ADMIN` itself, and the
-kfuncs the programs call arrived by 6.8. The 6.12 file kfuncs exist on every
+kfuncs the programs call arrived by 6.8. The file kfuncs of 6.12 exist on every
 supported kernel but load only in a sleepable context behind the BPF LSM, so
 they are probed rather than assumed.
 
 ## Distributions
 
 What matters is the running kernel, not the release: any distribution booting
-6.12 or later with BTF (`/sys/kernel/btf/vmlinux`) works.
+6.18 or later with BTF (`/sys/kernel/btf/vmlinux`) works.
 
 | Distribution | Supported | Notes |
 |-------------|-----------|-------|
-| Debian 13+ | Yes | Ships 6.12 |
-| Debian 12 | Yes, with the backports kernel | Ships 6.1; `apt install -t bookworm-backports linux-image-amd64` installs 6.12 |
 | Ubuntu 26.04 LTS | Yes | Ships 7.0 |
-| Ubuntu 24.04 with the HWE kernel | Yes | `linux-generic-hwe-24.04` is 7.0 since 24.04.5 (6.17 in 24.04.4, 6.14 in 24.04.3); any 24.04 host kept up to date gets it, whatever point release it was installed from |
+| Ubuntu 24.04 with the HWE kernel | Yes | `linux-generic-hwe-24.04` is 7.0 since 24.04.5 (6.17 in 24.04.4 was below the floor); any 24.04 host kept up to date gets it, whatever point release it was installed from |
 | Ubuntu 24.04 on its GA kernel | No | Ships 6.8 - `apt install linux-generic-hwe-24.04` and reboot |
 | Ubuntu 22.04 | No | The HWE kernel stops at 6.8 |
-| RHEL 10 / Rocky Linux 10 | Yes | Ships 6.12 |
-| RHEL 9.x / Rocky 9.x | No | Ships 5.14 - requires ELRepo `kernel-ml` 6.12+ |
-| Alpine 3.21+ | Yes | `linux-lts` is 6.12 |
-| Alpine 3.20 and earlier | No | `linux-lts` 6.6 is below the floor |
-| Fedora 41+ | Yes | Kernel updates keep released Fedora on current stable |
+| Debian 13 with the backports kernel | Yes | `apt install -t trixie-backports linux-image-amd64` installs 6.18 or later |
+| Debian 13 on its stock kernel | No | Ships 6.12 |
+| Debian 12 | No | Ships 6.1, and its backports kernel stops at 6.12 |
+| Fedora 43+ | Yes | Kernel updates keep released Fedora on current stable |
+| openSUSE Tumbleweed | Yes | Rolling |
+| SLES 16 / openSUSE Leap 16 | No | Ships 6.12 for the release's life |
+| RHEL / Rocky / AlmaLinux 10 | No | Ships 6.12 for the release's life; only ELRepo's mainline `kernel-ml` reaches 6.18 |
+| RHEL / Rocky / AlmaLinux 9 | No | Ships 5.14; only ELRepo's mainline `kernel-ml` reaches 6.18 |
+| Alpine 3.23+ | Yes | `linux-lts` is 6.18 |
+| Alpine 3.22 and earlier | No | `linux-lts` 6.12 or older is below the floor |
 | Arch Linux | Yes | Rolling |
-| NixOS 25.05+ | Yes | The default kernel is 6.12 or later |
-| NixOS 24.11 and earlier | With `linuxPackages_latest` | The default kernel is 6.6 |
-| Talos Linux 1.9+ | Yes | Ships 6.12; Talos 1.8 ships 6.6 |
+| NixOS 26.05+ | Yes | The default kernel is 6.18 |
+| NixOS 25.11 | With `linuxPackages_6_18` | `boot.kernelPackages = pkgs.linuxPackages_6_18` |
+| Talos Linux 1.12+ | Yes | Ships 6.18; Talos 1.11 and earlier ship 6.12 or older |
+| Flatcar Container Linux | Where the release runs 6.18 | Releases of 2026 ship 6.18, earlier ones 6.12: read `uname -r` on the image |
 
 ## Managed Node Images
 
 A managed cluster decides the node kernel, so the question is which node image
-the provider runs and what the operator can turn to reach 6.12. The agent
+the provider runs and what the operator can turn to reach 6.18. The agent
 refuses to start below the floor and says which kernel it found, so a node that
 is out says so at startup rather than loading half its programs.
 
 | Provider and node image | Supported | Kernel | The operator's lever |
 |-------------------------|-----------|--------|----------------------|
-| GKE, Container-Optimized OS milestone 125 and later | Yes | 6.12 | The cluster version: COS has no package manager, so the node image follows the GKE version and nothing else |
-| GKE, Container-Optimized OS milestones 121, 117 and 113 | No | 6.6, 6.6 and 6.1 | Upgrade the cluster to a version whose default COS image is milestone 125 or later |
-| GKE, Ubuntu node images | Where the image's kernel is 6.12 or later | Per image | The node image version, chosen per node pool; read `uname -r` on one node before rolling out |
-| EKS, Amazon Linux 2023, Kubernetes 1.33 and later | Yes | 6.12 | The Kubernetes version of the node group; AL2023's parallel kernel streams and a custom AMI built from `awslabs/amazon-eks-ami` are both supported ways to choose a newer kernel |
-| EKS, Amazon Linux 2023, Kubernetes 1.31 and 1.32 | No | 6.1 | Upgrade the node group, or build a custom AMI on a newer AL2023 kernel stream |
-| EKS, Bottlerocket `aws-k8s-1.33` and later variants | Yes | 6.12 | The variant, which follows the Kubernetes version |
-| EKS, Bottlerocket `aws-k8s-1.32` and earlier variants | No | 6.1 | Move the node group to a 1.33 or later variant |
+| GKE, Container-Optimized OS milestone 133 and later | Yes | 6.18 | The cluster version: COS has no package manager, so the node image follows the GKE version and nothing else |
+| GKE, Container-Optimized OS milestones 125 to 129 | No | 6.12 | Upgrade the cluster to a version whose default COS image is milestone 133 or later |
+| GKE, Container-Optimized OS milestone 121 and earlier | No | 6.6 or older | Upgrade the cluster to a version whose default COS image is milestone 133 or later |
+| GKE, Ubuntu node images | Where the image's kernel is 6.18 or later | Per image | The node image version, chosen per node pool; read `uname -r` on one node before rolling out |
+| EKS, Amazon Linux 2023 on the 6.18 kernel | Yes | 6.18 | The AMI: AL2023's default kernel since 2026-08-17; a node group on an older AMI moves by updating its release version |
+| EKS, Amazon Linux 2023 on the 6.1 or 6.12 kernel | No | 6.1 or 6.12 | Update the node group to an AMI on the 6.18 kernel, or build a custom AMI from `awslabs/amazon-eks-ami` on that stream |
+| EKS, Bottlerocket `aws-k8s-1.36` and later, outside FIPS | Yes | 6.18 | The variant, which follows the Kubernetes version |
+| EKS, Bottlerocket FIPS variants and `aws-k8s-1.35` and earlier | No | 6.12 or older | Move the node group to a non-FIPS 1.36 or later variant |
 | AKS, Ubuntu 26.04 node images | Yes | 7.0 | The node pool's OS SKU: in preview from Kubernetes 1.36, and what the `Ubuntu` SKU defaults to from 1.38 |
-| AKS, Ubuntu 24.04 node images | Where the image's kernel is 6.12 or later | Per image | Canonical moved the 24.04 `linux-azure` kernel to 7.0, but the node image decides what a node boots: read `uname -r` on one node before rolling out, or move the pool to Ubuntu 26.04 |
-| AKS, Azure Linux 3.0 and Ubuntu 22.04 node images | No | 6.6 and 5.15 | Move the node pool to Ubuntu 26.04 |
+| AKS, Ubuntu 24.04 node images | No | 6.8 | Move the node pool to Ubuntu 26.04 |
+| AKS, Azure Linux 3.0 and Ubuntu 22.04 node images | No | 6.6 and 5.15 | Move the node pool to Ubuntu 26.04; Azure Linux 4.0 runs 6.18 and qualifies once AKS offers it |
+| Scaleway Kapsule | Not measured | Not published | Read `uname -r` on one node before rolling out |
 
 ## Architectures
 
@@ -88,7 +94,7 @@ unprivileged user namespaces enabled. See the
 
 ## Kernel Feature Matrix
 
-All features require kernel **6.12+**, the agent's floor. Here is when each eBPF feature the agent relies on became available:
+All features require kernel **6.18+**, the agent's floor. Here is when each eBPF feature the agent relies on became available:
 
 | Feature / Helper | Kernel | Used By |
 |-----------------|--------|---------|
@@ -166,7 +172,7 @@ the socket-bound `bpf_tcp_gen_syncookie` is not used.
 
 <!-- BEGIN GENERATED ABOVE THE FLOOR -->
 
-Everything below is above the 6.12 floor: each entry is active only where its condition holds on the host, and its fallback runs everywhere else. The agent decides each one from a probe or an attach, never from the kernel version, and reports it in the `capabilities` block of `GET /api/v1/ebpf/kernel-features` and in `ebpfsentinel-agent ebpf kernel-features`, with the reason and the way to switch it on where it is off.
+Everything below is above the 6.18 floor: each entry is active only where its condition holds on the host, and its fallback runs everywhere else. The agent decides each one from a probe or an attach, never from the kernel version, and reports it in the `capabilities` block of `GET /api/v1/ebpf/kernel-features` and in `ebpfsentinel-agent ebpf kernel-features`, with the reason and the way to switch it on where it is off.
 
 | Capability | What it unlocks | Condition | Where it is absent |
 |------------|-----------------|-----------|--------------------|
@@ -180,7 +186,7 @@ Everything below is above the 6.12 floor: each entry is active only where its co
 | `workload_firewall` | Rules on what a named workload may connect to, send to or bind, decided in the syscall | Turned on in the configuration and attached on the node | No workload rule is enforced, and a configuration that needs one refuses to start rather than running unenforced |
 | `quarantine` | A workload cut off from the network in the kernel for a bounded time | Turned on in the configuration and attached on the node | A quarantine is refused with the reason and the alert still fires |
 | `process_signal` | A process stopped by a signal sent from the kernel | Turned on in the configuration and attached on the node | A signal is refused with the reason and the alert still fires |
-| `immediate_signal` | A signal that reaches its target at once, even a process making no syscall | A kernel offering it, from Linux 6.13 or through a vendor backport | The signal waits for the target's next syscall, and a target making none within the window is reported as a survivor |
+| `immediate_signal` | A signal that reaches its target at once, even a process making no syscall | A kernel built with it | The signal waits for the target's next syscall, and a target making none within the window is reported as a survivor |
 | `network_executables` | The list of executables allowed to reach the network, decided before the socket exists | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | An observing list is skipped with the reason and an enforcing list refuses to start the agent |
 | `write_refusal` | A write-open refused past a count, before a byte is written | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | A fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain |
 | `self_protection` | The agent's own maps and links refused to every other task | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | The agent's objects are guarded only by the privilege it takes to reach them, and the node reports itself unprotected |

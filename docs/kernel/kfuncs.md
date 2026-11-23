@@ -14,7 +14,7 @@ Opening a module's BTF fd needs `CAP_SYS_ADMIN`, which a BPF token does not gran
 
 ## Status
 
-The datapath kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.12** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=12` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel.
+The datapath kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.18** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=18` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel.
 
 The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.rs`. The safe wrappers keep the verifier's `KF_ACQUIRE` / `KF_RELEASE` pairing through two patterns:
 
@@ -115,4 +115,4 @@ cargo fmt
 cargo test --lib
 ```
 
-At runtime the agent verifies the kernel version meets the 6.12 floor before loading any BPF program. See [Kernel Compatibility](requirements.md) for distribution support.
+At runtime the agent verifies the kernel version meets the 6.18 floor before loading any BPF program. See [Kernel Compatibility](requirements.md) for distribution support.

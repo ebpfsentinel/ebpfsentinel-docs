@@ -640,14 +640,14 @@ same identifiers label the `ebpfsentinel_kernel_capability_active` gauge.
   "capabilities": [
     { "id": "attribution",
       "unlocks": "the workload that opened a socket, named on every flow",
-      "active": true, "cause": null, "reason": null, "since": "6.12",
+      "active": true, "cause": null, "reason": null, "since": "6.18",
       "fallback": "flows carry no workload name and everything else is unchanged",
       "hint": null },
     { "id": "write_refusal",
       "unlocks": "a write-open refused past a count, before a byte is written",
       "active": false, "cause": "lsm_inactive",
       "reason": "the BPF LSM is not among the active security modules",
-      "since": "6.12",
+      "since": "6.18",
       "fallback": "a fanotify permission group refuses on at most 4,096 marked inodes, and where that cannot run the mass encryption detection and its stop remain",
       "hint": "add bpf to the lsm= kernel boot parameter, keeping the modules already active, and reboot: lsm=landlock,lockdown,yama,integrity,apparmor,bpf" }
   ]
@@ -1148,7 +1148,7 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 
 ```json
 {
-  "kernel": "6.12",
+  "kernel": "6.18",
   "applicable": 2,
   "intents": [
     {

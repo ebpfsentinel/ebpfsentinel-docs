@@ -15,9 +15,9 @@ Allow about an hour.
 
 ## Before you start
 
-- **Kernel 6.12 or later, with BTF.** Proxmox VE 9 runs a 6.14 kernel; on
-  Proxmox VE 8, install and boot the opt-in `proxmox-kernel-6.14` first. Check
-  with `uname -r` and `ls /sys/kernel/btf/vmlinux`; the package refuses to
+- **Kernel 6.18 or later, with BTF.** Read the kernel the host boots with
+  `uname -r`: a Proxmox kernel series below 6.18 is refused, so boot an opt-in
+  `proxmox-kernel` of the 6.18 series or later first. Check also and `ls /sys/kernel/btf/vmlinux`; the package refuses to
   install on a host that has neither.
 - One CT and one VM you can stop and start. Below they are CT `101`, hostname
   `ct-web`, and VM `201`, name `vm-db`.

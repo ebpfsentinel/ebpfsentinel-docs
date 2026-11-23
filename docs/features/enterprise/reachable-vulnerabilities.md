@@ -53,7 +53,7 @@ keeps, and at most 4,096 changes are kept per report.
 - **The socket hooks**, for the four socket facts. Where they are not attached
   those facts are `not_read`, never `no`, and the finding ranks above what is
   known to be quiet.
-- No kernel condition beyond the 6.12 floor.
+- No kernel condition beyond the 6.18 floor.
 
 ## What it is not
 

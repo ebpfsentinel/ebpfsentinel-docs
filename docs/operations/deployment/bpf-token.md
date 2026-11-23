@@ -242,11 +242,9 @@ it before exiting.
 | Distribution | Default | What the agent needs |
 |---|---|---|
 | Ubuntu 24.04 and later | `kernel.apparmor_restrict_unprivileged_userns=1` | the shipped AppArmor profile for the agent binary, loaded by the package and `install.sh`; nothing host-wide |
-| Ubuntu 22.04 | allowed | nothing |
-| Debian 12 and 13 | allowed (`kernel.unprivileged_userns_clone=1`) | nothing; a host hardened to `0` needs it back at `1` |
-| RHEL, Rocky, Alma 9 and 10 | allowed (`user.max_user_namespaces` sized by memory) | nothing; a host that set `user.max_user_namespaces=0` needs it raised |
+| Debian 13 | allowed (`kernel.unprivileged_userns_clone=1`) | nothing; a host hardened to `0` needs it back at `1` |
 | Fedora | allowed | nothing |
-| SUSE Linux Enterprise 15 SP6, openSUSE | allowed | nothing |
+| openSUSE Tumbleweed | allowed | nothing |
 | Arch Linux | allowed | nothing |
 | NixOS | allowed (`security.allowUserNamespaces = true`) | nothing; the module refuses to build with it off |
 | Talos, Flatcar, Bottlerocket | allowed | nothing; these run the agent in a container |

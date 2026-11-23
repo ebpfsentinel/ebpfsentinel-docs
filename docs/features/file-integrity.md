@@ -50,7 +50,7 @@ change happened in needs `CAP_DAC_READ_SEARCH`; a rootless agent asks the
 its own privilege. A container's root is an overlay, which cannot be watched:
 the filesystem beneath it is named instead, and the table of
 [filesystems that refuse](../configuration/file-watch.md#filesystems-that-refuse)
-says what to name for each. No kernel condition beyond the 6.12 floor applies.
+says what to name for each. No kernel condition beyond the 6.18 floor applies.
 
 ## What it is not
 

@@ -5,12 +5,12 @@
 ### Kernel version too old
 
 ```
-eBPFsentinel refuses to start: kernel 6.8 is below the required minimum 6.12. On Ubuntu 24.04 install the hardware enablement kernel (`apt install linux-generic-hwe-24.04`) and reboot; ... The agent needs Linux 6.12 or later and has no degraded mode below it; restart it once the host runs the new kernel.
+eBPFsentinel refuses to start: kernel 6.8 is below the required minimum 6.18. On Ubuntu 24.04 install the hardware enablement kernel (`apt install linux-generic-hwe-24.04`, 7.0 since 24.04.5) and reboot; ... The agent needs Linux 6.18 or later and has no degraded mode below it; restart it once the host runs the new kernel.
 ```
 
-The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.12. BPF token delegation, the only way it loads eBPF, needs 6.9; 6.12 is the long-term kernel the distributions and managed node images converged on, and the floor. There is no degraded mode.
+The agent reads `/proc/sys/kernel/osrelease` before anything else and exits below 6.18. BPF token delegation, the only way it loads eBPF, needs 6.9; 6.18 is the long-term kernel of 2025, the first that verifies the signature of a BPF program, and the floor. There is no degraded mode.
 
-The second sentence is the way up for the distribution the release string belongs to: the Ubuntu hardware enablement kernel, Debian backports, the RHEL 10 family, the Amazon Linux 2023 6.12 stream or the EKS node image for Kubernetes 1.33 and later, Talos 1.9, Oracle UEK 8, SLES 16, or a GKE cluster version on COS milestone 125. It is read off the kernel release rather than `/etc/os-release`, because in a container that file describes the image and not the host. An Azure kernel is pointed at the Ubuntu 26.04 node image, which carries 7.0, because a standard AKS node pool changes its kernel only by changing its node image; Azure Linux 3.0 and Ubuntu 22.04 node images are below the floor.
+The second sentence is the way up for the distribution the release string belongs to: the Ubuntu hardware enablement kernel, Debian trixie-backports, the Amazon Linux 2023 6.18 kernel or Bottlerocket 1.36 and later outside FIPS, Talos 1.12, openSUSE Tumbleweed, or a GKE cluster version on COS milestone 133. Where the vendor ships no 6.18 kernel (RHEL and its rebuilds, Oracle UEK, SLES and Leap 16) the sentence says so. It is read off the kernel release rather than `/etc/os-release`, because in a container that file describes the image and not the host. An Azure kernel is pointed at the Ubuntu 26.04 node image, which carries 7.0, because a standard AKS node pool changes its kernel only by changing its node image; the Ubuntu 24.04, Azure Linux 3.0 and Ubuntu 22.04 node images are below the floor.
 
 ### BTF not available
 

@@ -1349,7 +1349,7 @@ BPF LSM
 The first line is the answer: `will load on this host` means the executables
 allowed to reach the network can be enforced here, and `will not load` comes
 with the reason, the one change that would fix it and what the agent does until
-then. A kernel below the 6.12 floor is named there too, even where the BPF LSM
+then. A kernel below the 6.18 floor is named there too, even where the BPF LSM
 is active, because the agent refuses that kernel before any list matters. The
 `BPF LSM` block below it is the detail the answer rests on, and
 `ebpf kernel-features` prints the same first line above its own `BPF LSM`

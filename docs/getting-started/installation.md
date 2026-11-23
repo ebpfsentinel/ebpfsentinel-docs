@@ -10,7 +10,7 @@ Every artifact comes from one place, the
 and each is signed and listed in that release's `ebpfsentinel-SHA256SUMS`. No
 step here asks you to clone a repository in order to run something.
 
-Before anything: kernel 6.12 or later with BTF at `/sys/kernel/btf/vmlinux`. See
+Before anything: kernel 6.18 or later with BTF at `/sys/kernel/btf/vmlinux`. See
 [Prerequisites](prerequisites.md), and [Compatibility](../operations/compatibility.md)
 for the distributions that qualify today.
 

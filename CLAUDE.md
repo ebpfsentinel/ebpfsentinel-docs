@@ -30,7 +30,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:feature-suites` | every page under `docs/features/` (and the few selling pages outside it the website matrix links) names in `scripts/feature-suites.toml` the suites behind it (OSS, enterprise, operator lanes, console server tests), each existing and holding a test |
 | `check:cli-reference`, `check:cli-invocations` | every subcommand and every command written in a page parses |
 | `check:grpc-reference`, `check:crd-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables, `generate:*` rewrites them |
-| `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor (6.12) wherever a matrix states one |
+| `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor wherever a matrix states one, held to the agent's `kernel_probe.rs` |
 | `check:cni-matrix`, `check:host-rule-limits`, `check:shipped-host-rules` | the CNI coexistence matrix and the host rule tables, generated from the sources |
 | `check:no-waf-claim`, `check:no-protection-claim` | the agent is never called a WAF, mass encryption is never sold as protection |
 | `check:no-typographic-dash` | none of the four typographic dashes in any tracked file |
