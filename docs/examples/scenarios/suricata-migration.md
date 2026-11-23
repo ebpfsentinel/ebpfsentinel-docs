@@ -35,20 +35,12 @@ Against the ruleset fetched on 2026-11-23:
 
 ```text
 RULESET              ENABLED  COMPILED  NATIVE  REFUSED  SHARE  DISABLED
-emerging-scan.rules      286        99      99      187  65.4%        81
+emerging-scan.rules      286       284     284        2   0.7%        81
 
 Refused in emerging-scan.rules, by keyword:
-KEYWORD            RULES
-http.user_agent      108
-http.method           32
-http.uri              24
-http.header           10
-http.request_body      2
-http.request_line      2
-urilen                 2
-dns.query              1
-file.data              1
-...
+KEYWORD    RULES
+dns.query      1
+ssh_proto      1
 ```
 
 How to read it:
@@ -56,9 +48,10 @@ How to read it:
 - **Enabled** is the rules not commented out; the 81 disabled ones are not read.
 - **Compiled** is the Suricata rules that load, and **native** the detection
   rules they become: a rule naming two ports becomes two native rules.
-- **Refused, by keyword** is the reason. `http.user_agent` and the other
-  `http` keywords mean the rule is written against a parsed HTTP field, which
-  the engine does not evaluate yet; `dns.query` the same for DNS. Rules over
+- **Refused, by keyword** is the reason. `dns.query` means the rule is
+  written against a parsed DNS field, which the engine does not evaluate yet;
+  `ssh_proto` the same for SSH. Rules reading HTTP/1 fields (`http.uri`,
+  `http.user_agent`, `file.data` and the rest) compile. Rules over
   UDP or ICMP, rules reading the TCP flags or the packet size, rules asking
   whether a connection is established, and rules whose protocol is `http`,
   `tls`, `ssh`, `smtp`, `ftp` or `dns` with no decoded field compile.
@@ -72,32 +65,35 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 5,606 |
-| Native detection rules | 5,606 |
-| Refused share | 89.4% |
+| Compiled | 28,971 |
+| Native detection rules | 28,971 |
+| Refused share | 45.4% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 1,601 | 91.8% |
+| `emerging-malware.rules` | 19,511 | 7,234 | 62.9% |
+| `emerging-web_specific_apps.rules` | 6,103 | 6,080 | 0.4% |
+| `emerging-dyn_dns.rules` | 6,108 | 3,049 | 50.1% |
+| `emerging-phishing.rules` | 2,951 | 2,283 | 22.6% |
+| `emerging-exploit.rules` | 1,717 | 1,645 | 4.2% |
+| `emerging-hunting.rules` | 1,422 | 1,305 | 8.2% |
+| `emerging-info.rules` | 4,550 | 1,048 | 77.0% |
 | `tor.rules` | 851 | 851 | 0.0% |
-| `emerging-hunting.rules` | 1,422 | 605 | 57.5% |
-| `emerging-exploit.rules` | 1,717 | 400 | 76.7% |
-| `emerging-netbios.rules` | 392 | 361 | 7.9% |
-| `ciarmy.rules` | 300 | 300 | 0.0% |
-| `emerging-info.rules` | 4,550 | 243 | 94.7% |
-| `emerging-sql.rules` | 191 | 190 | 0.5% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| An application-layer buffer, or a protocol the agent does not find (`http.uri`, `dns.query`, `tls.sni`, `rdp`, `smb`, `telnet` and the rest) | 47,463 |
+| A buffer of a protocol the agent does not decode yet, or a protocol it does not find (`dns.query`, `tls.sni`, `tls.cert_subject`, `rdp`, `smb`, `file.magic` and the rest) | 24,031 |
+| An HTTP buffer beside a content on the payload in the same rule (`http.method`, `http.uri` and the rest) | 67 |
 | `asn1` | 4 |
 
-Every refusal but four is a rule written against a field Suricata decodes,
-and this engine finds the protocol but decodes none of its fields yet. Suricata runs every one of them. This engine does not,
+Every refusal but seventy-one is a rule written against a field of a protocol
+this engine finds but does not decode yet, DNS and TLS first; HTTP/1 is
+decoded. A rule reading an HTTP buffer and the payload together is refused:
+that mix is the engine's gap, Suricata loads it. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
 
@@ -175,6 +171,8 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `entropy` | Compiled | Shannon entropy in bits per byte over the bytes named; a window past the buffer does not match. |
 | `base64_decode` | Compiled | Decodes from the start of the buffer or from the cursor, padding optional. |
 | `base64_data` | Compiled | Inspects what the last base64_decode produced. |
+| `urilen` | Compiled | The length of the normalised URI, or of the raw one with `raw`, read on the HTTP/1 request. |
+| `uricontent` | Compiled | A content on the normalised URI of the HTTP/1 request. |
 | `flowbits` | Compiled | Every command, `noalert`, and `a\|b` as any of the names on `isset` and `isnotset`; elsewhere `\|` and `&` are part of the name, as in Suricata. A bit set on a packet is seen on that packet by the rules that test it, and by both directions of the flow after it. |
 | `xbits` | Compiled | On `ip_src`, `ip_dst` and `ip_pair`, with `expire` (30 seconds when unnamed; setting a live bit again keeps its expiry), and `noalert`. A rule naming no `track`, which Suricata keeps nowhere, and `track tx` are refused. |
 | `hostbits` | Compiled | On the source, the destination or both, sharing the host bits of `xbits`, with `expire`. |
@@ -228,6 +226,63 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `dotprefix` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `strip_pseudo_headers` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
 | `xor` | Compiled | Runs in the inspection engine on the buffer it follows, as Suricata 8 transforms it; a rule loads once that buffer is inspected. |
+| `file.data` | Compiled | The body of an HTTP request or response, decompressed from gzip or deflate as Suricata does. Files carried by other protocols are not read yet: such a rule is refused. |
+| `file_data` | Compiled | The older name of `file.data`. The body of an HTTP request or response, decompressed from gzip or deflate as Suricata does. Files carried by other protocols are not read yet: such a rule is refused. |
+| `http.uri` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.uri.normalized` | Compiled | The older name of `http.uri`. Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_uri` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.uri.raw` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_raw_uri` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.method` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_method` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.request_line` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_request_line` | Compiled | The older name of `http.request_line`. Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.request_body` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_client_body` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.header` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_header` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.header.raw` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_raw_header` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.cookie` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_cookie` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.user_agent` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_user_agent` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.host` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_host` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.host.raw` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_raw_host` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.accept` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_accept` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.accept_enc` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_accept_enc` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.accept_lang` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_accept_lang` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.referer` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_referer` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.connection` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_connection` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.content_type` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_content_type` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.content_len` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_content_len` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.start` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_start` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.protocol` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_protocol` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.header_names` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_header_names` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.request_header` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.response_header` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.stat_code` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_stat_code` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.stat_msg` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_stat_msg` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.response_line` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_response_line` | Compiled | The older name of `http.response_line`. Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.response_body` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http_server_body` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.server` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
+| `http.location` | Compiled | Read on each HTTP/1 transaction the agent parses, the buffer filled as Suricata fills it. |
 | `ipv4.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `ipv6.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.hdr` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -243,8 +298,6 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `requires` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the requirements it states are checked against the engine. |
 | `absent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
 | `asn1` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the inspection engine evaluates it. |
-| `urilen` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `uricontent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the flow. |
 | `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the packet. |
 | `flow.elephant` | Parsed, not yet inspected | Parsed and checked; refused until the agent measures a flow's rate the way Suricata decides an elephant. |
@@ -272,64 +325,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `zlib_deflate` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `domain` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
 | `tld` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until transforms run on a buffer. |
-| `file.data` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
-| `file_data` | Parsed, not yet inspected | The older name of `file.data`. Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
 | `file.name` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until files are extracted from the protocols that carry them. |
-| `http.uri` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.uri.normalized` | Parsed, not yet inspected | The older name of `http.uri`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_uri` | Parsed, not yet inspected | Moves the content before it into `http.uri`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.uri.raw` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_raw_uri` | Parsed, not yet inspected | Moves the content before it into `http.uri.raw`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.method` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_method` | Parsed, not yet inspected | Moves the content before it into `http.method`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.request_line` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_request_line` | Parsed, not yet inspected | The older name of `http.request_line`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.request_body` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_client_body` | Parsed, not yet inspected | Moves the content before it into `http.request_body`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.header` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_header` | Parsed, not yet inspected | Moves the content before it into `http.header`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.header.raw` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_raw_header` | Parsed, not yet inspected | Moves the content before it into `http.header.raw`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.cookie` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_cookie` | Parsed, not yet inspected | Moves the content before it into `http.cookie`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.user_agent` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_user_agent` | Parsed, not yet inspected | Moves the content before it into `http.user_agent`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.host` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_host` | Parsed, not yet inspected | Moves the content before it into `http.host`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.host.raw` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_raw_host` | Parsed, not yet inspected | Moves the content before it into `http.host.raw`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.accept` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_accept` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.accept_enc` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_accept_enc` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.accept_lang` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_accept_lang` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.referer` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_referer` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.connection` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_connection` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.content_type` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_content_type` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.content_len` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_content_len` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.start` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_start` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.protocol` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_protocol` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.header_names` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_header_names` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.request_header` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.response_header` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.stat_code` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_stat_code` | Parsed, not yet inspected | Moves the content before it into `http.stat_code`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.stat_msg` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_stat_msg` | Parsed, not yet inspected | Moves the content before it into `http.stat_msg`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.response_line` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_response_line` | Parsed, not yet inspected | The older name of `http.response_line`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.response_body` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http_server_body` | Parsed, not yet inspected | Moves the content before it into `http.response_body`. Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.server` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
-| `http.location` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the HTTP/1 parser exposes its buffers. |
 | `http2.header_name` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until an HTTP/2 parser exposes its fields. |
 | `dns.query` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |
 | `dns_query` | Parsed, not yet inspected | The older name of `dns.query`. Parsed and checked; a rule carrying it is refused until the DNS parser exposes its buffers. |

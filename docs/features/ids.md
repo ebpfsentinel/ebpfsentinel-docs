@@ -109,10 +109,10 @@ query. This engine reassembles TCP the same way on a connection whose handshake 
 saw, and reads each rule on the packet, on the stream or on both, as Suricata
 decides; every other rule sees the whole packet, headers included, for any
 protocol. It finds a flow's application protocol from its bytes for HTTP/1,
-TLS, SSH, SMTP, FTP and DNS, whatever the port, but decodes no field of it for
-the rules to read yet. Most
-of the Emerging Threats Open corpus is written against what Suricata decodes,
-so most of it is refused: 5,606 of the 53,073 enabled rules
+TLS, SSH, SMTP, FTP and DNS, whatever the port, and decodes HTTP/1 into the
+buffers Suricata names; the fields of the other protocols are not decoded
+yet. Much of the Emerging Threats Open corpus is written against DNS and TLS
+fields, so 28,971 of the 53,073 enabled rules
 of the Suricata 8 build compile, and the rest are refused by name before
 anything loads (the corpus measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
@@ -130,6 +130,7 @@ What an imported rule can do here:
 | Packet fields: `dsize`, `flags`, `seq`, `ack`, `window`, `tcp.mss`, `tcp.wscale`, `ttl`, `id`, `tos`, `ipopts`, `fragbits`, `fragoffset`, `sameip`, `ip_proto`, `itype`, `icode`, `icmp_id`, `icmp_seq`, `icmpv6.mtu`, and the header buffers `ipv4.hdr`, `ipv6.hdr`, `tcp.hdr`, `udp.hdr`, `icmpv4.hdr`, `icmpv6.hdr` | Yes, on every packet of the rule's protocol and ports |
 | `flow` with `established`, `not_established`, `stateless` and the direction words; `flow.age`, `flow.pkts`, `flow.bytes` and their per-direction forms | Yes. A rule read on the packet asks the session kept from the flow's packets: the client sent the first one, TCP is established after its handshake, another protocol once answered. A TCP rule read on the payload is captured on an established connection, its direction the side of its port |
 | The application protocol: a rule whose protocol is `http`, `http1`, `tls`, `ssl`, `ssh`, `smtp`, `ftp` or `dns`, and `app-layer-protocol` with `unknown`, `failed`, negation and the modes `to_server`, `to_client`, `either`, `final`, `original` | Yes. The protocol is found from the bytes each side sent, once the other side acknowledged them, by the patterns and ports Suricata uses, and fails as Suricata fails it at the first close; a rule of `app-layer-protocol` alone alerts on the packet where the protocol was settled. `original` never matches, as the agent does not follow a flow changing protocol. Another protocol name is refused |
+| HTTP/1: every `http.*` buffer and its older modifier (`http_uri`, `http_header` and the rest), the URI normalised as Suricata normalises it and raw, `urilen`, `uricontent`, the request and response lines and headers one by one, cookies, the bodies once dechunked and decompressed from gzip or deflate up to 100 KiB, `file.data` on them | Yes, per transaction, pipelined requests each their own, read on the packet after the one the other side acknowledged as Suricata reads them, each rule alerting once per transaction. A rule mixing request and response buffers, a request buffer under `flow:to_client` or a response buffer other than the body under `flow:to_server`, `http.header.raw` without a direction and `http.host` with an uppercase content are refused, as Suricata refuses them |
 | `threshold` (`limit`, `threshold`, `both`) | Yes |
 | Address variables, address lists and negated addresses | Yes, checked against the segment's addresses |
 | Several alerts for one segment | Yes, every matching rule raises its own alert |
@@ -143,8 +144,10 @@ across segments, replaying packets in order through one loaded engine, and
 `crates/domain/src/ids/suricata_header_tests.rs` for the header keywords on
 crafted packets and for `flow` and its counters on whole conversations: a TCP
 handshake and close, a connection seen without its handshake, a refused one,
-UDP and ICMP exchanges, and the application protocol of conversations on their
-usual ports and on others.
+UDP and ICMP exchanges, the application protocol of conversations on their
+usual ports and on others, and the HTTP/1 buffers of requests and responses:
+odd URIs, chunked, compressed, split and close-delimited bodies, pipelined
+requests, `HEAD` and `100 Continue`.
 
 What it cannot do, each one refused at import with the keyword that stopped
 it (the refusals are asserted by the compiler's tests in
@@ -153,7 +156,8 @@ engine's gaps, not choices Suricata leaves open:
 
 | Suricata capability | Here |
 |---|---|
-| Application-layer buffers: `http.*`, `tls.*`, `dns.*`, `ja3`, `file.*`, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `smb`, `rdp`, `telnet` and the rest) | No. Nine refused rules in ten in the measured corpus are refused for this |
+| Application-layer buffers of the other protocols: `tls.*`, `dns.*`, `ja3`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `smb`, `rdp`, `telnet` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
+| An HTTP buffer and a content on the payload in the same rule | No, Suricata loads it. 67 rules of the measured corpus |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |
