@@ -79,7 +79,7 @@ The trampoline is a no-op when no warden socket is configured
 
 ## The warden broker
 
-The warden is a small privileged binary (`warden serve <socket> --uid <n>`) that
+The warden is a small privileged binary (`warden serve <socket> [--uid <n> | --user <name>]`) that
 loads no eBPF and holds no maps. It runs in the **initial network namespace**
 with `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW`, plus `CAP_SYS_PTRACE` /
 `CAP_BPF` / `CAP_PERFMON` for DLP, and answers only a
@@ -100,9 +100,12 @@ narrow, typed, peer-authenticated protocol over an `AF_UNIX` socket:
   check the agent fails against every process outside its own user namespace,
   so the warden answers with a path, a device and an inode, and nothing else.
 
-`--uid` is the only uid served, checked via `SO_PEERCRED`: on bare-metal the
-agent runs as root and maps namespace-0 to real root, so it presents `0`; in a
-container it drops to `65534` and presents that.
+One uid is served, checked via `SO_PEERCRED`, and it is never root: on bare
+metal the agent runs as its own `ebpfsentinel` user and the warden is started
+with `--user ebpfsentinel`; in a container, or started as root by hand, the
+agent drops to `65534` before unsharing and the warden serves its default,
+`65534`. `--uid <n>` names a numeric id instead; `--uid` and `--user` together
+are refused.
 
 ## Capability matrix
 
@@ -154,17 +157,58 @@ waits for its socket before starting).
 
 ```ini
 # ebpfsentinel-warden.service
-ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --uid 0
+ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel
 
 # ebpfsentinel.service
+User=ebpfsentinel
+Group=ebpfsentinel
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+TemporaryFileSystem=/sys/fs/bpf:mode=1777
+StateDirectory=ebpfsentinel
 Environment=EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock
 ExecStartPre=/bin/sh -c 'for _ in $(seq 1 100); do [ -S /run/ebpfsentinel/warden.sock ] && exit 0; sleep 0.1; done; exit 1'
 ExecStart=/usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
-On bare-metal the agent runs as root (it maps namespace-0 to real root to create
-the bpffs mountpoint under `/sys/fs/bpf`), so the warden serves `--uid 0`. Do not
-set `NoNewPrivileges` on either unit - it would block the user-namespace setup.
+The agent is never root. `install.sh` and the packages create a system user,
+`ebpfsentinel`, with no login; the agent unit runs as it with an empty
+capability bounding set, and its user namespace's root maps onto it, so a
+compromised agent owns its state directory, `/var/lib/ebpfsentinel`, and
+nothing else on the host. The configuration is `root:ebpfsentinel` at `0640`:
+the agent reads it and cannot rewrite it. A file the configuration names (a
+TLS key, a JWT public key, a feed, the enterprise licence) must be readable by
+the group `ebpfsentinel` as well.
+
+The host's `/sys/fs/bpf` belongs to root, so the unit gives the agent a tmpfs
+there, in a mount namespace of its own, and the agent creates the directory the
+delegated bpffs is mounted on. Do not set `NoNewPrivileges` on the agent unit:
+under it AppArmor refuses the transition into the agent's profile, which is
+what grants the user namespace on Ubuntu.
+
+### Unprivileged user namespaces, per distribution
+
+The agent creates its user namespace as an unprivileged user, so the host must
+allow that user one. When it does not, the agent names the setting that refused
+it before exiting.
+
+| Distribution | Default | What the agent needs |
+|---|---|---|
+| Ubuntu 24.04 and later | `kernel.apparmor_restrict_unprivileged_userns=1` | the shipped AppArmor profile for the agent binary, loaded by the package and `install.sh`; nothing host-wide |
+| Ubuntu 22.04 | allowed | nothing |
+| Debian 12 and 13 | allowed (`kernel.unprivileged_userns_clone=1`) | nothing; a host hardened to `0` needs it back at `1` |
+| RHEL, Rocky, Alma 9 and 10 | allowed (`user.max_user_namespaces` sized by memory) | nothing; a host that set `user.max_user_namespaces=0` needs it raised |
+| Fedora | allowed | nothing |
+| SUSE Linux Enterprise 15 SP6, openSUSE | allowed | nothing |
+| Arch Linux | allowed | nothing |
+| NixOS | allowed (`security.allowUserNamespaces = true`) | nothing; the module refuses to build with it off |
+| Talos, Flatcar, Bottlerocket | allowed | nothing; these run the agent in a container |
+
+A hardening baseline (CIS, STIG) that sets `user.max_user_namespaces=0` refuses
+the agent on every distribution: the agent needs exactly one namespace per
+start, so `user.max_user_namespaces=1` is enough where a baseline wants the
+lowest number.
 
 ```bash
 sudo bash dist/install.sh                       # agent, warden, eBPF programs, units
@@ -275,8 +319,9 @@ the agent's own profile, `/etc/apparmor.d/ebpfsentinel-agent`, which the package
 and `install.sh` install: `sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent`.
 It grants `userns` to the agent alone. Setting the sysctl to `0` is the fallback
 where no profile can be loaded, and lifts the restriction for every binary.
-Elsewhere enable user namespaces (`kernel.unprivileged_userns_clone=1` where
-applicable), and grant the warden `CAP_SYS_ADMIN`.
+Elsewhere the agent names the setting that refused it: see
+[the table above](#unprivileged-user-namespaces-per-distribution). A container
+warden needs `CAP_SYS_ADMIN`.
 
 **Agent logs `move_mount: No such file or directory` or "bpffs path does not
 exist" (container only).**
@@ -292,9 +337,10 @@ user-namespace setup. Run it unconfined - `--security-opt apparmor=unconfined
 + `seccompProfile.type: Unconfined` (Kubernetes).
 
 **The warden rejects the agent (`rejecting peer uid …`).**
-The warden's `--uid` must match the uid the agent presents over `SO_PEERCRED`:
-`0` on a bare-metal root host (the agent maps namespace-0 to real root), `65534`
-in a container (the agent drops to nobody before unsharing).
+The uid the warden serves must be the one the agent presents over
+`SO_PEERCRED`: the `ebpfsentinel` user on a host (`--user ebpfsentinel` in the
+shipped unit), `65534` in a container or for an agent started as root by hand,
+which drops to it before unsharing. Root is never served.
 
 **A conntrack teardown, route change, or VIP ARP does nothing.**
 Confirm the warden is reachable - these are brokered to it. If the agent runs

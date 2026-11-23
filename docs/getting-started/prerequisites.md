@@ -50,12 +50,13 @@ eBPF loads **exclusively** through a BPF token - there is no `CAP_BPF`/`setcap`
 loading path. Two processes share the work: the **warden** broker runs as root,
 and the **agent** unshares its own user namespace, has the warden delegate a
 bpffs over a Unix socket, and creates the token there, holding no capability over
-the host. The host must allow unprivileged user namespaces:
+the host. The agent runs as its own unprivileged user, `ebpfsentinel`, never as
+root, so the host must allow an unprivileged user one user namespace; the
+[BPF token guide](../operations/deployment/bpf-token.md#unprivileged-user-namespaces-per-distribution)
+lists the setting per distribution.
 
 ```bash
-sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &
-sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
-  ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
+sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel
 ```
 
 The package and the release tarball install both as systemd units (`ebpfsentinel-warden` and

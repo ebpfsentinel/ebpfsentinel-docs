@@ -135,7 +135,7 @@ Your kernel was built without `CONFIG_DEBUG_INFO_BTF=y`. Install a BTF-enabled k
 
 ### Agent fails to start with "permission denied" / no eBPF attached
 
-Start the warden first and point the agent at its socket: without `EBPFSENTINEL_WARDEN_SOCK` the agent cannot create a BPF token, logs `BPF token unavailable - running in API-only mode` and attaches nothing. Under systemd, `sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel`; by hand, `sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &` then `sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml`. On Ubuntu 24.04 and later, `uid_map: Operation not permitted` means `kernel.apparmor_restrict_unprivileged_userns=1` is blocking the user namespace: load the shipped AppArmor profile with `sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent`, which grants the namespace to the agent alone. There is no `setcap` fallback.
+Start the warden first and point the agent at its socket: without `EBPFSENTINEL_WARDEN_SOCK` the agent cannot create a BPF token, logs `BPF token unavailable - running in API-only mode` and attaches nothing. Under systemd, `sudo systemctl enable --now ebpfsentinel-warden ebpfsentinel`; by hand, see [running the agent by hand](operations/deployment/binary.md): the agent drops to uid 65534 and needs a tmpfs on `/sys/fs/bpf` of its own. On Ubuntu 24.04 and later, `uid_map: Operation not permitted` means `kernel.apparmor_restrict_unprivileged_userns=1` is blocking the user namespace: load the shipped AppArmor profile with `sudo apparmor_parser -r -W /etc/apparmor.d/ebpfsentinel-agent`, which grants the namespace to the agent alone. There is no `setcap` fallback.
 
 ### No alerts are generated
 

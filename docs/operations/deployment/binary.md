@@ -69,8 +69,9 @@ sudo ./install.sh
 
 - installs `ebpfsentinel-agent` and `warden` into `/usr/local/bin/`;
 - copies the eBPF objects into `/usr/local/lib/ebpfsentinel/`;
-- installs the default config to `/etc/ebpfsentinel/config.yaml` with mode `0640`, and leaves an existing one untouched;
-- creates `/var/lib/ebpfsentinel/`, `/var/lib/ebpfsentinel/captures/`, `/var/lib/ebpfsentinel/data/` and `/var/lib/ebpfsentinel/auth/` (mode `0700`, where the agent writes the key it draws for itself);
+- creates the `ebpfsentinel` system user the agent runs as, with no login (`systemd-sysusers`, or `useradd` without it);
+- installs the default config to `/etc/ebpfsentinel/config.yaml`, `root:ebpfsentinel` at mode `0640`, and leaves an existing one untouched;
+- creates `/var/lib/ebpfsentinel/`, `/var/lib/ebpfsentinel/captures/`, `/var/lib/ebpfsentinel/data/` and `/var/lib/ebpfsentinel/auth/` (mode `0700`, where the agent writes the key it draws for itself), owned by `ebpfsentinel`;
 - installs both systemd units and runs `systemctl daemon-reload`;
 - on hosts where `kernel.apparmor_restrict_unprivileged_userns=1` (Ubuntu 24.04 and later), loads the per-binary AppArmor profile, or installs the sysctl drop-in when `apparmor_parser` is absent.
 
@@ -85,9 +86,11 @@ sudo install -Dm755 target/release/ebpfsentinel-agent /usr/local/bin/ebpfsentine
 sudo install -Dm755 target/release/warden /usr/local/bin/warden
 sudo mkdir -p /usr/local/lib/ebpfsentinel
 sudo cp target/bpfel-unknown-none/release/* /usr/local/lib/ebpfsentinel/
-sudo install -Dm640 config/ebpfsentinel.yaml /etc/ebpfsentinel/config.yaml
-sudo mkdir -p /var/lib/ebpfsentinel/captures /var/lib/ebpfsentinel/data
-sudo install -d -m 700 /var/lib/ebpfsentinel/auth
+sudo install -Dm644 dist/sysusers.d/ebpfsentinel.conf /usr/lib/sysusers.d/ebpfsentinel.conf
+sudo systemd-sysusers
+sudo install -Dm640 -g ebpfsentinel config/ebpfsentinel.yaml /etc/ebpfsentinel/config.yaml
+sudo install -d -m 750 -o ebpfsentinel -g ebpfsentinel /var/lib/ebpfsentinel /var/lib/ebpfsentinel/captures /var/lib/ebpfsentinel/data
+sudo install -d -m 700 -o ebpfsentinel -g ebpfsentinel /var/lib/ebpfsentinel/auth
 sudo install -Dm644 dist/ebpfsentinel-warden.service /etc/systemd/system/ebpfsentinel-warden.service
 sudo install -Dm644 dist/ebpfsentinel.service /etc/systemd/system/ebpfsentinel.service
 sudo systemctl daemon-reload
@@ -109,10 +112,10 @@ sudo systemctl reload ebpfsentinel
 
 What the shipped units do:
 
-- **`ebpfsentinel-warden.service`** runs `warden serve /run/ebpfsentinel/warden.sock --uid 0`. `RuntimeDirectory=ebpfsentinel` creates `/run/ebpfsentinel`; `--uid 0` is the only peer uid the warden accepts on its socket.
-- **`ebpfsentinel.service`** sets `EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock`, waits up to ten seconds for that socket to appear, then runs `ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml` from `WorkingDirectory=/var/lib/ebpfsentinel`. It carries `LimitMEMLOCK=infinity` for eBPF map allocation and `ExecReload` for `systemctl reload`. It `Wants` the warden rather than `Requires` it, so a warden restart does not stop the agent.
+- **`ebpfsentinel-warden.service`** runs `warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel`. `RuntimeDirectory=ebpfsentinel` creates `/run/ebpfsentinel`; the `ebpfsentinel` user is the only peer the warden accepts on its socket, and root is never served.
+- **`ebpfsentinel.service`** sets `EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock`, waits up to ten seconds for that socket to appear, then runs `ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml` from `WorkingDirectory=/var/lib/ebpfsentinel`, as the `ebpfsentinel` user with an empty capability bounding set, a read-only view of the rest of the system (`ProtectSystem=strict`) and a tmpfs on `/sys/fs/bpf` of its own. It carries `LimitMEMLOCK=infinity` for eBPF map allocation and `ExecReload` for `systemctl reload`. It `Wants` the warden rather than `Requires` it, so a warden restart does not stop the agent.
 
-Do not add `NoNewPrivileges=` to the agent unit: it blocks the user-namespace setup.
+Do not add `NoNewPrivileges=` to the agent unit: under it AppArmor refuses the transition into the agent's profile, which is what grants the user namespace on Ubuntu.
 
 ### The API key
 
@@ -204,11 +207,17 @@ A stall is a bug, so the restart is not the end of it. The journal carries
 `withholding the watchdog ping` with the idle time at the point the agent gave
 up, which is the line to attach to a report.
 
-Running the agent by hand needs the warden running first:
+Running the agent by hand needs the warden running first. Started as root, the
+agent drops to uid `65534` before its user namespace, which is the uid the
+warden serves by default, so that id must read the configuration, and the agent
+needs a tmpfs on `/sys/fs/bpf` in a mount namespace of its own:
 
 ```bash
-sudo warden serve /run/ebpfsentinel/warden.sock --uid 0 &
-sudo EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
+sudo warden serve /run/ebpfsentinel/warden.sock &
+sudo chown 65534:65534 /etc/ebpfsentinel/config.yaml
+sudo unshare --mount --propagation private \
+  sh -c 'mount -t tmpfs -o mode=1777 tmpfs /sys/fs/bpf && exec "$@"' sh \
+  env EBPFSENTINEL_WARDEN_SOCK=/run/ebpfsentinel/warden.sock \
   ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml
 ```
 
@@ -225,7 +234,7 @@ eBPF loads only through a BPF token; there is no capability-based loading path. 
 
 The agent keeps one connection to the warden per thing it brokers and reuses it for the life of the process; the warden answers each connection on a thread of its own. A connection that says nothing for ten minutes is closed by the warden and the agent reconnects on its next call, which costs a handshake and nothing else - except for the connection the capture sockets were served over, which is kept however long it idles, because the warden holds those sockets against it and freeing them while the agent still reads from them would hand the same socket to the next caller. A peer that connects and does not introduce itself within ten seconds is dropped.
 
-The unit runs the agent as root only so that user-namespace root maps to real root and the bpffs mountpoint can be created under `/sys/fs/bpf`. Once in its namespace the agent holds no capability over the host: no `CAP_BPF`, no `CAP_SYS_ADMIN`, no `CAP_NET_ADMIN`. The operations that need init-namespace capabilities (conntrack entry deletion, Multi-WAN route changes, gratuitous ARP, opening `AF_PACKET` capture sockets) are brokered by the warden rather than lost. See the [BPF token guide](bpf-token.md) for the full sequence and its troubleshooting.
+The unit runs the agent as the `ebpfsentinel` user, with an empty capability bounding set and a tmpfs on `/sys/fs/bpf` in a mount namespace of its own, where it creates the bpffs mountpoint; the host's `/sys/fs/bpf` stays root's. Once in its namespace the agent holds no capability over the host: no `CAP_BPF`, no `CAP_SYS_ADMIN`, no `CAP_NET_ADMIN`. The operations that need init-namespace capabilities (conntrack entry deletion, Multi-WAN route changes, gratuitous ARP, opening `AF_PACKET` capture sockets) are brokered by the warden rather than lost. See the [BPF token guide](bpf-token.md) for the full sequence and its troubleshooting.
 
 ## Removing
 

@@ -38,7 +38,7 @@ eBPF loads only through a BPF token, and the token needs a bpffs delegated by th
 
 1. the warden is running and its socket exists: `systemctl status ebpfsentinel-warden`, `ls -l /run/ebpfsentinel/warden.sock`;
 2. the agent has `EBPFSENTINEL_WARDEN_SOCK` pointing at that socket (the shipped unit sets it);
-3. the agent runs as the uid the warden was started with (`--uid 0` in the shipped unit); the warden refuses any other peer;
+3. the agent runs as the uid the warden serves (`--user ebpfsentinel` in the shipped unit, `65534` by default); the warden refuses any other peer, root included;
 4. unprivileged user namespaces are allowed on the host. On Ubuntu 24.04 and later `kernel.apparmor_restrict_unprivileged_userns=1` blocks them unless the agent's AppArmor profile is loaded, which `install.sh` does.
 
 There is no `setcap cap_bpf` fallback. See the [BPF token guide](deployment/bpf-token.md#troubleshooting).

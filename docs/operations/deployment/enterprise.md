@@ -126,7 +126,7 @@ for the tarball; stop at either failure. Then unpack and install:
 tar xzf "ebpfsentinel-enterprise-${VER}-linux-${ARCH}.tar.gz"
 cd "ebpfsentinel-enterprise-${VER}-linux-${ARCH}"
 sudo ./install.sh
-sudo install -m 0640 my-license.key /etc/ebpfsentinel/license.key
+sudo install -m 0640 -g ebpfsentinel my-license.key /etc/ebpfsentinel/license.key
 sudo systemctl enable --now ebpfsentinel-enterprise-warden ebpfsentinel-enterprise
 journalctl -u ebpfsentinel-enterprise -u ebpfsentinel-enterprise-warden -f
 ```
@@ -137,9 +137,12 @@ version and BTF, then:
 - installs `ebpfsentinel-enterprise-agent`, `enterprise-warden` and
   `ebpfsentinel-license` into `/usr/local/bin/`;
 - copies the eBPF objects into `/usr/local/lib/ebpfsentinel/`;
-- installs the config to `/etc/ebpfsentinel/config.yaml` with mode `0640`, and
-  leaves an existing one untouched;
-- creates `/var/lib/ebpfsentinel/`, `captures/` and `data/` under it;
+- creates the `ebpfsentinel` system user the agent runs as, with no login;
+- installs the config to `/etc/ebpfsentinel/config.yaml`, `root:ebpfsentinel`
+  at mode `0640`, and leaves an existing one untouched; the licence, and any
+  file the config names, must be readable by the group `ebpfsentinel` too;
+- creates `/var/lib/ebpfsentinel/`, `captures/` and `data/` under it, owned by
+  `ebpfsentinel`;
 - installs both units and runs `systemctl daemon-reload`;
 - on hosts where `kernel.apparmor_restrict_unprivileged_userns=1`, loads the
   per-binary AppArmor profile, or installs the sysctl drop-in when
@@ -150,13 +153,15 @@ It enables and starts nothing.
 What the units do:
 
 - **`ebpfsentinel-enterprise-warden.service`** runs
-  `enterprise-warden serve /run/ebpfsentinel/warden.sock --uid 0`, with
-  `RuntimeDirectory=ebpfsentinel` creating the socket directory.
+  `enterprise-warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel`,
+  with `RuntimeDirectory=ebpfsentinel` creating the socket directory; the
+  `ebpfsentinel` user is the only peer it serves, and root is never served.
 - **`ebpfsentinel-enterprise.service`** sets `EBPFSENTINEL_WARDEN_SOCK` and
   `EBPFSENTINEL_LICENSE=/etc/ebpfsentinel/license.key`, waits up to ten seconds
   for the warden socket, then runs
-  `ebpfsentinel-enterprise-agent --config /etc/ebpfsentinel/config.yaml` from
-  `/var/lib/ebpfsentinel`, where the relative `data/*.redb` paths resolve. It
+  `ebpfsentinel-enterprise-agent --config /etc/ebpfsentinel/config.yaml` as the
+  `ebpfsentinel` user, with no capability and a tmpfs on `/sys/fs/bpf` of its
+  own, from `/var/lib/ebpfsentinel`, where the relative `data/*.redb` paths resolve. It
   `Wants` rather than `Requires` the warden, so a warden restart does not stop
   the agent.
 
