@@ -69,7 +69,7 @@ The agent is split in two containers, both on the host network:
 
 | Container | User | Privileges |
 |-----------|------|------------|
-| Warden | root | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH`; AppArmor and seccomp unconfined |
+| Warden | root | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH`; read-only root filesystem; the runtime's AppArmor and seccomp profiles off, replaced by the warden's own no-new-privileges, Landlock and seccomp filter, set before it serves |
 | Agent | `65534` | `cap_drop: ALL`; AppArmor unconfined; seccomp either unconfined or the tailored profile `ebpfsentinel-agent.json`, a release asset |
 
 Neither runs `--privileged`. The warden delegates a bpffs to the agent, which
@@ -104,7 +104,6 @@ All features require kernel **6.12+**, the agent's floor. Here is when each eBPF
 | `bpf_tcp_raw_gen_syncookie_ipv4/_ipv6` | 6.0+ | Forging the SYN-ACK cookie in `xdp-ratelimit-syncookie` |
 | `bpf_tcp_raw_check_syncookie_ipv4/_ipv6` | 6.0+ | Validating the returning ACK in `xdp-ratelimit` |
 | `bpf_loop` | 5.17+ | XDP firewall rule iteration, NAT rule scanning |
-| BPF Bloom filter | 5.16+ | TC threat intel IOC pre-check |
 | `bpf_check_mtu` | 5.12+ | MTU validation in XDP rate limiting and firewall |
 | BPF ring buffer | 5.8+ | Event emission from the eight programs that report events |
 | `bpf_ringbuf_query` | 5.8+ | Backpressure and batched reader wakeups, in every event-emitting program |

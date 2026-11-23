@@ -168,6 +168,24 @@ the host pid namespace is not one of them:
   name is one no interface could carry. The namespace is entered on a thread
   that ends with the request, so nothing else the warden serves ever runs
   inside a pod.
+- **The warden confines itself before it serves.** Once the pcap pool and
+  module BTF are open and the socket is bound, the warden sets
+  no-new-privileges, restricts itself with Landlock where the kernel offers it
+  (no execution anywhere, no file created, written or removed outside the link
+  pin directory, and only new files in the directory of each canary the
+  policy names), and installs a seccomp filter. In that filter `execve`,
+  `ptrace`, the mount family, module loading, `kexec`, `unshare`, the uid and
+  capability setters, `keyctl` and `io_uring` kill the process; a thread may
+  not be created in a new namespace and `setns` enters a network namespace
+  only; any call on no list fails with `EPERM`, so a call the list missed
+  fails one request instead of stopping the broker. A warden that cannot set
+  no-new-privileges or the filter refuses to serve; a kernel without Landlock
+  is logged as the weaker posture it is (whether Landlock is built and listed
+  in `lsm=` is the distribution's choice). Reads stay open: the file watch, the DLP scan and
+  the runtime stores read host paths the configuration names. The start-up
+  log prints the posture, for example `[warden] confined: no new privileges,
+  Landlock ABI 6, seccomp filter`, and `grep -E 'NoNewPrivs|Seccomp'
+  /proc/$(pidof warden)/status` reads `1` and `2`.
 
 What that mount lets an alert say is part of the cost. A DLP alert names the
 binary of the writing process, read through the same `/host/proc`, and the

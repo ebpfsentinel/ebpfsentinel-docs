@@ -282,7 +282,10 @@ docker compose logs -f
 The warden container holds `CAP_SYS_ADMIN` / `CAP_NET_ADMIN` / `CAP_NET_RAW` /
 `CAP_SYS_PTRACE` / `CAP_BPF` / `CAP_PERFMON` with
 `apparmor=unconfined` + `seccomp=unconfined` (it does `fsconfig` + netlink +
-`AF_PACKET` + the DLP uprobe link). The agent container holds **no** capabilities but still runs
+`AF_PACKET` + the DLP uprobe link), on a read-only root filesystem. The
+runtime's profiles are off because the warden installs a stricter one of its
+own before it serves; see the
+[security model](../../architecture/security-model.md). The agent container holds **no** capabilities but still runs
 `apparmor=unconfined` and a tailored seccomp profile
 (`ebpfsentinel-agent.json`, published with every release: the Docker default plus an
 unconditional allow for `unshare` / the `mount` family / `bpf`): it self-unshares
