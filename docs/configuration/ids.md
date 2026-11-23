@@ -146,10 +146,10 @@ What holds across the import:
 The default share is deliberately strict. Every category of the Emerging
 Threats Open build for Suricata 8 loads under it: the one refusing the most,
 `emerging-current_events.rules`, refuses 7 of its 60 rules, and the whole
-corpus 0.6% (measured in
+corpus 0.3% (measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
-A ruleset of your own written against a protocol the engine does not decode
-yet, such as SMB or RDP, refuses more; check one first without an agent:
+A ruleset of your own reading the fields of a protocol the engine does not
+decode yet, such as DCE/RPC interfaces, refuses more; check one first without an agent:
 
 ```bash
 ebpfsentinel-agent ids suricata-check emerging-scan.rules --address-var HOME_NET=10.0.0.0/8

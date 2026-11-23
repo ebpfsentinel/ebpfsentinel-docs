@@ -92,7 +92,7 @@ rules:
 Suricata rulesets listed under `ids.suricata` are compiled at load into
 ordinary detection rules, decided on the payload in userspace. A rule using a
 keyword the engine cannot evaluate - a field of a protocol it does not decode,
-such as RDP or SMB - is refused rather than loaded with that part
+such as a DCE/RPC interface or an SMB share - is refused rather than loaded with that part
 ignored, and each refusal names its keyword. A ruleset refusing more than the
 configured share fails the load. See
 [Configuration: IDS](../configuration/ids.md#suricata-rulesets) for the
@@ -109,9 +109,10 @@ query. This engine reassembles TCP the same way on a connection whose handshake 
 saw, and reads each rule on the packet, on the stream or on both, as Suricata
 decides; every other rule sees the whole packet, headers included, for any
 protocol. It finds a flow's application protocol from its bytes for HTTP/1,
-TLS, SSH, SMTP, FTP and DNS, whatever the port, and decodes HTTP/1, DNS and
+TLS, SSH, SMTP, FTP, DNS, SMB and DCE/RPC, whatever the port, RDP and
+Telnet on their ports, and decodes HTTP/1, DNS and
 TLS into the buffers Suricata names, the JA3, JA3S and JA4 fingerprints
-included; the fields of the other protocols are not decoded yet. 52,764 of
+included; the fields of the other protocols are not decoded yet. 52,934 of
 the 53,073 enabled rules of the Emerging Threats Open Suricata 8 build
 compile, and the rest are refused by name before
 anything loads (the corpus measured in
@@ -162,7 +163,7 @@ engine's gaps, not choices Suricata leaves open:
 
 | Suricata capability | Here |
 |---|---|
-| Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `smb`, `rdp`, `telnet` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
+| Application-layer buffers of the other protocols: `mdns.*`, `file.*` beyond HTTP bodies, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is an application protocol the agent does not find (`http2`, `sip`, `ike` and the rest) | No. Nearly every refused rule in the measured corpus is refused for this |
 | An HTTP buffer and a content on the payload in the same rule | No, Suricata loads it. 67 rules of the measured corpus |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
