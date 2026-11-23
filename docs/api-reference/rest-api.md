@@ -628,10 +628,10 @@ capability above the kernel floor, active or not, read from the blocks above
 rather than asked again. `active` is decided from what the probes and attaches
 saw on this host and never from the kernel version, so two nodes on the same
 version can answer differently. An inactive entry carries `cause`, one of
-`kernel_older`, `not_declared`, `lsm_inactive`, `not_probed` or `refused`, a
-`reason` sentence, the `fallback` that runs instead and, where a change on the
-host would help, a `hint`: the `lsm=` boot parameter to set, or the way to a
-newer kernel on this distribution. A capability the probe could not ask for lack
+`not_declared`, `lsm_inactive`, `not_probed` or `refused`, a `reason` sentence, the `fallback` that runs instead and, where a change on the
+host would help, a `hint`: the `lsm=` boot parameter to set. Every entry rests
+on something the kernel floor already guarantees exists, so no hint names a
+kernel to install. A capability the probe could not ask for lack
 of privilege carries no hint, because no kernel would change that answer. The
 same identifiers label the `ebpfsentinel_kernel_capability_active` gauge.
 
