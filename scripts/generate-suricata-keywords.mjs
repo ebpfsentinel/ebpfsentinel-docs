@@ -38,6 +38,7 @@ const MARKER_ID = 'SURICATA KEYWORDS';
 const SUPPORT = new Map([
   ['Compiled', 'Compiled'],
   ['Accepted', 'Accepted, changes nothing'],
+  ['Pending', 'Parsed, not yet inspected'],
   ['Refused', 'Refused'],
 ]);
 
@@ -154,5 +155,6 @@ if (checkOnly) {
 const count = (support) => rows.filter((row) => row.support === support).length;
 console.log(
   `Suricata keywords OK: ${rows.length} keywords, ${count('Compiled')} compiled, ` +
-    `${count('Accepted')} accepted, ${count('Refused')} refused by name.`,
+    `${count('Accepted')} accepted, ${count('Pending')} parsed but not yet inspected, ` +
+    `${count('Refused')} refused by name.`,
 );
