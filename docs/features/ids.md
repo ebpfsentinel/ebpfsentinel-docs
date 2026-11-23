@@ -91,8 +91,8 @@ rules:
 
 Suricata rulesets listed under `ids.suricata` are compiled at load into
 ordinary detection rules, decided on the payload in userspace. A rule using a
-keyword the engine cannot evaluate - state kept across packets, an HTTP, DNS or
-TLS field, a reassembled stream - is refused rather than loaded with that part
+keyword the engine cannot evaluate - an HTTP, DNS or TLS field, a header it
+does not decode - is refused rather than loaded with that part
 ignored, and each refusal names its keyword. A ruleset refusing more than the
 configured share fails the load. See
 [Configuration: IDS](../configuration/ids.md#suricata-rulesets) for the
@@ -105,11 +105,12 @@ compiler works from.
 Suricata is a stream and protocol engine: it reassembles each TCP connection
 by sequence number, decodes some thirty application protocols, and lets a
 rule look at a decoded field such as an HTTP URI, a TLS server name or a DNS
-query. This engine reads packets: a TCP rule on listed ports sees the payload
-of one segment at a time, and every other rule sees the whole packet, headers
-included, for any protocol. It decodes no application protocol for the rules
-to read. Most of the Emerging Threats Open corpus is written against what
-Suricata decodes, so most of it is refused: 5,021 of the 53,073 enabled rules
+query. This engine reassembles TCP the same way on a connection whose handshake it
+saw, and reads each rule on the packet, on the stream or on both, as Suricata
+decides; every other rule sees the whole packet, headers included, for any
+protocol. It decodes no application protocol for the rules to read yet. Most
+of the Emerging Threats Open corpus is written against what Suricata decodes,
+so most of it is refused: 5,223 of the 53,073 enabled rules
 of the Suricata 8 build compile, and the rest are refused by name before
 anything loads (the corpus measured in
 [Importing Emerging Threats Open](../examples/scenarios/suricata-migration.md#step-3-the-whole-corpus-measured)).
@@ -118,7 +119,8 @@ What an imported rule can do here:
 
 | Suricata capability | Here |
 |---|---|
-| `content` with `nocase`, `offset`, `depth`, `distance`, `within`, `startswith`, `endswith`, negated or not, with Suricata's backtracking | Yes, on one captured segment |
+| `content` with `nocase`, `offset`, `depth`, `distance`, `within`, `startswith`, `endswith`, negated or not, with Suricata's backtracking | Yes, on the packet and on the reassembled stream |
+| TCP stream reassembly by sequence number: segments reordered, overlaps resolved first-data-wins, a retransmission inspected once, each side flushed when the other acknowledges 2560 bytes, on its FIN or on a reset, and at the end of the flow; `stream_size`, `flow:only_stream`, `flow:no_stream`, `tcp-stream` and `tcp-pkt` | Yes, on a connection whose SYN was seen, up to 1 MiB of each side. A rule mixing `only_stream` or `tcp-stream` with a packet keyword is refused, as Suricata refuses it |
 | `pcre` on PCRE2 with flags `i`, `s`, `m`, `x`, `A`, `E`, `G`, `R`, lookarounds and backreferences | Yes; an expression PCRE2 refuses is refused, as Suricata refuses it |
 | `isdataat`, `bsize`, `byte_test`, `byte_jump`, `byte_extract`, `byte_math`, `entropy`, `base64_decode`, `base64_data` | Yes, on the captured payload |
 | Transforms: `to_lowercase`, `to_uppercase`, `strip_whitespace`, `compress_whitespace`, `url_decode`, `from_base64`, `to_md5`, `to_sha1`, `to_sha256`, `xor`, `pcrexform`, `dotprefix`, `header_lowercase`, `strip_pseudo_headers` | Yes |
@@ -148,7 +150,6 @@ engine's gaps, not choices Suricata leaves open:
 | Suricata capability | Here |
 |---|---|
 | Application-layer buffers: `http.*`, `tls.*`, `dns.*`, `ja3`, `file.*`, `smb`, `dcerpc`, `ssh`, `smtp`, `ftp` keywords, and rules whose protocol is `http`, `tls`, `dns` or another application protocol | No. Nine refused rules in ten in the measured corpus are refused for this |
-| Stream reassembly by sequence number, `stream_size`, `flow:only_stream`, `flow:no_stream` | No. A pattern split across two segments is not seen |
 | Link-layer and other headers: `vlan.id`, `ether.hdr`, `igmp.type`, `sctp.*`, `tcp.session`, `flow.elephant`, `flow:only_frag`, `flow:no_frag` | No |
 | A pcre flag naming an application-layer buffer (`U`, `H`, `C` and the rest) | No, for the reason of the first row |
 | `drop`, `reject`, `pass` actions, inline blocking | No, an imported rule alerts and never drops: the match is decided after the segment has gone through |
@@ -156,11 +157,11 @@ engine's gaps, not choices Suricata leaves open:
 
 How a captured payload differs from what Suricata inspects:
 
-- **One segment, up to 2048 bytes.** The kernel copies at most 2048 bytes of a
-  segment's payload, or of a whole packet from its IP header; `offset` and
-  `depth` count within that. A pattern beyond it, or across two segments, does
-  not match. `dsize` still reads the length the IP header declares, so a
-  packet cut short keeps its size.
+- **Packets up to 2048 bytes.** The kernel copies at most 2048 bytes of a
+  packet from its IP header; a longer one is cut, counted in
+  `packets_truncated`, and its missing bytes are a hole in the stream as a
+  lost segment would be. `dsize` still reads the length the IP header
+  declares, so a packet cut short keeps its size.
 - **Captured for the loaded rules.** The kernel copies a TCP payload only on
   the ports content rules name, and hands up a whole packet only for the
   protocols and ports the rules read on the packet need: a ruleset with none
@@ -169,8 +170,13 @@ How a captured payload differs from what Suricata inspects:
   counted (`packets_captured`, `packets_lost`, `packets_truncated` below).
 - **Sessions from the first packet seen.** A flow's session starts with the
   first packet the kernel hands up: a TCP connection opened before the rules
-  loaded is never established for them, as in a Suricata that started after it
-  (with `stream.midstream` off, its default).
+  loaded is never established for them and its stream is not kept, as in a
+  Suricata that started after it (with `stream.midstream` off, its default).
+- **The stream's last bytes alert when the flow ends.** Bytes the other side
+  has not acknowledged are held, as Suricata holds them, and inspected on the
+  side's FIN, a reset, or once the flow has been idle past its timeout. Held
+  bytes across all connections are capped at 256 MiB; a segment arriving past
+  that is not kept, and its bytes are a hole in its stream.
 - **Fail-open under load.** When the ring buffer to userspace is more than
   three quarters full, the kernel skips the event rather than slow the
   traffic: under a burst a segment can go uninspected.

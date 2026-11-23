@@ -71,33 +71,32 @@ The same check run over every category of that release:
 | Measure | Value |
 |---------|-------|
 | Enabled rules | 53,073 |
-| Compiled | 5,021 |
-| Native detection rules | 5,021 |
-| Refused share | 90.5% |
+| Compiled | 5,223 |
+| Native detection rules | 5,223 |
+| Refused share | 90.2% |
 
 The categories that compile the most:
 
 | Category | Enabled | Compiled | Refused share |
 |----------|---------|----------|---------------|
-| `emerging-malware.rules` | 19,511 | 1,304 | 93.3% |
+| `emerging-malware.rules` | 19,511 | 1,472 | 92.5% |
 | `tor.rules` | 851 | 851 | 0.0% |
-| `emerging-hunting.rules` | 1,422 | 558 | 60.8% |
+| `emerging-hunting.rules` | 1,422 | 564 | 60.3% |
 | `emerging-netbios.rules` | 392 | 361 | 7.9% |
-| `emerging-exploit.rules` | 1,717 | 335 | 80.5% |
+| `emerging-exploit.rules` | 1,717 | 341 | 80.1% |
 | `ciarmy.rules` | 300 | 300 | 0.0% |
-| `emerging-info.rules` | 4,550 | 211 | 95.4% |
+| `emerging-info.rules` | 4,550 | 226 | 95.0% |
 | `emerging-sql.rules` | 191 | 190 | 0.5% |
 
 What the refused rules ask for, by the first keyword that stopped each one:
 
 | Refused for | Rules |
 |-------------|-------|
-| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb`, `telnet` and the rest) | 47,845 |
-| The reassembled stream (`stream_size`, `flow:only_stream`, `flow:no_stream`) | 203 |
+| An application-layer buffer or protocol (`http`, `dns`, `tls`, `smtp`, `rdp`, `ftp`, `smb`, `telnet` and the rest) | 47,846 |
 | `asn1` | 4 |
 
-Every refusal but seven is a rule written against a field Suricata decodes
-or a stream it reassembles, and this engine does neither. Suricata runs every one of them. This engine does not,
+Every refusal but four is a rule written against a field Suricata decodes,
+and this engine decodes none. Suricata runs every one of them. This engine does not,
 and [Compared with Suricata](../../features/ids.md#compared-with-suricata)
 says capability by capability what it does instead.
 
@@ -153,7 +152,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `classtype` | Compiled | Kept with the rule, and sets the severity from the stock classification priorities. |
 | `priority` | Compiled | Sets the severity: 1 is high, 2 medium, 3 and above low. |
 | `reference` | Compiled | Kept with the rule. |
-| `flow` | Compiled | `established`, `not_established`, `stateless` and the four direction words. A rule read on every packet asks the session the agent keeps from them: the client sent the first packet, TCP is established after its handshake, another protocol once answered. A TCP rule read on the payload is captured only on an established connection, its direction the header's port side. `only_stream`, `no_stream`, `only_frag` and `no_frag` are refused. |
+| `flow` | Compiled | `established`, `not_established`, `stateless` and the four direction words. A rule read on every packet asks the session the agent keeps from them: the client sent the first packet, TCP is established after its handshake, another protocol once answered. On a TCP connection whose SYN was seen, a rule is read on each packet, on the stream as Suricata inspects it, or on both, as Suricata decides; `only_stream` keeps it to the stream, and a packet keyword beside it is refused as Suricata refuses it; `no_stream` keeps it to the packet. `only_frag` and `no_frag` are refused. |
 | `content` | Compiled | Literal and `\|hex\|` bytes, negated with `!`. A match moves the cursor to its end, and when a later match fails the engine tries the next occurrence, as Suricata does. |
 | `nocase` | Compiled | ASCII case-insensitive match of the content before it. |
 | `offset` | Compiled | From the start of the buffer. |
@@ -188,6 +187,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `flow.bytes` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
 | `flow.bytes_toserver` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
 | `flow.bytes_toclient` | Compiled | Counted on every packet of the flow the kernel hands over, the packet judged included, bytes from the link layer; `either` holds when either direction's count does. |
+| `stream_size` | Compiled | Each side's bytes as Suricata counts them: its SYN, every byte up to the highest sequence number sent, and its FIN from the packet after it. Read on every packet of a connection whose SYN was seen; never matches midstream. |
 | `flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `tcp.flags` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
 | `seq` | Compiled | Read on every packet the kernel hands up for the rule's protocol and ports, headers included. |
@@ -246,8 +246,7 @@ yet inspected** (the engine reads it but does not evaluate it yet) or
 | `flowvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the flow. |
 | `pktvar` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until pcre captures are kept on the packet. |
 | `flow.elephant` | Parsed, not yet inspected | Parsed and checked; refused until the agent measures a flow's rate the way Suricata decides an elephant. |
-| `stream_size` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
-| `tcp.session` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until TCP is reassembled by sequence number. |
+| `tcp.session` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the session phases it names are compared with Suricata. |
 | `dataset` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
 | `datarep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the datasets the configuration names are loaded. |
 | `iprep` | Parsed, not yet inspected | Parsed and checked; a rule carrying it is refused until the reputation lists the configuration names are loaded. |

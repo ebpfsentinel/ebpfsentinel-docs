@@ -111,8 +111,8 @@ leg of a conversation.
 ### Suricata rulesets
 
 A Suricata ruleset is compiled when the configuration is loaded, one rule at a
-time. A rule whose every keyword the engine can evaluate on a captured TCP
-payload becomes one detection rule per port it names; any other rule is
+time. A rule whose every keyword the engine can evaluate on a captured packet or
+on a reassembled TCP stream becomes one detection rule per port it names; any other rule is
 refused, and the refusal names the keyword that stopped it. Nothing is
 approximated: a rule either means here what it means in Suricata, or it does
 not load. What was refused is read with `ids suricata` or
@@ -144,8 +144,8 @@ What holds across the import:
   configuration; on a reload the one already running stays in place.
 
 The default share is deliberately strict. A whole Emerging Threats Open
-corpus is mostly rules on HTTP, DNS and TLS fields and on flow state, which
-the engine does not evaluate, so it refuses about 99% of its rules and fails
+corpus is mostly rules on HTTP, DNS and TLS fields, which the engine does
+not evaluate yet, so it refuses about 90% of its rules and fails
 the load at `0.5`. Import the categories written on raw content, such as scan
 or exploit rulesets, and check one first without an agent:
 
