@@ -146,7 +146,7 @@ signal program acts on a process:
 | `tc-nat-ingress` | TC ingress | NPTv6 prefix translation, hairpin NAT, destination NAT (DNAT), port mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-nat-egress` | TC egress | NPTv6 prefix translation, source NAT (SNAT), reverse mapping, checksum updates, IPv4/IPv6, interface groups |
 | `tc-ids` | TC classifier | Regex matching, kernel sampling, full packet sizing (`bpf_dynptr_size`), RingBuf backpressure, interface groups |
-| `tc-threatintel` | TC classifier | Bloom filter pre-check, LRU hash IOC confirmation, VLAN and QinQ tag parsing, backpressure |
+| `tc-threatintel` | TC classifier | Address and CIDR range IOC matching, atomic slot flip on reload, VLAN and QinQ tag parsing, backpressure |
 | `tc-qos` | TC ingress + egress | Per-pipe token bucket bandwidth limiting with ECN CE marking, 4-level classifier, EDT pacing (`bpf_skb_set_tstamp`), delay/loss emulation, interface groups |
 | `tc-dns` | TC classifier | Passive DNS capture |
 | `uprobe-dlp` | uprobe | SSL/TLS content inspection |

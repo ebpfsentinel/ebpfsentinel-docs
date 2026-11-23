@@ -40,7 +40,7 @@ threatintel:
 | `mode` | `string` | `"alert"` | Global enforcement mode. `"alert"` = log matches, pass traffic. `"block"` = drop traffic to/from IOC-listed IPs |
 | `country_confidence_boost` | `map<string, integer>` | `{}` | Per-country confidence adjustment (ISO 3166-1 alpha-2 → signed integer). Positive values increase IOC confidence for traffic from listed countries, negative values decrease it. Values are clamped to 0-100 after adjustment |
 | `feeds` | `[Feed]` | `[]` | List of feed configurations |
-| `max_entries` | `integer` | derived | Capacity of the kernel IOC tables (IPv4 and IPv6 each, plus their bloom filters), 4,096 to 4,194,304. When unset it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor rather than the tables' former fixed million slots. Locked kernel memory, about 80 bytes per slot per table, is paid at load whether the slots are used or not. Applies at the next agent start; a value changed by a reload is reported, not applied |
+| `max_entries` | `integer` | derived | Capacity of each kernel threat intel table, 4,096 to 4,194,304: IPv4 addresses, IPv6 addresses, IPv4 ranges and IPv6 ranges each hold up to this many, and the engine as a whole holds as many. When unset it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor. Every table exists twice (the slot in force and the one a reload writes), and none is preallocated, so locked kernel memory follows the indicators loaded, twice over during a reload. A feed set that does not fit is refused whole, the error names the table, and the set in force keeps matching; nothing is evicted. Applies at the next agent start; a value changed by a reload is reported, not applied |
 
 ### Feed
 
@@ -98,12 +98,12 @@ The `category_field` is normalized to one of:
 
 ### Plaintext
 
-One IP per line. Lines starting with `comment_prefix` (default: `#`) are skipped. Only the first whitespace-separated token is taken (inline comments are allowed). CIDR entries (containing `/`) are skipped. All IOCs receive confidence=100.
+One address or CIDR range per line. Lines starting with `comment_prefix` (default: `#`) are skipped. Only the first whitespace-separated token is taken (inline comments are allowed). A range matches every address it holds; host bits below the prefix are cleared and a `/0` is refused. All IOCs receive confidence=100.
 
 ```
 # This is a comment
 192.168.1.1         # Inline comment OK
-10.0.0.0/8          # CIDR - skipped
+198.51.100.0/24     # Range - matches 198.51.100.0 to 198.51.100.255
 203.0.113.42
 ```
 
@@ -260,7 +260,7 @@ dns:
     action: block
     inject_target: threatintel
     # When *.malware-cdn.com resolves to 198.51.100.42,
-    # that IP is auto-injected into THREATINTEL_IOCS.
+    # that IP is auto-injected into the threat intel kernel tables.
     # Removed when DNS TTL expires (+grace period).
 ```
 

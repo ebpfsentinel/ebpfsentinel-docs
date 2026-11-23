@@ -102,7 +102,7 @@ Every map but the ring buffers is pinned under `/sys/fs/bpf/ebpfsentinel/` by na
 
 - Rule and lookup tables (firewall LPM tries, IP sets, NAT, load balancer)
 - Interface group and tenant mappings (`INTERFACE_GROUPS`, tenant maps)
-- Rate limit buckets and threat intelligence bloom filter state
+- Rate limit buckets, and the threat intelligence tables with the slot selector
 - CT config and BTF offsets (`CT_CONFIG`, `CT_NF_CONN_OFFSETS`)
 - Per-program counters, which carry on rather than restart from zero
 

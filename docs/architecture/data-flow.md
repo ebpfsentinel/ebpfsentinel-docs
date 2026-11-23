@@ -80,8 +80,8 @@ flowchart TD
         IDS --> IDS_PARSE --> IDS_SAMPLE --> IDS_EMIT
 
         TI["tc-threatintel"]
-        TI_BLOOM["Bloom filter pre-check"]
-        TI_VLAN["LRU hash confirmation\n+ VLAN tag on event"]
+        TI_BLOOM["Slot selector\n(A or B)"]
+        TI_VLAN["Address hash, then CIDR trie\n+ VLAN tag on event"]
         IDS_EMIT --> TI --> TI_BLOOM --> TI_VLAN
 
         DNS["tc-dns"]
@@ -321,8 +321,7 @@ Some eBPF maps are updated from userspace:
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp thresholds, conntrack settings |
 | CT_NF_CONN_OFFSETS | Userspace → Kernel | Runtime BTF offsets for `nf_conn` field reads |
 | XDP PROG_ARRAYs | Userspace → Kernel | Tail-call wiring: firewall → ratelimit/reject/loadbalancer/VIP announcer, ratelimit → syncookie/loadbalancer |
-| Threat intel Bloom filter | Userspace → Kernel | IOC feed refresh |
-| Threat intel LRU hash maps | Userspace → Kernel | IOC exact-match confirmation |
+| Threat intel tables (slot A or B) | Userspace → Kernel | IOC feed refresh: idle slot written, then `THREATINTEL_SLOT` flipped |
 | IPS blacklist | Userspace → Kernel | Auto-block IPs |
 | Threat intel or IPS maps, from the DNS blocklist | Userspace → Kernel | Addresses a blocked domain resolved to |
 | LB service/backend maps | Userspace → Kernel | Load balancer service definitions |

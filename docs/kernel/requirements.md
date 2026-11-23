@@ -132,9 +132,9 @@ This table is generated from the same requirement table the agent probes with (`
 | [`BPF_MAP_TYPE_PROG_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PROG_ARRAY/) | 4.2+ | xdp-firewall, xdp-ratelimit | Tail-call chaining |
 | [`BPF_MAP_TYPE_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_HASH/) | 4.6+ | xdp-vip-announcer | Per-CPU announce state |
 | [`BPF_MAP_TYPE_PERCPU_ARRAY`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_ARRAY/) | 4.6+ | Every program but xdp-pass | Per-CPU metrics counters and scratch space |
-| [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) | 4.10+ | tc-threatintel, tc-nat-ingress, uprobe-dlp, xdp-firewall-reject | Auto-evicting state (IOC hits, hairpin mappings, pending TLS reads) |
+| [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) | 4.10+ | tc-nat-ingress, uprobe-dlp, xdp-firewall-reject | Auto-evicting state (hairpin mappings, pending TLS reads) |
 | [`BPF_MAP_TYPE_LRU_PERCPU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_PERCPU_HASH/) | 4.10+ | xdp-ratelimit, tc-qos | Rate-limit buckets and per-flow departure times |
-| [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/) | 4.11+ | xdp-firewall, xdp-ratelimit, tc-ids, tc-nat-ingress, tc-nat-egress, tc-qos | CIDR matching |
+| [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/) | 4.11+ | xdp-firewall, xdp-ratelimit, tc-ids, tc-nat-ingress, tc-nat-egress, tc-qos, tc-threatintel | CIDR matching |
 | [`BPF_MAP_TYPE_DEVMAP`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_DEVMAP/) | 4.14+ | xdp-loadbalancer | Redirect to a backend interface |
 | [`BPF_MAP_TYPE_RINGBUF`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/) | 5.8+ | xdp-firewall, xdp-ratelimit, xdp-loadbalancer, tc-ids, tc-threatintel, tc-dns, tc-qos, uprobe-dlp | Kernel to userspace events |
 | [`BPF_MAP_TYPE_BLOOM_FILTER`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) | 5.16+ | tc-threatintel | IOC pre-filtering |
@@ -289,7 +289,7 @@ ls /sys/kernel/btf/vmlinux
 sudo bpftool feature probe kernel
 
 # Check specific map type support
-sudo bpftool feature probe kernel | grep -i bloom
+sudo bpftool feature probe kernel | grep -i "map_type hash"
 sudo bpftool feature probe kernel | grep -i lpm
 
 # Check loaded eBPF programs

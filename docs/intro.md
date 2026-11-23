@@ -24,7 +24,7 @@ One agent binary carries every security domain. Its packet engines:
 | **Rate Limiting** | Per-IP/subnet rate limiting with 4 algorithms (token bucket, fixed/sliding window, leaky bucket), per-country tiers, SYN cookie generation | XDP |
 | **DDoS Mitigation** | SYN cookie forging (XDP_TX), ICMP/UDP/RST/FIN/ACK flood detection, volumetric thresholds, EWMA state machine, auto-CIDR blocking | XDP + Userspace |
 | **Traffic Shaping / QoS** | Dummynet-inspired pipes (bandwidth/delay/loss), queues, 5-tuple+DSCP classifiers, per-pipe token bucket with ECN CE marking, EDT pacing (egress, needs `fq`), random loss | TC ingress + egress |
-| **Threat Intelligence** | Source-agnostic OSINT feeds (CSV, JSON, plaintext, STIX 2.1), Bloom filter pre-check, LRU hash IOC correlation, auto-blocking | TC classifier |
+| **Threat Intelligence** | Source-agnostic OSINT feeds (CSV, JSON, plaintext, STIX 2.1), address and CIDR range matching, atomic reload, auto-blocking | TC classifier |
 | **L7 Firewall** | Application-layer filtering for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB with GeoIP source/destination matching | Userspace |
 | **DNS Intelligence** | Passive DNS capture, domain blocklists, behavioral reputation scoring, encrypted DNS detection (DoH/DoT) | TC classifier |
 | **L4 Load Balancer** | TCP/UDP/TLS passthrough with round-robin, weighted, IP hash, least-connections algorithms | XDP |

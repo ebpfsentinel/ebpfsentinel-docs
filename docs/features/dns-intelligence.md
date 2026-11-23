@@ -17,7 +17,7 @@ The TC classifier identifies DNS traffic (UDP and TCP port 53) and emits DNS que
 1. **DNS parsing** - wire-format DNS packets are parsed to extract query names, response addresses, TTLs
 2. **Domain-to-IP cache** - maintains a mapping of domains to resolved IPs (used for alert enrichment across all domains)
 3. **Blocklist evaluation** - queries are checked against inline patterns and external feed-sourced blocklists
-4. **Threat intel injection** - when a blocked domain resolves to an IP, that IP is automatically injected into the threat intel kernel map (`THREATINTEL_IOCS`). The IP is removed when the DNS TTL expires (+grace period). This bridges domain-level blocklists with IP-level kernel enforcement
+4. **Threat intel injection** - when a blocked domain resolves to an IP, that IP is automatically injected into the threat intel kernel tables (the slot `THREATINTEL_SLOT` names). The IP is removed when the DNS TTL expires (+grace period). This bridges domain-level blocklists with IP-level kernel enforcement
 5. **Domain reputation integration** - DNS data feeds into the domain reputation scoring engine. CTI matches contribute a `CtiMatch` factor (weight 0.8) to the score; domains exceeding the `auto_block_threshold` are auto-blocked
 6. **GeoIP reputation scoring** - domains resolving to IPs in `high_risk_countries` receive a `HighRiskCountry` reputation factor (weight 0.4), accelerating their path toward the auto-block threshold
 

@@ -148,7 +148,7 @@ object is loaded:
 
 | Map | Follows |
 |---|---|
-| `THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`, `THREATINTEL_BLOOM_V4`, `THREATINTEL_BLOOM_V6` | `threatintel.max_entries` |
+| `THREATINTEL_IOCS_A`, `THREATINTEL_IOCS_B`, `THREATINTEL_IOCS_V6_A`, `THREATINTEL_IOCS_V6_B`, `THREATINTEL_NETS_A`, `THREATINTEL_NETS_B`, `THREATINTEL_NETS_V6_A`, `THREATINTEL_NETS_V6_B` | `threatintel.max_entries` |
 | `RL_BUCKETS` | `ratelimit.max_buckets` |
 | `SYN_RATE_TRACKER`, `ICMP_RATE_BUCKETS`, `AMP_RATE_BUCKETS`, `HALF_OPEN_COUNTERS`, `FLOOD_COUNTERS` | `ddos.max_tracked_sources` |
 | `CONN_TABLE` | `ddos.connection_tracking.max_entries` |
@@ -267,8 +267,7 @@ The xdp-ratelimit program also hosts DDoS-specific protections:
 
 ## TC Threat Intel (tc-threatintel)
 
-- **BPF_MAP_TYPE_BLOOM_FILTER** for fast IOC pre-check (no false negatives)
-- **BPF_MAP_TYPE_LRU_HASH** for IOC confirmation maps (`THREATINTEL_IOCS`, `THREATINTEL_IOCS_V6`) - LRU eviction keeps maps within capacity
+- **BPF_MAP_TYPE_HASH** (`BPF_F_NO_PREALLOC`) for listed addresses and **BPF_MAP_TYPE_LPM_TRIE** for listed CIDR ranges, per family, in two slots (A and B); `THREATINTEL_SLOT` names the slot read, so a feed refresh writes the idle slot and flips the selector. Nothing is evicted: a set larger than `threatintel.max_entries` is refused and the set in force stays
 - VLAN and QinQ tag parsing, carried onto the event; no tag is rewritten
 - Separate V6 maps for IPv6 IOC lookups
 - RingBuf backpressure

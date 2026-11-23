@@ -23,9 +23,9 @@ flowchart TD
     ENGINE["ThreatIntelEngine\n(dedup, validate, atomic reload)"]
 
     subgraph KERNEL["eBPF Maps (kernel)"]
-        BLOOM["BLOOM_V4 / V6\n(pre-filter)"]
-        LRU["LruHashMap V4 / V6\n(1M entries, 4-byte val)"]
-        BLOOM --> LRU
+        SLOT["THREATINTEL_SLOT\n(slot in force)"]
+        TABLES["Slot A / Slot B\naddress hash + range trie\nper family"]
+        SLOT --> TABLES
     end
 
     USERSPACE["Userspace engines"]
@@ -35,8 +35,8 @@ flowchart TD
 
     FEEDS --> FETCHER --> PARSER --> ENGINE
     DNSBL --> DOMAIN_BL --> ENGINE
-    ENGINE -->|"load_iocs()"| BLOOM
-    LRU -->|"packet match --> PacketEvent"| USERSPACE
+    ENGINE -->|"load_all_iocs()"| TABLES
+    TABLES -->|"packet match --> PacketEvent"| USERSPACE
     USERSPACE --> ALERT
     USERSPACE --> DNSREP
     USERSPACE --> IPS
@@ -60,10 +60,33 @@ No provider-specific code. The parser dispatches by format, then uses `FieldMapp
 
 | Format | How IPs are extracted | Confidence | Category |
 |--------|----------------------|------------|----------|
-| `plaintext` | One IP per line, `#`-prefixed lines skipped | Always 100 | `other` |
-| `csv` | Column by name (`ip_field`) or index, configurable separator | Column by name (`confidence_field`) or default 100 | Column by name (`category_field`) |
-| `json` | JSON array, field name from `ip_field` | Field name from `confidence_field` | Field name from `category_field` |
-| `stix` | STIX 2.1 bundle, IPs from `ipv4-addr`/`ipv6-addr` indicator patterns (CIDR skipped); domains + URLs to their engines | Per-indicator, filtered by `min_confidence` | From indicator threat type |
+| `plaintext` | One address or CIDR range per line, comment lines skipped | Always 100 | `other` |
+| `csv` | Column by name (`ip_field`) or index, configurable separator; address or CIDR range | Column by name (`confidence_field`) or default 100 | Column by name (`category_field`) |
+| `json` | JSON array, field name from `ip_field`; address or CIDR range | Field name from `confidence_field` | Field name from `category_field` |
+| `stix` | STIX 2.1 bundle, addresses and CIDR ranges from `ipv4-addr`/`ipv6-addr` indicator patterns; domains + URLs to their engines | Per-indicator, filtered by `min_confidence` | From indicator threat type |
+
+Every format reads an indicator as one address or as a range in CIDR
+notation, so lists published as networks (Spamhaus DROP, FireHOL, a CrowdSec
+`Range` decision) are matched as networks: `198.51.100.0/24` catches every
+address from `198.51.100.0` to `198.51.100.255`. Host bits below the prefix are
+cleared (`192.0.2.7/24` is read as `192.0.2.0/24`), `/32` and `/128` are read as
+one address, and a `/0` is refused, since it covers every address and a feed
+carrying one would flag or block all traffic
+(`parse_target_refuses_zero_and_oversized_prefixes` in
+`crates/domain/src/threatintel/entity.rs`).
+
+An address matches its own entry first, then the longest range holding it, in
+the engine and in the kernel alike
+(`the_address_wins_over_a_range_then_the_longest_range` in
+`crates/domain/src/threatintel/engine.rs`,
+`a_source_inside_a_listed_range_is_dropped` in
+`crates/adapters/tests/ebpf_prog_test_run.rs`).
+
+A list is applied as published. FireHOL `firehol_level1` includes the
+`fullbogons` set, which carries the private ranges of RFC 1918, so a host
+reaching or reached from `10.0.0.0/8` or `192.168.0.0/16` is matched by it
+([FireHOL, firehol_level1](https://iplists.firehol.org/?ipset=firehol_level1)).
+Load it in `alert` mode first, or on interfaces carrying only internet traffic.
 
 Post-parse filters applied in order:
 1. **`min_confidence`** - reject IOCs below this threshold (0 = accept all)
@@ -73,22 +96,45 @@ Category values are normalized: `"malware"/"mal"` → Malware, `"c2"/"c&c"/"botn
 
 ### 3. Engine Storage (userspace)
 
-The `ThreatIntelEngine` is a `HashMap<IpAddr, Ioc>` keyed by IP:
+The `ThreatIntelEngine` is a `HashMap` keyed by address and prefix length, so
+a range and its first address are two entries:
 
-- **Deduplication**: if the same IP appears in multiple feeds, the highest-confidence entry wins
+- **Deduplication**: if the same address or range appears in multiple feeds, the highest-confidence entry wins
 - **Atomic reload**: two-phase validation - all IOCs validated, then the entire map is swapped. On any error, the old map remains untouched
-- **Capacity limit**: `max_iocs` per feed, 1M+ total across all feeds
+- **Capacity limit**: `max_iocs` per feed, and the kernel tables' capacity (`threatintel.max_entries`, see below) in total: a set larger than that is refused whole and the set in force stays
 
 ### 4. Kernel Sync (userspace → eBPF)
 
-When feeds are reloaded, the `ThreatIntelMapManager` syncs to 4 kernel maps:
+When feeds are reloaded, the `ThreatIntelMapManager` replaces the set the
+kernel matches against. `tc-threatintel` holds two slots, A and B, and an
+array, `THREATINTEL_SLOT`, naming the one it reads:
 
 | Map | Type | Entries | Purpose |
 |-----|------|---------|---------|
-| `THREATINTEL_IOCS` | LruHashMap | 1,048,576 | IPv4 IOC exact match (LRU eviction when full) |
-| `THREATINTEL_IOCS_V6` | LruHashMap | 1,048,576 | IPv6 IOC exact match (LRU eviction when full) |
-| `THREATINTEL_BLOOM_V4` | Bloom filter | 1,048,576 | IPv4 pre-filter (O(1), no false negatives) |
-| `THREATINTEL_BLOOM_V6` | Bloom filter | 1,048,576 | IPv6 pre-filter |
+| `THREATINTEL_IOCS_A`, `THREATINTEL_IOCS_B` | Hash (`BPF_F_NO_PREALLOC`) | `threatintel.max_entries` | IPv4 addresses |
+| `THREATINTEL_IOCS_V6_A`, `THREATINTEL_IOCS_V6_B` | Hash (`BPF_F_NO_PREALLOC`) | `threatintel.max_entries` | IPv6 addresses |
+| `THREATINTEL_NETS_A`, `THREATINTEL_NETS_B` | LPM trie | `threatintel.max_entries` | IPv4 CIDR ranges |
+| `THREATINTEL_NETS_V6_A`, `THREATINTEL_NETS_V6_B` | LPM trie | `threatintel.max_entries` | IPv6 CIDR ranges |
+| `THREATINTEL_SLOT` | Array | 1 | The slot in force: 0 for A, 1 for B |
+
+A reload is atomic for the datapath:
+
+1. The new set is counted per table against `threatintel.max_entries`. A set
+   that does not fit is refused before anything is written, the error names the
+   table and the setting to raise, and the set in force stays.
+2. The slot the datapath is not reading is emptied, then written.
+3. `THREATINTEL_SLOT` is flipped: one 4-byte write, so a packet reads the old
+   set or the new one and never a mix
+   (`only_the_slot_the_selector_names_is_read` in
+   `crates/adapters/tests/ebpf_prog_test_run.rs`).
+4. After 20 ms, enough for a packet that read the selector before the flip to
+   finish its lookups, the slot left behind is emptied.
+
+A write that fails before the flip leaves the selector where it was. Nothing
+is ever evicted: the tables are plain hash tables and tries, not LRU, so an
+indicator stays until a reload takes it away. The tables are created with
+`BPF_F_NO_PREALLOC`, so the locked memory of the idle slot is paid only while a
+reload fills it.
 
 Each IOC value in the map is 4 bytes: `{ action: u8, feed_id: u8, confidence: u8, threat_type: u8 }`.
 
@@ -108,18 +154,18 @@ The `feed_id` byte is the IOC's position in the batch that was loaded, not an
 identifier of the feed it came from; the feed an alert names is resolved in
 userspace, and so is the `ebpfsentinel_threatintel_matches_total{feed}` label.
 
-The two exact-match maps are written with the kernel's batched commands
+The two address tables are written with the kernel's batched commands
 (`BPF_MAP_UPDATE_BATCH`, `BPF_MAP_DELETE_BATCH`) in chunks of at most 4,096
 elements, because a feed of a million indicators written one element at a time
-is a million syscalls and the datapath matches against a half-written table for
-all of them. The chunk is bounded on purpose: the kernel pins and copies the
-whole chunk in one go, so an unbounded one turns a reload into a long
+is a million syscalls. The chunk is bounded on purpose: the kernel pins and
+copies the whole chunk in one go, so an unbounded one turns a reload into a long
 non-preemptible stretch. A kernel that does not carry the batched commands
 answers the first chunk with `EINVAL` or `EOPNOTSUPP`, and the agent falls back
 to writing element by element for the rest of its life rather than paying a
-refused syscall per reload; the set that ends up in the map is the same either
-way. The two bloom filters are always written one element at a time, because a
-bloom filter is a set of bits with no key to batch on.
+refused syscall per reload; the set that ends up in the table is the same either
+way. The range tries are written one element at a time, since the agent's map
+library reaches the batched commands on hash and array maps only. However long
+the write takes, the datapath keeps matching the previous set until the flip.
 
 How long a full reload took is published as
 `ebpfsentinel_threatintel_reload_duration_seconds` with the number of
@@ -137,14 +183,13 @@ Packet arrives
     │
     ├── Parse Ethernet + VLAN 802.1Q
     │
-    ├── Bloom filter check on src_ip AND dst_ip
-    │   └── Both negative ? → definitely no match, TC_ACT_OK
-    │       (eliminates ~98% of traffic, zero LRU hash map lookups)
+    ├── THREATINTEL_SLOT → slot A or slot B
     │
-    ├── Bloom positive → LRU hash map lookup for confirmation
-    │   └── Not in LRU hash map ? → false positive, TC_ACT_OK
+    ├── For src_ip and dst_ip: address table, then range trie
+    │   (longest prefix); a table userspace left empty is skipped
+    │   └── Neither matched ? → TC_ACT_OK
     │
-    └── Match confirmed → apply action
+    └── Match → the stronger action of the two addresses
         ├── ALERT → TC_ACT_OK + emit PacketEvent to RingBuf
         └── DROP  → TC_ACT_SHOT + emit PacketEvent to RingBuf
 ```
@@ -157,7 +202,7 @@ Threat intel match events feed into other engines, creating a **feedback loop**:
 
 #### DNS → Threat Intel (IP injection)
 
-When the DNS blocklist engine detects a blocked domain resolving to an IP, that IP is **automatically injected into the threat intel kernel map**. This means:
+When the DNS blocklist engine detects a blocked domain resolving to an IP, that IP is **automatically injected into the threat intel kernel tables**. This means:
 - A domain blocklist entry like `*.malware.com` translates into real-time IP-level blocking
 - IPs are managed with TTL awareness: injected when DNS resolves, removed when the DNS TTL expires (+grace period)
 - The injection target is configurable: `ThreatIntel` (default), `Firewall`, or `Ips`
@@ -198,7 +243,7 @@ threatintel:
   mode: alert          # "alert" or "block"
 
   feeds:
-    # Plaintext - one IP per line
+    # Plaintext - one address or CIDR range per line
     - id: spamhaus-drop
       name: Spamhaus DROP
       url: https://www.spamhaus.org/drop/drop.txt
@@ -296,10 +341,10 @@ fetch **cycle**, and a cycle covers every enabled feed at once, so the value is
 a property of the agent repeated on each row rather than of the feed it sits
 on; it is `null` until a cycle has run.
 
-`GET /api/v1/threatintel/iocs` is the IP set the engine holds, served whole:
+`GET /api/v1/threatintel/iocs` is the address and range set the engine holds, served whole:
 there is no filter, no paging and no cursor, so a caller asking an agent
 carrying a million indicators is asking for all of them. Each item carries
-`ip`, `feed_id`, `confidence`, `threat_type` and `source_feed`, the feed's
+`ip` (one address, or a range in CIDR notation such as `198.51.100.0/24`), `feed_id`, `confidence`, `threat_type` and `source_feed`, the feed's
 configured name. `threat_type` is one of `malware`, `c2`, `scanner`, `spam`
 or `other` and never a feed's own wording, because the parser normalizes every
 category it reads into those five. `GET /api/v1/threatintel/urls` answers the
@@ -311,14 +356,14 @@ indicators the IP set cannot carry, with `url`, `feed_id`, `confidence` and
 | Crate | Path | Role |
 |-------|------|------|
 | `ebpf-common` | `crates/ebpf-common/src/threatintel.rs` | Shared `#[repr(C)]` types (keys, values, constants) |
-| `ebpf-programs` | `crates/ebpf-programs/tc-threatintel/` | TC classifier: Bloom filter + LRU hash map lookup |
+| `ebpf-programs` | `crates/ebpf-programs/tc-threatintel/` | TC classifier: A/B slots, address hash then range trie |
 | `domain` | `crates/domain/src/threatintel/` | Engine (IOC store), parser (Plaintext/CSV/JSON), entities |
 | `ports` | `crates/ports/src/secondary/threatintel_map_port.rs` | `ThreatIntelMapPort` trait (eBPF map writes) |
 | `ports` | `crates/ports/src/secondary/feed_source.rs` | `FeedSource` trait (HTTP fetch) |
 | `application` | `crates/application/src/threatintel_service_impl.rs` | App service (thin wrapper + metrics) |
 | `application` | `crates/application/src/feed_update.rs` | Feed fetch orchestration + JSON parser |
 | `adapters` | `crates/adapters/src/threatintel/http_feed_fetcher.rs` | `FeedSource` impl (reqwest, auth, size cap) |
-| `adapters` | `crates/adapters/src/ebpf/threatintel_map_manager.rs` | `ThreatIntelMapPort` impl (HashMap + Bloom sync) |
+| `adapters` | `crates/adapters/src/ebpf/threatintel_map_manager.rs` | `ThreatIntelMapPort` impl (slot write, flip, capacity check) |
 
 ## Metrics
 

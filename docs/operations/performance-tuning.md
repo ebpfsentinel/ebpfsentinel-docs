@@ -111,7 +111,7 @@ The per-CPU tables take their capacity from the configuration at agent start, at
 | `loadbalancer.max_maglev_services` | derived | the Maglev ring table, 128 KiB a ring; not per CPU. Unset, it is the Maglev services the file lists, floor 1 |
 | `loadbalancer.max_backends` | derived | the backend, backend-MAC and open-connection tables; not per CPU. Unset, it is the backends the file lists, floor 256 |
 | `loadbalancer.max_flows` | 65,536 | the flow table that keeps each connection on its backend, and the table translating DNAT replies back; not per CPU. Past it the longest-idle flow is forgotten and balanced again |
-| `threatintel.max_entries` | derived | the IOC tables (IPv4, IPv6, and a bloom filter for each); not per CPU. Unset, it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor of 4,096 |
+| `threatintel.max_entries` | derived | each threat intel table (IPv4 and IPv6 addresses, IPv4 and IPv6 ranges), in two slots; not per CPU and not preallocated, so memory follows the indicators loaded, twice over during a reload. Unset, it is the enabled feeds' `max_iocs` added up and rounded up to a power of two, and a configuration with no feed gets the floor of 4,096 |
 
 QoS keeps a per-CPU flow table of a fixed 65,536 slots, 16 bytes a slot per CPU.
 

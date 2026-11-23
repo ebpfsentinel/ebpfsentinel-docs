@@ -28,7 +28,7 @@ Measured on live traffic, the whole stack costs about 1 µs of kernel time per r
 | 4 | `tc-nat-ingress` | TC ingress | DNAT (port forwarding, 1:1 NAT, IPv4/IPv6) | [`bpf_skb_store_bytes`](https://docs.ebpf.io/linux/helper-function/bpf_skb_store_bytes/), [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, checksum helpers, `NatRuleEntryV6` |
 | 5 | `tc-nat-egress` | TC egress | SNAT / masquerade (IPv4/IPv6) | [`bpf_loop`](https://docs.ebpf.io/linux/helper-function/bpf_loop/) rule scan, [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/) |
 | 6 | `tc-ids` | TC ingress (egress optional) | Intrusion detection | [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/), [`bpf_dynptr_size`](https://docs.ebpf.io/linux/kfuncs/bpf_dynptr_size/) |
-| 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Bloom filter map, LRU hash map (IOC confirmation), VLAN and QinQ tag parsing |
+| 7 | `tc-threatintel` | TC ingress | IOC matching (alert or drop) | Address hash and CIDR LPM trie per family, in two slots flipped on reload, VLAN and QinQ tag parsing |
 | 8 | `tc-dns` | TC ingress | Passive DNS capture | UDP and TCP port 53, RingBuf emission |
 | 9 | `uprobe-dlp` | uprobe, kprobe | SSL/TLS content inspection | Uprobes on `SSL_write`/`SSL_read` and Go `crypto/tls`, kprobes on `tls_sw_sendmsg`/`tls_sw_recvmsg` through `kprobe_multi` |
 | 10 | `tc-scrub` | TC ingress | Packet normalization (TTL/hop limit, MSS, DF, IP ID, TCP flags, ECN, TOS, TCP timestamps, fragment drop, IPv4/IPv6) | [`bpf_csum_diff`](https://docs.ebpf.io/linux/helper-function/bpf_csum_diff/), [`bpf_l3_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l3_csum_replace/), [`bpf_l4_csum_replace`](https://docs.ebpf.io/linux/helper-function/bpf_l4_csum_replace/), [`bpf_get_prandom_u32`](https://docs.ebpf.io/linux/helper-function/bpf_get_prandom_u32/) |
@@ -64,7 +64,7 @@ INGRESS:
                         │
                         ▼
                     TC ingress (tc-ids)           → L7 detect
-                    TC ingress (tc-threatintel)   → Bloom filter + IOC confirmation
+                    TC ingress (tc-threatintel)   → IOC address + CIDR range match
                     TC ingress (tc-dns)           → DNS capture
                     TC ingress (tc-conntrack)     → state update
                     TC ingress (tc-nat-ingress)   → DNAT rewrite

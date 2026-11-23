@@ -1,6 +1,6 @@
 # eBPF Map Types
 
-eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 11 distinct map types.
+eBPF maps are the primary data structures shared between kernel programs and userspace. eBPFsentinel uses 10 distinct map types.
 
 ## Map Type Reference
 
@@ -8,7 +8,7 @@ eBPF maps are the primary data structures shared between kernel programs and use
 
 #### [`BPF_MAP_TYPE_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/)
 
-**Kernel:** 3.19+ | **Used by:** xdp-firewall, xdp-ratelimit, xdp-loadbalancer, xdp-vip-announcer, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos
+**Kernel:** 3.19+ | **Used by:** xdp-firewall, xdp-ratelimit, xdp-loadbalancer, xdp-vip-announcer, tc-nat-ingress, tc-nat-egress, tc-ids, tc-qos, tc-threatintel
 
 General-purpose key/value hash table. Used for:
 - Firewall IP set aliases (`FW_IPSET_V4`) and the exact-match rule indexes (`FW_HASH_PORT`, `FW_HASH_5TUPLE`)
@@ -20,12 +20,13 @@ General-purpose key/value hash table. Used for:
 - Tenant resolution by VLAN, ifindex and cgroup
 - QoS classifier rules (`QOS_CLASSIFIERS` - 5-tuple + DSCP → queue_id, 1024 entries)
 - Interface group membership (`INTERFACE_GROUPS` - ifindex → bitmask, 64 entries, present in 6 programs)
+- Threat intelligence addresses (`THREATINTEL_IOCS_A`/`_B`, `THREATINTEL_IOCS_V6_A`/`_B`), created with `BPF_F_NO_PREALLOC` and sized by `threatintel.max_entries`; the DNS blocklist writes the addresses its blocked domains resolve to into the same tables
 
 #### [`BPF_MAP_TYPE_LPM_TRIE`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/)
 
-**Kernel:** 4.11+ | **Used by:** xdp-firewall, xdp-ratelimit, tc-ids, tc-nat-ingress, tc-nat-egress, tc-qos
+**Kernel:** 4.11+ | **Used by:** xdp-firewall, xdp-ratelimit, tc-ids, tc-nat-ingress, tc-nat-egress, tc-qos, tc-threatintel
 
-Longest-prefix-match trie for **O(log n) CIDR matching**. Two sets of LPM tries:
+Longest-prefix-match trie for **O(log n) CIDR matching**. Three sets of LPM tries:
 
 **Firewall LPM tries** (managed by `LpmCoordinator`):
 
@@ -48,15 +49,23 @@ CIDR-only rules (no port/protocol/VLAN filter) are loaded exclusively into LPM t
 
 Country CIDRs are resolved from the GeoIP database and mapped to tier IDs. The LPM lookup in xdp-ratelimit runs before per-IP rule matching - if a source IP matches a country tier, that tier's rate/burst/algorithm is used.
 
+**Threat intelligence tries** (managed by `ThreatIntelMapManager`):
+
+| Map | Purpose |
+|-----|---------|
+| `THREATINTEL_NETS_A`, `THREATINTEL_NETS_B` | IPv4 CIDR ranges from the feeds, slot A and slot B |
+| `THREATINTEL_NETS_V6_A`, `THREATINTEL_NETS_V6_B` | IPv6 CIDR ranges from the feeds, slot A and slot B |
+
+tc-threatintel reads the slot `THREATINTEL_SLOT` names, the address table first and the trie after it, so a listed address wins over a range holding it and a longer range over a shorter one.
+
 **Tenant subnet tries**: `TENANT_SUBNET_V4` (4,096) and `TENANT_SUBNET_V6` (2,048) map a source subnet to a tenant, in every program that resolves one.
 
 #### [`BPF_MAP_TYPE_LRU_HASH`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/)
 
-**Kernel:** 4.10+ | **Used by:** tc-threatintel, tc-nat-ingress, xdp-firewall-reject, tc-ids, uprobe-dlp
+**Kernel:** 4.10+ | **Used by:** tc-nat-ingress, xdp-firewall-reject, tc-ids, uprobe-dlp
 
 Hash table with built-in **LRU eviction**. Used for:
 
-- `THREATINTEL_IOCS` and `THREATINTEL_IOCS_V6`: IOC exact-match lookups after the Bloom filter pre-check. LRU eviction keeps the map within capacity when large feed volumes are loaded. The DNS blocklist writes the addresses its blocked domains resolve to into the same maps.
 - `NAT_HAIRPIN_CT`: hairpin NAT reverse mappings (see [Hairpin NAT Maps](#hairpin-nat-maps)).
 - `REJECT_RATELIMIT`: per-source throttle on forged TCP RST / ICMP unreachable replies.
 - `L7_DENIED_FLOWS` (32,768): TCP connections an L7 `deny` or `reject` refused, one entry per direction, with the time until which they stay refused (ten minutes) and the rule. tc-ids drops every packet of a listed connection and marks its conntrack entry dying; an opening SYN on the same addresses and ports removes both entries. Written by the agent from the L7 verdict.
@@ -98,7 +107,7 @@ memory = value_size * max_entries * num_CPUs
 
 The kernel adds a per-entry element header on top of that, which is not replicated per CPU.
 
-The capacity is a configuration choice rather than a compile-time constant, and so are the DDoS per-source tables (`SYN_RATE_TRACKER`, `ICMP_RATE_BUCKETS`, `AMP_RATE_BUCKETS`, `HALF_OPEN_COUNTERS`, `FLOOD_COUNTERS`, sized by `ddos.max_tracked_sources`), the DDoS connection table (`CONN_TABLE`, `ddos.connection_tracking`), which are LRU per-CPU hashes as well, and the threat intelligence IOC tables (`threatintel.max_entries`): the agent sizes them at load and logs the plan. What each costs is in [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
+The capacity is a configuration choice rather than a compile-time constant, and so are the DDoS per-source tables (`SYN_RATE_TRACKER`, `ICMP_RATE_BUCKETS`, `AMP_RATE_BUCKETS`, `HALF_OPEN_COUNTERS`, `FLOOD_COUNTERS`, sized by `ddos.max_tracked_sources`), the DDoS connection table (`CONN_TABLE`, `ddos.connection_tracking`), which are LRU per-CPU hashes as well, and the threat intelligence tables (`threatintel.max_entries`, hash and LPM trie, never evicted): the agent sizes them at load and logs the plan. What each costs is in [Performance tuning](../operations/performance-tuning.md#ebpf-map-sizes).
 
 ### Per-CPU Maps
 
@@ -225,20 +234,6 @@ A 2-entry Array map controlling packet mirroring for forensic capture:
 
 When enabled, `bpf_clone_redirect` clones every packet that matches an IDS pattern, and transmits the copy on the mirror interface. The original packet continues normal processing. Controlled by the enterprise forensics API (`POST /api/v1/enterprise/forensics/mirror/start`, `POST /api/v1/enterprise/forensics/mirror/stop`, `GET /api/v1/enterprise/forensics/mirror`).
 
-### Probabilistic Maps
-
-#### [`BPF_MAP_TYPE_BLOOM_FILTER`](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/)
-
-**Kernel:** 5.16+ | **Used by:** tc-threatintel
-
-Probabilistic data structure for **fast IOC pre-filtering**:
-
-- **No false negatives** - if the Bloom filter says "not present", the IP is definitely clean
-- **Possible false positives** - a positive match triggers a full LRU hash map lookup for confirmation
-- O(1) lookup with minimal memory footprint
-
-Flow: `Bloom filter check → negative? skip → positive? full LRU hash lookup → confirmed? emit alert`
-
 ### Interface Group Maps
 
 #### `INTERFACE_GROUPS` (HashMap)
@@ -261,10 +256,10 @@ Several maps are written from userspace when configuration changes:
 | Rate limit country LPM (×2) | Userspace → Kernel | GeoIP country tier reload |
 | Rate limit tier configs | Userspace → Kernel | Country tier config reload |
 | DDoS protection configs | Userspace → Kernel | SYN/ICMP/amp threshold changes |
-| Threat intel Bloom filter | Userspace → Kernel | Feed refresh (periodic) |
-| Threat intel LRU hash maps | Userspace → Kernel | IOC add/remove |
+| Threat intel tables (slot A or B) | Userspace → Kernel | Feed refresh writes the idle slot, then flips `THREATINTEL_SLOT` |
+| Threat intel address tables (slot in force) | Userspace → Kernel | DNS blocklist inject and expiry |
 | IPS blacklist | Userspace → Kernel | Auto-block from IPS engine, written into the firewall LPM tries under the `ips` tag |
-| DNS blocklist | Userspace → Kernel | Addresses of blocked domains, written into the threat intel IOC maps |
+| DNS blocklist | Userspace → Kernel | Addresses of blocked domains, written into the threat intel address tables |
 | Scrub config array | Userspace → Kernel | Config reload (14-byte `ScrubFlags` struct) |
 | `INTERFACE_GROUPS` (HashMap, ×6 programs) | Userspace → Kernel | Config reload, interface group changes |
 | LB service/backend maps | Userspace → Kernel | Service add/delete |

@@ -30,7 +30,7 @@ graph TD
         subgraph TC_layer["TC Layer - after SKB allocation"]
             TC_IDS["<b>tc-ids</b><br/>tc-threatintel<br/>tc-scrub"]
             TC_CT["<b>tc-conntrack</b><br/>tc-qos"]
-            TC_NAT["<b>tc-nat-ingress/egress</b><br/>tc-dns<br/>Bloom Filter"]
+            TC_NAT["<b>tc-nat-ingress/egress</b><br/>tc-dns"]
         end
 
         XDP_FW -- "bpf_xdp_adjust_meta" --> TC_IDS

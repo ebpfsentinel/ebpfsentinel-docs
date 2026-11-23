@@ -37,8 +37,8 @@ Hard limits for each eBPF program, derived from map capacities defined in `ebpf-
 | tc-nat-egress | SNAT rules (IPv6) | 128 |
 | tc-ids | IDS patterns (destination-keyed and source-keyed) | 10,240 each |
 | tc-ids | L7 inspection ports | 256 |
-| tc-threatintel | IOCs per family | `threatintel.max_entries`, derived from the feeds, up to 4,194,304 |
-| tc-threatintel | Bloom filter per family | same as the IOC table |
+| tc-threatintel | Listed addresses per family | `threatintel.max_entries`, derived from the feeds, up to 4,194,304 |
+| tc-threatintel | Listed CIDR ranges per family | same as the address table |
 | tc-qos | Pipes | 64 |
 | tc-qos | Queues | 256 |
 | tc-qos | Classifiers | 1,024 |
@@ -194,14 +194,15 @@ The program forwards the payload; protocol detection runs in userspace.
 
 | Resource | Limit | Map / Constant |
 |----------|-------|----------------|
-| IOCs (IPv4) | `threatintel.max_entries` (derived, 4,096 to 4,194,304) | `THREATINTEL_IOCS` (LRU Hash, sized at load) |
-| IOCs (IPv6) | `threatintel.max_entries` | `THREATINTEL_IOCS_V6` (LRU Hash, sized at load) |
-| Bloom filter (IPv4) | `threatintel.max_entries` | `THREATINTEL_BLOOM_V4` (BloomFilter, sized at load) |
-| Bloom filter (IPv6) | `threatintel.max_entries` | `THREATINTEL_BLOOM_V6` (BloomFilter, sized at load) |
+| Addresses (IPv4) | `threatintel.max_entries` (derived, 4,096 to 4,194,304) | `THREATINTEL_IOCS_A` / `_B` (Hash, no prealloc, sized at load) |
+| Addresses (IPv6) | `threatintel.max_entries` | `THREATINTEL_IOCS_V6_A` / `_B` (Hash, no prealloc, sized at load) |
+| CIDR ranges (IPv4) | `threatintel.max_entries` | `THREATINTEL_NETS_A` / `_B` (LPM trie, sized at load) |
+| CIDR ranges (IPv6) | `threatintel.max_entries` | `THREATINTEL_NETS_V6_A` / `_B` (LPM trie, sized at load) |
+| Over capacity | Feed set refused whole, set in force kept, never evicted | `ThreatIntelTables::reload` |
 | RingBuf size | 1 MB | `EVENTS` |
 | Backpressure threshold | 75% | Events dropped when buffer >75% full |
 
-The capacity follows the enabled feeds' `max_iocs` unless set by hand, up to four million IOCs per address family; LRU eviction handles overflow. An agent with no feed gets the 4,096-slot floor rather than a million empty slots.
+The capacity follows the enabled feeds' `max_iocs` unless set by hand, up to four million addresses and four million ranges per address family. Nothing is evicted: a feed set that does not fit is refused whole, the error names the table and `threatintel.max_entries`, and the set in force keeps matching. An agent with no feed gets the 4,096-slot floor rather than a million empty slots.
 
 ### tc-dns
 

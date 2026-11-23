@@ -29,7 +29,7 @@ flowchart TD
 
     subgraph TC["TC ingress (TCX chain, in attach order)"]
         IDS["tc-ids\nL7 signature detection"]
-        THREATINTEL["tc-threatintel\nBloom filter pre-check\nLRU hash confirmation"]
+        THREATINTEL["tc-threatintel\naddress hash\nthen CIDR trie"]
         DNS["tc-dns\nUDP/TCP port 53 capture"]
         CONNTRACK["tc-conntrack\nKernel conntrack probe\n(state metrics)"]
         NAT_IN["tc-nat-ingress\nDNAT / NPTv6 rewrite\nChecksum update"]

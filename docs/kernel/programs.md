@@ -367,10 +367,12 @@ IDS rules carry a `group_mask` field for **interface group filtering** via the `
 
 **Hook:** [TC classifier](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SCHED_CLS/) (ingress) | **Path:** `crates/ebpf-programs/tc-threatintel/`
 
-Threat intelligence IOC matching with two-phase lookup:
+Threat intelligence matching on the source and destination address, in the slot `THREATINTEL_SLOT` names:
 
-1. **[Bloom filter](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_BLOOM_FILTER/) pre-check** - O(1), no false negatives. If negative → packet is clean, skip.
-2. **[LRU hash map](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LRU_HASH/) confirmation** - only on Bloom filter positive. Confirms the IOC and retrieves metadata. LRU eviction ensures the map stays within capacity.
+1. **[Hash table](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_HASH/) of listed addresses** - exact match, O(1).
+2. **[LPM trie](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_LPM_TRIE/) of listed CIDR ranges** - only when no address matched; the longest range holding the address wins.
+
+A table userspace left empty is skipped. A feed refresh writes the other slot and flips the selector, so a packet is matched against one whole set, old or new. Nothing is evicted: the tables hold `threatintel.max_entries` each and a set that does not fit is refused.
 
 A match is either alerted or dropped, per the matched IOC's action. VLAN and QinQ tags are parsed and carried onto the emitted event so a match is attributable to the VLAN it arrived on; no tag is pushed, popped or rewritten.
 
