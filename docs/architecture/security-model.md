@@ -186,6 +186,20 @@ the host pid namespace is not one of them:
   log prints the posture, for example `[warden] confined: no new privileges,
   Landlock ABI 6, seccomp filter`, and `grep -E 'NoNewPrivs|Seccomp'
   /proc/$(pidof warden)/status` reads `1` and `2`.
+- **The warden bounds what it reads and logs what it answered.** It serves 64
+  connections at once by default (`--max-connections`, at most 256); past
+  that it stops accepting and the next connection waits in the listen backlog
+  until one closes, so a flood of connections costs no thread. Each command
+  has a frame bound read from its first bytes before the body is read: 64 KiB
+  for a command that carries no list, 16 MiB for the few that carry one (the
+  file watch facts and canaries, the hidden port and opener sweeps, process
+  mappings, link pins, extensions); a frame past its bound closes the
+  connection unread. Every command answered leaves one line,
+  `[warden] audit command=<name> family=<family> outcome=served|refused|failed
+  pid=<pid> process=<pidfs inode> duration_ms=<n>`, and never a parameter: no
+  path, address or payload enters the log. The socket is mode `0666` because
+  the agent runs under another uid and the warden holds no `CAP_CHOWN`; the
+  peer's uid, read with `SO_PEERCRED` at accept, decides who is served.
 
 What that mount lets an alert say is part of the cost. A DLP alert names the
 binary of the writing process, read through the same `/host/proc`, and the
