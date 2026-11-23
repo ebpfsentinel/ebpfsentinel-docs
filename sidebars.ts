@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         'portal/overview',
         'portal/signing-in',
         'portal/billing-and-licence-keys',
+        'portal/reselling',
         'portal/members-and-invitations',
         'portal/deployments-and-agents',
         'portal/analytics',

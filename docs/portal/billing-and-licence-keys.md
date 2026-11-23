@@ -258,6 +258,10 @@ arrangement there with **End the arrangement**, then **Yes, end it**: the
 licence stays valid, the agents stay enrolled and the month already metered is
 untouched. What changes is who the next subscription is billed to.
 
+The partner price, the provider agreement, who invoices your customers and what
+happens to their keys when the arrangement ends are in
+[Reselling eBPFsentinel](reselling.md).
+
 ## Licences
 
 **Licence keys** in the navigation opens the screen headed **Licence keys**. It
