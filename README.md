@@ -48,7 +48,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 - **OTLP export** - alerts as OpenTelemetry Logs (gRPC or HTTP) to any OTLP-compatible collector
 - **Alert pipeline** with routing to email, webhook, log, and OTLP sinks, concurrent sender dispatch
 - **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 46 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
+- **CLI** with 47 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
 - **Helm chart** for Kubernetes DaemonSet deployment with JSON schema validation
 
 ## Who Is This For?
