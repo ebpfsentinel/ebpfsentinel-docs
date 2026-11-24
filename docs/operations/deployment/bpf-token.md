@@ -245,7 +245,7 @@ waits for its socket before starting).
 
 ```ini
 # ebpfsentinel-warden.service
-ExecStartPre=/usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy --output /run/ebpfsentinel/warden-policy.json
+ExecStartPre=/usr/local/bin/ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy --output-file /run/ebpfsentinel/warden-policy.json
 ExecStart=/usr/local/bin/warden serve /run/ebpfsentinel/warden.sock --user ebpfsentinel --policy /run/ebpfsentinel/warden-policy.json
 
 # ebpfsentinel.service
