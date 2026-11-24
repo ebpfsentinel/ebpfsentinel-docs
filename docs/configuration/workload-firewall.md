@@ -518,6 +518,8 @@ Counters are published under `ebpfsentinel_packets_total{interface="EXEC_NET_MET
 - **fs-verity**, where the file has it on. The kernel answers the digest it already holds without the agent reading anything, the file cannot be written while verity is on, and every page the process maps is checked against that digest, so the answer holds for as long as the process runs. `fsverity digest <file>` prints the same value, written `fsverity-sha256:<hex>`. Only SHA-256 verity files are measured this way; a file built with another algorithm falls through to the contents.
 - **The contents** everywhere else: the SHA-256 of the file, what `sha256sum <file>` prints and what a release's `SHA256SUMS` lists, written `sha256:<hex>`. It is read once per file and remembered against the device, the inode, the size and both change times, so a second exec of the same binary costs one `fstat` and a binary rewritten in place is read again. A file above 256 MiB is not read and carries no digest.
 
+Where the BPF LSM and IMA are both active, the contents digest is taken by the kernel at the exec instead, from IMA's SHA-256 of the file, and kept until the file is written; the value is the same, and the agent reads only what the kernel did not hash. That also gives a rootless agent the digest of another user's executable. See [Executable digests](process-table.md#executable-digests).
+
 The prefix is part of the value and the two never match each other, because they are different functions of the same file: write the rule with the one your hosts produce, which `ebpfsentinel-agent processes --output json` shows for any running task under `identity.exe_hash`. The usual source of a value is the package or image you deploy, hashed once at build time.
 
 ```yaml

@@ -18,6 +18,7 @@ process_table:
   enabled: true
   capacity: 8192
   capture_command_line: false
+  kernel_digest: true
 ```
 
 ## Reference
@@ -27,10 +28,47 @@ process_table:
 | `enabled` | bool | `true` | Attach the fork, exec and exit tracepoints and keep the table |
 | `capacity` | usize | `8192` | Maximum number of live processes held, in entries |
 | `capture_command_line` | bool | `false` | Keep the command line on the entry, copied by the kernel at exec where it can and read from `/proc/<pid>/cmdline` otherwise |
+| `kernel_digest` | bool | `true` | Take each executable's SHA-256 in the kernel at the exec, from IMA, where the BPF LSM and IMA are active; see [Executable digests](#executable-digests) |
 
 `capacity` is accepted between `256` and `262144`. Below the floor the table is
 too small to describe a node of any size; above the ceiling it is a memory
 decision that belongs in a deployment review rather than in a default.
+
+## Executable digests
+
+Each entry carries the digest of the file the process runs, which is what a
+workload rule's `exe_hash` matches ([Workload firewall](workload-firewall.md)).
+Where the BPF LSM and IMA are both among the active security modules, the
+kernel takes the SHA-256 at the exec itself, from IMA's hash of the file, and
+keeps it on the file until the file is opened for writing or truncated; the
+agent then reads nothing. Everywhere else, and for a file the kernel did not
+hash, the agent reads the file as before. The value is the same SHA-256 either
+way, written `sha256:<hex>`, so a rule does not depend on which took it.
+
+The kernel leaves to the agent's own read a file with fs-verity on, which
+keeps its `fsverity-sha256:` measurement, a file above 64 MiB, and any file
+IMA hashes with another algorithm than SHA-256 (`ima_hash=` on the kernel
+command line). Two limits are the kernel's:
+
+- No SHA-256 can be computed by a BPF program itself, so the hash exists only
+  through IMA. A kernel built without IMA, or booted with an `lsm=` list
+  leaving it out, takes none.
+- The entry is dropped where a write-open or a truncation reaches the file
+  the exec named. On overlayfs a write through the lower layer's own mount is
+  a write to another inode, and the entry of the overlay file stays until
+  the file is opened for writing through the overlay. The exec reads the
+  size and both change times again and hashes again when any differs, which
+  catches such a write unless it preserved all three.
+
+`kernel_digest: false` keeps the agent's own read on every file. Whether the
+kernel takes the digests on a node is the `executable_digest` entry of
+`ebpfsentinel-agent ebpf kernel-features`, with the reason where it does not.
+The object's counters are under
+`ebpfsentinel_packets_total{interface="EXEC_DIGEST_METRICS"}`: `execs`,
+`computed` for a file IMA hashed, `reused` for an exec answered from the
+file's unchanged entry, `unavailable`, `verity`, `too_large` and `unreadable`
+for an exec left to the agent's read, and `invalidated` for an entry dropped
+by a write.
 
 ## Detections
 

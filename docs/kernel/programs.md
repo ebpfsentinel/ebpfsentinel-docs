@@ -585,6 +585,14 @@ The executable is read in the kernel from the task making the call, `current->mm
 
 Only `AF_INET` and `AF_INET6` are decided; kernel sockets and kernel threads are let through. A refusal returns `-EPERM`, and an observing hook counts and lets the call through. `EXEC_NET_EVENTS` is a small RingBuf carrying one record per refused or would-be-refused call, throttled through the `EXEC_NET_REPORTED` LRU to one per thread group and hook a minute. `EXEC_NET_METRICS` counts `checked`, `allowed`, `refused`, `would_refuse`, `unreadable` and `event_lost`, exact whatever the throttle drops.
 
+### lsm-exec-digest
+
+**Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-exec-digest/`
+
+Takes the SHA-256 of each executable when it is executed, so the process table's `exe_hash` costs the agent no read of the file. `exec_digest_exec` is a sleepable program on `bprm_committed_creds`: it takes the new image with the `bpf_get_task_exe_file` kfunc, asks IMA for the file's hash with the `bpf_ima_file_hash` helper, and keeps the answer in `EXEC_DIGEST_FILES`, an LRU of 8,192 entries keyed by the inode number and the device of its superblock, beside the size and both change times it was taken for. A second exec of the same unchanged file is answered from the entry. `exec_digest_file_open` on `file_open` drops the entry of a file opened with `FMODE_WRITE`, and `exec_digest_path_truncate` on `path_truncate` that of a file truncated; both are non-sleepable and decide nothing. The field offsets along the walk are read from the running kernel's BTF and written into `EXEC_DIGEST_CONFIG`, whose slot is marked valid last, and the two hooks that drop entries are attached before the one that takes them.
+
+The hash is kept only where IMA answers SHA-256, its default and the only algorithm a rule is written in. A file with fs-verity on is left to its verity measurement, a file above 64 MiB is not hashed in the kernel, and a file whose inode cannot be read is skipped: the agent reads all of those itself, as it does on any host without the BPF LSM and IMA. `EXEC_DIGEST_METRICS` counts `execs`, `computed`, `reused`, `unavailable`, `verity`, `too_large`, `unreadable` and `invalidated`. See [Process table](../configuration/process-table.md#executable-digests).
+
 ### lsm-bpf-guard
 
 **Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-bpf-guard/`
