@@ -31,10 +31,18 @@ BTF is enabled by default on most modern distributions. If `/sys/kernel/btf/vmli
 
 ### Kernel Modules
 
-Five programs call kfuncs that a kernel module registers rather than the kernel itself: the firewall, conntrack and IDS programs need `nf_conntrack`, the NAT egress program needs `fou`, and the two NAT programs need `xfrm_interface`. A module's kfuncs exist only while it is loaded, and a minimal host loads none of these on its own: a stock Ubuntu 26.04 cloud image with no firewall rules has none of them. The agent checks before loading and refuses with the module and the program, for example:
+Five programs call kfuncs that a kernel module registers rather than the kernel itself: the firewall, conntrack and IDS programs need `nf_conntrack`, the NAT egress program calls `fou`, and the two NAT programs call `xfrm_interface`. A module's kfuncs exist only while it is loaded, and a minimal host loads none of these on its own: a stock Ubuntu 26.04 cloud image with no firewall rules has none of them.
+
+`nf_conntrack` is required. The agent checks before loading and refuses with the module and the programs, for example:
 
 ```text
-`tc_nat_egress` calls `bpf_skb_set_fou_encap` and `bpf_skb_set_xfrm_info`, registered by kernel modules `fou` and `xfrm_interface`, which are not loaded on this host (absent from /sys/kernel/btf): load them with `modprobe fou xfrm_interface` or list them in /etc/modules-load.d, then restart the agent
+`tc_conntrack`, `tc_conntrack_egress` and `xdp_firewall` call `bpf_skb_ct_lookup`, `bpf_ct_release` and `bpf_xdp_ct_lookup`, registered by kernel module `nf_conntrack`, which is not loaded on this host (absent from /sys/kernel/btf): load it with `modprobe nf_conntrack` or list it in /etc/modules-load.d, then restart the agent
+```
+
+`fou` and `xfrm_interface` are not: without them the NAT programs load with their tunnel calls switched off and every translation still runs. What goes is the tunnel itself, so each enabled NAT rule carrying an `ipsec` or `fou` block is named at start-up, for example:
+
+```text
+NAT rule via-fou adds a FOU header, but this kernel has no bpf_skb_set_fou_encap (load the fou module): the rule translates without the encapsulation
 ```
 
 `fou6` registers no kfunc but carries IPv6 FOU encapsulation, so it is loaded alongside. Load them now and at every boot:
