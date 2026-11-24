@@ -37,7 +37,7 @@ These are read once at startup and apply at the next start:
 - DNS blocklists, cache and reputation settings (`dns.enabled` is reloaded)
 - Alerting routes and audit settings
 - `agent.interfaces` and every `agent` setting but `agent.config_writes` (see [Limitations](#limitations))
-- Turning QoS on or off (`qos.enabled`), the DLP scope (`dlp.scope`), CrowdSec (`threatintel.crowdsec`) and the threat intelligence table size (`threatintel.max_entries`)
+- Turning QoS on or off (`qos.enabled`), the DLP scope (`dlp.scope`) and record size (`dlp.record_bytes`), CrowdSec (`threatintel.crowdsec`) and the threat intelligence table size (`threatintel.max_entries`)
 - The size of every kernel table sized at start: a reload rewrites its entries, never how many it holds
 
 A reload answered through the REST API (`POST /api/v1/config/reload` or

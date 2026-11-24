@@ -61,6 +61,7 @@ dlp:
     cgroups: []              # cgroup v2 paths, one way to say `workloads`
     selectors: []            # workload rules, the other way
     refresh_seconds: 15      # how often the selectors are resolved again
+  record_bytes: 16384        # most plaintext one event carries, 4096 to 16384
 ```
 
 ## Fields
@@ -71,6 +72,38 @@ dlp:
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (Professional and above) |
 | `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs Professional or above |
 | `scope` | `Scope` | `mode: all` | Which workloads the probes may read plaintext from, enforced in the kernel |
+| `record_bytes` | `u32` | `16384` | The most plaintext one event carries, `4096` to `16384`. See [Record size](#record-size) |
+
+### Record size
+
+Each `SSL_write` or `SSL_read` buffer the probes see becomes one event, and a
+pattern is matched against what that event carries. Where the kernel offers
+the `bpf_probe_read_user_dynptr` kfunc, the probes read the buffer straight
+into the ring buffer, up to `record_bytes`. The default, and the maximum,
+is `16384`: the largest plaintext one TLS record holds
+([RFC 8446 section 5.1](https://www.rfc-editor.org/rfc/rfc8446#section-5.1),
+[RFC 5246 section 6.2.1](https://www.rfc-editor.org/rfc/rfc5246#section-6.2.1)).
+The minimum, `4096`, is what the probes read without the kfunc. A value
+outside that range is refused when the configuration is loaded, naming
+`dlp.record_bytes` and the range.
+
+Where the kernel does not declare the kfunc, or refuses the probes while they
+call it, the agent loads them with the call removed and they copy at most
+4,096 bytes of each buffer, whatever `record_bytes` says. A secret past those
+bytes is then not seen. The agent says which of the two it runs on its log at
+start and as the `dlp_whole_record` capability on
+`GET /api/v1/ebpf/kernel-features` and `ebpfsentinel-agent ebpf kernel-features`
+(see [compatibility](../operations/compatibility.md)).
+
+A buffer longer than `record_bytes` is scanned on its first `record_bytes`
+bytes, and one TLS record never holds more than 16,384. An application that
+hands `SSL_write` a larger buffer is split into records by the library, but
+the probe sees the call, not the records, so the bytes past `record_bytes` in
+that one call are not scanned: that is our gap, not the library's.
+
+The size is read when the probes load. A reload that changes it is reported
+in `pending_restart` as waiting for a restart, like `scope` (see
+[hot reload](../operations/hot-reload.md)).
 
 ### Scope
 
