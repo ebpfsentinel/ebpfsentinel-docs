@@ -402,9 +402,9 @@ integration suite runs a veth at a 9000-byte MTU, where the firewall attaches
 in driver mode and refuses or passes jumbo datagrams, but a veth keeps a
 frame's headers in its first buffer, so `frags_pulled` stays at zero there.
 
-### XDP Metadata
+### One Parse Per TC Chain
 
-The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule ID and flags. Downstream TC programs read this without re-parsing packet headers.
+The XDP firewall hands nothing to the programs behind it: it writes no XDP metadata, so each TC classifier starts from the packet. On a TC chain, the first classifier to parse a packet leaves its offsets, ports and tenant in the 20 bytes of `skb->cb`, guarded by a check word over the packet length and interfaces, and the classifiers after it read them back instead of walking the headers again (`ebpf-helpers` `pktmeta`). A packet rewritten by a NAT classifier is parsed again.
 
 ### Advanced XDP Features
 
