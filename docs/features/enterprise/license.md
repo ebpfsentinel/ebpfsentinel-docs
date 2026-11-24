@@ -562,7 +562,10 @@ The list reaches the file by one of two roads:
   already there stays, whoever put it there, so an answer that left one off -
   an old backup of the portal, or anything able to answer in its place - can
   never hand a revoked key back. A file that is there and cannot be read is
-  left alone rather than overwritten.
+  left alone rather than overwritten. Each heartbeat also reports the
+  fingerprint of the key the agent holds and whether it is in force, so the
+  portal can say which machines took a revocation and which went silent; see
+  [Vendor portal reporting](../../configuration/enterprise.md#vendor-portal-reporting).
 - **An air-gapped estate** copies the portal's **Offline bundle** to
   `revocations_path` by hand, and replaces it when a new one is exported. Both
   roads can share one file: the portal's list is added to a bundle carried

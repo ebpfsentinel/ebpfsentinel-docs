@@ -861,10 +861,27 @@ only ever heartbeats. An agent that is refused (HTTP 401) discards its stored
 credential and joins again; an agent that simply cannot reach the portal keeps
 what it holds and retries with a backoff that grows to fifteen minutes.
 
-What travels is the agent's name and its version. The agent never names an
-organisation or an environment, and the heartbeat interval is whatever the
-portal answers, clamped between 15 seconds and 24 hours and spread by up to ten
-percent so a whole cluster restarting does not land on one second.
+What travels is the agent's name, its version, and on each heartbeat the
+licence it runs on: the SHA-256 fingerprint of the key file, the one the
+revocation list names a key by, and whether the agent holds it in force, or
+`null` when no licence is installed. A key's features, limits and organisation
+stay on the machine. The agent never names an organisation or an environment,
+and the heartbeat interval is whatever the portal answers, clamped between 15
+seconds and 24 hours and spread by up to ten percent so a whole cluster
+restarting does not land on one second.
+
+That licence line is how the portal tells, machine by machine, which agents took
+a withdrawal. A key withdrawn in the portal reaches an enrolled agent in the
+answer to its next heartbeat, so within one heartbeat interval as the portal
+answers it (clamped as above), and is refused at the licence reload a minute
+later; the heartbeat after that reports the key as no longer in force. The agent
+is never stopped: an agent that booted on the key exits and its supervisor
+restarts it on the open-source feature set, which keeps inspecting and
+enforcing. An agent that does not report sends nothing to compare, so the
+portal shows it as silent since the withdrawal. An air-gapped estate receives
+no heartbeat answer at all: it copies the portal's **Offline bundle** to
+`revocations_path` by hand, see
+[Revocation](../features/enterprise/license.md#revocation).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
