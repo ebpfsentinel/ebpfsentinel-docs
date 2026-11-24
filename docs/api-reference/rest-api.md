@@ -3620,7 +3620,9 @@ curl -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" http://localhost:8080/api/v1
 | `attached` | boolean | The exec, fork and exit tracepoints are attached and the table is being filled |
 | `tracepoints` | array | The tracepoint names that attached, in attach order |
 | `reason` | string? | Why the table is off or empty, in one sentence. Absent when attached |
-| `command_line` | boolean | `true` when the agent is configured to read `/proc/<pid>/cmdline` |
+| `command_line` | boolean | `true` when the agent is configured to keep command lines |
+| `command_line_kernel` | boolean | `true` when the kernel copies each started process's arguments at exec; `false` when they are read from `/proc/<pid>/cmdline` once the exec is seen |
+| `command_line_reason` | string? | Why the kernel does not copy them, in one sentence. Absent when it does or when command lines are not kept |
 | `lineage` | boolean | `true` when the kernel reads each process's parent and start time itself, from the running kernel's BTF |
 | `lineage_reason` | string? | Why it does not, in one sentence. The parent then comes from `/proc` and the start times are absent |
 

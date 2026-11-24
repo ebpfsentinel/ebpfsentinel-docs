@@ -168,15 +168,18 @@ reason, never "unsupported". The answer is the `file_kfuncs` block of
 [`GET /api/v1/ebpf/kernel-features`](../api-reference/rest-api.md) and the
 last section of `ebpfsentinel-agent ebpf kernel-features`.
 
-Three more facts are asked the same way although no shipped program uses them
-yet, each named after the one thing it would be used for, so that the day one
+Three more facts are asked the same way, each named after the one thing it is
+used for. The process table rests on `copy_from_user_str`, and attaches its
+argument read only where the BPF LSM is active and the kernel loaded the
+program ([Where the command line is read](../configuration/process-table.md#where-the-command-line-is-read)).
+No shipped program uses the other two yet; they are asked so that the day one
 is wired, whether a host offers it is already a reading rather than a kernel
 version to interpret:
 
-| Fact | Kfuncs | Would be used for | How it is confirmed |
+| Fact | Kfuncs | Used for | How it is confirmed |
 |------|--------|-------------------|---------------------|
 | `kprobe_session` | `bpf_session_is_return`, `bpf_session_cookie` | One program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them | A kprobe program with the session attach type calling both kfuncs is loaded and closed |
-| `copy_from_user_str` | `bpf_copy_from_user_str` | The real argument vector of a process, read at exec | A sleepable LSM program calling it is loaded and closed |
+| `copy_from_user_str` | `bpf_copy_from_user_task_str` | The real argument vector of a process, read at exec | A sleepable LSM program calling it on the current task is loaded and closed |
 | `tcp_reqsk_assign` | `bpf_sk_assign_tcp_reqsk` | A validated SYN cookie handed to the stack as a request socket, so the stack does not revalidate a cookie it did not issue | Read from the kernel's BTF only: a call needs a listening socket looked up first, which a probe cannot honestly fake |
 
 A load that succeeds confirms the fact; a kfunc the BTF does not declare, or a
@@ -200,7 +203,7 @@ Everything below is above the 6.18 floor: each entry is active only where its co
 | `bpf_lsm` | Programs attached at security module hooks, which is where the kernel decides a call before it happens | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Each capability resting on it runs its own fallback, listed beside it |
 | `file_kfuncs` | A task's executable, a rendered path and a file's extended attribute read in the kernel | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Executables are identified by the device and inode read in userspace, and paths and attributes are read off the filesystem |
 | `kprobe_session` | One program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them | A kernel built with it | Nothing changes: no shipped program rests on it yet |
-| `copy_from_user_str` | The real argument vector of a process, read at exec | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Nothing changes: no shipped program rests on it yet |
+| `copy_from_user_str` | The real argument vector of a process, read at exec | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Arguments are read from /proc/<pid>/cmdline after the exec, which a process that has already exited leaves empty |
 | `tcp_reqsk_assign` | A validated SYN cookie handed to the stack as a request socket, so the stack does not revalidate a cookie it did not issue | A kernel built with it | Nothing changes: no shipped program rests on it yet |
 | `attribution` | The workload that opened a socket, named on every flow | Turned on in the configuration and attached on the node | Flows carry no workload name and everything else is unchanged |
 | `process_tracing` | The process behind a flow or an alert, with its command line and lineage | Turned on in the configuration and attached on the node | Flows and alerts carry no process and everything else is unchanged |

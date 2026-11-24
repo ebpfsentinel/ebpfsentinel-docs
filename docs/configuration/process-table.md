@@ -26,7 +26,7 @@ process_table:
 |-------|------|---------|-------------|
 | `enabled` | bool | `true` | Attach the fork, exec and exit tracepoints and keep the table |
 | `capacity` | usize | `8192` | Maximum number of live processes held, in entries |
-| `capture_command_line` | bool | `false` | Read `/proc/<pid>/cmdline` and keep the full command line on the entry |
+| `capture_command_line` | bool | `false` | Keep the command line on the entry, copied by the kernel at exec where it can and read from `/proc/<pid>/cmdline` otherwise |
 
 `capacity` is accepted between `256` and `262144`. Below the floor the table is
 too small to describe a node of any size; above the ceiling it is a memory
@@ -140,9 +140,30 @@ an argument, a token in a URL - and the table is read over the API, so turning
 it on widens what an operator with a read token can see. The agent narrows that
 before anything else sees the line: see
 [what is removed before the line is kept](#what-is-removed-before-the-line-is-kept).
-It is also read from
-`/proc/<pid>/cmdline` at exec time, which is a race: a process that exits
-immediately leaves nothing to read and the field is absent rather than empty.
+
+## Where the command line is read
+
+Where the BPF LSM is active, a sleepable LSM program on
+`bprm_committed_creds` copies the arguments out of the new image with
+`bpf_copy_from_user_task_str` during the exec, before the exec is reported, so
+a process that exits at once still has its command line. Elsewhere, and for
+every exec the kernel could not copy, the line is read from
+`/proc/<pid>/cmdline` once the exec is seen. That is a race: a process that
+exits immediately leaves nothing to read and the field is absent rather than
+empty.
+
+Both reads go through the same bound and the same redaction, so the line an
+entry carries does not depend on which read produced it. The kernel copy shares
+the event ring with the fork, exec and exit records and only ever takes half of
+it: when the ring is fuller than that, the exec goes on without its arguments,
+is counted as `command_line_lost`, and falls back to `/proc`.
+
+The kernel read needs `bpf` among the active security modules
+(`lsm=...,bpf` on the kernel command line) and the agent reports whether it is
+in use as `command_line_kernel`, with the reason in `command_line_reason` when
+it is not, on `GET /api/v1/processes` and in the `Process tracing` section of
+`ebpfsentinel-agent ebpf kernel-features`. The kernel fact it rests on is
+`copy_from_user_str` in the [capability report](../operations/compatibility.md).
 
 It is also what [mass encryption](../features/mass-encryption.md#backups-destroyed)
 reads the destruction of snapshots and backups from, so with it off that prior
@@ -153,8 +174,7 @@ so a reader can tell the difference between a long command and a cut one.
 
 ## What is removed before the line is kept
 
-The line is redacted where `/proc/<pid>/cmdline` is read, before it enters the
-table, so the table, every alert carrying the process, every SIEM export, every
+The line is redacted before it enters the table, whichever read produced it, so the table, every alert carrying the process, every SIEM export, every
 context freeze and every screen see the same redacted line, and the raw one is
 never stored. A host rule matching on `command_line` matches the redacted line
 too. Each removed value becomes `[redacted]`; the flag, the key, the user name,
@@ -201,7 +221,8 @@ ebpfsentinel-agent ebpf kernel-features
 ```
 
 The `Process tracing` section of that output says whether the tracepoints
-attached, which ones took, whether the kernel reads the lineage, whether the command line is being read, and the
+attached, which ones took, whether the kernel reads the lineage, whether the
+command line is being read and whether the kernel reads it at exec, and the
 reason where nothing attached. The two process routes answer `503` with the
 same sentence rather than an empty list, because a node running no process is
 never true.
@@ -214,7 +235,9 @@ The fork, exec and exit path exports per-CPU counters under
 `thread_fork` and `thread_exit` for a thread created or ended rather than a
 process, `lineage_unresolved` for an event whose parent or start time the
 kernel could not read, `outside_namespace` for a task the agent's pid
-namespace cannot see, and `events_dropped` where the ring buffer was full
+namespace cannot see, `command_line_read` for an exec whose arguments the
+kernel copied, `command_line_lost` for one it could not copy, whose line is
+then read from `/proc`, and `events_dropped` where the ring buffer was full
 because userspace was not draining it fast enough. A non-zero `events_dropped` means the table is missing entries, and the
 node is busier than the ring buffer was sized for.
 
