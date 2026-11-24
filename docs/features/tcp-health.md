@@ -38,6 +38,39 @@ contributes its round trip at the start and at the end rather than a stream
 of them, which is enough to tell a slow path from a fast one and costs
 nothing on the data path.
 
+## Time Spent Sending
+
+A round trip says how far the peer is; it does not say where a write waits.
+Where the kernel runs it, a `sock_ops` program attached to the attribution
+cgroup root (`attribution.cgroup_root`, the whole host by default) times
+writes from the kernel's own transmit timestamps, the ones the stack takes for
+`SO_TIMESTAMPING`, and adds them to three histograms per edge:
+
+- `scheduled`: from the write handed to the TCP stack until the queueing
+  discipline of the interface took the segment carrying its last byte;
+- `sent`: until the driver was handed that segment;
+- `acked`: until the peer acknowledged it.
+
+A connection that reaches the established state after the program is attached
+opts in to the callbacks; one already open when the agent starts is not timed.
+Each socket has at most one write timed at a time: a write handed over while
+the previous one is still in flight is not tagged, and a write never
+acknowledged frees its socket after ten seconds. The cost is a tag on one
+write in flight per socket and three callbacks for it, not a sample per
+segment. The hardware timestamp the stack can also take is not used: it is the
+network card's clock, which the kernel's monotonic clock cannot be subtracted
+from.
+
+The callbacks and the `bpf_sock_ops_enable_tx_tstamp` kfunc that turns them on
+are in every kernel from 6.15, below the agent's floor. The program is still
+optional: a kernel that refuses it, a cgroup it cannot attach to, or
+`tcp_health.send_latency: false` leaves the counters and the round-trip
+histogram above untouched, and the capability report names
+`tcp_send_timestamps` inactive with the reason (see
+[kernel capabilities](../operations/compatibility.md)). A socket that refuses
+to opt in, or a write the kernel refuses to tag, is counted in
+`ebpfsentinel_tcp_health_uncounted_total`.
+
 A reset sent where no socket exists, which is what a port scan draws, has no
 local workload and no service port. It is counted under the service
 `no_listener` with one edge per scanning source, so a scan reads as many
@@ -102,6 +135,15 @@ ebpfsentinel_tcp_rtt_seconds_bucket{le="0.001024",service="shop/api",peer="shop/
 ebpfsentinel_tcp_rtt_seconds_count{service="shop/api",peer="shop/postgres",role="client"} 76
 ```
 
+Timed writes use the same buckets, one histogram per stage:
+
+```text
+ebpfsentinel_tcp_send_latency_seconds_bucket{le="0.000064",service="shop/api",peer="shop/postgres",role="client",stage="scheduled"} 412
+ebpfsentinel_tcp_send_latency_seconds_count{service="shop/api",peer="shop/postgres",role="client",stage="acked"} 420
+```
+
+A stage no write on the edge reached writes no series.
+
 Two queries worth keeping:
 
 ```promql
@@ -114,6 +156,9 @@ sum by (service) (rate(ebpfsentinel_tcp_connections_total{outcome="failed"}[5m])
 
 # 99th percentile round trip per edge
 histogram_quantile(0.99, sum by (service, peer, le) (rate(ebpfsentinel_tcp_rtt_seconds_bucket[5m])))
+
+# 99th percentile time a write waits before the driver has it, per edge
+histogram_quantile(0.99, sum by (service, peer, le) (rate(ebpfsentinel_tcp_send_latency_seconds_bucket{stage="sent"}[5m])))
 ```
 
 The same samples ride the [service graph](l7-firewall.md#service-map):
@@ -126,7 +171,10 @@ most one bucket.
 
 ## Bounds
 
-The kernel keeps at most 8192 edges, and as many round-trip histograms. An
+The kernel keeps at most 8192 edges, and as many round-trip histograms and
+timed-write histograms; the timed writes add about 3.9 MB of keys and values
+for the histograms and 0.6 MB for the 8192 writes in flight it follows at
+once, a least recently used table. An
 event on an edge the table has no
 room for, an event that arrived before the agent wrote the kernel layout, and
 an event on a socket whose fields could not be read are each counted in
@@ -140,7 +188,9 @@ of 256 names as the L7 request meter, and a name beyond it is counted under
 
 ## Requirements
 
-The tracepoints are in every kernel the agent supports. The agent reads the
+The tracepoints and the timestamp callbacks are in every kernel the agent
+supports; the callbacks also need the cgroup v2 hierarchy at
+`attribution.cgroup_root`. The agent reads the
 `sock`, `sock_common`, `tcp_sock`, `sk_buff` and cgroup field offsets from
 `/sys/kernel/btf/vmlinux`, so a kernel without BTF loads nothing, and the
 `ebpf_program_status{program="tracepoint-tcp-health"}` gauge reads `0` with
@@ -152,6 +202,7 @@ the reason in the agent's log.
 tcp_health:
   enabled: true
   poll_interval_secs: 10
+  send_latency: true
   reset_scan:
     enabled: true
     window_secs: 60

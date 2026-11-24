@@ -261,7 +261,7 @@ suites = ["oss/87-restart-state-and-posture", "dashboard/src/routes/segments", "
 suites = ["oss/90-network-readings"]
 
 [pages."features/tcp-health"]
-suites = ["oss/71-tcp-health"]
+suites = ["oss/71-tcp-health", "oss/152-tcp-send-timestamps"]
 
 [pages."features/threatintel"]
 suites = ["oss/17-ebpf-threatintel-scenarios", "oss/33-api-stix-feed"]

@@ -324,7 +324,8 @@ devices. What each reason means is on
 | `ebpfsentinel_tcp_resets_total` | Counter | `service`, `peer`, `role`, `direction` | Resets sent or received on an edge |
 | `ebpfsentinel_tcp_connections_total` | Counter | `service`, `peer`, `role`, `outcome` | Connections opened, failed before being established, or closed after it |
 | `ebpfsentinel_tcp_rtt_seconds` | Histogram | `service`, `peer`, `role` | Smoothed round-trip time sampled when a connection is established and when it leaves that state; sixteen buckets doubling from 64 microseconds |
-| `ebpfsentinel_tcp_health_uncounted_total` | Counter | - | TCP events seen but not counted under an edge: the table was full, the layout was not written yet, or a socket field could not be read |
+| `ebpfsentinel_tcp_send_latency_seconds` | Histogram | `service`, `peer`, `role`, `stage` | Time from a write handed to the TCP stack until the queueing discipline took it (`stage="scheduled"`), the driver was handed it (`sent`) and the peer acknowledged it (`acked`), from the kernel's transmit timestamps; same buckets as the round trip |
+| `ebpfsentinel_tcp_health_uncounted_total` | Counter | - | TCP events seen but not counted under an edge: the table was full, the layout was not written yet, a socket field could not be read, or a socket or write refused the transmit timestamps |
 
 `service` is the workload holding the local socket, `no_listener` for a reset
 sent where no socket exists, or `unattributed`; `peer` is the workload at the

@@ -28,7 +28,7 @@ eBPFsentinel includes 29 eBPF kernel programs, all written in Rust using the [Ay
 | `cgroup-attribution` | cgroup sock_addr / sock / sock_ops | `crates/ebpf-programs/cgroup-attribution/` | The task behind a socket, recorded against the socket cookie and the five-tuple |
 | `cgroup-workload-firewall` | cgroup sock_addr | `crates/ebpf-programs/cgroup-workload-firewall/` | Firewall rules that name a workload, decided in `connect()`, `sendmsg()` and `bind()` |
 | `tracepoint-process` | raw tracepoint | `crates/ebpf-programs/tracepoint-process/` | `execve` and exit notifications for the userspace process table |
-| `tracepoint-tcp-health` | raw tracepoint | `crates/ebpf-programs/tracepoint-tcp-health/` | Retransmissions, resets and connection outcomes counted per edge between two services |
+| `tracepoint-tcp-health` | raw tracepoint, sock_ops | `crates/ebpf-programs/tracepoint-tcp-health/` | Retransmissions, resets and connection outcomes counted per edge between two services, and writes timed from the kernel's transmit timestamps |
 | `tracepoint-drop-reason` | raw tracepoint (`kfree_skb`) | `crates/ebpf-programs/tracepoint-drop-reason/` | Packets the kernel freed without delivering, counted per drop reason and interface, and per reason for the workloads an investigation is watching |
 | `tracepoint-signal` | raw tracepoint | `crates/ebpf-programs/tracepoint-signal/` | Signals an armed thread group at its next system call, refusing the protected ones (loaded only where the capability is on) |
 | `lsm-exec-network` | BPF LSM | `crates/ebpf-programs/lsm-exec-network/` | Refuses an internet socket to an executable outside the configured list, at `socket_create` and `socket_connect` (loaded only where the list is on and the BPF LSM is active) |
@@ -372,6 +372,7 @@ Packet normalization running after XDP processing:
 - Four raw tracepoints, `tcp_retransmit_skb`, `tcp_send_reset`, `tcp_receive_reset` and `inet_sock_set_state`, none of which runs on a segment delivered in order
 - Counts only, in a per-CPU hash keyed by the edge; userspace names both ends from the listening sockets and the workload table, and turns the counts into Prometheus counters
 - Field offsets come from BTF through a config map written before attach, so the object carries no kernel's layout
+- An optional `sock_ops` program on the attribution cgroup root times one write in flight per socket to the queueing discipline, the driver and the acknowledgement, from the kernel's transmit timestamp callbacks; a kernel refusing it leaves the counters running
 
 ## Crypto Calls (uprobe-crypto)
 
