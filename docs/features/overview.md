@@ -127,12 +127,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds twenty-nine program directories: twenty-five
+`crates/ebpf-programs/` holds thirty program directories: twenty-six
 attached at a hook of their own, three reached only by tail call from one of
-those twenty-five, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty-five attached programs, of which the seven after
+those twenty-six, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-six attached programs, of which the eight after
 `uprobe-dlp` read a task rather than a packet, the next two
-read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one keeps the agent itself from being stopped, the next one refuses a writer's write-opens past a count under watched directories, and the last one counts the calls a process makes into the system crypto library; of the seven after `uprobe-dlp` only the workload firewall, the
+read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one keeps the agent itself from being stopped, the next one refuses a writer's write-opens past a count under watched directories, and the last one counts the calls a process makes into the system crypto library; of the eight after `uprobe-dlp` only the workload firewall, the
 executables list, the connection redirect and the cluster address resolution act on a syscall and only the
 signal program acts on a process:
 

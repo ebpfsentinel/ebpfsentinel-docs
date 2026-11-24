@@ -1,6 +1,6 @@
 # eBPF Helper Functions
 
-eBPFsentinel calls 33 kernel helper functions across its 29 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required. The authoritative list is the requirement table the agent probes with (`crates/adapters/src/ebpf/helper_probe.rs`), which a unit test keeps in step with the program sources in both directions: a helper a program calls must be listed, and a helper listed must be called. The test follows the calls a program makes through the `ebpf_helpers` macros (`emit_packet_event!`, `ringbuf_has_backpressure!`) and through aya's methods (`tail_call`, `redirect`, `load`, `store`), not only the ones spelled `bpf_*(` in its own source.
+eBPFsentinel calls 33 kernel helper functions across its 30 programs. This page documents each helper, what it does, which program uses it, and the minimum kernel version required. The authoritative list is the requirement table the agent probes with (`crates/adapters/src/ebpf/helper_probe.rs`), which a unit test keeps in step with the program sources in both directions: a helper a program calls must be listed, and a helper listed must be called. The test follows the calls a program makes through the `ebpf_helpers` macros (`emit_packet_event!`, `ringbuf_has_backpressure!`) and through aya's methods (`tail_call`, `redirect`, `load`, `store`), not only the ones spelled `bpf_*(` in its own source.
 
 ## Helper Reference
 

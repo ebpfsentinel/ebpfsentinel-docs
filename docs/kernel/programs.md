@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 29 eBPF kernel programs (the
+Detailed documentation for each of the 30 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
