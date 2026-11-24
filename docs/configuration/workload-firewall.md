@@ -27,6 +27,7 @@ firewall:
 | `unit` | string | Exact systemd unit name, derived from the task's cgroup path | `nginx.service` |
 | `cgroup` | string | Absolute cgroup v2 path, matching that cgroup **and everything under it** | `/system.slice/nginx.service` |
 | `container` | string | Container name as the runtime gave it, a full container id, or an id prefix of at least 12 characters | `payments-api` |
+| `cgroup_label` | string | Exact value of the `user.ebpfsentinel.workload` extended attribute on the task's own cgroup directory, at most 63 bytes; see [A label on the cgroup](#a-label-on-the-cgroup) | `payments-batch` |
 | `pods` | label selector | Labels of the pod the task runs in, as `match_labels` and `match_expressions` with the Kubernetes meaning | `match_labels: {app: api}` |
 | `namespaces` | label selector | Labels of that pod's namespace, in the same shape; a namespace is named by its name through `kubernetes.io/metadata.name` | `match_labels: {kubernetes.io/metadata.name: payments}` |
 | `service_account` | string | Exact name of the service account the pod runs as | `api` |
@@ -34,7 +35,7 @@ firewall:
 | `ancestor` | string | Absolute path of an executable any process above the task runs, the parent included | `/usr/sbin/nginx` |
 | `mode` | string | `observe` (default) or `enforce` | `enforce` |
 
-A virtual machine is not a workload here: its sockets are in its own kernel, where no hook of the host runs, so a `workload` naming a `guest` is refused with that reason. Scope an [IDS rule](ids.md#guests) to the guest instead, which is decided on its tap device. A selector must name at least one of the ten, and never both `parent` and `ancestor`. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe`, `cgroup`, `parent` and `ancestor` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
+A virtual machine is not a workload here: its sockets are in its own kernel, where no hook of the host runs, so a `workload` naming a `guest` is refused with that reason. Scope an [IDS rule](ids.md#guests) to the guest instead, which is decided on its tap device. A selector must name at least one of the eleven, and never both `parent` and `ancestor`. Naming several is an AND: every matcher present must be true of the same task. A matcher may not be empty, may not carry a control character and may not exceed 4096 bytes; `exe`, `cgroup`, `parent` and `ancestor` must be absolute paths. A label selector is refused where the API server would refuse it: `In` and `NotIn` need values, `Exists` and `DoesNotExist` take none, and the operator is spelt as the API spells it. The three Kubernetes matchers need the [Kubernetes enricher](../features/container-awareness.md) running on the node, and its `ClusterRole` reading `namespaces` as well as `pods`; on a node without it a rule naming them loads, matches no task, and the agent says so at startup. A pod's labels, its namespace's labels and its service account are read as the watches report them, not only when a process starts: a relabelled pod or namespace is resolved again about a second after the change, so a long-running server enters or leaves a rule without restarting. The block refuses unknown keys, so a misspelled matcher fails the load rather than quietly producing a rule that names no workload.
 
 ### Three semantics worth knowing before writing one
 
@@ -133,6 +134,31 @@ executable, `exe` is read at exec as well, which the start-up log says.
 document, so a mask already written in the kernel goes on meaning the same
 rule while the new document is replayed over running tasks; a cgroup the new
 document no longer names is cleared at the end of that replay.
+
+### A label on the cgroup
+
+A runtime, an orchestrator or a person can name a workload by writing one extended attribute on its cgroup directory, without the agent knowing the unit, the container or the image behind it:
+
+```bash
+setfattr -n user.ebpfsentinel.workload -v payments-batch /sys/fs/cgroup/system.slice/batch.service
+```
+
+```yaml
+    - id: batch-no-internet
+      action: deny
+      workload:
+        cgroup_label: payments-batch
+        mode: enforce
+```
+
+The convention is fixed: the attribute is `user.ebpfsentinel.workload`, in the `user.` namespace because it is the only one the kernel lets a program read off a cgroup, and its value is the label, at most 63 bytes and no control character. Writing it needs write access to the cgroup directory, which on cgroup v2 is root or the user the cgroup was delegated to; a rule naming a label is therefore as trustworthy as whatever may write that directory, and a delegated subtree can label itself. Only the task's own cgroup is read, never a cgroup above it, so a label on a pod slice does not name the containers under it: label the leaf, or use `cgroup` for a subtree.
+
+The label is read on two paths, and the [capability](../operations/compatibility.md) `cgroup_labels` says which one a host uses:
+
+- **In the kernel**, at the call, with the kfunc `bpf_cgroup_read_xattr`, where the kernel declares it, its BTF gives the two fields the read goes through, and the verifier accepts the programs reading it. The kfunc is built only into a kernel configured with the BPF LSM (`CONFIG_BPF_LSM`), though the LSM need not be active at boot, and the read needs the agent's `CAP_PERFMON`. A label written on a cgroup the agent has never resolved, or after it resolved it, decides the next call. Only a rule whose selector names `cgroup_label` alone is decided there; a label combined with another matcher goes through the second path.
+- **By the agent**, off the cgroup directory, every time it resolves a cgroup: when a task in it executes a program, when a container starts and when the policy is loaded or reloaded. This path runs on every host, kernel path or not. A label set after that is seen at the next resolve. A label removed keeps matching until then on both paths wherever the agent had already read it, because its own answer is still held for the cgroup; only a label the kernel alone had seen stops matching at once.
+
+Where `cgroup_labels` is inactive, `ebpfsentinel-agent ebpf kernel-features` and `GET /api/v1/ebpf/kernel-features` give the reason, and the agent logs at startup which path reads the label. A value longer than 63 bytes reads as no label on both paths, so a rule naming it never matches it.
 
 ### Selecting by what a task was started under
 
@@ -518,7 +544,7 @@ What each one holds against somebody who can write files on the node:
 
 IMA is not read. Its measurement list is a log of what the host's own policy chose to measure, readable as root from securityfs, keyed by path and appended to for the whole boot; answering "what is this process running" from it would mean a policy the agent does not control and a path to join on, which is the very thing a digest is meant to stop trusting.
 
-The `unit`, `cgroup` and `container` matchers are not paths and do not share the forging weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.
+The `unit`, `cgroup`, `cgroup_label` and `container` matchers are not paths and do not share the forging weakness, though they are only as trustworthy as whatever can create a unit or start a container on the node.
 
 ## What it costs and what it reports
 
