@@ -60,7 +60,7 @@ Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway prefer
 
 ## OSS vs Enterprise
 
-eBPFsentinel is open source (AGPL-3.0). Every security domain, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4 fingerprinting are included - no paywall.
+eBPFsentinel is open source (AGPL-3.0). Every engine of the agent, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4 fingerprinting are included, on as many hosts as you like. A few engines stop at a ceiling the agent states when a configuration crosses it: three automatic response policies, one alert-triggered capture of at most 60 s, DLP in alert mode on the built-in card, national identifier and credential patterns, and three fixed roles. The paid tiers lift them.
 
 An [enterprise edition](docs/features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
 

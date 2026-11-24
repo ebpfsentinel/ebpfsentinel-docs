@@ -205,7 +205,7 @@ dlp:
   mode: alert      # only alert is supported in OSS
 ```
 
-Built-in patterns are loaded automatically and do not need to be listed in the configuration file. Any attempt to add custom patterns or set `mode: block` in OSS will be rejected at startup with a validation error.
+Built-in patterns are loaded automatically and do not need to be listed in the configuration file. A built-in may be restated to rename it, change its severity or switch it off, with its regex as shipped. Any attempt to add a custom pattern, change a built-in's regex or set `mode: block` in OSS will be rejected at startup with a validation error.
 
 ### Professional and above: configuration
 
@@ -295,11 +295,11 @@ every pattern reads back `alert`, since block mode is refused at startup.
 
 ### Feature Gating
 
-Enterprise DLP capabilities are activated by the separate enterprise repository, which enables the `enterprise` Cargo feature. The OSS codebase enforces limits at every layer:
+The paid DLP capabilities run in the enterprise binary, which builds its own boot sequence on the OSS crates and checks the `advanced-dlp` licence feature; the OSS agent carries no switch that turns them on. The OSS codebase enforces limits at every layer:
 
-- **Domain layer** (`DlpEngine`): `add_pattern()` and `reload()` reject non-builtin pattern IDs in OSS
+- **Domain layer** (`DlpEngine`): `add_pattern()` and `reload()` reject any pattern that is not a built-in with its own expression in OSS
 - **Application layer** (`DlpAppService`): `set_mode()` rejects `Block` mode in OSS
-- **Infrastructure layer** (config validation): rejects custom IDs, block mode, and per-pattern block overrides in OSS
+- **Infrastructure layer** (config validation): rejects custom IDs, changed built-in expressions, block mode, and per-pattern block overrides in OSS
 - **Agent layer** (startup + reload): OSS always loads built-in defaults in alert mode; hot-reload only toggles enabled/disabled
 
 ## Metrics

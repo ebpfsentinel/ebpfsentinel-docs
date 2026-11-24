@@ -5,10 +5,12 @@ The `dlp` section configures data loss prevention pattern scanning on decrypted 
 ## OSS vs paid tiers
 
 In **OSS** mode, built-in patterns are loaded automatically. A `patterns`
-entry whose `id` repeats a built-in re-tunes that pattern - a different
-regex or severity, or `enabled: false` to switch it off - and the built-ins
-it does not name are kept as they are. Any other id, block mode, and
-per-pattern mode overrides are rejected at config validation time.
+entry whose `id` repeats a built-in re-tunes that pattern - its name,
+severity, description or category, or `enabled: false` to switch it off -
+and the built-ins it does not name are kept as they are. The entry carries
+the built-in's `regex` exactly as it ships: a changed expression is a custom
+pattern. Any other id, a changed regex, block mode, and per-pattern mode
+overrides are rejected at config validation time.
 
 With a licence carrying `advanced-dlp`, which every paid tier has from **Professional** upwards, all fields are available including custom patterns and block mode.
 
@@ -51,7 +53,7 @@ dlp:
                              # an enterprise.advanced_dlp.custom_patterns entry
     - id: "dlp-pii-email"
       name: "Email Address"
-      regex: "\\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b"
+      regex: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
       severity: medium
       data_type: pii
       description: "Email address"
@@ -70,7 +72,7 @@ dlp:
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable or disable the DLP module |
 | `mode` | `string` | `alert` | `alert` (detect only) or `block` (Professional and above) |
-| `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in; a new id needs Professional or above |
+| `patterns` | `[Pattern]` | `[]` | Patterns folded into the built-in set by `id`. On OSS an entry may only re-tune a built-in, with its regex as shipped; a new id or a changed regex needs Professional or above |
 | `scope` | `Scope` | `mode: all` | Which workloads the probes may read plaintext from, enforced in the kernel |
 | `record_bytes` | `u32` | `16384` | The most plaintext one event carries, `4096` to `16384`. See [Record size](#record-size) |
 
@@ -196,7 +198,7 @@ the configured one, which is the difference between a document and a fence.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `id` | `string` | Yes | - | Unique identifier. OSS only accepts built-in prefixes (`dlp-pci-*`, `dlp-pii-*`, `dlp-cred-*`) |
+| `id` | `string` | Yes | - | Unique identifier. OSS only accepts the exact id of a built-in, listed below, with that built-in's `regex` |
 | `name` | `string` | Yes | - | Human-readable pattern name |
 | `regex` | `string` | Yes | - | Regex pattern (validated with ReDoS protection limits) |
 | `severity` | `string` | Yes | - | `low`, `medium`, `high`, or `critical` |
