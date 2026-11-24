@@ -170,22 +170,23 @@ the host pid namespace is not one of them:
   inside a pod.
 - **The warden confines itself before it serves.** Once the pcap pool and
   module BTF are open and the socket is bound, the warden sets
-  no-new-privileges, restricts itself with Landlock where the kernel offers it
-  (no execution anywhere, no file created, written or removed outside the link
-  pin directory, and only new files in the directory of each canary the
-  policy names), and installs a seccomp filter. In that filter `execve`,
+  no-new-privileges and installs a seccomp filter. In that filter `execve`,
   `ptrace`, the mount family, module loading, `kexec`, `unshare`, the uid and
   capability setters, `keyctl` and `io_uring` kill the process; a thread may
   not be created in a new namespace and `setns` enters a network namespace
   only; any call on no list fails with `EPERM`, so a call the list missed
   fails one request instead of stopping the broker. A warden that cannot set
-  no-new-privileges or the filter refuses to serve; a kernel without Landlock
-  is logged as the weaker posture it is (whether Landlock is built and listed
-  in `lsm=` is the distribution's choice). Reads stay open: the file watch, the DLP scan and
+  no-new-privileges or the filter refuses to serve. The warden takes no
+  Landlock domain: a task inside one may not open the `/proc` entry of a task
+  outside it (the executable link, the mappings, the descriptors), and every
+  answer about a host process (what it runs, which libraries it maps, which
+  sockets it holds) is read there. Writes are fenced by the read-only root
+  filesystem the chart and the compose file give it and by the unit's
+  `ProtectSystem=full`. Reads stay open: the file watch, the DLP scan and
   the runtime stores read host paths the configuration names. The start-up
-  log prints the posture, for example `[warden] confined: no new privileges,
-  Landlock ABI 6, seccomp filter`, and `grep -E 'NoNewPrivs|Seccomp'
-  /proc/$(pidof warden)/status` reads `1` and `2`.
+  log prints `[warden] confined: no new privileges, seccomp filter`, and
+  `grep -E 'NoNewPrivs|Seccomp' /proc/$(pidof warden)/status` reads `1` and
+  `2`.
 - **The warden bounds what it reads and logs what it answered.** It serves 64
   connections at once by default (`--max-connections`, at most 256); past
   that it stops accepting and the next connection waits in the listen backlog

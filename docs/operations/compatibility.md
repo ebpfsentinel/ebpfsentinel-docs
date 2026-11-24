@@ -96,7 +96,7 @@ The agent is split in two containers, both on the host network:
 
 | Container | User | Privileges |
 |-----------|------|------------|
-| Warden | root | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH`; read-only root filesystem; the runtime's AppArmor and seccomp profiles off, replaced by the warden's own no-new-privileges, Landlock and seccomp filter, set before it serves |
+| Warden | root | `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `BPF`, `PERFMON`, `DAC_READ_SEARCH`; read-only root filesystem; the runtime's AppArmor and seccomp profiles off, replaced by the warden's own no-new-privileges and seccomp filter, set before it serves |
 | Agent | `65534` | `cap_drop: ALL`; AppArmor unconfined; seccomp either unconfined or the tailored profile `ebpfsentinel-agent.json`, a release asset |
 
 Neither runs `--privileged`. The warden delegates a bpffs to the agent, which
