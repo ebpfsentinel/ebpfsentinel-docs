@@ -373,6 +373,35 @@ Gateways are health-checked periodically. When a gateway goes down, traffic fail
 
 When the firewall passes a packet, it optionally **tail-calls** into `xdp-ratelimit` via `PROG_ARRAY`. This means only one XDP program needs to be attached per interface.
 
+### Frames Larger Than One Buffer
+
+A jumbo frame, or an aggregate built by hardware GRO, reaches XDP as several
+buffers, and a program reads only the first. Every XDP program of the chain
+declares that it can see such frames, so the kernel lets it attach to an
+interface whose MTU exceeds one buffer. When the headers the firewall needs
+lie past the first buffer, the parse fails; the firewall then moves the first
+256 bytes of the frame into the first buffer with the `bpf_xdp_pull_data`
+kfunc and parses again. Each such frame adds one to
+`ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action="frags_pulled"}`.
+The load balancer does the same with its own counter.
+
+Whether a host offers the kfunc is asked once at startup, by loading a small
+program that calls it, and reported as the `xdp_pull_data` capability on
+`/api/v1/ebpf/kernel-features`. Where it is refused, the XDP programs load as
+they did before the pull was used, without the multi-buffer declaration; what
+happens to a frame spanning several buffers is then the driver's choice. The
+veth driver, for one, refuses to attach such a program on a link whose MTU
+exceeds one buffer (`veth_xdp_set` in `drivers/net/veth.c`). Where the kfunc is
+offered and a frame's headers still cannot be reached, the frame takes the
+default policy unparsed.
+
+What we have not measured: whether every driver transmits a multi-buffer
+frame the load balancer sends back out with `XDP_TX` or a redirect, since a
+driver that cannot may drop it; and the pull itself on real traffic. The
+integration suite runs a veth at a 9000-byte MTU, where the firewall attaches
+in driver mode and refuses or passes jumbo datagrams, but a veth keeps a
+frame's headers in its first buffer, so `frags_pulled` stays at zero there.
+
 ### XDP Metadata
 
 The firewall writes metadata (`bpf_xdp_adjust_meta`) containing the matched rule ID and flags. Downstream TC programs read this without re-parsing packet headers.
@@ -523,7 +552,7 @@ their own. Their counters are slots in per-CPU kernel maps, folded onto
 `ebpfsentinel_packets_total` with `interface` naming the map and `action`
 naming the slot.
 
-- `ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action}` - `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected` (TCP RST or ICMP unreachable sent via XDP_TX), `mtu_exceeded`, `reject_throttled`
+- `ebpfsentinel_packets_total{interface="FIREWALL_METRICS", action}` - `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected` (TCP RST or ICMP unreachable sent via XDP_TX), `mtu_exceeded`, `reject_throttled`, `frags_pulled` (frames whose headers lay past their first buffer and were pulled into it)
 - `ebpfsentinel_packets_total{interface="SCRUB_METRICS", action}` - `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped`
 - `ebpfsentinel_packets_total{interface="CT_METRICS", action}` - `new`, `established`, `closed`, `invalid`, `evicted`, `errors`, `lookups`, `hits`, `total_seen` and the `kfunc_*` slots
 - `ebpfsentinel_conntrack_active` - active connections in the conntrack table

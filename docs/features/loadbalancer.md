@@ -267,6 +267,8 @@ for the `announce` block.
 - `ebpfsentinel_rules_loaded{component="loadbalancer"}` - number of loaded services
 - `ebpfsentinel_packets_total{interface="LB_METRICS", action="forwarded"}` - packets forwarded to backends
 - `ebpfsentinel_packets_total{interface="LB_METRICS", action="no_backend"}` - packets with no available backend
+- `ebpfsentinel_packets_total{interface="LB_METRICS", action="bytes_forwarded"}` - bytes forwarded, every buffer of a multi-buffer frame counted
+- `ebpfsentinel_packets_total{interface="LB_METRICS", action="frags_pulled"}` - frames larger than one buffer whose headers lay past the first and were pulled into it before the service lookup (see [Frames larger than one buffer](firewall.md#frames-larger-than-one-buffer))
 - `ebpfsentinel_lb_vip_arp_replies{vip}` - forged ARP replies per VIP (speaker only)
 - `ebpfsentinel_lb_vip_takeovers_total{vip}` - gratuitous-ARP takeovers per VIP
 - `ebpfsentinel_lb_vip_speaker` - 1 while this node answers ARP for its VIPs, 0 while it stays silent

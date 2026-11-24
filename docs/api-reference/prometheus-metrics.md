@@ -106,7 +106,7 @@ visible.
 
 | `interface` | Program | `action` values |
 |--------|------|--------|
-| `FIREWALL_METRICS` | `xdp-firewall`, `xdp-firewall-reject` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected`, `mtu_exceeded`, `reject_throttled` |
+| `FIREWALL_METRICS` | `xdp-firewall`, `xdp-firewall-reject` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `rejected`, `mtu_exceeded`, `reject_throttled`, `frags_pulled` |
 | `RATELIMIT_METRICS` | `xdp-ratelimit` | `passed`, `dropped`, `errors`, `events_dropped`, `total_seen`, `mtu_exceeded`, `throttled_passed` |
 | `IDS_METRICS` | `tc-ids` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen`, `cgroup_resolved`, `cgroup_attributed`, `ct_kill_confirmed`, `l7_flow_dropped` (packets of a connection an L7 rule refused), `packets_captured`, `packets_lost`, `packets_truncated` (whole packets handed up for imported rules: copied, lost to a full ring buffer, cut at 2048 bytes) |
 | `THREATINTEL_METRICS` | `tc-threatintel` | `matched`, `dropped`, `errors`, `events_dropped`, `total_seen` |
@@ -116,7 +116,7 @@ visible.
 | `NAT_METRICS` | `tc-nat-ingress`, `tc-nat-egress` | `snat_applied`, `dnat_applied`, `masq_applied`, `port_alloc_fail`, `errors`, `total_seen`, `nptv6_translated`, `hairpin_applied`, `reverse_applied`, `reverse_untracked`, `xfrm_steered`, `fou_encap` |
 | `SCRUB_METRICS` | `tc-scrub` | `packets`, `ttl_fixed`, `mss_clamped`, `df_cleared`, `ipid_randomized`, `errors`, `hop_fixed`, `total_seen`, `tcp_flags_scrubbed`, `ecn_stripped`, `tos_normalized`, `tcp_ts_stripped`, `fragments_dropped` |
 | `DDOS_METRICS` | `xdp-ratelimit`, `xdp-ratelimit-syncookie` | `syn_rcv`, `syn_flood_drops`, `icmp_pass`, `icmp_drop`, `amp_passed`, `amp_dropped`, `oversized_icmp`, `errors`, `events_dropped`, `conn_tracked`, `half_open_drops`, `rst_flood_drops`, `fin_flood_drops`, `ack_flood_drops`, `total_seen`, `syncookie_sent`, `syncookie_valid`, `syncookie_invalid` |
-| `LB_METRICS` | `xdp-loadbalancer` | `forwarded`, `no_backend`, `bytes_forwarded`, `events_dropped`, `total_seen`, `mtu_exceeded` |
+| `LB_METRICS` | `xdp-loadbalancer` | `forwarded`, `no_backend`, `bytes_forwarded`, `events_dropped`, `total_seen`, `mtu_exceeded`, `frags_pulled` |
 | `QOS_METRICS` | `tc-qos` | `total_seen`, `shaped`, `dropped_loss`, `dropped_queue`, `delayed`, `errors` |
 
 Three of these repay reading in pairs.
@@ -139,6 +139,13 @@ volume one. The four `kfunc_state_*` counters read `nf_conn` fields at BTF
 offsets resolved once at startup; a non-zero error count means the offsets no
 longer match the running kernel, so those four are undercounting rather than
 reporting an idle datapath.
+
+`frags_pulled` under `FIREWALL_METRICS` and `LB_METRICS` counts frames larger
+than one buffer (jumbo frames, hardware GRO aggregates) whose headers lay past
+the first buffer and were pulled into it with `bpf_xdp_pull_data` so the parse
+could read them. It stays at zero on a host whose kernel refuses that kfunc,
+where such a frame takes the default policy unparsed; the `xdp_pull_data`
+capability on `/api/v1/ebpf/kernel-features` says which case a host is in.
 
 ## Metrics Catalog
 
