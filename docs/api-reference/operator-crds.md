@@ -206,6 +206,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `l7Advanced` | object | `{"customInspectPatterns":[],"deepInspectRuleIds":[]}` | Deep-inspection overrides applied on top of the L7 rule set. |
 | `mode` | string | `"alert"` | Engine-wide mode. A pattern may override it. One of `alert`, `block`. |
 | `patterns` | array of object | `[]` | Patterns matched against reassembled payloads. |
+| `recordBytes` | integer |  | The most plaintext one DLP event carries, in bytes, from 4,096 to 16,384 (the largest plaintext one TLS record holds). Where the node's kernel cannot read user memory straight into the ring buffer, an event carries at most 4,096 bytes whatever this says. Left out, the agent keeps 16,384. Minimum `4096`. Maximum `16384`. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 | `tlsProxy` | object |  | TLS inspection proxy, terminating and re-originating TLS so the cleartext can be scanned. |
 
