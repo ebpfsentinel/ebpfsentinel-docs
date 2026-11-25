@@ -122,4 +122,4 @@ Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both
 - **CO-RE / BTF** for portable compilation ([`/sys/kernel/btf/vmlinux`](https://docs.ebpf.io/linux/concepts/btf/) must exist)
 - **A BPF token** for loading; the agent holds no `CAP_BPF`. `CAP_NET_ADMIN` is still needed for the host-network operations the warden brokers
 
-The 6.18 minimum is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program; BPF token delegation (6.9), the kfunc surface, `bpf_dynptr` and BPF filesystem map pinning all arrived below it. See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.
+The 6.18 minimum is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program; BPF token delegation (6.9), `bpf_dynptr` and BPF filesystem map pinning all arrived below it, and the kfuncs the programs call run up to 6.18 itself (`bpf_xdp_pull_data`). See [Kernel Compatibility](requirements.md) for the full feature matrix and per-program optimization details.

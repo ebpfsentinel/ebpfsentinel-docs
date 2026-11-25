@@ -8,7 +8,7 @@
 | BTF | `CONFIG_DEBUG_INFO_BTF=y` (`/sys/kernel/btf/vmlinux` must exist) |
 | Privileges | The privileged warden (a container, a sidecar or a systemd unit) delegates a BPF filesystem; the agent unshares a user namespace, creates the BPF token itself and holds no capability. Unprivileged user namespaces must be enabled. No `CAP_BPF`/`setcap` path. |
 
-The 6.18 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The floor is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program (Ubuntu 26.04, Ubuntu 24.04's HWE line, Talos 1.12, GKE Container-Optimized OS 133 and EKS Amazon Linux 2023 run it or later); BPF token delegation (`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`, 6.9) and the kfuncs the programs call (see [KFuncs](kfuncs.md)) are older than it. The floor guarantees that the file kfuncs of 6.12 exist, never that they load: each is probed, and refused ones fall back to userspace.
+The 6.18 floor is enforced at agent startup before any BPF program is loaded - there is no fallback path. The floor is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program (Ubuntu 26.04, Ubuntu 24.04's HWE line, Talos 1.12, GKE Container-Optimized OS 133 and EKS Amazon Linux 2023 run it or later); BPF token delegation (`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`, 6.9) is older than it, and the kfuncs the programs call (see [KFuncs](kfuncs.md)) arrived at it or before, the newest `bpf_xdp_pull_data` in 6.18 itself. The floor guarantees that the file kfuncs of 6.12 exist, never that they load: each is probed, and refused ones fall back to userspace.
 
 Verify on your system:
 

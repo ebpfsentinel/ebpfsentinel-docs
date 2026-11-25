@@ -383,7 +383,7 @@ Packet normalization running after XDP processing:
 
 ## Kernel Requirements
 
-All features require Linux kernel **6.18+** with BTF, the long-term kernel of 2025 and the first release that verifies the signature of a BPF program. BPF token delegation (6.9) and the newest kfuncs the programs call (`bpf_xdp_metadata_rx_vlan_tag`, `bpf_xdp_get_xfrm_state`, 6.8) are older than the floor. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
+All features require Linux kernel **6.18+** with BTF, the long-term kernel of 2025 and the first release that verifies the signature of a BPF program. BPF token delegation (6.9) is older than the floor, and the newest kfunc the programs call, `bpf_xdp_pull_data`, arrived in 6.18 itself. See the [Compatibility](../operations/compatibility.md) page for the full feature-to-kernel-version matrix.
 
 ## Build
 
