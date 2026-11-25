@@ -91,6 +91,35 @@ provider taking on another customer does not reprice the subscriptions it
 already holds, and a partner standing withdrawn later leaves each subscription
 at its price until that subscription is changed.
 
+### An agreed price
+
+A percentage off the published price can be agreed with us in writing before
+you buy. It reaches you as a link, written for one address or for anybody at
+its company's domain, and it goes through the ordinary sign-up and checkout:
+there is no separate price list and no separate contract.
+
+1. The link opens **A price agreed with** your company: the percentage, the
+   tiers it covers, how long it holds (for the life of the subscription, for
+   the first billing period, or for the first N billing periods), who can take
+   it up, and **The link works until** its last day.
+2. Create an account with that address, or sign in if you already have one.
+   Once your address is confirmed, **Take this price up** lists the
+   organisations you own; choose the one the price goes to. An organisation
+   holds one agreed price, and only before it subscribes.
+3. Subscribe as usual. The checkout shows **Agreed price: N% off, taken after
+   the volume discount**, the price without it and the price you pay.
+
+An agreed price and a partner price are never added together: the larger one
+applies. Moving a subscription to a tier the agreed price does not cover ends
+that price for good.
+
+A link works once, and only until its date, which is at most 90 days after it
+was written. A link we withdraw, one already taken up, or one past its date
+opens a page saying it can no longer be taken up; every published price stays
+open, and a new link is asked for by replying to the mail that carried it. The
+portal keeps only a digest of the link, never the link itself, and an offer
+nobody took up is erased 30 days after its link stopped working.
+
 ### Hosted analytics
 
 **Hosted analytics** is a box on the subscribe screen and on **Move to another
@@ -343,6 +372,24 @@ it reads again every minute. A key you revoke here stops being honoured across
 your agents one heartbeat and one minute later, with nothing to copy (see
 [Revocation](../features/enterprise/license.md#revocation)). The list only ever grows on the agent: leaving the portal
 never hands a revoked key back.
+
+### Paid features taken back
+
+We can take the paid features back from an organisation in one act, for a
+reason given in writing: every key it holds that is still in force is
+withdrawn together, and each withdrawal is recorded under the name of the
+person at our end who did it. It is a licence change, never a stop: each agent
+receives the withdrawal through the revocation list above and goes on
+protecting with the open-source feature set, its eBPF programs loaded and its
+traffic inspected, exactly as after an expiry (see
+[Graceful Degradation](../features/enterprise/license.md#graceful-degradation)).
+
+Giving them back is a written request on our side, carried out by the portal
+under the rules your own request meets: it issues a key again for each of your
+subscriptions still open that has none, and refuses where your own request
+would be refused, for instance when no subscription is open. The new key is
+listed on **Licence keys**; a heartbeat carries withdrawals only, so download it
+and install it on every machine to bring the paid features back.
 
 ### Offline bundle
 

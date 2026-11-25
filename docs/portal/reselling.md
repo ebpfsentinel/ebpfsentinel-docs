@@ -70,6 +70,30 @@ The discounts in force when a subscription is opened stay with it: a
 subscription opened before the grant keeps its price until it is changed, and
 one opened at the partner price keeps it if standing later ends.
 
+## A partner invitation
+
+When we have agreed in writing that your company resells eBPFsentinel before
+it has an account, the agreement reaches you as a link, written for your
+company's domain. It replaces the request above: nothing to ask for.
+
+1. The link opens **A partner invitation**: the company it was written for,
+   who can take it up (anybody with an address at that domain) and **The link
+   works until** its last day.
+2. Create an account with an address at that domain, or sign in if you
+   already have one. Once your address is confirmed, **Take this invitation
+   up** lists the organisations you own; choose the one that resells. An
+   organisation comes in through one invitation.
+3. That organisation manages customer organisations from the start. Its
+   **Billing** screen says how many it holds and from how many the partner
+   price applies, and the partner price is put in force automatically the day
+   it holds a second customer organisation.
+
+A link works once, and only until its date, which is at most 90 days after it
+was written. A link we withdraw, one already taken up, or one past its date
+opens a page saying it can no longer be taken up. The portal keeps only a
+digest of the link, never the link itself, and an invitation nobody took up is
+erased 30 days after its link stopped working.
+
 ## Who invoices whom
 
 Three sales and one licence chain appear in the arrangement, and none of them
