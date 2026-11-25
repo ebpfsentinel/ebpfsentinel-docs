@@ -6,12 +6,14 @@
 
 Not supported: macOS, Windows, FreeBSD (no Linux eBPF subsystem).
 
-The 6.18 floor is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program (Ubuntu 26.04, Ubuntu 24.04's HWE line, Talos 1.12, GKE Container-Optimized OS 133 and EKS Amazon Linux 2023 run it or later). Everything the agent needs is older:
+The 6.18 floor is the long-term kernel of 2025 and the first release that verifies the signature of a BPF program (Ubuntu 26.04, Ubuntu 24.04's HWE line, Talos 1.12, GKE Container-Optimized OS 133 and EKS Amazon Linux 2023 run it or later). Everything the agent needs is in it:
 **`BPF_TOKEN_CREATE` + `BPF_F_TOKEN_FD`** (kernel 6.9) is how the agent loads
 its programs without holding `CAP_BPF` or `CAP_SYS_ADMIN` itself, and the
-kfuncs the programs call arrived by 6.8. The file kfuncs of 6.12 exist on every
-supported kernel but load only in a sleepable context behind the BPF LSM, so
-they are probed rather than assumed.
+kfuncs the programs call arrived between 5.18 and 6.18, the newest
+`bpf_xdp_pull_data` ([KFuncs](../kernel/kfuncs.md) lists each with the program
+calling it). They all exist on every supported kernel, but the file kfuncs of
+6.12 load only in a sleepable context behind the BPF LSM, so they are probed
+at startup rather than assumed.
 
 ## Distributions
 
