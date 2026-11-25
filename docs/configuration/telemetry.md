@@ -164,8 +164,11 @@ not all zeros. An empty file, `uninitialized` and anything else a half-built
 image carries are refused, and the agent falls back to sixteen random bytes
 from `/dev/urandom`, kept in `state_path` exactly as before. The same fallback
 applies when the file cannot be read, which is the case in a container that
-was not given the host's `/etc/machine-id`; the Helm chart and the compose
-file mount it read-only for that reason.
+was not given the host's `/etc/machine-id`; the Helm chart, the compose
+file and the Kubernetes operator mount it read-only for that reason. The
+operator does so unless `spec.config.telemetry.machineIdPath` is set: empty
+mounts and reads nothing, any other path is read from a volume of the
+resource's own.
 
 A stable identifier has two consequences worth knowing. Switching the
 heartbeat off and on again reports under the same name. And a machine cloned

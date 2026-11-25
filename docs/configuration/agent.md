@@ -328,12 +328,15 @@ agent:
   xdp_mode: native
 ```
 
-If the driver does not support native XDP, the agent falls back to auto and logs:
+If the driver refuses the requested mode, the agent tries `auto`, then `generic` when the driver answered that it does not support the mode (`EOPNOTSUPP`), and logs each step:
 
 ```
-WARN XDP attach failed with requested mode, falling back to auto  requested_mode="native" error="..."
-INFO XDP program attached (fallback from native)  mode="auto"
+WARN XDP attach refused, trying the next mode  requested_mode="native" next_mode="auto" error="..."
+WARN XDP attach refused, trying the next mode  requested_mode="native" next_mode="generic" error="..."
+INFO XDP kfunc program attached  requested_mode="native" mode="generic"
 ```
+
+The generic step is what keeps the firewall on a driver without multi-buffer XDP at a jumbo MTU: `vmxnet3` (VMware), for one, refuses the programs at MTU 9000 in native and auto mode alike. Generic mode runs the same programs after the kernel has built the `sk_buff`, so it costs more per packet; the `ebpfsentinel_xdp_attach_mode` gauge says which mode each interface ended up in.
 
 ### Multi-NIC and Bond Interfaces
 
