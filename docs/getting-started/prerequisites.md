@@ -10,7 +10,7 @@ The 6.18 floor is the long-term kernel of 2025 and the first release that verifi
 
 - **BPF token delegation** (`BPF_TOKEN_CREATE`, `BPF_F_TOKEN_FD`, 6.9) - container-aware least-privilege mode
 - `bpf_send_signal_task` (6.13), which signals a task at once
-- Kfuncs `bpf_task_get_cgroup1` (6.8), `bpf_xdp_metadata_rx_vlan_tag` (6.8), `bpf_xdp_get_xfrm_state` (6.8), `bpf_iter_css_task` (6.7)
+- Kfuncs from 5.18 to 6.18, the newest `bpf_xdp_pull_data`; the full list with the program calling each is in [KFuncs](../kernel/kfuncs.md)
 
 What the floor buys is that the file kfuncs of 6.12 exist, not that they load: they need a sleepable context behind the BPF LSM, so the agent probes them at startup and falls back to userspace where they are refused.
 

@@ -14,7 +14,7 @@ Opening a module's BTF fd needs `CAP_SYS_ADMIN`, which a BPF token does not gran
 
 ## Status
 
-The datapath kfuncs span kernel **5.18 to 6.8**. The agent refuses to start below **6.18** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=18` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel.
+The kfuncs span kernel **5.18 to 6.18**. The agent refuses to start below **6.18** (`MIN_KERNEL_MAJOR=6`, `MIN_KERNEL_MINOR=18` in `crates/adapters/src/ebpf/kernel_probe.rs`), so every kfunc below exists on a supported kernel. Existing is not loading: a kfunc built only with `CONFIG_BPF_LSM`, one registered for a program type the host refuses, or one the verifier refuses in a non-sleepable context is probed at startup, reported as a capability by `/api/v1/ebpf/kernel-features`, and replaced by the fallback that capability names.
 
 The single source of truth for the bindings is `crates/ebpf-helpers/src/kfuncs.rs`. The safe wrappers keep the verifier's `KF_ACQUIRE` / `KF_RELEASE` pairing through two patterns:
 
@@ -85,6 +85,24 @@ Safe wrappers: `skb_packet_size` (tc-ids) and `xdp_frame_size` (xdp-firewall) re
 | `bpf_skb_set_fou_encap` | 6.4+ | - | Install FOU or GUE encap parameters on a TC egress skb |
 
 Safe wrapper: `skb_set_fou_encap` (tc-nat-egress). Lets the kernel build cloud-overlay tunnels without leaving the BPF datapath; the wrapper takes a `FouEncapType { Fou, Gue }` enum to keep the encap discriminant type-safe.
+
+### Kfuncs behind a capability (kernel 6.2 to 6.18)
+
+Each of these is probed at startup; where the probe fails the program that calls it loads without it, or not at all, and the capability of the same name in `/api/v1/ebpf/kernel-features` says which fallback runs.
+
+| KFunc | Kernel | Acquire/Release | Program | Capability |
+|-------|--------|-----------------|---------|------------|
+| `bpf_cast_to_kern_ctx` | 6.2+ | - | tracepoint-tcp-health (`sock_ops`) | `tcp_send_timestamps` |
+| `bpf_get_task_exe_file` | 6.12+ | `KF_ACQUIRE \| KF_RET_NULL` | lsm-exec-digest | `executable_digest` |
+| `bpf_put_file` | 6.12+ | `KF_RELEASE` | lsm-exec-digest | `executable_digest` |
+| `bpf_copy_from_user_task_str` | 6.15+ | `KF_SLEEPABLE` | tracepoint-process | `copy_from_user_str` |
+| `bpf_sock_ops_enable_tx_tstamp` | 6.15+ | - | tracepoint-tcp-health (`sock_ops`) | `tcp_send_timestamps` |
+| `bpf_probe_read_user_dynptr` | 6.16+ | - | uprobe-dlp | `dlp_whole_record` |
+| `bpf_cgroup_read_xattr` | 6.17+ | - | cgroup-workload-firewall | `cgroup_labels` |
+| `bpf_strcmp` | 6.17+ | - | lsm-tamper-guard | `tamper_protection` |
+| `bpf_xdp_pull_data` | 6.18+ | - | xdp-firewall, xdp-loadbalancer | `xdp_pull_data` |
+
+`bpf_get_task_exe_file` and `bpf_put_file` are registered for LSM programs only, and the verifier refuses a path that keeps the file without releasing it. `bpf_cgroup_read_xattr` exists only in a kernel built with `CONFIG_BPF_LSM`. `bpf_xdp_pull_data` is called only on a frame whose first buffer is shorter than the headers the program reads, and every packet pointer is taken again after it.
 
 ### Arena maps - evaluated, not used
 

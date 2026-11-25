@@ -139,6 +139,7 @@ Every eBPF feature used by eBPFsentinel, the minimum kernel version, and which p
 | [`bpf_redirect_map`](https://docs.ebpf.io/linux/helper-function/bpf_redirect_map/) | 4.14+ | xdp-loadbalancer (DEVMAP) | Wire-speed backend forwarding |
 | [`bpf_redirect`](https://docs.ebpf.io/linux/helper-function/bpf_redirect/) | 4.4+ | xdp-loadbalancer | Backend forwarding without a DevMap entry |
 | [`bpf_xdp_adjust_tail`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_adjust_tail/) | 4.15+ | xdp-firewall-reject, xdp-ratelimit-syncookie | Resize the forged reply |
+| [`bpf_xdp_get_buff_len`](https://docs.ebpf.io/linux/helper-function/bpf_xdp_get_buff_len/) | 5.18+ | xdp-firewall, xdp-firewall-reject, xdp-ratelimit-syncookie, xdp-loadbalancer | Length of a frame larger than one buffer, every buffer counted |
 | [`bpf_ktime_get_boot_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_boot_ns/) | 5.8+ | Most programs | Suspend-aware timestamps |
 | [`bpf_ktime_get_coarse_ns`](https://docs.ebpf.io/linux/helper-function/bpf_ktime_get_coarse_ns/) | 5.11+ | xdp-ratelimit | Cheap clock for token-bucket refill |
 | [`bpf_ringbuf_reserve`](https://docs.ebpf.io/linux/helper-function/bpf_ringbuf_reserve/) | 5.8+ | Every event-emitting program | Ring buffer record reservation |
@@ -185,8 +186,15 @@ KFuncs are bound manually through `crates/ebpf-helpers/src/kfuncs.rs`: aya 0.16 
 | `bpf_skb_set_fou_encap` | 6.4+ | tc-nat-egress | FOU/GUE encapsulation metadata |
 | `bpf_xdp_metadata_rx_vlan_tag` | 6.8+ | xdp-firewall | Hardware-offloaded VLAN tag |
 | `bpf_xdp_get_xfrm_state` / `bpf_xdp_xfrm_state_release` | 6.8+ | xdp-firewall | XDP-side `xfrm_state` lookup |
+| `bpf_cast_to_kern_ctx` / `bpf_sock_ops_enable_tx_tstamp` | 6.15+ | tracepoint-tcp-health | Send latency per write (capability `tcp_send_timestamps`) |
+| `bpf_get_task_exe_file` / `bpf_put_file` | 6.12+ | lsm-exec-digest | Digest of the executable in the kernel (capability `executable_digest`) |
+| `bpf_copy_from_user_task_str` | 6.15+ | tracepoint-process | Command line read at exec (capability `copy_from_user_str`) |
+| `bpf_probe_read_user_dynptr` | 6.16+ | uprobe-dlp | Whole TLS record copied (capability `dlp_whole_record`) |
+| `bpf_cgroup_read_xattr` | 6.17+ | cgroup-workload-firewall | Workload label read off the cgroup (capability `cgroup_labels`) |
+| `bpf_strcmp` | 6.17+ | lsm-tamper-guard | Name comparison in the tamper guard (capability `tamper_protection`) |
+| `bpf_xdp_pull_data` | 6.18+ | xdp-firewall, xdp-loadbalancer | Headers of multi-buffer frames (capability `xdp_pull_data`) |
 
-No cgroup, RCU, iterator or cast kfunc is called: container attribution uses the `bpf_get_current_cgroup_id` and `bpf_skb_cgroup_id` helpers above.
+The kfuncs from `bpf_cast_to_kern_ctx` down are probed at startup and each has a fallback, named by its capability in `/api/v1/ebpf/kernel-features`. Container attribution uses the `bpf_get_current_cgroup_id` and `bpf_skb_cgroup_id` helpers above; no RCU or iterator kfunc is called.
 
 ### Other Kernel Features
 
