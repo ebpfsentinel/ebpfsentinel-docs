@@ -667,6 +667,11 @@ reaching the agent unchanged:
   `tcp`, `udp` or `any` protocol, and a `guest` is not combined with a
   container or pod matcher; each of those is refused at admission
   ([destinations by remote workload](../../configuration/workload-firewall.md#destinations-by-remote-workload)).
+- `cgroupLabel` names the task by the value of the `user.ebpfsentinel.workload`
+  extended attribute on its own cgroup directory, at most 63 bytes. It is read
+  in the kernel where the kernel offers `bpf_cgroup_read_xattr` and by the
+  agent otherwise; the capability `cgroup_labels` says which, per host
+  ([a label on the cgroup](../../configuration/workload-firewall.md#a-label-on-the-cgroup)).
 
 A firewall rule also takes `mode: shadow`, which decides nothing and counts
 what the rule would have decided
@@ -713,7 +718,9 @@ matched where the link a packet crossed is not known.
 `spec.config.processTable` sets the table of live processes each agent keeps
 and the reverse shell, fileless binary and unexpected server descendant
 detections read off it ([process table](../../configuration/process-table.md)):
-`enabled`, `capacity` (256 to 262144), `captureCommandLine`, and under
+`enabled`, `capacity` (256 to 262144), `captureCommandLine`, `kernelDigest`
+(each executable's SHA-256 taken from IMA at the exec, where the BPF LSM and
+IMA are active, the agent hashing the file otherwise), and under
 `detections` the `enabled` switch, `intervalSecs`, one switch per detection
 in `kinds`, the `interpreters`, `servers` and `expected` lists, and
 `killProcess`. Every field left out keeps the agent's default, and
@@ -1122,6 +1129,14 @@ files are written by the agent into the watched tree, which the operator
 mounts read-only, so a canary set needs a writable volume of its own beside
 the overlay.
 
+### How much of a TLS record DLP reads
+
+`DLPPolicy.spec.recordBytes`, from 4,096 to 16,384, is the most plaintext one
+DLP event carries. Where the kernel offers `bpf_probe_read_user_dynptr` the
+probes copy the whole record up to that size, otherwise 4,096 bytes of each
+buffer whatever the field says; the capability `dlp_whole_record` says which,
+per host ([record size](../../configuration/dlp.md#record-size)).
+
 ### Steering workloads into the inspection proxy
 
 A `DLPPolicy` carrying `tlsProxy` may add a `redirect`, which hands the TCP
@@ -1194,6 +1209,7 @@ spec:
       pollIntervalSecs: 10
     tcpHealth:
       enabled: true
+      sendLatency: true
       resetScan:
         enabled: true
         windowSecs: 60
@@ -1207,6 +1223,9 @@ spec:
     shippedHostRules: true
 ```
 
+`tcpHealth.sendLatency` times each write from the kernel's transmit
+timestamps; a kernel refusing the `sock_ops` program leaves every other
+counter running and says why under the capability `tcp_send_timestamps`.
 Every interval runs from one second to one hour. `portMismatch.ignorePorts`
 takes only the ports a protocol is expected on, and a port outside that list
 is refused at admission, since the agent would refuse it at startup.
