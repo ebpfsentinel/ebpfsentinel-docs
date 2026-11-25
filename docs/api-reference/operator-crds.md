@@ -296,6 +296,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `dataDir` | string | `"/var/lib/ebpfsentinel/federation"` | Directory holding the federation state. |
 | `degradedThresholdSecs` | integer | `90` | Silence after which a member is reported degraded. |
 | `enabled` | boolean | `false` |  |
+| `estateResponse` | string |  | The estate response's mode when the agent starts. One of `shadow`, `enforce`. |
 | `heartbeatIntervalSecs` | integer | `30` | Interval between heartbeats. |
 | `isManagement` | boolean | `false` | Make this cluster the receiver rather than a member. |
 | `managementApiKeySecretRef` | object |  | Secret holding an API key the management cluster accepts. The operator mounts it as a file and the member sends it as `X-API-Key` on registration, heartbeats and forwarded alerts. Needed when the management cluster authenticates its API and `mtls` is off. |
@@ -463,6 +464,9 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 |-------|------|---------|-------------|
 | `addressPools` | array of object | `[]` | Address pools the operator allocates `Service` objects of type `LoadBalancer` from. A Service given an address from one of these pools is served by the agents this resource selects, and its address is announced by this resource's VIP announce policy. |
 | `enabled` | boolean | `true` | Turn the load balancer on or off. |
+| `maxBackends` | integer |  | Backend slots the kernel reserves at start, across every service. Unset, the agent counts the backends it is handed, with room for at least one service at its full backend count. Minimum `1`. |
+| `maxFlows` | integer |  | Connections in flight the kernel tracks at once, each held on the backend its first packet was balanced to. Unset leaves the agent's own default. Past it the least recently used flow is forgotten and its next packet balanced afresh. Minimum `1`. Maximum `16777216`. |
+| `maxMaglevServices` | integer |  | Maglev lookup tables the kernel reserves at start, one per service using `maglev`. Unset, the agent counts the `maglev` services it is handed, at least one. Set it to leave room for services added later without restarting the agent. Minimum `1`. |
 | `services` | array of object | `[]` | L4 services to provision on selected agents. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 | `vipAnnounce` | object |  | Optional L2 VIP announce policy. Omit or set role to `disabled` when not running L2 DSR / VIP failover. |
