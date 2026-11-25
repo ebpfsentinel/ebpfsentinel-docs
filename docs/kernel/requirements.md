@@ -52,7 +52,32 @@ Restricting which executables may reach the network is decided at a Linux securi
 ebpfsentinel-agent ebpf host-check
 ```
 
-It prints whether the BPF LSM is active and, when it is not, the exact `lsm=` value that keeps the modules already running and adds `bpf`. A running agent reports the same answer in the `bpf_lsm` block of `/api/v1/ebpf/kernel-features`. It is what [Executables allowed to reach the network](../configuration/workload-firewall.md#executables-allowed-to-reach-the-network) needs, and what keeps another process from detaching the agent's programs or writing its maps ([Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects)); everything else the agent does works without it.
+It prints whether the BPF LSM is active and, when it is not, the exact `lsm=` value that keeps the modules already running and adds `bpf`. A running agent reports the same answer in the `bpf_lsm` block of `/api/v1/ebpf/kernel-features`. It is what [Executables allowed to reach the network](../configuration/workload-firewall.md#executables-allowed-to-reach-the-network) needs, and what keeps another process from detaching the agent's programs or writing its maps ([Foreign eBPF Programs](../features/foreign-programs.md#the-agents-own-objects)), and, on a kernel that verifies program signatures, what lets the warden refuse an unsigned load ([below](#program-signatures-a-kernel-build-not-a-version)); everything else the agent does works without it.
+
+## Program signatures: a kernel build, not a version
+
+A kernel built with BPF program signature verification reads a signature and a
+keyring in every program load and refuses one that does not verify. Whether
+the running kernel does is asked, not inferred from its release: start-up
+loads a trivial program carrying a signature and reads the kernel's answer. A
+running agent reports it in the `bpf_prog_signing` block of
+`/api/v1/ebpf/kernel-features` and in the `signing` block of
+`/api/v1/crypto/posture`. Where it does, and the warden has made its keyring,
+the agent's programs load through loaders signed at build
+([Security Model](../architecture/security-model.md#signed-program-loaders));
+everywhere else they load unsigned, and the agent starts either way.
+
+Refusing an unsigned load needs both conditions on the same host: a kernel
+that verifies program signatures **and** `bpf` in the `lsm=` boot list. Where
+both hold, the warden attaches its guard on program loads and every load
+through the BPF token passes only signed against its keyring; the `signing`
+block of `/api/v1/crypto/posture` reads `enforced`. Where the kernel verifies
+but the BPF LSM is not active, the signed loads still happen, nothing refuses
+an unsigned one, and the block reads `verified_not_enforced` with
+`not_enforced_because` naming the boot line
+([Security Model](../architecture/security-model.md#the-warden-refuses-an-unsigned-load)).
+`/api/v1/ebpf/kernel-features` answers both conditions per host, in its
+`bpf_prog_signing` and `bpf_lsm` blocks.
 
 ## Above the Floor
 
@@ -63,6 +88,7 @@ Everything below is above the 6.18 floor: each entry is active only where its co
 | Capability | What it unlocks | Condition | Where it is absent |
 |------------|-----------------|-----------|--------------------|
 | `bpf_lsm` | Programs attached at security module hooks, which is where the kernel decides a call before it happens | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Each capability resting on it runs its own fallback, listed beside it |
+| `bpf_prog_signing` | A BPF program load checked by the kernel against a signature and a named keyring, and refused when the signature does not verify | A kernel built with it | Programs load unsigned, as on every other node, and the crypto posture says the kernel does not verify signatures here |
 | `file_kfuncs` | A task's executable, a rendered path and a file's extended attribute read in the kernel | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Executables are identified by the device and inode read in userspace, and paths and attributes are read off the filesystem |
 | `kprobe_session` | One program on a function's entry and return for the kernel TLS record path, instead of a kprobe, a kretprobe and a map correlating them | A kernel built with it | Nothing changes: no shipped program rests on it yet |
 | `copy_from_user_str` | The real argument vector of a process, read at exec | The BPF LSM active at boot, with bpf listed in the lsm= kernel parameter | Arguments are read from /proc/<pid>/cmdline after the exec, which a process that has already exited leaves empty |

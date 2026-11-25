@@ -1,6 +1,6 @@
 # Program Details
 
-Detailed documentation for each of the 30 eBPF kernel programs (the
+Detailed documentation for each of the 31 eBPF kernel programs (the
 tail-call helpers `xdp-firewall-reject` and `xdp-ratelimit-syncookie` are
 described inline under their parent programs).
 
@@ -608,6 +608,12 @@ The `bpf` hook gained a fourth argument after 6.12, a flag set when the kernel m
 **Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-tamper-guard/`
 
 Keeps the agent running. Loaded only by the enterprise agent on a licence carrying `tamper-protection`, and inert until armed: `TAMPER_GUARD_CONFIG` holds the field offsets read from the running kernel's BTF and the signals refused, and its slot is marked valid last. `tamper_guard_task_kill` on `task_kill` refuses a configured signal aimed at a task in `TAMPER_GUARD_TASKS`, the agent and its warden, numbered in their own pid namespace like the bpf guard's; `tamper_guard_ptrace` on `ptrace_access_check` refuses a trace of them, which also covers opening `/proc/<pid>/mem`. `tamper_guard_unlink` and `tamper_guard_rename` refuse removing or renaming an entry of a directory in `TAMPER_GUARD_INODES`, the link pins, or a file held itself, the configuration and the licence; `tamper_guard_file_open` refuses a write-open of `cgroup.kill` or `cgroup.freeze` under a cgroup holding a protected task, the name compared by the kernel's own `bpf_strcmp` kfunc rather than a loop in the program. The protected tasks pass. `TAMPER_GUARD_WINDOW` holds a deadline: before it every hook but the trace lets the call through, which is how a signed stop is admitted without unloading anything. A refusal returns `-EPERM` and is reported on `TAMPER_GUARD_EVENTS` with the caller; `TAMPER_GUARD_METRICS` counts `checked`, `refused`, `window` and `event_lost`. See [Tamper protection](../features/enterprise/tamper-protection.md).
+
+### lsm-bpf-load-guard
+
+**Hook:** [BPF LSM](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_LSM/) | **Path:** `crates/ebpf-programs/lsm-bpf-load-guard/`
+
+Loaded by the warden, never by the agent, and only where the kernel verifies program signatures and the BPF LSM is active; `/api/v1/crypto/posture` says per host whether it is attached. `bpf_load_guard` on `bpf_prog_load` lets through a load made by a running loader (the kernel sets `kernel`, and only a signed loader runs) and a load passing no token, which is not the agent's. A load through a token is refused with `-EPERM` unless `attr->signature` is set and `attr->keyring_id` is the warden's keyring serial, which the warden writes into the program's read-only data before loading it. The warden attaches it when the agent asks, after the agent's start-up probes, which are assembled at run time and never signed, and before the agent reads input; it lifts it for a new agent's start-up only once the agent it was attached for has exited. The kernel has already refused a bad signature by the time the hook runs. See [The agent and the warden](../security/agent-and-warden.md).
 
 ### lsm-write-refusal
 

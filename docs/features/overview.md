@@ -127,12 +127,12 @@ Not all features work in every deployment mode. See the [deployment compatibilit
 ## eBPF Program Map
 
 <!-- feature-count: ebpf-programs -->
-`crates/ebpf-programs/` holds thirty program directories: twenty-six
+`crates/ebpf-programs/` holds thirty-one program directories: twenty-seven
 attached at a hook of their own, three reached only by tail call from one of
-those twenty-six, and `xdp-pass`, which is peer-side test scaffolding rather than
-part of the datapath. The twenty-six attached programs, of which the eight after
+those twenty-seven, and `xdp-pass`, which is peer-side test scaffolding rather than
+part of the datapath. The twenty-seven attached programs, of which the eight after
 `uprobe-dlp` read a task rather than a packet, the next two
-read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one keeps the agent itself from being stopped, the next one refuses a writer's write-opens past a count under watched directories, and the last one counts the calls a process makes into the system crypto library; of the eight after `uprobe-dlp` only the workload firewall, the
+read the kernel's own drops and the health of its TCP connections, the next one guards the agent's own maps and links, the next one keeps the agent itself from being stopped, the next one refuses a writer's write-opens past a count under watched directories, the next one counts the calls a process makes into the system crypto library, and the last one, loaded by the warden, refuses a program load through the agent's token that is not signed; of the eight after `uprobe-dlp` only the workload firewall, the
 executables list, the connection redirect and the cluster address resolution act on a syscall and only the
 signal program acts on a process:
 
@@ -164,6 +164,7 @@ signal program acts on a process:
 | `lsm-tamper-guard` | BPF LSM | Refuses a signal, a trace, an unlink or a rename aimed at the agent and what it pinned, unless a signed stop opened a window; loaded only by the enterprise agent under `tamper-protection`, where the BPF LSM is active at boot |
 | `lsm-write-refusal` | BPF LSM | Counts each writer's write-opens and truncations under watched directories and refuses those past a threshold inside a window, before a byte is written; fails open, needs the BPF LSM active |
 | `uprobe-crypto` | uprobe | Counts calls into the encryption entry point of the system crypto libraries per process, for the mass encryption engine; reads no argument, key or buffer |
+| `lsm-bpf-load-guard` | BPF LSM | Refuses a program load passing a BPF token, other than one made by a running signed loader, unless it carries a signature checked against the warden's keyring; loaded by the warden only where the kernel verifies program signatures and the BPF LSM is active, which `/api/v1/crypto/posture` answers per host |
 
 The three tail-called programs are attached to no hook of their own. Each is
 entered from the program that needs it, which is why they are counted apart:

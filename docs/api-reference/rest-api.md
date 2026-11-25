@@ -523,6 +523,29 @@ built with it but booted without it, which is the common case, gets the exact
 available on a host where no agent runs yet, from
 [`ebpf host-check`](../cli-reference/index.md#ebpf).
 
+`bpf_prog_signing` says whether the kernel checks the signature of a BPF
+program at load. Start-up asks it by loading a two-instruction program with a
+signature and a keyring named in the load: a kernel without those fields
+refuses them outright, and any other answer, including a rejected signature,
+comes from a kernel that read them. The kernel version is never consulted.
+
+```json
+{
+  "bpf_prog_signing": {
+    "probed": true,
+    "verifies": true,
+    "reason": null
+  }
+}
+```
+
+`verifies` is `true` on a kernel built with signature verification and `false`
+on one without it, with `reason` saying so. `probed: false` means start-up did
+not ask, and `verifies` then claims nothing. The same answer is the
+`bpf_prog_signing` entry of the `capabilities` block, and the `signing` block
+of [`GET /api/v1/crypto/posture`](#get-apiv1cryptoposture) restates it beside
+the BPF LSM fact.
+
 `network_executables` says what became of the list of executables allowed to
 reach the network:
 
@@ -3908,6 +3931,49 @@ Response:
 | `links[].last_post_quantum` | boolean | Whether that group carries a post-quantum component |
 | `links[].last_at_unix` | integer | When it completed, in seconds since the epoch |
 | `links[].groups[]` | array | Every group the link completed a handshake on: `group`, `post_quantum`, `handshakes` |
+| `signing.kernel_verifies_signatures` | boolean | The kernel checks a BPF program's signature against a keyring at load, as start-up asked it; `false` where it does not and where nothing was asked |
+| `signing.bpf_lsm_active` | boolean | The BPF LSM is among the active security modules |
+| `signing.state` | string | What the agent does about program signatures: `enforced` (the kernel verifies signatures, the BPF LSM is active, and the warden's guard refuses every load through the token not signed against its keyring), `verified_not_enforced` (the programs load through loaders signed at build, checked by the kernel against the warden's keyring, and nothing refuses an unsigned load through the token), `unsigned` (the kernel could check, and the programs load without a signature: no keyring was handed over, or every loader was refused), `unsupported` (the kernel does not verify program signatures) or `not_probed` (start-up has not asked the kernel) |
+| `signing.load_guard_attached` | boolean | The warden reported its guard on program loads attached; `true` only with `state` `enforced` |
+| `signing.keyring_serial` | integer | The serial of the keyring the kernel checked the signed loaders against; `null` unless `state` is `enforced` or `verified_not_enforced` |
+| `signing.certificate_sha256` | string | SHA-256 of the DER certificate the loaders verify against, the digest the release's measurements record as `loader_certificate_sha256`; `null` unless `state` is `enforced` or `verified_not_enforced` |
+| `signing.signed_programs` | integer | Programs loaded through a signed loader |
+| `signing.unsigned_programs` | integer | Programs loaded unsigned while the kernel could have checked them |
+| `signing.refused_programs` | integer | Programs with no signed loader that the warden's guard refused when the agent fell back to an unsigned load |
+| `signing.not_enforced_because` | string | The first condition `enforced` lacks: the kernel, `bpf` in the `lsm=` boot list, the keyring, or the warden's reason for leaving its guard out; `null` when `enforced` |
+| `signing.reason` | string | The state in one sentence |
+
+```json
+{
+  "outbound_mode": "prefer",
+  "all_required": false,
+  "links": [],
+  "signing": {
+    "kernel_verifies_signatures": true,
+    "bpf_lsm_active": true,
+    "state": "enforced",
+    "load_guard_attached": true,
+    "keyring_serial": 637284519,
+    "certificate_sha256": "3c9a1f0e2b7d4c6a8e5f1b3d7a9c2e4f6b8d0a1c3e5f7b9d2a4c6e8f0b1d3a5c",
+    "signed_programs": 41,
+    "unsigned_programs": 0,
+    "refused_programs": 0,
+    "not_enforced_because": null,
+    "reason": "every load through the token is checked by the kernel against the warden's keyring, and the warden's guard refuses one that is not signed"
+  }
+}
+```
+
+`kernel_verifies_signatures` depends on the kernel the node booted: it is
+`true` only on a kernel built with BPF program signature verification. Check a
+host with `GET /api/v1/ebpf/kernel-features` (the `bpf_prog_signing` block) or
+`ebpfsentinel-agent ebpf kernel-features`. `state` reads `enforced` only on a
+kernel that verifies signatures, booted with `bpf` in its `lsm=` list, where
+the warden reports its guard on program loads attached; elsewhere a signed
+load reads `verified_not_enforced`, since it says the kernel checked the
+loader that created the program, not that an unsigned load through the token
+is refused. Compare `certificate_sha256` with the measurements of the release
+you installed ([Security Model](../architecture/security-model.md#signed-program-loaders)).
 
 ### Metrics
 
@@ -4084,7 +4150,7 @@ reads one table for the write roles, and this column is checked against it.
 | GET | `/api/v1/tls/status` | Yes | Negotiated TLS key-exchange group for this connection |
 | GET | `/api/v1/tls/handshakes` | Yes | What recent TLS handshakes on the node negotiated |
 | GET | `/api/v1/tls/posture` | Yes | The cryptographic posture of each edge between workloads |
-| GET | `/api/v1/crypto/posture` | Yes | The key exchange policy of each of the agent's own links and the group each last negotiated |
+| GET | `/api/v1/crypto/posture` | Yes | The key exchange policy of each of the agent's own links and the group each last negotiated, and whether the kernel verifies the agent's programs |
 
 ## Enterprise Endpoints
 

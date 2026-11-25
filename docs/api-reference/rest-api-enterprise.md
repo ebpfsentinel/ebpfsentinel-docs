@@ -371,7 +371,7 @@ are this edition's, decided by the same middleware as every other route.
 | `GET` | `/api/v1/threatintel/status` | viewer | `threatintel:read` | none | Threat intel subsystem status. |
 | `GET` | `/api/v1/threatintel/urls` | viewer | `threatintel:read` | none | List malicious URL indicators ingested from CTI feeds. The threat-intel engine is IP-only, so URL indicators are surfaced from the service's retained snapshot. |
 | `GET` | `/api/v1/tls/handshakes` | viewer | `l7:read` | none | What the TLS handshakes seen on the node negotiated: version, cipher suite, key exchange group and, in TLS 1.2, the certificate's validity. |
-| `GET` | `/api/v1/crypto/posture` | viewer | `config:read` | none | The key exchange policy each of the agent's own TLS links was built with, the group it last negotiated and the handshakes it completed on each group. |
+| `GET` | `/api/v1/crypto/posture` | viewer | `config:read` | none | The key exchange policy each of the agent's own TLS links was built with, the group it last negotiated and the handshakes it completed on each group, and whether the kernel verifies the agent's BPF programs. |
 | `GET` | `/api/v1/tls/posture` | viewer | `l7:read` | none | The cryptographic posture of each edge between two workloads: how many connections ran over a post-quantum group, a classical exchange, a TLS version below 1.2, or in clear text, with the clear-text protocols named. |
 | `GET` | `/api/v1/tls/status` | viewer | `l7:read` | none | Report the negotiated TLS key-exchange group for the current connection. |
 | `POST` | `/api/v1/trace` | operator | `trace:write` | none | What the loaded programs decide for one packet. |

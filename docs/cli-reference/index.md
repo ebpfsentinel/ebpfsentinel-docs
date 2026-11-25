@@ -50,6 +50,24 @@ ebpfsentinel-agent uninstall --warden-sock /run/ebpfsentinel/warden.sock
 |--------|---------|-------------|
 | `--warden-sock` | `$EBPFSENTINEL_WARDEN_SOCK` | The warden holding the pins for a rootless agent |
 
+### warden-policy
+
+Write the policy the warden serves this configuration with: which privileged
+operations it answers, fenced by the gateways, VIPs, ports and paths the
+configuration names. The deployment runs it before the warden starts, from the
+file the agent reads (`--config`), and starts the warden with
+`serve <socket> --policy <file>`. See
+[The agent and the warden](../security/agent-and-warden.md).
+
+```bash
+ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy --output-file /run/ebpfsentinel/warden-policy.json
+ebpfsentinel-agent --config /etc/ebpfsentinel/config.yaml warden-policy
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output-file`, `-f` | standard output | File the policy is written to, replaced in one rename. Not `--output`, which is the global output format |
+
 ### watch
 
 Real-time alert stream - like `tail -f` for security events. Consumes the agent's

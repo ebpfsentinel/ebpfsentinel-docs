@@ -45,7 +45,9 @@
     "generate:host-rule-limits": "node scripts/generate-host-rule-limits.mjs",
     "check:host-rule-limits": "node scripts/generate-host-rule-limits.mjs --check",
     "generate:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs",
-    "check:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs --check"
+    "check:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs --check",
+    "generate:lockdown-programs": "node scripts/generate-lockdown-programs.mjs",
+    "check:lockdown-programs": "node scripts/generate-lockdown-programs.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

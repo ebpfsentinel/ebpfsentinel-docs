@@ -2,7 +2,7 @@
 
 ## Overview
 
-eBPFsentinel includes 30 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-eight form the production datapath; `xdp-pass` is a test-only veth helper.
+eBPFsentinel includes 31 eBPF kernel programs, all written in Rust using the [Aya](https://aya-rs.dev/) framework. Programs are compiled for the `bpfel-unknown-none` target (little-endian BPF) using the nightly Rust toolchain. Twenty-eight form the production datapath; `xdp-pass` is a test-only veth helper.
 
 ## Programs
 
@@ -388,7 +388,7 @@ All features require Linux kernel **6.18+** with BTF, the long-term kernel of 20
 ## Build
 
 ```bash
-cargo xtask ebpf-build    # Builds all 30 programs with nightly
+cargo xtask ebpf-build    # Builds all 31 programs with nightly
 ```
 
 See [eBPF Development](../development/ebpf-development.md) for the development workflow.

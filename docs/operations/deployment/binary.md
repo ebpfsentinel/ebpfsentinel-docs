@@ -69,6 +69,7 @@ sudo ./install.sh
 
 - installs `ebpfsentinel-agent` and `warden` into `/usr/local/bin/`;
 - copies the eBPF objects into `/usr/local/lib/ebpfsentinel/`;
+- installs the certificate the programs' loaders were signed against as `/usr/local/share/ebpfsentinel/loader-signing.der`, where the warden reads it ([signed program loaders](../../architecture/security-model.md#signed-program-loaders));
 - creates the `ebpfsentinel` system user the agent runs as, with no login (`systemd-sysusers`, or `useradd` without it);
 - installs the default config to `/etc/ebpfsentinel/config.yaml`, `root:ebpfsentinel` at mode `0640`, and leaves an existing one untouched;
 - creates `/var/lib/ebpfsentinel/`, `/var/lib/ebpfsentinel/captures/`, `/var/lib/ebpfsentinel/data/` and `/var/lib/ebpfsentinel/auth/` (mode `0700`, where the agent writes the key it draws for itself), owned by `ebpfsentinel`;
@@ -86,6 +87,7 @@ sudo install -Dm755 target/release/ebpfsentinel-agent /usr/local/bin/ebpfsentine
 sudo install -Dm755 target/release/warden /usr/local/bin/warden
 sudo mkdir -p /usr/local/lib/ebpfsentinel
 sudo cp target/bpfel-unknown-none/release/* /usr/local/lib/ebpfsentinel/
+sudo install -Dm644 target/bpfel-unknown-none/release/loader-signing.der /usr/local/share/ebpfsentinel/loader-signing.der
 sudo install -Dm644 dist/sysusers.d/ebpfsentinel.conf /usr/lib/sysusers.d/ebpfsentinel.conf
 sudo systemd-sysusers
 sudo install -Dm640 -g ebpfsentinel config/ebpfsentinel.yaml /etc/ebpfsentinel/config.yaml
@@ -256,7 +258,8 @@ says so and prints the `apt-get` or `dnf` command instead of deleting anything.
 | Path | Purpose |
 |------|---------|
 | `/etc/ebpfsentinel/config.yaml` | Configuration (mode `0640`) |
-| `/usr/local/lib/ebpfsentinel/` | eBPF object files |
+| `/usr/local/lib/ebpfsentinel/` | eBPF object files, the signed loaders beside them (`<object>.loaders`), and `lsm-bpf-load-guard`, the warden's guard on program loads |
+| `/usr/local/share/ebpfsentinel/loader-signing.der` | The certificate the warden puts in its loader keyring |
 | `/var/lib/ebpfsentinel/data/` | redb stores under the default config: `audit.redb`, `alerts.redb`, `rule_changes.redb` (`audit.storage_path` is relative and resolves against the unit's working directory) |
 | `/var/lib/ebpfsentinel/data/agent.lock` | The exclusive lock one agent per node holds, beside the stores it protects; released by the kernel when the process ends |
 | `/var/lib/ebpfsentinel/captures/` | Packet capture files (`{id}.pcap`) |

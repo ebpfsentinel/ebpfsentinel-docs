@@ -240,6 +240,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Security',
+      items: ['security/agent-and-warden'],
+    },
+    {
+      type: 'category',
       label: 'Kernel Reference',
       items: [
         'kernel/overview',

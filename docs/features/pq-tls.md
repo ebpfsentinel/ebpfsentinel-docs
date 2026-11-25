@@ -53,7 +53,15 @@ running process is read off `/metrics` rather than taken from this table.
 `GET /api/v1/crypto/posture` and `ebpfsentinel-agent tls links` list each of
 the agent's own links with the policy it was built with and the group it last
 negotiated; `all_required` is `true` only when every one of them requires the
-hybrid group.
+hybrid group. The same answer carries a `signing` block: whether the kernel
+checks BPF program signatures (true only on a kernel built with that
+verification, answered per host by `/api/v1/ebpf/kernel-features`), whether
+the BPF LSM is active, and a `state`: `enforced` where the warden's guard
+refuses every load through the token not signed against its keyring, which
+needs both a kernel that verifies signatures and `bpf` in the `lsm=` boot
+list; `verified_not_enforced` with the keyring serial and the certificate
+digest where the programs load through loaders signed at build and nothing
+refuses an unsigned load; `unsigned` or `unsupported` where they do not.
 
 ### Enterprise agent
 

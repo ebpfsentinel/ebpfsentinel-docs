@@ -106,6 +106,7 @@ list anybody could have written.
 | `/usr/bin/ebpfsentinel-agent` | The agent |
 | `/usr/bin/ebpfsentinel-warden` | The privileged broker |
 | `/usr/lib/ebpfsentinel/` | The eBPF objects |
+| `/usr/share/ebpfsentinel/loader-signing.der` | The certificate the warden puts in its loader keyring ([signed program loaders](../../architecture/security-model.md#signed-program-loaders)) |
 | `/etc/ebpfsentinel/config.yaml` | The configuration, mode `0640`, a conffile |
 | `/usr/share/ebpfsentinel/profiles/` | The three [host profiles](../../getting-started/profiles.md) |
 | `/usr/lib/systemd/system/ebpfsentinel{,-warden}.service` | Both units |

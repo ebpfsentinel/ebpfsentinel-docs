@@ -109,6 +109,127 @@ user namespace. The agent then creates the token and loads its own programs, so
 the long-running agent holds **no host capabilities**. See the
 [BPF token guide](../operations/deployment/bpf-token.md).
 
+### Signed program loaders
+
+A kernel that verifies BPF program signatures checks the signature of the
+program being loaded against a keyring named in the load. The agent uses it
+where the kernel offers it, and the build is what makes that possible:
+
+- **At build**, every program of every object is turned into a small loader
+  of type `syscall`. Everything the loader loads - the relocated instructions,
+  the licence, the BTF records, the kfunc names - sits in a metadata map that
+  only that loader may read and that is frozen before the loader runs; the
+  loader checks the map's digest against the one it carries before it does
+  anything. Each loader is signed with the openssl command line (a detached
+  CMS signature, SHA-256, no signed attributes), so the signature covers the
+  program the agent runs by way of its loader. The loaders, their metadata
+  and signatures are written beside each object as `<object>.loaders`, and
+  the certificate as `loader-signing.der`.
+- **The release key never lives on a host.** A release build makes a fresh
+  key and a self-signed certificate inside the one job that builds the
+  programs for both editions, signs, and shreds the key in a step that runs
+  whether the build passed or failed. There is nothing to store, rotate or
+  revoke: each release has its own certificate, and the release's signed
+  measurements record its SHA-256 as `loader_certificate_sha256`. A
+  development build signs with a test key committed to the source tree, which
+  a release build refuses, and whose certificate the release measurements
+  refuse.
+- **On the host**, the warden reads the certificate its image or package
+  installed (`/usr/local/share/ebpfsentinel/loader-signing.der`,
+  `/usr/share/ebpfsentinel/loader-signing.der` from a distribution package,
+  or the path in `EBPFSENTINEL_LOADER_CERT`), puts it in a keyring of its
+  own before it confines itself, and hands the keyring's serial to the agent
+  with the bpffs delegation. Other processes may view, read and search that
+  keyring, never write to it or link into it, and the warden's seccomp filter
+  kills any later key management call, so nothing the warden answers
+  afterwards changes what the keyring trusts.
+- **The agent** loads each loader through its BPF token with the signature
+  and the keyring serial, runs it once, and reads the program's descriptor
+  back from the loader's context. The kernel refuses a loader whose signature
+  does not verify (`EKEYREJECTED`) or whose signer is not in the keyring
+  (`ENOKEY`).
+
+### The warden refuses an unsigned load
+
+On a node whose kernel verifies BPF program signatures and that booted with
+`bpf` in its `lsm=` list (`lsm=...,bpf`), the warden holds every load made
+through a BPF token to its keyring. On any other node nothing refuses an
+unsigned load, and the posture says so with the missing condition.
+
+- **Before it confines itself**, the warden reads one program of its own,
+  `lsm-bpf-load-guard`, for the `bpf_prog_load` security hook, and **attaches
+  it when the agent asks**: once the agent has loaded its programs, run the
+  probes it assembles at run time against the running kernel (those are never
+  signed, so they run first) and handed its programs over, and before it reads
+  any input. The warden is root in the initial namespaces and loads the guard
+  without a token. The keyring's serial is written into the program's
+  read-only data before the load, and the map holding it is frozen, so nothing
+  changes the serial afterwards.
+- **The guard's rule**: a load made through a BPF token passes only when it
+  carries a signature and names the warden's keyring. The kernel has already
+  checked that signature against that keyring by the time the hook runs, so a
+  load that passes is one the warden's certificate signed. A load the kernel
+  makes on a loader's behalf, and any load not made through a token, passes
+  untouched. A refused load answers `EPERM`.
+- **The warden holds the attachment while the agent it was attached for
+  lives**, and tells the agent whether the guard is attached, or why not. The
+  warden survives a crash of the agent: when a new agent asks for its bpffs
+  after that process has exited, the guard is lifted for the new agent's
+  probes and attached again when it asks; asked for while that process lives,
+  the guard stays attached. It attaches
+  the guard only where the kernel verifies signatures, the BPF LSM is active,
+  its keyring exists and the guard's object is installed
+  (`/usr/local/lib/ebpfsentinel/lsm-bpf-load-guard`,
+  `/usr/lib/ebpfsentinel/lsm-bpf-load-guard` from a package, or the path in
+  `EBPFSENTINEL_LOAD_GUARD_OBJECT`). Ending the warden detaches it.
+- **The guard holds the whole host**: any process that loads through a BPF
+  token, not only the agent, is held to the warden's keyring while the
+  warden runs.
+
+Nothing here stops the agent from starting. A kernel that does not verify
+signatures, a warden with no certificate, an object without loaders, or a
+loader the kernel refused: without the guard each loads the program unsigned,
+as on any other node, and logs why. With the guard attached, that unsigned
+fallback is refused: the agent logs the program refused by the warden's
+guard, runs without it, and counts it. The programs the agent assembles at
+run time to ask the kernel what it offers are never signed, so under the
+guard those probes report the feature unavailable and name the guard as the
+reason.
+
+`GET /api/v1/crypto/posture` says which way it went in its `signing` block:
+
+- `enforced`: the kernel verifies signatures, the BPF LSM is active, and the
+  warden reports its guard attached over its keyring. Only this state reads
+  as enforced.
+- `verified_not_enforced`: the agent's programs went through loaders signed
+  at build, checked by the kernel against the warden's keyring, and nothing
+  refuses an unsigned load through the token. `not_enforced_because` names
+  the missing condition: `bpf` absent from the `lsm=` list, no keyring, or the
+  warden's own reason for leaving the guard out.
+- `unsigned`, `unsupported` or `not_probed`: the kernel could check and the
+  programs load without a signature, the kernel does not verify signatures,
+  or start-up has not asked.
+
+The block also carries the keyring serial, the certificate's SHA-256,
+`load_guard_attached`, and the counts of signed, unsigned and refused
+programs. Check a host's two conditions with `GET /api/v1/ebpf/kernel-features`
+(`bpf_prog_signing` and `bpf_lsm`) or `ebpfsentinel-agent ebpf
+kernel-features`.
+
+To check a node against its release, compare the posture's
+`certificate_sha256` with `loader_certificate_sha256` in that release's
+`measurements.json`, whose signature you verify as for any other artefact of
+the release:
+
+```bash
+curl -s -H "Authorization: Bearer $EBPFSENTINEL_TOKEN" \
+  http://localhost:8080/api/v1/crypto/posture | jq -r '.signing.certificate_sha256'
+jq -r '.loader_certificate_sha256' measurements.json
+sha256sum /usr/local/share/ebpfsentinel/loader-signing.der
+```
+
+The three agree on a node running the release it was installed from.
+
 ## Container DLP and host procfs visibility
 
 TLS data-loss prevention is a uprobe on `SSL_write`/`SSL_read` inside each

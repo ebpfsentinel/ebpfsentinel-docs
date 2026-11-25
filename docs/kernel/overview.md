@@ -1,6 +1,6 @@
 # Kernel Overview
 
-eBPFsentinel ships 30 eBPF programs that run in the Linux kernel. Fourteen of them (six XDP, eight TC) inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - four cgroup programs act on the sockets of a task (attribution, the workload firewall, the redirect to the enterprise TLS proxy, Service cluster address resolution), four raw tracepoints read what the kernel does (process exec and exit, signals, the reasons it drops a packet, TCP health per edge), five BPF LSM programs take an executable's digest or refuse what a task attempts, two uprobes read inside the process (TLS plaintext, calls into the system crypto library), and the thirtieth, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
+eBPFsentinel ships 31 eBPF programs that run in the Linux kernel. Fourteen of them (six XDP, eight TC) inspect, filter and forward network packets at wire speed - before they ever reach the userspace TCP/IP stack - four cgroup programs act on the sockets of a task (attribution, the workload firewall, the redirect to the enterprise TLS proxy, Service cluster address resolution), four raw tracepoints read what the kernel does (process exec and exit, signals, the reasons it drops a packet, TCP health per edge), six BPF LSM programs take an executable's digest or refuse what a task attempts (one of them, loaded by the warden, refuses a program load through the agent's token that is not signed), two uprobes read inside the process (TLS plaintext, calls into the system crypto library), and the thirty-first, `xdp-pass`, is a test-only veth helper never attached in production. This section documents the kernel-side architecture in detail.
 
 ## Why eBPF?
 
@@ -111,7 +111,7 @@ Six eBPF programs (`xdp-firewall`, `xdp-ratelimit`, `tc-nat-ingress`, `tc-nat-eg
 All programs are written in `#![no_std]` Rust using the [Aya](https://aya-rs.dev/) framework, compiled for `bpfel-unknown-none` (little-endian BPF) with the nightly toolchain:
 
 ```bash
-cargo xtask ebpf-build    # Builds all 30 programs
+cargo xtask ebpf-build    # Builds all 31 programs
 ```
 
 Shared `#[repr(C)]` types live in `crates/ebpf-common/` and are consumed by both kernel programs and the userspace agent.

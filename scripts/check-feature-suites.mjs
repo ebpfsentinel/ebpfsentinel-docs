@@ -94,6 +94,7 @@ const SELLING_PAGES = [
   'configuration/flow-export',
   'configuration/workload-firewall',
   'operations/enforcement-after-exit',
+  'security/agent-and-warden',
 ];
 
 const errors = [];

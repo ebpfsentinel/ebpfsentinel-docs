@@ -17,6 +17,9 @@ suites = ["oss/92-workload-matchers", "oss/91-network-executables", "oss/70-work
 [pages."operations/enforcement-after-exit"]
 suites = ["oss/140-enforcement-survives-the-agent"]
 
+[pages."security/agent-and-warden"]
+suites = ["oss/62-warden-broker-rpc", "oss/156-signed-program-loaders", "oss/157-the-warden-refuses-an-unsigned-load", "oss/88-host-integrity", "oss/158-lockdown-confidentiality"]
+
 [pages."features/alerting"]
 suites = ["oss/25-alert-end-to-end", "oss/61-alert-sink-delivery", "oss/34-sse-alerts-stream"]
 

@@ -234,6 +234,10 @@ jobs:
         working-directory: ebpfsentinel-docs
         run: npm run check:shipped-host-rules
 
+      - name: Check the lockdown program list against the agent's
+        working-directory: ebpfsentinel-docs
+        run: npm run check:lockdown-programs
+
   build:
     name: build
     runs-on: ubuntu-latest
