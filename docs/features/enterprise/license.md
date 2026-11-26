@@ -540,6 +540,26 @@ minute. When either file has changed:
   or refused key leaves the key already loaded in place, with a warning.
 - **A file caught half written is retried** on the next tick rather than read
   as a refusal.
+- **A renewal from the portal is the later of two keys.** An agent reporting
+  to the portal (`enterprise.portal.enabled: true`) is handed the renewed key
+  of its subscription in a heartbeat answer and keeps it as `renewed.license`
+  beside the enrolment (`/var/lib/ebpfsentinel/portal/renewed.license` by
+  default), mode `0600`, once both signatures, the organisation and a later
+  expiry are checked. The reload reads both files and runs on the later key in
+  force, revocations applied to each, so a revoked renewal falls back to
+  `license_path`. A key earlier than the one held is never written.
+
+On Kubernetes the operator renews from its own agents: on every licence refresh
+it asks one enterprise agent it manages for the key it runs on
+(`GET /api/v1/license/document`), checks it the same way, and keeps a later one
+in a Secret it owns, `ebpfsentinel-license-renewed`, never in the Secret you
+created, which a GitOps tool would put back. It then runs on the later of the
+two and mounts the same key on the agents, so one enrolled agent per cluster
+renews every agent there. The chart value `license.renewFromAgents: false`
+turns this off. A cluster with no agent enrolled with the portal, or with no
+route to it, is renewed by hand: replace the licence Secret with the new key
+from the portal or the offline bundle, and the operator's status says renewal
+is manual.
 
 ## Revocation
 

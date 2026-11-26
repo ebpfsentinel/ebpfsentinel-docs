@@ -306,6 +306,19 @@ comes from the payment, not from the moment the key was signed, so replacing a
 key keeps the same date, and a key asked for after a renewal carries the new
 period.
 
+Counting the agent's own window, a paid estate keeps every feature until three
+weeks after the paid period ends: the seven days of grace signed into the key,
+then the fourteen days of [grace](../features/enterprise/license.md#expiry-and-grace)
+every agent gives a key past its date. The second window is the agent's, so the
+licence status says the key is in grace for those fourteen days.
+
+When our reseller reports the next period paid, the portal signs the key for it
+on its own, with no act on your side, and lists it here in place of the
+previous one. Agents enrolled with the portal install it themselves, see
+[Renewals reach connected agents on their own](#renewals-reach-connected-agents-on-their-own).
+An estate with no route to the portal downloads it from this screen, or takes
+the [offline bundle](#offline-bundle), and installs it over the old file.
+
 - **Issue a key** signs a key from the paid subscription. It is refused to an account
   without two-step verification, an authenticator or a passkey, see
   [Signing In](signing-in.md), and, on an individual purchase, until the
@@ -324,7 +337,11 @@ period.
   carry to them.
 
 Owners and administrators are mailed when a key is issued or replaced, and
-thirty, fourteen and three days before it runs out.
+thirty, fourteen and three days before it runs out. A key a renewal has already
+replaced is not mailed as running out. The mail says which case your estate is
+in: agents reporting to the portal pick the renewal up on their own, and a
+machine that does not report needs the new file installed before the date in
+the mail.
 
 ### Enterprise trial
 
@@ -374,6 +391,23 @@ it reads again every minute. A key you revoke here stops being honoured across
 your agents one heartbeat and one minute later, with nothing to copy (see
 [Revocation](../features/enterprise/license.md#revocation)). The list only ever grows on the agent: leaving the portal
 never hands a revoked key back.
+
+### Renewals reach connected agents on their own
+
+A heartbeat says which key the agent runs on. When the portal holds a key for
+the same subscription that runs later, it hands that key back in the answer.
+The agent checks it before keeping it, both signatures against the published
+keys, the same organisation and a later date than the one it holds, writes it
+beside its enrolment as `renewed.license`, readable by the agent alone, and runs
+on whichever of its two keys runs later from its next reload, a minute later.
+It never takes an earlier key, so a renewal cannot be undone from the network.
+The file you installed stays as it was: a machine that leaves the portal keeps
+the later key it already holds.
+
+A key you replace with **Replace this key** carries the same date as the one it
+replaces, so it does not travel this way: install it yourself. On Kubernetes,
+the operator takes the renewal from the agents it runs, see
+[Kubernetes operator](../features/enterprise/license.md#renewal-and-reload).
 
 ### Paid features taken back
 
