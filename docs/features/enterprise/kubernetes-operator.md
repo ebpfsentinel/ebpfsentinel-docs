@@ -1166,10 +1166,14 @@ startup. See [File watch](../../configuration/file-watch.md) and
 [Share writes](../../configuration/share-writes.md).
 
 The baseline ceilings are typed as `maxHashBytes` and `maxBaselines`.
-`file_watch.canaries` is overlay-only, set through `spec.config.raw`: canary
-files are written by the agent into the watched tree, which the operator
-mounts read-only, so a canary set needs a writable volume of its own beside
-the overlay.
+Canary files are `spec.config.fileWatch.canaries` (`enabled`, `directories`,
+`names`, `exempt`). Planting writes into the node's own directories, so each
+directory named there, and only those, is mounted writable into the warden at
+the same path; the other filesystems stay read-only. A canary directory must
+exist on the node, which otherwise keeps the pod from starting there, and the
+directories are named rather than left to the agent's defaults because the
+operator mounts only what a resource names. At most 512 canaries in all,
+every name in every directory, refused at admission above that.
 
 ### How much of a TLS record DLP reads
 

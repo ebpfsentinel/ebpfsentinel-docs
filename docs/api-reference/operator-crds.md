@@ -18,49 +18,51 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 <!-- BEGIN GENERATED KINDS -->
 
-| Kind | apiVersion | Short names | Scope |
-|------|------------|-------------|-------|
-| [AirGapBundle](#airgapbundle) | `ebpfsentinel.io/v1` | `agb` | Namespaced |
-| [AISecurityPolicy](#aisecuritypolicy) | `ebpfsentinel.io/v1` | `aisp` | Namespaced |
-| [AlertPolicy](#alertpolicy) | `ebpfsentinel.io/v1` | `ap` | Namespaced |
-| [AliasSet](#aliasset) | `ebpfsentinel.io/v1` | `als` | Namespaced |
-| [AnalyticsConfig](#analyticsconfig) | `ebpfsentinel.io/v1` | `anl` | Namespaced |
-| [BehavioralDetection](#behavioraldetection) | `ebpfsentinel.io/v1` | `bdet` | Namespaced |
-| [ComplianceReport](#compliancereport) | `ebpfsentinel.io/v1` | `cmpr` | Namespaced |
-| [ConnectionTrackingConfig](#connectiontrackingconfig) | `ebpfsentinel.io/v1` | `ct` | Namespaced |
-| [DDoSProtection](#ddosprotection) | `ebpfsentinel.io/v1` | `ddos` | Namespaced |
-| [DLPPolicy](#dlppolicy) | `ebpfsentinel.io/v1` | `dlp` | Namespaced |
-| [DNSPolicy](#dnspolicy) | `ebpfsentinel.io/v1` | `dnsp` | Namespaced |
-| [EbpfSentinelAgent](#ebpfsentinelagent) | `ebpfsentinel.io/v1` | `esa` | Namespaced |
-| [EnterpriseSettings](#enterprisesettings) | `ebpfsentinel.io/v1` | `esettings` | Namespaced |
-| [FederationPolicy](#federationpolicy) | `ebpfsentinel.io/v1` | `fp` | Namespaced |
-| [FirewallPolicy](#firewallpolicy) | `ebpfsentinel.io/v1` | `fwp` | Namespaced |
-| [FleetConfig](#fleetconfig) | `ebpfsentinel.io/v1` | `fleet` | Namespaced |
-| [ForensicsPolicy](#forensicspolicy) | `ebpfsentinel.io/v1` | `frnsc` | Namespaced |
-| [GeoIPConfig](#geoipconfig) | `ebpfsentinel.io/v1` | `geo` | Namespaced |
-| [HACluster](#hacluster) | `ebpfsentinel.io/v1` | `hac` | Namespaced |
-| [IDSPolicy](#idspolicy) | `ebpfsentinel.io/v1` | `idsp` | Namespaced |
-| [InterfaceGroup](#interfacegroup) | `ebpfsentinel.io/v1` | `ifg` | Namespaced |
-| [IPSPolicy](#ipspolicy) | `ebpfsentinel.io/v1` | `ips` | Namespaced |
-| [L7FirewallPolicy](#l7firewallpolicy) | `ebpfsentinel.io/v1` | `l7fw` | Namespaced |
-| [LoadBalancerConfig](#loadbalancerconfig) | `ebpfsentinel.io/v1` | `lbc` | Namespaced |
-| [MLDetection](#mldetection) | `ebpfsentinel.io/v1` | `mld` | Namespaced |
-| [NATPolicy](#natpolicy) | `ebpfsentinel.io/v1` | `nat` | Namespaced |
-| [PacketCapture](#packetcapture) | `ebpfsentinel.io/v1` | `pcap` | Namespaced |
-| [QoSPolicy](#qospolicy) | `ebpfsentinel.io/v1` | `qos` | Namespaced |
-| [RateLimitPolicy](#ratelimitpolicy) | `ebpfsentinel.io/v1` | `rlp` | Namespaced |
-| [RBACConfig](#rbacconfig) | `ebpfsentinel.io/v1` | `rbac` | Namespaced |
-| [ResponsePolicy](#responsepolicy) | `ebpfsentinel.io/v1` | `rp` | Namespaced |
-| [RoutingPolicy](#routingpolicy) | `ebpfsentinel.io/v1` | `rtp` | Namespaced |
-| [SIEMExport](#siemexport) | `ebpfsentinel.io/v1` | `siem` | Namespaced |
-| [TenantPolicy](#tenantpolicy) | `ebpfsentinel.io/v1` | `tp` | Namespaced |
-| [ThreatIntelFeed](#threatintelfeed) | `ebpfsentinel.io/v1` | `tif` | Namespaced |
-| [TLSIntelligence](#tlsintelligence) | `ebpfsentinel.io/v1` | `tlsi` | Namespaced |
-| [ZonePolicy](#zonepolicy) | `ebpfsentinel.io/v1` | `zp` | Namespaced |
+| Kind | apiVersion | Short names | Scope | Licence feature, tier |
+|------|------------|-------------|-------|-----------------------|
+| [AirGapBundle](#airgapbundle) | `ebpfsentinel.io/v1` | `agb` | Namespaced | `air-gap`, Critical |
+| [AISecurityPolicy](#aisecuritypolicy) | `ebpfsentinel.io/v1` | `aisp` | Namespaced | `ai-llm-security`, Enterprise |
+| [AlertPolicy](#alertpolicy) | `ebpfsentinel.io/v1` | `ap` | Namespaced |  |
+| [AliasSet](#aliasset) | `ebpfsentinel.io/v1` | `als` | Namespaced |  |
+| [AnalyticsConfig](#analyticsconfig) | `ebpfsentinel.io/v1` | `anl` | Namespaced | `advanced-analytics`, Enterprise |
+| [BehavioralDetection](#behavioraldetection) | `ebpfsentinel.io/v1` | `bdet` | Namespaced | `ml-detection`, Enterprise |
+| [ComplianceReport](#compliancereport) | `ebpfsentinel.io/v1` | `cmpr` | Namespaced | `compliance-reports`, Professional |
+| [ConnectionTrackingConfig](#connectiontrackingconfig) | `ebpfsentinel.io/v1` | `ct` | Namespaced |  |
+| [DDoSProtection](#ddosprotection) | `ebpfsentinel.io/v1` | `ddos` | Namespaced |  |
+| [DLPPolicy](#dlppolicy) | `ebpfsentinel.io/v1` | `dlp` | Namespaced |  |
+| [DNSPolicy](#dnspolicy) | `ebpfsentinel.io/v1` | `dnsp` | Namespaced |  |
+| [EbpfSentinelAgent](#ebpfsentinelagent) | `ebpfsentinel.io/v1` | `esa` | Namespaced |  |
+| [EnterpriseSettings](#enterprisesettings) | `ebpfsentinel.io/v1` | `esettings` | Namespaced | none, Professional |
+| [FederationPolicy](#federationpolicy) | `ebpfsentinel.io/v1` | `fp` | Namespaced | `multi-cluster`, Enterprise |
+| [FirewallPolicy](#firewallpolicy) | `ebpfsentinel.io/v1` | `fwp` | Namespaced |  |
+| [FleetConfig](#fleetconfig) | `ebpfsentinel.io/v1` | `fleet` | Namespaced | `fleet-management`, Professional |
+| [ForensicsPolicy](#forensicspolicy) | `ebpfsentinel.io/v1` | `frnsc` | Namespaced | `network-forensics`, Enterprise |
+| [GeoIPConfig](#geoipconfig) | `ebpfsentinel.io/v1` | `geo` | Namespaced |  |
+| [HACluster](#hacluster) | `ebpfsentinel.io/v1` | `hac` | Namespaced | `high-availability`, Critical |
+| [IDSPolicy](#idspolicy) | `ebpfsentinel.io/v1` | `idsp` | Namespaced |  |
+| [InterfaceGroup](#interfacegroup) | `ebpfsentinel.io/v1` | `ifg` | Namespaced |  |
+| [IPSPolicy](#ipspolicy) | `ebpfsentinel.io/v1` | `ips` | Namespaced |  |
+| [L7FirewallPolicy](#l7firewallpolicy) | `ebpfsentinel.io/v1` | `l7fw` | Namespaced |  |
+| [LoadBalancerConfig](#loadbalancerconfig) | `ebpfsentinel.io/v1` | `lbc` | Namespaced |  |
+| [MLDetection](#mldetection) | `ebpfsentinel.io/v1` | `mld` | Namespaced | `ml-detection`, Enterprise |
+| [NATPolicy](#natpolicy) | `ebpfsentinel.io/v1` | `nat` | Namespaced |  |
+| [PacketCapture](#packetcapture) | `ebpfsentinel.io/v1` | `pcap` | Namespaced |  |
+| [QoSPolicy](#qospolicy) | `ebpfsentinel.io/v1` | `qos` | Namespaced |  |
+| [RateLimitPolicy](#ratelimitpolicy) | `ebpfsentinel.io/v1` | `rlp` | Namespaced |  |
+| [RBACConfig](#rbacconfig) | `ebpfsentinel.io/v1` | `rbac` | Namespaced | `advanced-rbac`, Professional |
+| [ResponsePolicy](#responsepolicy) | `ebpfsentinel.io/v1` | `rp` | Namespaced |  |
+| [RoutingPolicy](#routingpolicy) | `ebpfsentinel.io/v1` | `rtp` | Namespaced |  |
+| [SIEMExport](#siemexport) | `ebpfsentinel.io/v1` | `siem` | Namespaced | `siem-integration`, Enterprise |
+| [TenantPolicy](#tenantpolicy) | `ebpfsentinel.io/v1` | `tp` | Namespaced | `multi-tenancy`, Critical |
+| [ThreatIntelFeed](#threatintelfeed) | `ebpfsentinel.io/v1` | `tif` | Namespaced |  |
+| [TLSIntelligence](#tlsintelligence) | `ebpfsentinel.io/v1` | `tlsi` | Namespaced | `tls-intelligence`, Enterprise |
+| [ZonePolicy](#zonepolicy) | `ebpfsentinel.io/v1` | `zp` | Namespaced |  |
 
 ### AirGapBundle
 
 `ebpfsentinel.io/v1`, plural `airgapbundles`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `air-gap`, which is sold from the Critical tier.
 
 `AirGapBundle` configures offline updates for a cluster with no route to the internet. A bundle carries signatures, threat-intel indicators and `GeoIP` data. It is copied into `bundleDir` by whatever moves data across the gap; the agent imports what it finds there and refuses anything older than `maxAgeDays`, because a stale bundle silently degrades detection.
 
@@ -76,10 +78,13 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `aisecuritypolicies`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `ai-llm-security`, which is sold from the Enterprise tier.
+
 `AISecurityPolicy` covers traffic to AI and LLM providers: which ones are in use, what is being sent to them, and whether the resolver answering for them is one we can see. Detection is by destination and TLS metadata. Request bodies are only inspected where DLP already terminates TLS.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `agentTraffic` | object |  | Which workload may reach which model provider or MCP server, and the volumes past which one workload's use of one provider is an alert. |
 | `aiDlp` | object |  | Patterns matched against prompt bodies. |
 | `customProviders` | array of object | `[]` | Providers beyond the built-in catalogue. |
 | `enabled` | boolean | `false` |  |
@@ -120,6 +125,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `analyticsconfigs`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `advanced-analytics`, which is sold from the Enterprise tier.
+
 `AnalyticsConfig` turns on the on-agent analytics store that backs top talkers, trends and the retrospective queries the dashboard runs. Everything is held on the node; nothing is shipped anywhere.
 
 | Field | Type | Default | Description |
@@ -133,6 +140,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `behavioraldetections`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `ml-detection`, which is sold from the Enterprise tier.
+
 `BehavioralDetection` covers the three detectors that judge traffic by its shape rather than by matching it against something known: DNS names that look generated, TLS fingerprints that sit outside every cluster, and payloads repeating on a beat. All three report and none of them drop. They exist to find what a signature cannot describe, which is also why they need thresholds an operator can move.
 
 | Field | Type | Default | Description |
@@ -145,6 +154,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### ComplianceReport
 
 `ebpfsentinel.io/v1`, plural `compliancereports`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `compliance-reports`, which is sold from the Professional tier.
 
 `ComplianceReport` schedules the evidence reports the agent produces from its own configuration and audit log. A report states what the agent is enforcing against a framework's controls. It is evidence for an audit, not an attestation: nothing here certifies anything.
 
@@ -207,6 +218,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `mode` | string | `"alert"` | Engine-wide mode. A pattern may override it. One of `alert`, `block`. |
 | `patterns` | array of object | `[]` | Patterns matched against reassembled payloads. |
 | `recordBytes` | integer |  | The most plaintext one DLP event carries, in bytes, from 4,096 to 16,384 (the largest plaintext one TLS record holds). Where the node's kernel cannot read user memory straight into the ring buffer, an event carries at most 4,096 bytes whatever this says. Left out, the agent keeps 16,384. Minimum `4096`. Maximum `16384`. |
+| `scope` | object |  | Which tasks the probes may read plaintext from. One `libssl` layer shared by every container on a node arms one probe that fires for all of them, so on a shared node the scope decides whether the agent reads a neighbour's plaintext. Left out, the agent reads every task on the node, which is what a host agent does. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 | `tlsProxy` | object |  | TLS inspection proxy, terminating and re-originating TLS so the cleartext can be scanned. |
 
@@ -263,6 +275,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `enterprisesettings`, namespaced.
 
+Enterprise kind gated on no licence feature, since it is where the licence is named: it is reconciled wherever the operator runs, from the Professional tier.
+
 `EnterpriseSettings` carries the enterprise configuration that is not a policy: where the licence comes from, whether the data plane is partitioned by tenant at all, how much of the response engine's trail is kept, and whether this deployment reports itself to the vendor portal. One of these per agent set. The policies are separate resources because they change on a different clock than this does.
 
 | Field | Type | Default | Description |
@@ -286,6 +300,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### FederationPolicy
 
 `ebpfsentinel.io/v1`, plural `federationpolicies`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `multi-cluster`, which is sold from the Enterprise tier.
 
 `FederationPolicy` joins a cluster to a management cluster, or turns this one into the management cluster. A managed cluster heartbeats to `managementEndpoint` and applies the policy snapshots it is handed; the management cluster receives those heartbeats and serves the snapshots. Exactly one side sets `isManagement`.
 
@@ -315,6 +331,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 |-------|------|---------|-------------|
 | `antiLockout` | object | `{"enabled":false,"interfaces":[],"ports":[]}` | Guard that keeps the management path reachable whatever the rule table says. |
 | `defaultPolicy` | string | `"pass"` | Verdict applied to a packet no rule matched. One of `pass`, `drop`. |
+| `dnsClients` | object |  | Which processes may send DNS anywhere, and the resolvers every other process must use: a query to any other address is refused or, while observing, counted. Decided by the kernel at the socket, as a workload rule is. |
 | `enabled` | boolean | `true` | Turn the firewall engine on or off on the target agents. |
 | `mode` | string | `"alert"` | Engine-wide mode. `alert` reports what would have been dropped, `block` enforces. One of `alert`, `block`. |
 | `networkExecutables` | object |  | The executables that alone may open an internet socket, decided in the kernel at the socket call. Needs the BPF LSM active at boot on each node, which is the `lsm=` boot parameter and not a kernel version: `ebpfsentinel-agent ebpf host-check` answers for a node. Where it is off, an observing list is skipped and an enforcing one stops the agent from starting. |
@@ -329,6 +346,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `fleetconfigs`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `fleet-management`, which is sold from the Professional tier.
+
 `FleetConfig` turns on the fleet inventory an agent keeps of the peers that register with it. This is the on-agent half only. Cross-cluster reporting is `FederationPolicy`, and reporting to our own portal is `PortalReporting`.
 
 | Field | Type | Default | Description |
@@ -340,6 +359,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### ForensicsPolicy
 
 `ebpfsentinel.io/v1`, plural `forensicspolicies`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `network-forensics`, which is sold from the Enterprise tier.
 
 `ForensicsPolicy` keeps a rolling window of flow records on the node so that an alert can be answered with what happened before it, not only with the packet that fired it. The ring buffer is bounded twice - by event count and by age - and whichever bound is hit first evicts. What survives a trigger is kept for `retentionDays`.
 
@@ -370,6 +391,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### HACluster
 
 `ebpfsentinel.io/v1`, plural `haclusters`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `high-availability`, which is sold from the Critical tier.
 
 `HACluster` pairs agents so that state survives the loss of a node. `active-passive` keeps one node forwarding and the other warm; `active-active` splits the interfaces between nodes and each takes the other's on failure. The agent knows itself by `advertisedAddr`, which differs on every node, so an `active-active` pair is one resource per node, each targeting that node's agent, the same `peers` and `interfaceAssignments` on both.
 
@@ -406,6 +429,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `mode` | string | `"alert"` | Engine-wide mode. A rule may override it. One of `alert`, `block`. |
 | `rules` | array of object | `[]` | Signature rules. |
 | `sampling` | object |  | Packet sampling applied before detection. |
+| `suricata` | object |  | Suricata rulesets the agent compiles into detection rules at load, beside the rules above. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 
 ### InterfaceGroup
@@ -474,6 +498,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### MLDetection
 
 `ebpfsentinel.io/v1`, plural `mldetections`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `ml-detection`, which is sold from the Enterprise tier.
 
 `MLDetection` configures the streaming anomaly detectors: EWMA drift, CUSUM change-point, count-min-sketch heavy hitters and random cut forest. Every detector runs on the agent over its own counters - no traffic leaves the node - so the only external artefact is the optional pre-trained model at `modelSecretRef`.
 
@@ -553,6 +579,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `rbacconfigs`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `advanced-rbac`, which is sold from the Professional tier.
+
 `RBACConfig` defines the roles the agent's own API recognises beyond the built-in `admin`, `operator` and `viewer`. A role is a set of grants, optionally inheriting another role's. The built-in three are always present and cannot be redefined here.
 
 | Field | Type | Default | Description |
@@ -589,6 +617,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `siemexports`, namespaced.
 
+Enterprise kind, reconciled only when the licence carries `siem-integration`, which is sold from the Enterprise tier.
+
 `SIEMExport` configures where the agent ships alerts and events. The buffer, batch and circuit-breaker settings are shared by every destination on the agent, so one resource carries them alongside the destination list rather than repeating them per backend. No credential appears in the spec: each destination names a Secret.
 
 | Field | Type | Default | Description |
@@ -605,6 +635,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### TenantPolicy
 
 `ebpfsentinel.io/v1`, plural `tenantpolicies`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `multi-tenancy`, which is sold from the Critical tier.
 
 `TenantPolicy` declares one tenant and the traffic that belongs to it. A tenant is matched by namespace, subnet, VLAN or interface, and every rule the agent evaluates carries the tenant it was created under, so a tenant's rules never see another tenant's traffic. Quotas bound what a tenant can create, because a shared data plane has finite map space.
 
@@ -646,6 +678,8 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 ### TLSIntelligence
 
 `ebpfsentinel.io/v1`, plural `tlsintelligences`, namespaced.
+
+Enterprise kind, reconciled only when the licence carries `tls-intelligence`, which is sold from the Enterprise tier.
 
 `TLSIntelligence` reads what a TLS handshake says about the client making it: the JA4 fingerprint, the cipher suites offered, and whether any of it has been seen from this destination before. None of it decrypts anything. The handshake is in the clear, and that is the whole surface this policy works on.
 

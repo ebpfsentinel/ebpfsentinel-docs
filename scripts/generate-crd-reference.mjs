@@ -19,6 +19,14 @@ const pagePath = join(repoRoot, 'docs', 'api-reference', 'operator-crds.md');
 const crdsPath = process.env.EBPFSENTINEL_OPERATOR_CRDS
   ? resolve(process.env.EBPFSENTINEL_OPERATOR_CRDS)
   : resolve(repoRoot, '..', 'ebpfsentinel-operator', 'config', 'crd', 'crds.yaml');
+const operatorRoot = process.env.EBPFSENTINEL_OPERATOR_DIR
+  ? resolve(process.env.EBPFSENTINEL_OPERATOR_DIR)
+  : resolve(repoRoot, '..', 'ebpfsentinel-operator');
+const licensePath = join(operatorRoot, 'crates', 'operator', 'src', 'license.rs');
+const websiteRoot = process.env.EBPFSENTINEL_WEBSITE_DIR
+  ? resolve(process.env.EBPFSENTINEL_WEBSITE_DIR)
+  : resolve(repoRoot, '..', 'ebpfsentinel-website');
+const tiersPath = join(websiteRoot, 'src', 'app', 'core', 'licence', 'licence.generated.ts');
 const checkOnly = process.argv.includes('--check');
 
 const BEGIN = '<!-- BEGIN GENERATED KINDS -->';
@@ -27,6 +35,12 @@ const END = '<!-- END GENERATED KINDS -->';
 // Below these the reader no longer understands the file it was given.
 const MIN_KINDS = 30;
 const MIN_FIELDS = 250;
+const MIN_GATED_KINDS = 10;
+
+// The licence feature the operator itself needs, which is also what the one
+// ungated enterprise kind is served under.
+const OPERATOR_FEATURE = 'kubernetes-operator';
+const TIER_NAME = { professional: 'Professional', enterprise: 'Enterprise', critical: 'Critical' };
 
 function fail(lines) {
   for (const line of lines) console.error(line);
@@ -232,6 +246,81 @@ function parseDocuments(text, origin) {
   return documents;
 }
 
+// Licensing: which feature each enterprise kind is reconciled under, read
+// off the operator's own table, and the tier the website's price table first
+// sells that feature on. A tier typed here would be one nobody re-reads when
+// the price table moves.
+
+function readText(path, what) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    fail([`Cannot read ${what} at ${path}: ${error.message}`]);
+  }
+}
+
+function readGates() {
+  const source = readText(licensePath, "the operator's licence table");
+  const block = source.match(/const FEATURE_BY_KIND: &\[\(&str, &str\)\] = &\[([\s\S]*?)\];/);
+  if (!block) fail([`${licensePath}: no FEATURE_BY_KIND table.`]);
+  const gates = new Map();
+  for (const [, kind, feature] of block[1].matchAll(/\("([A-Za-z0-9]+)",\s*"([a-z0-9-]+)"\)/g)) {
+    gates.set(kind, feature);
+  }
+  if (gates.size < MIN_GATED_KINDS) {
+    fail([`${licensePath}: read ${gates.size} gated kinds, below the floor of ${MIN_GATED_KINDS}.`]);
+  }
+  const ungated = source.match(/const UNGATED_KIND: &str = "([A-Za-z0-9]+)";/);
+  if (!ungated) fail([`${licensePath}: no UNGATED_KIND.`]);
+  return { gates, ungated: ungated[1] };
+}
+
+function readTiers() {
+  const source = readText(tiersPath, "the website's licence tiers");
+  const block = source.match(/LICENCE_FEATURE_TIERS\s*=\s*\{([\s\S]*?)\}\s*as const/);
+  if (!block) fail([`${tiersPath}: no LICENCE_FEATURE_TIERS object.`]);
+  const tiers = new Map();
+  for (const [, feature, tier] of block[1].matchAll(/'([a-z0-9-]+)':\s*'([a-z]+)'/g)) {
+    if (!(tier in TIER_NAME)) fail([`${tiersPath}: ${feature} on unknown tier ${tier}.`]);
+    tiers.set(feature, TIER_NAME[tier]);
+  }
+  return tiers;
+}
+
+function licensing(kinds) {
+  const { gates, ungated } = readGates();
+  const tiers = readTiers();
+  const problems = [];
+  const tierOf = (feature) => {
+    const tier = tiers.get(feature);
+    if (!tier) problems.push(`Licence feature ${feature} is not in the website's price table.`);
+    return tier;
+  };
+  const names = new Set(kinds.map((kind) => kind.kind));
+  for (const kind of [...gates.keys(), ungated]) {
+    if (!names.has(kind)) problems.push(`${kind} is licensed by the operator but has no CRD.`);
+  }
+  const notes = new Map();
+  for (const [kind, feature] of gates) {
+    notes.set(kind, { feature, tier: tierOf(feature) });
+  }
+  notes.set(ungated, { feature: null, tier: tierOf(OPERATOR_FEATURE) });
+  if (problems.length > 0) fail(problems);
+  return notes;
+}
+
+function licenceCell(note) {
+  if (!note) return '';
+  return note.feature ? `${code(note.feature)}, ${note.tier}` : `none, ${note.tier}`;
+}
+
+function licenceLine(kind, note) {
+  if (note.feature) {
+    return `Enterprise kind, reconciled only when the licence carries ${code(note.feature)}, which is sold from the ${note.tier} tier.`;
+  }
+  return `Enterprise kind gated on no licence feature, since it is where the licence is named: it is reconciled wherever the operator runs, from the ${note.tier} tier.`;
+}
+
 // Rendering.
 
 function escapeText(text) {
@@ -310,20 +399,26 @@ function crdKinds(documents) {
   return kinds.sort((left, right) => left.kind.localeCompare(right.kind));
 }
 
-function render(kinds) {
+function render(kinds, notes) {
   const out = [];
-  out.push('| Kind | apiVersion | Short names | Scope |');
-  out.push('|------|------------|-------------|-------|');
+  out.push('| Kind | apiVersion | Short names | Scope | Licence feature, tier |');
+  out.push('|------|------------|-------------|-------|-----------------------|');
   for (const kind of kinds) {
     const anchor = kind.kind.toLowerCase();
     const shorts = kind.shortNames.map((name) => code(name)).join(', ');
-    out.push(`| [${kind.kind}](#${anchor}) | ${code(kind.apiVersion)} | ${shorts} | ${kind.scope} |`);
+    const licence = licenceCell(notes.get(kind.kind));
+    out.push(`| [${kind.kind}](#${anchor}) | ${code(kind.apiVersion)} | ${shorts} | ${kind.scope} | ${licence} |`);
   }
   for (const kind of kinds) {
     out.push('');
     out.push(`### ${kind.kind}`);
     out.push('');
     out.push(`${code(kind.apiVersion)}, plural ${code(kind.plural)}, ${kind.scope.toLowerCase()}.`);
+    const note = notes.get(kind.kind);
+    if (note) {
+      out.push('');
+      out.push(licenceLine(kind.kind, note));
+    }
     const summary = prose(kind.schema.description);
     if (summary) {
       out.push('');
@@ -371,7 +466,7 @@ const end = original.indexOf(END);
 if (begin < 0 || end < begin) {
   fail([`${relative(process.cwd(), pagePath)} lacks the ${BEGIN} and ${END} markers.`]);
 }
-const page = `${original.slice(0, begin + BEGIN.length)}\n\n${render(kinds)}\n\n${original.slice(end)}`;
+const page = `${original.slice(0, begin + BEGIN.length)}\n\n${render(kinds, licensing(kinds))}\n\n${original.slice(end)}`;
 
 if (checkOnly) {
   if (page !== original) {
