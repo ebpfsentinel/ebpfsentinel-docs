@@ -10,7 +10,7 @@ Allow about two hours, of which you spend fifteen minutes at the keyboard.
 
 - The agent is installed and running on the node, Linux 6.18 or later with BTF.
 - `learning.enabled` is left at its default, `true`. Nothing is observed until you open a window.
-- You can edit the agent's configuration file, by default `/etc/ebpfsentinel/ebpfsentinel.yaml`.
+- You can edit the agent's configuration file, by default `/etc/ebpfsentinel/config.yaml`.
 - Give the node its ordinary work during the window. A learning window over an idle host writes an allow-list for an idle host.
 
 ## 1. Open a window

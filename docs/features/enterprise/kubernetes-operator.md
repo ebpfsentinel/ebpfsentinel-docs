@@ -94,6 +94,7 @@ carried before the pass, so a restart or a new leader does not repeat them.
 | `Unselected` | Warning | no agent in the namespace selects the resource |
 | `Refused` | Warning | a value the resource sets was dropped for another resource's; the note names both and which one runs |
 | `Released` | Normal | an agent resource being deleted had its DaemonSet removed, a `TenantPolicy` being deleted had its tenant resumed, or a resource of a kind the licence no longer carries had the operator's finalizers taken off, and is free to go |
+| `PoliciesSkipped` | Warning | an agent resource left policies out because their engine is set to `false` under `spec.features`, or the list of them changed; each such policy's `Ready` reason is `EngineDisabled` |
 | `FieldsIgnored` | Warning | the resource sets a field the agent no longer reads; the note names them and the `FieldsIgnored` condition stays `True` while they are set |
 | `ReconcileFailed` | Warning | a pass failed and will be retried, after 5 seconds and then twice as long each time up to 5 minutes; repeats fold into one event series |
 | `NotLicensed` | Warning | an enterprise kind the licence does not carry |
@@ -263,6 +264,47 @@ spec:
 `interfaces` names the node interfaces the programs attach to, `eth0` when
 the field is left out. `kubectl -n ebpfsentinel get ebpfsentinelagent default`
 shows whether the agent is ready and on how many nodes once applied.
+
+### Engine switches
+
+`spec.features` holds one switch per engine, and each takes one of three
+states. Left unset, the engine starts in its default state below, and a
+policy of the kind that configures it is grafted into the rendered document
+and can turn it on. Set to `true`, the engine starts on before any policy is
+grafted. Set to `false`, the engine stays off whatever a policy says: the operator leaves
+every policy of that kind out of the agent's document, files a
+`PoliciesSkipped` event and condition on the agent resource naming them, and
+gives each such policy a `Ready` condition with the reason `EngineDisabled`.
+
+| Switch | Unset | Policy kind it gates |
+|---|---|---|
+| `features.firewall` | on | `FirewallPolicy` |
+| `features.ids` | on | `IDSPolicy` |
+| `features.ips` | on | `IPSPolicy` |
+| `features.dns` | on | `DNSPolicy` |
+| `features.threatintel` | on | `ThreatIntelFeed` |
+| `features.audit` | on | none: the audit trail has no policy kind |
+| `features.alerting` | on | `AlertPolicy` |
+| `features.dlp` | off | `DLPPolicy` |
+| `features.ratelimit` | off | `RateLimitPolicy` |
+| `features.ddos` | off | `DDoSProtection` |
+| `features.loadbalancer` | off | `LoadBalancerConfig` |
+| `features.conntrack` | off | `ConnectionTrackingConfig` |
+| `features.l7` | off | `L7FirewallPolicy` |
+| `features.nat` | off | `NATPolicy` |
+| `features.qos` | off | `QoSPolicy` |
+| `features.zones` | off | `ZonePolicy` |
+| `features.routing` | off | `RoutingPolicy` |
+| `features.geoip` | off | `GeoIPConfig` |
+| `features.autoResponse` | off | `ResponsePolicy` |
+| `features.autoCapture` | off | `PacketCapture` |
+
+```yaml
+spec:
+  features:
+    dlp: false      # DLPPolicy resources are left out and marked EngineDisabled
+    ddos: true      # DDoS mitigation starts on before any DDoSProtection is grafted
+```
 
 ### Enterprise agents
 

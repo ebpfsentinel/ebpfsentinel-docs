@@ -2,6 +2,7 @@
   "name": "ebpfsentinel-docs",
   "version": "0.0.0",
   "private": true,
+  "license": "CC-BY-4.0 AND Apache-2.0",
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
@@ -47,7 +48,9 @@
     "generate:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs",
     "check:shipped-host-rules": "node scripts/generate-shipped-host-rules.mjs --check",
     "generate:lockdown-programs": "node scripts/generate-lockdown-programs.mjs",
-    "check:lockdown-programs": "node scripts/generate-lockdown-programs.mjs --check"
+    "check:lockdown-programs": "node scripts/generate-lockdown-programs.mjs --check",
+    "generate:enterprise-tiers": "node scripts/generate-enterprise-tiers.mjs",
+    "check:enterprise-tiers": "node scripts/generate-enterprise-tiers.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",

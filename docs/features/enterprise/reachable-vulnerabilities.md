@@ -1,6 +1,6 @@
 # Reachable Vulnerabilities
 
-**Licence feature:** `fleet-management`.
+> **Edition: Professional and above** | licence feature `fleet-management`
 
 ## What it answers
 

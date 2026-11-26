@@ -488,6 +488,19 @@ signature alone says only that we issued it, not to whom. The licence's
 measured, so the console has nothing to hold it against, and the agent
 already refuses at startup a licence bound to another machine.
 
+The console serves Enterprise agents whose licence it verified; an OSS
+agent answers no licence and is skipped, never served.
+
+### Agent ceiling
+
+A tenant's quota is one number: its agents. The ceiling is the
+`max_agents` of the largest verified, unexpired licence among the
+tenant's agents in the pool, never the sum of them, and nothing in the
+configuration sets it. The console warns at 80 and 100 percent of the
+ceiling (`GET /api/v1/{tenant}/quotas` and the overview's quota
+widget read it) and refuses nothing: an agent above the ceiling is still
+served. A `quotas` block under a tenant is refused at load.
+
 ### Post-quantum key exchange
 
 `server.tls.pq_mode` decides whether the dashboard's own listener advertises
@@ -701,7 +714,10 @@ tenant takes: the same per-tenant token, the same author recorded on the
 agent that holds the alert.
 
 The routes sit outside `/api/v1/{tenant}/...`, so a tenant named `queue` is
-never shadowed by them.
+never shadowed by them. They are served while at least one agent of the
+estate carries the `multi-tenancy` licence feature; otherwise every queue
+route answers `403` with `{"reason": "not_licensed", "feature":
+"multi-tenancy"}` before any tenant is read, and the screen is not offered.
 
 | Route | What it does |
 |---|---|
@@ -726,6 +742,11 @@ characters. Only a platform administrator writes, edits or deletes a
 template, and every edit names the revision it was read at, so two people
 editing one template cannot overwrite each other: the second is refused
 with `409`.
+
+Every template route, writing and applying alike, needs at least one agent
+of the estate carrying the `multi-tenancy` licence feature, and answers
+`403` with `{"reason": "not_licensed", "feature": "multi-tenancy"}` without
+it.
 
 Applying is never one write across tenants. For the tenant in scope, an
 operator holding the right to push agent configuration keeps the tenant's
@@ -1162,65 +1183,13 @@ starting points, read with
 installs the chart from the identity provider registration to the first
 agent.
 
-## Demo mode
+## With no agent to answer
 
-The overview wallboard pulls live numbers from registered agents (and,
-for `analytics/alerts-by-country`, from the optional ClickHouse store).
-A fresh deployment with zero registered agents - or an air-gapped lab
-running before the first agent is enrolled - therefore renders empty
-tiles and blank charts. For demo recordings, charter screenshots, and
-new-operator onboarding, the dashboard exposes a deterministic
-synthetic dataset behind a single environment variable.
-
-| Variable | Default | Effect |
-|---|---|---|
-| `EBPFSENTINEL_DEMO_DATA` | unset / `false` | Live data only. Empty agent pool returns `503` and empty tiles render zeros. |
-| `EBPFSENTINEL_DEMO_DATA=true` | - | When the proxied agent (or history store) yields empty for an overview endpoint, the dashboard returns a deterministic charter-aligned dataset instead. |
-
-Accepted truthy values: `true`, `1`, `yes`, `on` (case-insensitive).
-Anything else - including the variable being unset - leaves the flag
-off.
-
-### What the fallback covers
-
-The fallback only fires for the six endpoints that back the overview
-wallboard:
-
-- `/api/v1/{tenant}/analytics/overview-stats`
-- `/api/v1/{tenant}/analytics/top-regions`
-- `/api/v1/{tenant}/analytics/compliance-scores`
-- `/api/v1/{tenant}/analytics/incidents-per-hour`
-- `/api/v1/{tenant}/analytics/detections-vs-resolutions`
-- `/api/v1/{tenant}/analytics/alerts-by-country`
-
-Every other route - alerts, fleet, threat-intel, audit export, SOAR,
-SSE streams - is unaffected. Demo mode does not fabricate alerts; it
-only fills the overview tiles when there is genuinely nothing to show.
-
-### Reproducibility
-
-Synthetic payloads are seeded by the tenant id, so two requests for
-`acme` produce byte-identical responses while `globex` produces a
-different - but equally stable - curve. The charter baseline is
-fixed:
-
-- `hosts_protected = 142`
-- `events_per_sec = 2_400_000`
-- `open_incidents = 14`
-- `mttd_seconds = 48`
-- 24-hour spike pattern with a midday peak
-- 8 top regions, 4 compliance frameworks (SOC 2, ISO 27001, PCI DSS,
-  GDPR)
-
-### Audit trail
-
-Every fallback emission records a structured `auth.audit` event with
-`event=synthetic_overview_data_served`, plus an entry in the audit
-store consumable through `/api/v1/audit/export`. The action field
-encodes the endpoint, e.g. `synthetic_overview_data_served:overview-stats`.
-
-### Disabling demo mode
-
-Unset the variable (or set it to `false` / `0`) and restart the
-process. There is no hot-reload knob - the flag is read once at
-startup so the audit trail is unambiguous.
+The console shows what an agent answered and nothing in its place. A
+tenant with no healthy agent is answered `503` on every proxied route,
+and `analytics/alerts-by-country` is answered `503` while the history
+store is off; the screens render empty rather than a reading made up to
+fill them. The release image carries no sample data: the fixture data
+used for screenshots and recordings is served only by the standalone
+mode (`dashboard-server --standalone`), which exists in development
+builds alone.

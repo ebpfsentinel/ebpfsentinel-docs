@@ -1,16 +1,12 @@
 # Connection Tracking Configuration
 
-Connection tracking probes kernel netfilter via `bpf_skb_ct_lookup` kfuncs. The kernel manages all TCP/UDP/ICMP state, timeouts, and eviction. The userspace config controls flood detection thresholds and the per-source connection guard. See [Connection Tracking](../features/conntrack.md) for the feature overview.
+Connection tracking probes kernel netfilter via `bpf_skb_ct_lookup` kfuncs. The kernel manages all TCP/UDP/ICMP state, timeouts, and eviction. This section controls the probe and the per-source connection guard. The flood thresholds (`half_open_threshold`, `rst_threshold`, `fin_threshold`, `ack_threshold`) are written under `ddos.connection_tracking`, see [DDoS configuration](ddos.md#connectiontracking); this section refuses them. See [Connection Tracking](../features/conntrack.md) for the feature overview.
 
 ## Configuration
 
 ```yaml
 conntrack:
   enabled: false
-  half_open_threshold: 100
-  rst_threshold: 50
-  fin_threshold: 50
-  ack_threshold: 200
   max_src_states: 0
   max_src_conn_rate: 0
   conn_rate_window_secs: 5
@@ -26,17 +22,6 @@ conntrack:
 | `enabled` | bool | `false` | Enable connection tracking probe |
 
 This section keeps no table of its own: the probe reads the kernel's own conntrack entries. The connection table the DDoS guard fills is sized by `ddos.connection_tracking.max_entries`, and that key is refused here.
-
-### Flood Detection
-
-These thresholds trigger alerts when anomalous connection patterns are detected in the eBPF program:
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `half_open_threshold` | u32 | `100` | Half-open connections before alerting |
-| `rst_threshold` | u32 | `50` | RST packets per window before alerting |
-| `fin_threshold` | u32 | `50` | FIN packets per window before alerting |
-| `ack_threshold` | u32 | `200` | ACK-only packets per window before alerting |
 
 ### Per-Source Connection Guard
 

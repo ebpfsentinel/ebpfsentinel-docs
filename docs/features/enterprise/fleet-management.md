@@ -1,6 +1,6 @@
 # Fleet Management
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** | licence feature `fleet-management`
 
 ## Overview
 

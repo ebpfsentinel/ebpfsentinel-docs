@@ -124,8 +124,8 @@ With `icmp_protection` on, ICMP echo requests are judged by it alone. With it of
 | `id` | `string` | Yes | Unique policy identifier |
 | `attack_type` | `string` | Yes | `syn_flood`, `udp_amplification`, `icmp_flood`, `rst_flood`, `fin_flood`, `ack_flood`, `volumetric` |
 | `detection_threshold_pps` | `integer` | Yes | Packets per second to trigger detection |
-| `mitigation_action` | `string` | Yes | `alert`, `throttle`, `block` |
-| `auto_block_duration_secs` | `integer` | Yes | Seconds to block source after detection (0 = indefinite) |
+| `mitigation_action` | `string` | No | `alert`, `throttle`, `block` (default: `alert`) |
+| `auto_block_duration_secs` | `integer` | No | Seconds to block source after detection, 0 = indefinite (default: `300`) |
 | `enabled` | `bool` | No | Enable/disable this policy (default: `true`) |
 | `country_thresholds` | `map<string, integer>` | No | Per-country PPS thresholds (ISO 3166-1 alpha-2 → PPS). Overrides `detection_threshold_pps` for traffic from listed countries. When a `block` policy triggers for a country, all CIDRs for that country are auto-injected into the firewall LPM maps |
 

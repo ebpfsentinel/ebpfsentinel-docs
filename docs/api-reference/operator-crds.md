@@ -161,19 +161,19 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 
 `ebpfsentinel.io/v1`, plural `connectiontrackingconfigs`, namespaced.
 
-`ConnectionTrackingConfig` configures agent-side flood detection thresholds. Note: kernel netfilter manages TCP/UDP/ICMP state machine, timeouts, and eviction via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs. The agent only queries kernel CT and tracks per-source flood counters. Use sysctl `net.netfilter.nf_conntrack_*` to tune kernel-side timeouts.
+`ConnectionTrackingConfig` sets the per-source connection ceilings the agent's connection tracker enforces on the XDP fast path. Note: kernel netfilter manages TCP/UDP/ICMP state machine, timeouts, and eviction via `bpf_skb_ct_lookup` / `bpf_xdp_ct_lookup` kfuncs. The agent only queries kernel CT and tracks per-source flood counters. Use sysctl `net.netfilter.nf_conntrack_*` to tune kernel-side timeouts.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `ackThreshold` | integer | `200` | ACK packet flood threshold (ACKs to non-existent connections). |
+| `ackThreshold` | integer |  | No longer read: see `halfOpenThreshold`. |
 | `connRateWindowSecs` | integer | `5` | Width of the window `maxSrcConnRate` is measured over, in seconds. |
 | `enabled` | boolean | `true` | Enable connection tracking kfunc probes. |
-| `finThreshold` | integer | `50` | FIN packet flood threshold per source per window. |
-| `halfOpenThreshold` | integer | `100` | Half-open connection threshold per source IP before alerting. |
+| `finThreshold` | integer |  | No longer read: see `halfOpenThreshold`. |
+| `halfOpenThreshold` | integer |  | No longer read: the per-source flood thresholds belong to `DDoSProtection` `connectionTracking`. Accepted so a resource written against v1 still applies, left out of the document and reported on the `FieldsIgnored` condition. |
 | `maxSrcConnRate` | integer | `0` | New connections a single source may open inside `connRateWindowSecs`. `0` is unlimited. |
 | `maxSrcStates` | integer | `0` | Concurrent connections a single source may hold. `0` is unlimited, which is what an agent naming none does. |
 | `overloadTtlSecs` | integer | `3600` | How long a source that exceeded `maxSrcConnRate` stays refused, in seconds. `0` holds it until the agent restarts. |
-| `rstThreshold` | integer | `50` | RST packet flood threshold per source per window. |
+| `rstThreshold` | integer |  | No longer read: see `halfOpenThreshold`. |
 | `target` | object | `{"all":true,"labelSelector":null,"names":[]}` | Which `EbpfSentinelAgent` resources a policy applies to. The operator renders the agent configuration file from the agent resource plus every policy resource selecting it, so a target names agent resources rather than the pods they produce. |
 
 ### DDoSProtection
@@ -241,7 +241,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `extraEnv` | array of object | `[]` | Extra environment variables injected into agent pods. |
 | `extraVolumeMounts` | array of object | `[]` | Extra volume mounts for the agent container. |
 | `extraVolumes` | array of object | `[]` | Extra volumes for agent pods. |
-| `features` | object | `{"alerting":true,"audit":true,"autoCapture":false,"autoResponse":false,"conntrack":false,"ddos":false,"dlp":false,"dns":true,"firewall":true,"geoip":false,"ids":true,"ips":true,"l7":false,"loadbalancer":false,"nat":false,"qos":false,"ratelimit":false,"routing":false,"threatintel":true,"zones":false}` | Feature toggles. |
+| `features` | object | `{}` | Feature toggles. |
 | `host` | object | `{"capabilities":["BPF","NET_ADMIN","SYS_ADMIN","NET_RAW","PERFMON","SYS_PTRACE"],"network":true,"pid":false,"privileged":false,"statePath":null,"tailoredSeccomp":{"enabled":false,"kubeletRootDir":"/var/lib/kubelet"}}` | What the agent container is allowed to do on the node. |
 | `image` | object, required |  | Container image configuration. |
 | `interfaces` | array of string | `["eth0"]` | Network interfaces to attach eBPF programs to. Read only under the `node` profile: a `pod` profile agent attaches inside each pod it selects and names no interface of its own. |
@@ -483,7 +483,7 @@ one level at a time, for example `kubectl explain firewallpolicy.spec.rules`.
 | `cusum` | object | `{"enabled":true,"slack":0.5,"threshold":5}` | Cumulative-sum change-point detector. |
 | `enabled` | boolean | `true` |  |
 | `ewma` | object | `{"alpha":0.01,"enabled":true,"threshold":3,"warmupSamples":100}` | Exponentially weighted moving average drift detector. |
-| `heavyHitter` | object | `{"cmsDepth":4,"cmsWidth":2048,"enabled":true,"k":100,"thresholdPct":10}` | Count-min-sketch heavy hitters. |
+| `heavyHitter` | object | `{"enabled":true,"k":100,"thresholdPct":10}` | Count-min-sketch heavy hitters. |
 | `learningDays` | integer | `7` | Days of traffic used to build the baseline before a score is trusted. |
 | `modelSecretRef` | object |  | Secret holding a pre-trained model. Without it the agent learns a baseline from live traffic over `learningDays`. |
 | `rcf` | object | `{"anomalyThreshold":1.5,"enabled":false,"numThreads":null,"numTrees":100,"recentCapacity":256,"sampleSize":256,"seed":null,"timeDecay":0}` | Random cut forest. |

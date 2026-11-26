@@ -2588,6 +2588,7 @@ tell a real pid 0 from a failed lookup.
 | `pid` | integer | Always, in a block that exists. A block is never written for pid 0 |
 | `source` | string | Always: `socket`, `flow` or `process`, how the process was reached |
 | `exe` | string | The executable path, where the process table read one |
+| `exe_hash` | string | Digest of the executable: `fsverity-sha256:<hex>` where the kernel measured a file with fs-verity on, `sha256:<hex>` where the agent read its contents. Absent where the agent could not open the file |
 | `command_line` | string | The command line with its recognised secrets removed, only where `process_table.capture_command_line` is on and the line was read ([what is removed](../configuration/process-table.md#what-is-removed-before-the-line-is-kept)) |
 | `uid` | integer | The real uid of the task when the socket was opened |
 | `cgroup` | integer | cgroup v2 id, as the kernel numbers it |
@@ -2598,7 +2599,7 @@ tell a real pid 0 from a failed lookup.
 | `service_account` | string | Service account of the pod, where the enricher read one |
 | `unit` | string | systemd unit, for a host process placed in one |
 | `ancestry` | object | The processes above this one, where the process table holds its parent: `ancestors` (parent first, at most eight, each with `pid`, `exe` where a path was read, `name`, `uid`, `start_ns` where the kernel read it and `exited`), `truncated` (the chain goes on past the eighth) and `incomplete` (it stops at an ancestor the table no longer holds rather than at the root) |
-| `peer` | object | The workload at the other end, where its address is on another node of the fleet and the node holds a list of remote identities (see below) |
+| `peer` | object | The workload at the other end, where its address is on another node of the fleet and the node holds a list of remote identities (see below). Only the enterprise agent receives that list, so an open-source agent never writes it |
 
 `source` is the strength of the join and not a detail:
 
@@ -2610,17 +2611,17 @@ tell a real pid 0 from a failed lookup.
 
 The whole block is absent for a flow the node only forwarded, for a socket
 opened before the hooks attached, for a socket opened outside the agent's
-cgroup, and on a host where the attach was refused. There is deliberately no
-hash of the executable: the agent records the path `/proc/<pid>/exe` answered
-and says so, and a key that is always absent would be a promise it does not
-keep. Whether the hooks attached on this host is in
+cgroup, and on a host where the attach was refused. Whether the hooks attached on this host is in
 [`ebpf kernel-features`](../cli-reference/index.md), and the table they fill is
 sized in [the attribution configuration](../configuration/attribution.md).
 
 The `peer` half is of another kind. Everything else in the block is this
 node's own reading; the peer is what the node holding the remote address
-published about it, relayed by the console in the list each node receives on
-`PUT /api/v1/agent/remote-identities`. Nothing on the wire carried it, so it
+published about it, relayed by the console in the list each enterprise node receives on
+[`PUT /api/v1/agent/remote-identities`](rest-api-enterprise.md), a route of
+the enterprise agent (licence feature `fleet-management`). The open-source
+agent has no such route and nothing else writes its list, so on an
+open-source agent `peer` is never present. Nothing on the wire carried it, so it
 is a corroboration and says so: its own `source` is always `remote_list`, and
 `list_version` names the list it came from, because a list older than a pod's
 move names the pod that left. It is written only inside a block that exists,

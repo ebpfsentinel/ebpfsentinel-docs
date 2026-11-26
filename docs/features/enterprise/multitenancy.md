@@ -1,6 +1,6 @@
 # Multi-Tenancy
 
-> **Edition: Enterprise**
+> **Edition: Critical** | licence feature `multi-tenancy`
 
 ## Overview
 
@@ -21,7 +21,6 @@ Hybrid tenant identification for multi-tenant environments. Supports three isola
 | `quota` | Per-tenant resource limits |
 | `status` | `active` or `suspended` |
 | `source` | `config` (YAML) or `api` (dynamic creation) |
-| `self_service` | Self-service policy with allowed operations |
 
 ### Isolation Modes
 
@@ -338,7 +337,7 @@ The fence lets such a credential reach only:
 
 | Routes | What the credential gets |
 |--------|--------------------------|
-| `/api/v1/tenants/{id}`, `/api/v1/tenants/{id}/quota`, `/api/v1/tenants/{id}/quota/check`, `/api/v1/enterprise/tenants/{id}/suspend`, `/activate`, `/self-service`, `/self-service/check` | Its own tenant only; its role still decides what it may do there |
+| `/api/v1/tenants/{id}`, `/api/v1/tenants/{id}/quota`, `/api/v1/tenants/{id}/quota/check`, `/api/v1/enterprise/tenants/{id}/suspend`, `/activate` | Its own tenant only; its role still decides what it may do there |
 | `GET /api/v1/alerts`, `GET /api/v1/alerts/{id}`, `GET /api/v1/alerts/stream` | Only the alerts attributed to its tenant, by subnet over the source then the destination address; `total` counts only those, and another tenant's alert answers 404 |
 | `GET /api/v1/enterprise/alerts`, `GET /api/v1/enterprise/audit`, `GET /api/v1/federation/alerts`, `GET /api/v1/federation/alerts/stream` | Filtered to its tenant by their own handlers |
 | Health and readiness probes | Unchanged |
@@ -381,7 +380,7 @@ Userspace resolution complements the eBPF kernel resolution:
 - Every other caller: always scoped to the tenant its credential names; asking
   for another one answers 404
 
-## Tenant Self-Service
+## Tenant Lifecycle
 
 ### Dynamic Tenant Lifecycle
 
@@ -393,7 +392,7 @@ Dynamic tenant changes propagate to the kernel **live, without a restart**: afte
 
 | Status | Description |
 |--------|-------------|
-| `active` | Tenant is operational, rules are enforced, self-service allowed |
+| `active` | Tenant is operational, rules are enforced |
 | `suspended` | Tenant rules are inactive, API operations blocked, alerts suppressed |
 
 A tenant written in YAML takes its starting status from its `state` key,
@@ -408,36 +407,22 @@ it renders, so its pods restart with the tenant as the resource says.
 | `config` | Defined in YAML config (default) |
 | `api` | Created dynamically via `POST /api/v1/enterprise/tenants` |
 
-### Self-Service Policy
+### What a Tenant Operator May Write
 
-Each tenant can be granted self-service capabilities, allowing tenant operators to manage their own resources within quota limits. Self-service is a property of the tenant object set through the tenant management API (`POST /api/v1/enterprise/tenants`), and it is **not** part of the static `enterprise.tenants` YAML, which always starts a config-defined tenant with self-service disabled.
+What a tenant operator may write is decided by the tenant-scoped RBAC role its
+credential carries (see [Tenant-Aware RBAC](#tenant-aware-rbac)), bounded by the
+tenant quota the agent enforces: firewall and IDS rules count against the
+`rules` budget, DLP patterns against `patterns`, and a write past the budget is
+refused. A suspended tenant's writes are refused whatever its role. There is
+no separate allow-list of operations on the tenant object.
 
-```json
-{
-  "self_service": {
-    "enabled": true,
-    "allowed_operations": ["manage_firewall_rules", "manage_ids_rules", "manage_dlp_patterns"]
-  }
-}
-```
-
-| Operation | Description |
-|-----------|-------------|
-| `manage_firewall_rules` | Create/update/delete firewall rules scoped to this tenant |
-| `manage_ids_rules` | Create/update/delete IDS rules scoped to this tenant |
-| `manage_dlp_patterns` | Create/update/delete DLP patterns scoped to this tenant |
-
-Self-service operations are checked via `POST /api/v1/enterprise/tenants/{id}/self-service/check` before allowing mutations. A `403 Forbidden` is returned if the operation is not in the tenant's allow-list, the tenant is suspended, or the operation would exceed the tenant's resource quota (firewall/IDS rules count against the `rules` budget, DLP patterns against `patterns`).
-
-### Self-Service API Endpoints
+### Lifecycle API Endpoints
 
 | Method | Path | Command | Role | License feature | Description |
 |--------|------|---------|------|-----------------|-------------|
 | `POST` | `/api/v1/enterprise/tenants` | `tenants create` | operator | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
 | `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | `tenants suspend` | operator | multi-tenancy | Suspend tenant (admin naming no tenant). |
 | `POST` | `/api/v1/enterprise/tenants/{id}/activate` | `tenants activate` | operator | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
-| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | `tenants self-service` | viewer | multi-tenancy | Get self-service policy. |
-| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | `tenants check-self-service` | operator | multi-tenancy | Check if operation is allowed. |
 
 The Role column is the grant the RBAC layer checks. Creating, suspending and
 activating a tenant also need an administrator whose credential names no
@@ -625,7 +610,6 @@ An OSS agent exposes none of them.
 | `ebpfsentinel_ent_tenant_audit_total` | Counter | `tenant` | Tenant-scoped audit entries |
 | `ebpfsentinel_ent_tenant_quota_usage_ratio` | Gauge | `tenant`, `resource` | Quota usage as a fraction of the limit (0.0 to 1.0) |
 | `ebpfsentinel_ent_tenant_quota_exceeded_total` | Counter | `tenant`, `resource` | Requests refused because a quota was already at its limit |
-| `ebpfsentinel_ent_tenant_self_service_checks_total` | Counter | `operation` | Self-service operations admitted, by operation |
 
 A scrape sample reads:
 
@@ -680,18 +664,19 @@ by hand.
   "description": null,
   "tenant_id": 4,
   "subnets": ["10.3.0.0/16", "fd00:abcd::/48"],
-  "vlans": [300]
+  "vlans": [300],
+  "status": "active"
 }
 ```
 
-That is the whole of it: the tenant response carries the identity and the three
-attribution lists and **nothing else**. The quota and its usage are a separate
+That is the whole of it: the tenant response carries the identity, the three
+attribution lists and the `status` (`active` or `suspended`), and **nothing
+else**. The quota and its usage are a separate
 reading at `GET /api/v1/tenants/{id}/quota`, which answers
 `{ "tenant_id", "quota": { "max_rules", "max_alert_rate", "max_patterns",
 "max_ratelimit_rules", "max_qos_pipes" }, "usage": { "rules", "alert_rate",
-"patterns", "ratelimit_rules", "qos_pipes" } }`; the status, the source and the
-self-service policy are on the tenant object but on no response here, the last
-of them read at `GET /api/v1/enterprise/tenants/{id}/self-service`.
+"patterns", "ratelimit_rules", "qos_pipes" } }`; the source is on the tenant
+object but on no response here.
 
 `GET /api/v1/tenants` wraps the same objects rather than returning a bare array:
 `{ "tenants": [ ... ], "count": 3 }`.

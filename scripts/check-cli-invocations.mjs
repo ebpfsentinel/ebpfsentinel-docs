@@ -355,6 +355,30 @@ for (const file of markdownFiles(docsRoot)) {
   }
 }
 
+// The configuration file every install path reads is one name. Prose naming
+// another `.yaml` under `/etc/ebpfsentinel/` sent a reader to edit a file the
+// agent never opens; a file a command writes there is quoted in a fence, which
+// this leaves alone.
+const CONFIG_FILE = '/etc/ebpfsentinel/config.yaml';
+for (const file of markdownFiles(docsRoot)) {
+  const where = relative(repoRoot, file);
+  const lines = readFileSync(file, 'utf8').split('\n');
+  let inFence = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/^\s*(```+|~~~+)/.test(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    for (const [path] of lines[i].matchAll(/\/etc\/ebpfsentinel\/[A-Za-z0-9_.-]+\.ya?ml\b/g)) {
+      if (path === CONFIG_FILE) continue;
+      problems.push(
+        `${where}:${i + 1}: names \`${path}\` in prose; the agent's configuration file is \`${CONFIG_FILE}\``,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   fail([
     `${problems.length} documented invocation${problems.length === 1 ? '' : 's'} the agent cannot run:`,

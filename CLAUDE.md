@@ -33,6 +33,7 @@ from the sibling or checked against it, and CI fails when the sibling moved and 
 | `check:above-the-floor`, `check:kernel-matrices` | the capability table from the agent's `capabilities.json`, and the kernel floor wherever a matrix states one, held to the agent's `kernel_probe.rs` |
 | `check:lockdown-programs` | the programs `lockdown=confidentiality` refuses on the agent and warden page, from the agent's `tests/integration/lockdown-programs.toml`, the list its lockdown suite runs |
 | `check:cni-matrix`, `check:host-rule-limits`, `check:shipped-host-rules` | the CNI coexistence matrix and the host rule tables, generated from the sources |
+| `check:enterprise-tiers` | the tier in each `features/enterprise/` edition header and the overview's `Lowest tier` column, from the website's `licence.generated.ts`; every licensed page has an overview row |
 | `check:no-waf-claim`, `check:no-protection-claim` | the agent is never called a WAF, mass encryption is never sold as protection |
 | `check:no-typographic-dash` | none of the four typographic dashes in any tracked file |
 

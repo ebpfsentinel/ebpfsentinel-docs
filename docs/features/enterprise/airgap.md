@@ -1,6 +1,6 @@
 # Air-Gap Mode
 
-> **Edition: Enterprise**
+> **Edition: Critical** | licence feature `air-gap`
 
 ## Overview
 

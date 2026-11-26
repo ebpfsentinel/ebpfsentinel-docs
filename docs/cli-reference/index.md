@@ -2459,7 +2459,6 @@ its quota and whether it may act.
 | `check-quota <ID> <RESOURCE> <COUNT>` | `POST /api/v1/tenants/{id}/quota/check` | Whether consuming that many units would exceed the quota |
 | `create --file <PATH>` | `POST /api/v1/enterprise/tenants` | Create a tenant from its JSON document |
 | `activate <ID>` / `suspend <ID>` | `POST .../tenants/{id}/activate`, `.../suspend` | Let a tenant act again, or stop it while keeping what it holds |
-| `self-service <ID>` / `check-self-service <ID> <OPERATION>` | `GET .../tenants/{id}/self-service`, `POST .../self-service/check` | What a tenant may do for itself, and whether one operation is among it |
 
 ```bash
 ebpfsentinel-enterprise-agent tenants set-quota acme --max-rules 500 --max-alert-rate 200

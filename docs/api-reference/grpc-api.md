@@ -172,6 +172,17 @@ Container and Kubernetes provenance for an alert, resolved from the originating 
 | 8 | `image` | `string` | Image tag (empty unless the Docker enricher attached metadata). |
 
 <!-- END GENERATED MESSAGES -->
+### Slow consumers
+
+Every subscriber reads from one in-memory broadcast channel holding the last
+1000 alerts (`ALERT_CHANNEL_CAPACITY` in the agent's
+`crates/infrastructure/src/constants.rs`). A subscriber that falls more than
+that far behind skips the alerts it missed: the stream carries on with the
+next alert, sends no marker of the gap and no counter records it. A SIEM or
+any reader that must hold every alert backfills from
+[`GET /api/v1/alerts`](rest-api.md#get-apiv1alerts) after a reconnect or a
+burst, with `from` set to the timestamp of the last alert it received.
+
 ### Usage
 
 ```bash

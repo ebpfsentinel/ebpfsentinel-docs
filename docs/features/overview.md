@@ -101,7 +101,7 @@ All features listed as **OSS** are included in the open-source release (AGPL-3.0
 | [License System](enterprise/license.md) | Ed25519 + ML-DSA-65 dual-signed keys, machine fingerprint, air-gap activation |
 | [Advanced DLP](enterprise/dlp.md) | Vectorscan engine, custom patterns, block mode, TLS termination opt-in per workload as a last resort |
 | [ML Anomaly Detection](enterprise/ml-detection.md) | ONNX behavioral anomaly detection, multi-window, rule suggestion |
-| [Multi-Tenancy](enterprise/multitenancy.md) | Namespace/interface isolation, quotas, RBAC, self-service API |
+| [Multi-Tenancy](enterprise/multitenancy.md) | Namespace/interface isolation, quotas, tenant-scoped RBAC |
 | [SIEM Integration](enterprise/siem-integration.md) | 10 connectors: Splunk, ES, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
 | [Compliance Reports](enterprise/compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
 | [High Availability](enterprise/high-availability.md) | Active-passive/active-active, state replication, graceful degradation |

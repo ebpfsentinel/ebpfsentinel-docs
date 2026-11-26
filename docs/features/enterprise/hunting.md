@@ -1,7 +1,10 @@
 # Hunting
 
 > **Edition: Enterprise** - a screen of the [dashboard](dashboard.md), read from
-> its ClickHouse history store.
+> its ClickHouse history store. Served for a tenant one of whose agents carries
+> the `advanced-analytics` licence feature: without it the hunt and saved hunt
+> routes answer `403` with `{"reason": "not_licensed", "feature":
+> "advanced-analytics"}` and the screen is not offered.
 
 ## Overview
 

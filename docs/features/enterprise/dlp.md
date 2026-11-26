@@ -785,16 +785,15 @@ Advanced DLP requires a valid license with the `advanced-dlp` feature, which eve
 - TLS deep inspection is disabled
 - Falls back to OSS DLP (17 built-in patterns, alert mode only)
 
-## Build Requirements
+## Vectorscan on the host
 
-Vectorscan requires system dependencies:
-```bash
-sudo apt-get install cmake ragel libboost-dev g++
-git clone https://github.com/VectorCamp/vectorscan.git
-cd vectorscan && mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
-make -j$(nproc) && sudo make install && sudo ldconfig
-```
+Nothing to install. The released enterprise binary links Vectorscan statically,
+so the host needs no Vectorscan library, and the tarball and the image carry
+none. A contributor building the enterprise agent from source does not install
+it either: the build downloads the pinned Vectorscan release and compiles it
+into the binary. Linking a Vectorscan already on the build machine instead is a
+build choice, `VECTORSCAN_SYSTEM=1` with `VECTORSCAN_LIB_DIR` naming its
+directory, and is described in the enterprise repository's build script.
 
 ## Configuration Reference
 

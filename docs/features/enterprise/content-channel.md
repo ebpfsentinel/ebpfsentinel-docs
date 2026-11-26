@@ -1,6 +1,6 @@
 # Content Channel
 
-> **Edition: Enterprise**
+> **Edition: Professional and above** | licence feature `content-channel`
 
 ## Overview
 

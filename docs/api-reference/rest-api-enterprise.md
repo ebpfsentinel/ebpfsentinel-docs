@@ -187,7 +187,7 @@ deployment that needs roles turns authentication on.
 | [L7 alert enrichment](#l7-alert-enrichment) | 1 | [L7 alert enrichment](../features/enterprise/l7-alert-enrichment.md) |
 | [L7 deep inspection](#l7-deep-inspection) | 12 | [L7 deep inspection](../features/enterprise/l7-deep-inspection.md) |
 | [L7 per-protocol policies](#l7-per-protocol-policies) | 13 | [L7 per-protocol policies](../features/enterprise/l7-per-protocol-policies.md) |
-| [Licensing](#licensing) | 1 | [Licensing](../features/enterprise/license.md) |
+| [Licensing](#licensing) | 2 | [Licensing](../features/enterprise/license.md) |
 | [ML detection](#ml-detection) | 21 | [ML detection](../features/enterprise/ml-detection.md) |
 | [Multi-cluster federation](#multi-cluster-federation) | 17 | [Multi-cluster federation](../features/enterprise/multicluster.md) |
 | [Multi-tenancy](#multi-tenancy) | 13 | [Multi-tenancy](../features/enterprise/multitenancy.md) |
@@ -426,7 +426,7 @@ and for the request and response bodies.
 | `POST` | `/api/v1/enterprise/ai-security/ai-dlp/patterns` | operator | `config:write` | ai-llm-security | Add a prompt inspection pattern. |
 | `DELETE` | `/api/v1/enterprise/ai-security/ai-dlp/patterns/{id}` | operator | `config:write` | ai-llm-security | Remove a prompt inspection pattern. |
 | `GET` | `/api/v1/enterprise/ai-security/alerts` | viewer | `config:read` | ai-llm-security | List AI security alerts. |
-| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | viewer | `config:read` | ai-llm-security | Encrypted DNS policy decisions taken on submitted events. |
+| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | viewer | `config:read` | ai-llm-security | Encrypted DNS policy decisions, on submitted events and on connections the datapath recognised. |
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | viewer | `config:read` | ai-llm-security | Current DoH and DoT handling policy. |
 | `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | operator | `config:write` | ai-llm-security | Replace the DoH and DoT handling policy. |
 | `POST` | `/api/v1/enterprise/ai-security/events` | operator | `config:write` | ai-llm-security | Process a connection event. |
@@ -670,6 +670,7 @@ and for the request and response bodies.
 | Method | Path | Role | Grant | License feature | Description |
 |--------|------|------|-------|-----------------|-------------|
 | `GET` | `/api/v1/license` | viewer | `config:read` | none | Enterprise license status (200, or 402 when the license is absent or invalid). |
+| `GET` | `/api/v1/license/document` | viewer | `config:read` | none | The licence document in force, as text, the renewal included (404 when the agent runs on no licence). |
 
 ## ML detection
 
@@ -701,7 +702,7 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/ml/rcf/status` | viewer | `config:read` | ml-detection | Pool occupancy and memory cost, threshold state, calibration state, open groups. |
 | `GET` | `/api/v1/enterprise/ml/status` | viewer | `config:read` | ml-detection | Pipeline status (all engines). |
 | `GET` | `/api/v1/enterprise/ml/suggestions` | viewer | `config:read` | ml-detection | Pending rule suggestions. |
-| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | operator | `config:write` | ml-detection | Approve suggestion. |
+| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | operator | `config:write` | ml-detection | Approve suggestion: puts its IDS rule `ml-<id>` in force; `422` when it names no TCP or UDP destination, `503` with no IDS engine. |
 | `POST` | `/api/v1/enterprise/ml/suggestions/{id}/reject` | operator | `config:write` | ml-detection | Reject suggestion. |
 | `GET` | `/api/v1/enterprise/ml/training-data` | viewer | `config:read` | ml-detection | Export labeled dataset. |
 
@@ -782,8 +783,6 @@ and for the request and response bodies.
 | `GET` | `/api/v1/enterprise/audit` | viewer | `audit:read` | multi-tenancy | Tenant-scoped audit logs (filtered by effective tenant). |
 | `POST` | `/api/v1/enterprise/tenants` | operator | `config:write` | multi-tenancy | Create tenant dynamically (admin naming no tenant). |
 | `POST` | `/api/v1/enterprise/tenants/{id}/activate` | operator | `config:write` | multi-tenancy | Reactivate suspended tenant (admin naming no tenant). |
-| `GET` | `/api/v1/enterprise/tenants/{id}/self-service` | viewer | `config:read` | multi-tenancy | Get self-service policy. |
-| `POST` | `/api/v1/enterprise/tenants/{id}/self-service/check` | operator | `config:write` | multi-tenancy | Check if operation is allowed. |
 | `POST` | `/api/v1/enterprise/tenants/{id}/suspend` | operator | `config:write` | multi-tenancy | Suspend tenant (admin naming no tenant). |
 | `GET` | `/api/v1/tenants` | viewer | `config:read` | multi-tenancy | List all tenants (admin naming no tenant). |
 | `GET` | `/api/v1/tenants/attribution` | viewer | `config:read` | multi-tenancy | What this node's last attribution pass observed: `static`, `runtime_api` or `unavailable` (admin naming no tenant). |

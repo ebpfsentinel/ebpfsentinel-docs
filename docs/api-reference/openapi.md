@@ -6,22 +6,30 @@ The open-source agent API renders directly in this site at **[API Explorer](/api
 
 There are **two** documents, not one. The open-source agent describes its own surface, and the Enterprise agent describes the surface it adds on top. Neither document contains the other, so a client that has to reach both generates from both.
 
+<!-- feature-count: openapi-documents -->
 | | Open source | Enterprise |
 |---|---|---|
 | Swagger UI | `http://localhost:8080/swagger-ui/` | `http://localhost:8444/swagger-ui/` |
 | JSON document | `http://localhost:8080/api-docs/openapi.json` | `http://localhost:8444/api-docs/openapi.json` |
 | Committed copy | `openapi.json` at the repository root | `openapi.json` at the repository root |
-| Paths / operations | 89 / 105 | 154 / 184 |
-| Schema components | 114 | 184 |
-| Tags | 27 | 24 |
+| Paths / operations | 134 / 151 | 335 / 389 |
+| Schema components | 277 | 632 |
+| Tags | 35 | 59 |
 
-The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is plain HTTP on `8444`: the agent terminates no TLS there, so put it behind a reverse proxy or a service mesh if it leaves the host. The two are two binaries rather than two ports on one: the enterprise agent opens 8444 alone and never starts the open-source listeners, so a host running it answers the enterprise document and not the open-source one.
+The counts are read from the two committed `openapi.json` files, and CI fails when either moves and this table does not.
+
+The open-source agent serves `/swagger-ui/` and `/api-docs/openapi.json` only with `agent.swagger_ui: true` in its configuration, which is off by default; a default agent answers `404 Not Found` on both. Without it, read the committed `openapi.json` or the [API Explorer](/api-reference/api-explorer/) of this site, which render the same document. The Enterprise agent serves both paths whatever its configuration.
+
+The open-source agent serves plain HTTP on `8080` unless TLS is configured, in which case the same paths answer over `https`. The Enterprise API is plain HTTP on `8444` unless `enterprise.api.tls` gives it a certificate, in which case it terminates TLS itself; without it, put the port behind a reverse proxy or a service mesh if it leaves the host. The two are two binaries rather than two ports on one: the enterprise agent opens 8444 alone and never starts the open-source listeners, so a host running it answers the enterprise document and not the open-source one.
 
 ## What each document covers
 
 The open-source document covers the datapath and its control surface: health, agent, firewall, L7 firewall, IPS, IDS, rate limiting, alerts, audit, threat intelligence, ops, DNS, domains, DDoS, conntrack, DLP, NAT, aliases, routing, load balancer, QoS, zones, MITRE ATT&CK, fingerprints, captures and responses.
 
-The Enterprise document covers what the Enterprise layer adds: licensing, enterprise DLP, ML detection, RBAC, tenants and tenant management, tenant events, SIEM, analytics, compliance, air-gap, federation, high availability, fleet, AI security, TLS intelligence, TLS probes, advanced L7, forensics, DNS entropy and automated response. It also describes the 110 open-source operations the Enterprise binary mounts on its own port, from the open-source handlers; a node that could read no agent configuration mounts none of them, and the document it serves then leaves them out.
+The Enterprise document covers what the Enterprise layer adds: licensing, enterprise DLP, ML detection, RBAC, tenants and tenant management, tenant events, SIEM, analytics, compliance, air-gap, federation, high availability, fleet, AI security, TLS intelligence, TLS probes, advanced L7, forensics, DNS entropy and automated response.
+
+<!-- feature-count: openapi-shared-operations -->
+It also describes the 150 operations the open-source document describes too, which the Enterprise binary mounts on its own port with the open-source bodies; a node that could read no agent configuration mounts none of them, and the document it serves then leaves them out.
 
 ## Common to both
 
@@ -67,6 +75,8 @@ checked against them, so a role documented on a page and a role the middleware
 demands cannot drift apart.
 
 ## SDK generation
+
+The open-source recipe needs `agent.swagger_ui: true` on the agent it reads from; otherwise start from the committed `openapi.json` of the agent repository.
 
 ```bash
 # Open-source surface

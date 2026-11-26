@@ -69,10 +69,11 @@ identity rather than against a repository key. This is the air-gapped path and
 the one to use when a host must not carry a third-party repository.
 
 ```bash
-REL=<release>                     # for example 2026.6.1
+REL=<release>      # the release tag, without its leading v, for example 2026.6.1
+VER=<version>      # the agent's own version in that release, read from its notes
 BASE=https://github.com/ebpfsentinel/ebpfsentinel-release/releases/download/v$REL
 
-curl -fsSLO "$BASE/ebpfsentinel_${REL}_amd64.deb"
+curl -fsSLO "$BASE/ebpfsentinel_${VER}_amd64.deb"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.sig"
 curl -fsSLO "$BASE/ebpfsentinel-SHA256SUMS.crt"
@@ -86,12 +87,18 @@ cosign verify-blob \
   ebpfsentinel-SHA256SUMS
 
 sha256sum --ignore-missing -c ebpfsentinel-SHA256SUMS
-sudo apt-get install ./ebpfsentinel_${REL}_amd64.deb
+sudo apt-get install ./ebpfsentinel_${VER}_amd64.deb
 ```
 
-The rpm is the same sequence with `ebpfsentinel-${REL}-1.x86_64.rpm` and
-`sudo dnf install ./ebpfsentinel-${REL}-1.x86_64.rpm`. Use `arm64` and
+The rpm is the same sequence with `ebpfsentinel-${VER}-1.x86_64.rpm` and
+`sudo dnf install ./ebpfsentinel-${VER}-1.x86_64.rpm`. Use `arm64` and
 `aarch64` for the other architecture.
+
+A package is named after the agent's version, not the release's: a release
+manifest pins each component at its own version, and the two need not be the
+same. The release notes list the version of every component, and
+`ebpfsentinel-SHA256SUMS` lists every package file by its exact name, so either
+answers what `VER` is.
 
 Two things are being checked, and they are not the same thing: `cosign
 verify-blob` says the checksum file was produced by the release workflow of this

@@ -505,7 +505,28 @@ When anomalies are detected, the `RuleSuggester` proposes IDS/IPS rules based on
 | `tcp/udp/icmp_ratio` | Protocol anomaly |
 | `unique_src_ips`, `unique_dst_ports` | Connection flood |
 
-Suggestions are stored as `Pending`, reviewed by admins via API (`approve` / `reject`), and include confidence scores based on Z-score magnitude.
+Suggestions are stored as `Pending`, reviewed by an operator through the API or the command line (`approve` / `reject`), and carry a confidence score based on the Z-score magnitude.
+
+Each suggestion also names the packets its rule would watch, in `flow`: the TCP or UDP destination port the anomalous window carried most, how many packets went there and the window's length. A protocol anomaly keeps that destination only when it is of the protocol the anomaly names.
+
+**Approving** a suggestion puts an IDS rule in force on that node, under the id `ml-<suggestion id>`, before the suggestion is marked `Approved`:
+
+- alert-only, on the protocol and destination port in `flow`, so the kernel classifier holds it like any rule on that port;
+- with a threshold: one alert per window once the destination receives 80% of the packets the anomalous window carried within a window of the same length, tracked per destination address;
+- carrying its provenance: the description names the suggestion, the anomaly, who approved it and the confidence, and the references are `ml-suggestion,<id>` and `ml-anomaly,<id>`.
+
+The rule is listed by `GET /api/v1/ids/rules` and joins every configuration reload that follows, beside the file's own rules. It is held in memory, as the suggestions are: a restart forgets it, and a rule to keep is written into the configuration file. If the file comes to carry a rule under the same id, the file's rule is kept and the approved ones are left out of that reload, with a warning in the log.
+
+Approval is refused, and the suggestion stays `Pending` with no rule written, when:
+
+| Status | Why |
+|---|---|
+| `404` | No pending suggestion carries that id. |
+| `409` | The IDS engine refused the rule. |
+| `422` | The suggestion's window named no TCP or UDP destination (an ICMP burst, for one): there is no packet a rule could name. |
+| `503` | No IDS engine runs on this node. |
+
+**Rejecting** a suggestion writes nothing.
 
 ## Feedback Loop
 
@@ -634,7 +655,7 @@ enterprise:
 | `GET` | `/api/v1/enterprise/ml/anomalies` | `ml anomalies` | viewer | ml-detection | Recent anomalies (limit param). |
 | `GET` | `/api/v1/enterprise/ml/alerts` | `ml alerts` | viewer | ml-detection | ML alerts with MITRE mapping. |
 | `GET` | `/api/v1/enterprise/ml/suggestions` | `ml suggestions` | viewer | ml-detection | Pending rule suggestions. |
-| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | `ml approve` | operator | ml-detection | Approve suggestion. |
+| `POST` | `/api/v1/enterprise/ml/suggestions/{id}/approve` | `ml approve` | operator | ml-detection | Approve suggestion: puts its IDS rule `ml-<id>` in force. |
 | `POST` | `/api/v1/enterprise/ml/suggestions/{id}/reject` | `ml reject` | operator | ml-detection | Reject suggestion. |
 | `POST` | `/api/v1/enterprise/ml/feedback` | `ml feedback` | operator | ml-detection | Submit FP/TP feedback. |
 | `GET` | `/api/v1/enterprise/ml/feedback/stats` | `ml feedback-stats` | viewer | ml-detection | Feedback statistics. |

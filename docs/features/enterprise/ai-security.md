@@ -4,9 +4,9 @@
 
 ## Overview
 
-AI/LLM Security scores connection events against AI provider destinations: it identifies unsanctioned AI service usage (Shadow AI), scans submitted payloads for sensitive data on its way to an AI provider, judges payload size and request rate against thresholds, and applies encrypted DNS policy. Every one of those produces an alert and a verdict; none of them touches the datapath. Read [What Reaches the Engine](#what-reaches-the-engine) before deploying it.
+AI/LLM Security scores connection events against AI provider destinations: it identifies unsanctioned AI service usage (Shadow AI), scans submitted payloads for sensitive data on its way to an AI provider, judges payload size and request rate against thresholds, and applies encrypted DNS policy. On submitted events every one of those produces an alert and a verdict and none of them touches the datapath. Read [What Reaches the Engine](#what-reaches-the-engine) before deploying it.
 
-Beside them, [Agent and MCP Traffic](#agent-and-mcp-traffic) reads the packet path itself: which workload reaches which model provider or MCP server, how often and in what shape, with allow or deny rules that cut a refused flow.
+Beside them, [Agent and MCP Traffic](#agent-and-mcp-traffic) reads the packet path itself: which workload reaches which model provider or MCP server, how often and in what shape, with allow or deny rules that cut a refused flow. The encrypted DNS policy also reads the packet path: [On the Datapath](#on-the-datapath) cuts a `DoT` or `DoH` connection to a blocked resolver - the connection is cut once its handshake is seen; a resolver hidden by ECH, reached by IP without a name, or over HTTP/3 is not seen.
 
 Six sub-capabilities:
 
@@ -25,13 +25,15 @@ The shadow AI, AI DLP, exfiltration and encrypted DNS engines are not
 attached to the packet path. They score connection events that are submitted
 to them: their only entry is `POST /api/v1/enterprise/ai-security/events`, and
 nothing on the packet path, the DLP path or the SIEM path feeds them. An agent with the feature licensed and
-configured, and nothing posting events, records no detection from those four.
-[Agent and MCP Traffic](#agent-and-mcp-traffic) is the exception, and the only
-part of this feature that reads the packet path and can cut a flow.
+configured, and nothing posting events, records no detection from the first
+three. Two parts of this feature read the packet path and can cut a flow:
+[Agent and MCP Traffic](#agent-and-mcp-traffic), and the encrypted DNS policy
+for the `DoT` and `DoH` handshakes the datapath recognises
+([On the Datapath](#on-the-datapath)).
 
-That constraint decides what every mode below means. A mode named `block` -
-in the shadow AI policy, in an AI DLP pattern or in the encrypted DNS policy -
-**drops nothing**. It is the verdict the engine returns in the response body,
+That constraint decides what every mode below means on a submitted event. A
+mode named `block` - in the shadow AI policy, in an AI DLP pattern or in the
+encrypted DNS policy applied to a submitted event - **drops nothing**. It is the verdict the engine returns in the response body,
 for the caller that submitted the event to act on. The agent writes no rule,
 touches no eBPF map and closes no connection as a result. Everything the
 engine does on its own is observation: it raises an alert, records a metric and
@@ -234,7 +236,9 @@ PUT /api/v1/enterprise/ai-security/exfiltration/thresholds
 
 ## Encrypted DNS Policy
 
-Enforces policy on encrypted DNS resolvers (DoH, DoT, DoQ):
+Enforces policy on encrypted DNS resolvers (DoH, DoT, DoQ). On the datapath
+the connection is cut once its handshake is seen; a resolver hidden by ECH,
+reached by IP without a name, or over HTTP/3 is not seen.
 
 ```yaml
 enterprise:
@@ -260,7 +264,42 @@ Policy evaluation order:
 
 Violations generate alerts with MITRE ATT&CK mapping T1071.004 (Application Layer Protocol: DNS).
 
-### Which Connections the Policy Sees
+### On the Datapath
+
+The agent's L7 handshake parser hands every `DoT` and `DoH` connection it
+recognises to the policy, with the client and resolver addresses, both ports
+and the workload that opened it. When the policy answers `block`, the
+connection's five-tuple is cut through the datapath for
+`agent_traffic.deny_flow_secs` (300 seconds by default), the same flow
+isolation [Agent and MCP Traffic](#agent-and-mcp-traffic) and the automated
+response engine use, and the alert says the connection was cut and for how
+long. A source on `bypass_sources` is judged `monitor` and never cut.
+
+What that reaches, stated beside the claim:
+
+- The connection is cut once its handshake is seen. The `ClientHello` and
+  whatever left with it are already gone; what follows on that connection is
+  refused. A new connection is judged again when its handshake is seen.
+- `DoT` is recognised by TCP port 853 whatever the server name. A handshake
+  naming no server is judged by the resolver's address, so a policy may list
+  an address for it.
+- `DoH` is recognised by the server name in the `ClientHello` alone, against
+  the agent's built-in resolver list and `dns.doh_resolvers`. A resolver named
+  only in this policy and on neither list is not recognised on the datapath:
+  add it to `dns.doh_resolvers` as well. Names are compared exactly as written.
+- A resolver hidden by ECH (the real name is encrypted), reached by IP without
+  a name, or over HTTP/3 (QUIC, which the TLS handshake parser does not read)
+  is not seen, and neither is `DoQ`. The DNS intelligence block lists and the
+  firewall are the controls for those.
+- The ports carrying the handshake must be in `l7.ports`, and the agent must
+  enforce on its own datapath; where it does not, the alert says the
+  connection was not cut.
+
+Covered by the enterprise integration suite
+`73-enterprise-encrypted-dns-cut.bats`: `DoT` and `DoH` to a blocked resolver
+have their second exchange refused, an allowed resolver is answered.
+
+### Which Submitted Events the Policy Sees
 
 The policy is applied to every submitted event, before the AI provider branch,
 and the transport is read out of what the event already carries:
@@ -344,7 +383,7 @@ Response:
 ```
 
 `encrypted_dns_action` is `null` where the connection is not encrypted DNS, as
-[Which Connections the Policy Sees](#which-connections-the-policy-sees)
+[Which Submitted Events the Policy Sees](#which-submitted-events-the-policy-sees)
 describes, and it is judged independently of everything below it: a resolver is
 not an AI provider, so an event can carry a DNS verdict and no shadow AI one.
 
@@ -568,7 +607,7 @@ Every path below is served on the Enterprise port. The role is the least-privile
 | `GET` | `/api/v1/enterprise/ai-security/exfiltration/sources` | `ai-security exfiltration-sources` | viewer | ai-llm-security | Sources ranked by outbound volume to AI providers. |
 | `GET` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | `ai-security exfiltration-thresholds` | viewer | ai-llm-security | Current exfiltration volume thresholds. |
 | `PUT` | `/api/v1/enterprise/ai-security/exfiltration/thresholds` | `ai-security set-exfiltration-thresholds` | operator | ai-llm-security | Replace the exfiltration volume thresholds. |
-| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | `ai-security encrypted-dns` | viewer | ai-llm-security | Encrypted DNS policy decisions taken on submitted events. |
+| `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/detections` | `ai-security encrypted-dns` | viewer | ai-llm-security | Encrypted DNS policy decisions, on submitted events and on connections the datapath recognised. |
 | `GET` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | `ai-security encrypted-dns-policy` | viewer | ai-llm-security | Current DoH and DoT handling policy. |
 | `PUT` | `/api/v1/enterprise/ai-security/encrypted-dns/policy` | `ai-security set-encrypted-dns-policy` | operator | ai-llm-security | Replace the DoH and DoT handling policy. |
 | `GET` | `/api/v1/enterprise/ai-security/agent-traffic` | `ai-security agent-traffic` | viewer | ai-llm-security | Which workload reached which model provider or MCP server. |

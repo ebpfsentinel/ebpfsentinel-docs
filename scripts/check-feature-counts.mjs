@@ -77,16 +77,40 @@ function countProgramDirectories() {
   return readdirSync(dir).filter((entry) => statSync(join(dir, entry)).isDirectory()).length;
 }
 
-function countRestSurface() {
-  const { paths } = JSON.parse(read('openapi.json'));
-  const methods = new Set(['get', 'put', 'post', 'delete', 'patch', 'head', 'options', 'trace']);
-  let operations = 0;
-  for (const item of Object.values(paths)) {
+const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'patch', 'head', 'options', 'trace']);
+
+// Every operation of one OpenAPI document, as `METHOD path`.
+function operationsOf(document) {
+  const operations = new Set();
+  for (const [path, item] of Object.entries(document.paths ?? {})) {
     for (const key of Object.keys(item)) {
-      if (methods.has(key.toLowerCase())) operations += 1;
+      if (HTTP_METHODS.has(key.toLowerCase())) operations.add(`${key.toUpperCase()} ${path}`);
     }
   }
-  return { paths: Object.keys(paths).length, operations };
+  return operations;
+}
+
+// Paths, operations, schema components and tags of one committed document.
+function documentStats(document) {
+  return {
+    paths: Object.keys(document.paths ?? {}).length,
+    operations: operationsOf(document).size,
+    schemas: Object.keys(document.components?.schemas ?? {}).length,
+    tags: (document.tags ?? []).length,
+  };
+}
+
+function ossDocument() {
+  return JSON.parse(read('openapi.json'));
+}
+
+function enterpriseDocument() {
+  return JSON.parse(readEnterprise('openapi.json'));
+}
+
+function countRestSurface() {
+  const { paths, operations } = documentStats(ossDocument());
+  return { paths, operations };
 }
 
 // A variant is the first token of a line indented exactly one level inside
@@ -166,6 +190,45 @@ const KINDS = new Map([
         problems.push(`openapi.json declares ${operations} operations, the page says ${match[2]}`);
       }
       return problems;
+    },
+  ],
+  [
+    'openapi-documents',
+    (line) => {
+      const oss = documentStats(ossDocument());
+      const enterprise = documentStats(enterpriseDocument());
+      const rows = [
+        ['Paths / operations', /\| Paths \/ operations \| (\d+) \/ (\d+) \| (\d+) \/ (\d+) \|/, [oss.paths, oss.operations, enterprise.paths, enterprise.operations]],
+        ['Schema components', /\| Schema components \| (\d+) \| (\d+) \|/, [oss.schemas, enterprise.schemas]],
+        ['Tags', /\| Tags \| (\d+) \| (\d+) \|/, [oss.tags, enterprise.tags]],
+      ];
+      const problems = [];
+      for (const [name, shape, expected] of rows) {
+        const match = line.match(shape);
+        if (!match) {
+          problems.push(`the table no longer has a \`${name}\` row with one cell per document`);
+          continue;
+        }
+        const written = match.slice(1).map(Number);
+        if (written.some((value, at) => value !== expected[at])) {
+          problems.push(
+            `${name}: the two openapi.json documents give ${expected.join(' / ')}, the page says ${written.join(' / ')}`,
+          );
+        }
+      }
+      return problems;
+    },
+  ],
+  [
+    'openapi-shared-operations',
+    (line) => {
+      const oss = operationsOf(ossDocument());
+      const shared = [...operationsOf(enterpriseDocument())].filter((op) => oss.has(op)).length;
+      const match = line.match(/(\d+) operations the open-source document describes too/);
+      if (!match) return ['the sentence no longer reads `N operations the open-source document describes too`'];
+      return Number(match[1]) === shared
+        ? []
+        : [`the enterprise openapi.json describes ${shared} operations of the open-source one, the page says ${match[1]}`];
     },
   ],
   [

@@ -1,7 +1,10 @@
 # Cases
 
 > **Edition: Enterprise** - a screen of the [dashboard](dashboard.md), kept in its
-> ClickHouse history store.
+> ClickHouse history store. Served for a tenant one of whose agents carries the
+> `network-forensics` licence feature: without it every case route answers `403`
+> with `{"reason": "not_licensed", "feature": "network-forensics"}` and the
+> screen is not offered.
 
 ## Overview
 

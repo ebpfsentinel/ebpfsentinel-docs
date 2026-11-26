@@ -60,15 +60,18 @@ jobs:
           token: ${{ secrets.SIBLING_READ_TOKEN }}
 
       # The tutorials play the website's clips from a copy under
-      # `static/media/`, held to the hashes the website's render recorded.
-      # The website is private like the enterprise agent.
+      # `static/media/`, held to the hashes the website's render recorded, and
+      # the licensed pages name the tier the website's price table sells each
+      # licence feature from. The website is private like the enterprise agent.
       - name: Check out the website
         uses: actions/checkout@v5
         with:
           repository: ebpfsentinel/ebpfsentinel-website
           path: ebpfsentinel-website
           token: ${{ secrets.SIBLING_READ_TOKEN }}
-          sparse-checkout: media/manifest.json
+          sparse-checkout: |
+            media/manifest.json
+            src/app/core/licence/licence.generated.ts
           sparse-checkout-cone-mode: false
 
       # The console's own tests stand behind the pages of its screens (cases,
@@ -237,6 +240,14 @@ jobs:
       - name: Check the lockdown program list against the agent's
         working-directory: ebpfsentinel-docs
         run: npm run check:lockdown-programs
+
+      # Four edition headers had drifted from the price table and the
+      # enterprise overview had lost six pages. Every licensed page names the
+      # tier its licence feature is first sold on, the overview carries a row
+      # per page with that tier written from the website's table.
+      - name: Check the tier of every licensed page
+        working-directory: ebpfsentinel-docs
+        run: npm run check:enterprise-tiers
 
   build:
     name: build

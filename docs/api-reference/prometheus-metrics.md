@@ -553,7 +553,6 @@ Tenant lifecycle, per-tenant dispatch and quota enforcement.
 | `ebpfsentinel_ent_tenants_added_total` | Counter | `source` | Tenants added dynamically by the source they came from |
 | `ebpfsentinel_ent_tenants_suspended_total` | Counter | - | Tenants suspended |
 | `ebpfsentinel_ent_tenants_activated_total` | Counter | - | Tenants reactivated after suspension |
-| `ebpfsentinel_ent_tenant_self_service_checks_total` | Counter | `operation` | Self-service operations admitted, by operation |
 
 There is no gauge carrying the configured limit itself. Usage is published as
 a ratio so a panel needs no second series to be readable, and the limit is

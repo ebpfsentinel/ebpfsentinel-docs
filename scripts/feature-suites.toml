@@ -63,7 +63,7 @@ suites = ["oss/19-ebpf-dns-scenarios", "oss/45-dns-doh-dot-detect", "oss/95-dns-
 suites = ["enterprise/09-enterprise-rbac", "enterprise/54-enterprise-rbac-roles"]
 
 [pages."features/enterprise/ai-security"]
-suites = ["enterprise/13-enterprise-ai-security"]
+suites = ["enterprise/13-enterprise-ai-security", "enterprise/73-enterprise-encrypted-dns-cut"]
 
 [pages."features/enterprise/airgap"]
 suites = ["enterprise/10-enterprise-airgap"]
@@ -126,7 +126,7 @@ suites = ["enterprise/03-enterprise-ml", "enterprise/28-enterprise-ml-restart", 
 suites = ["enterprise/08-enterprise-federation", "enterprise/59-enterprise-federation-mtls", "enterprise/72-enterprise-api-tls-and-federation-links"]
 
 [pages."features/enterprise/multitenancy"]
-suites = ["enterprise/04-enterprise-tenants", "enterprise/23-enterprise-tenant-attribution", "enterprise/67-enterprise-tenant-fence"]
+suites = ["enterprise/04-enterprise-tenants", "enterprise/23-enterprise-tenant-attribution", "enterprise/67-enterprise-tenant-fence", "dashboard/src/auth/e2e_test", "dashboard/src/routes/policy_templates"]
 
 [pages."features/enterprise/network-forensics"]
 suites = ["enterprise/15-enterprise-forensics", "enterprise/39-enterprise-packet-capture"]

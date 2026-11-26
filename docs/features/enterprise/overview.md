@@ -1,6 +1,6 @@
 # Enterprise Features
 
-> **Edition: Enterprise**
+> **Edition: Professional and above**
 
 ## Overview
 
@@ -8,40 +8,46 @@ eBPFsentinel Enterprise extends the open-source agent with advanced security cap
 
 The OSS agent is fully functional for production use - all security domains, APIs, CLI, authentication, TLS, and observability are included in the open-source release. Enterprise adds deeper detection, enforcement, and operational capabilities.
 
-Enterprise features are implemented in a **separate repository** (`ebpfsentinel-enterprise/`) that depends on the OSS core agent crates. Features are activated at runtime by a **license key system** with machine fingerprint binding and anti-tamper protections.
+Enterprise features are implemented in a **separate repository** (`ebpfsentinel-enterprise/`) that depends on the OSS core agent crates. Features are activated at runtime by a **license key system**: fleet keys installed unchanged on every node, with machine binding for air-gapped activation, and anti-tamper protections.
 
 ## Enterprise Features
 
-| Feature | Description |
-|---------|-------------|
-| [License System](license.md) | Ed25519 + ML-DSA-65 dual-signed license keys, machine fingerprint binding, air-gap activation |
-| [Advanced DLP](dlp.md) | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection |
-| [ML Anomaly Detection](ml-detection.md) | 9 detection engines: baseline Z-score, EWMA streaming, CUSUM change-point, ONNX model, Random Cut Forest, heavy-hitter (Space-Saving), DGA/tunneling (Markov), TLS fingerprint clustering (K-Means), C2 beaconing (TLS handshake timing) |
-| [Multi-Tenancy](multitenancy.md) | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC, self-service API |
-| [SIEM Integration](siem-integration.md) | 10 connectors: Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
-| [Compliance Reports](compliance-reports.md) | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
-| [High Availability](high-availability.md) | Active-passive/active-active clustering, state replication, graceful degradation |
-| [Multi-Cluster](multicluster.md) | Federation, policy distribution, alert aggregation |
-| [Advanced RBAC](advanced-rbac.md) | Per-domain permissions, custom roles, permission inheritance |
-| [Air-Gap Mode](airgap.md) | Offline feed bundles with Ed25519-signed import/export |
-| [Advanced Analytics](analytics.md) | Top talkers, trends, IOC summaries, exportable reports |
-| [Fleet Management](fleet-management.md) | Agent registration, heartbeat, identity, config versioning, flow graph |
-| [AI/LLM Security](ai-security.md) | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy |
+| Feature | Lowest tier | Description |
+|---------|-------------|-------------|
+| [License System](license.md) | Professional | Ed25519 + ML-DSA-65 dual-signed license keys, fleet keys, machine binding for air-gap activation |
+| [Advanced DLP](dlp.md) | Professional | Vectorscan engine, custom patterns, block mode, per-pattern overrides, TLS deep inspection |
+| [ML Anomaly Detection](ml-detection.md) | Enterprise | 9 detection engines: baseline Z-score, EWMA streaming, CUSUM change-point, ONNX model, Random Cut Forest, heavy-hitter (Space-Saving), DGA/tunneling (Markov), TLS fingerprint clustering (K-Means), C2 beaconing (TLS handshake timing) |
+| [Multi-Tenancy](multitenancy.md) | Critical | Namespace/interface-scoped isolation, quotas, tenant-aware RBAC |
+| [SIEM Integration](siem-integration.md) | Enterprise | 10 connectors: Splunk, Elasticsearch, OpenSearch, Wazuh, Sentinel, QRadar, Syslog, OTLP, S3, ClickHouse |
+| [Compliance Reports](compliance-reports.md) | Professional | PCI-DSS 4, HIPAA, GDPR Art 32, SOC 2, NIS2, DORA, SecNumCloud, HDS + PDF export |
+| [High Availability](high-availability.md) | Critical | Active-passive/active-active clustering, state replication, graceful degradation |
+| [Multi-Cluster](multicluster.md) | Enterprise | Federation, policy distribution, alert aggregation |
+| [Advanced RBAC](advanced-rbac.md) | Professional | Per-domain permissions, custom roles, permission inheritance |
+| [Air-Gap Mode](airgap.md) | Critical | Offline feed bundles with Ed25519-signed import/export |
+| [Advanced Analytics](analytics.md) | Enterprise | Top talkers, trends, IOC summaries, exportable reports |
+| [Fleet Management](fleet-management.md) | Professional | Agent registration, heartbeat, identity, config versioning, flow graph |
+| [AI/LLM Security](ai-security.md) | Enterprise | Shadow AI detection, AI-aware DLP, exfiltration heuristics, encrypted DNS policy |
 <!-- feature-count: ja4-builtin-threats -->
-| [TLS Intelligence](tls-intelligence.md) | JA4 matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, SNI/cert mismatch, session tracking, handshake timing for beaconing, ONNX ML, peer-group rarity |
-| [Threat Intelligence Platforms](threat-intel-platforms.md) | TAXII 2.1 collections and MISP instances polled on their own intervals, the whole of STIX this engine can act on (addresses, domains, URLs, JA4), every indicator carrying where it came from, when it was last confirmed and what kind it is, and a type no matcher covers reported as not actionable at import |
-| [Sigma Rules](sigma-rules.md) | Sigma rules over network connections compiled into the agent's own rules, every rule outside the declared subset refused by the field that stopped it, the supported list generated from the compiler, and `sigma check` to read the refusals before deploying |
-| [Network Forensics](network-forensics.md) | Event ring buffer, event-triggered context freezes, flow timeline reconstruction |
-| [Automated Response](automated-response.md) | Policy engine, SOAR webhook integration, cooldown tracking, audit trail |
-| [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS; `/proc` scanner, background scan loop, 6 Prometheus metrics, and `/api/v1/enterprise/tls-probes/*` admin API. A static build is recognised from its own content rather than from the process name, so a proxy called anything at all is detected and a build that is neither project is labelled unknown rather than mislabelled. Go `crypto/tls`, GnuTLS, wolfSSL, mbedTLS, s2n-tls and static OpenSSL or BoringSSL are probed at the resolved offsets, kTLS through kprobes on the kernel's own software send and receive path; Java JSSE and NSS are discovery only. [Coverage](dlp.md#what-this-host-actually-reads) is published per workload - read and by which means, or not read with the reason and the build id to send |
-| [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols---enterprise-extension-port) | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port, and rules on their parsed fields (MQTT packet type, client id and topic; AMQP version; NATS verb and subject; CQL opcode and keyspace) under the licence feature `extended-l7-protocols` |
-| [Application Attack Detection](l7-deep-inspection.md) | 40+ SQLi / XSS / path traversal / command injection / data exfil signatures matched after decoding, on submitted payloads and on received HTTPS plaintext; the attacker blocked in the kernel for a bounded time once the first request has been seen, and the blocks exported as an IP list and STIX |
-| [Per-Protocol Security Policies](l7-per-protocol-policies.md) | Redis / MongoDB / Kafka / SQL / LDAP / SSH policy engines with dangerous-command blocking, namespace/ACL enforcement, weak-crypto rejection. HTTP admin API and L7 dispatcher wiring |
-| [L7 Alert Enrichment](l7-alert-enrichment.md) | `L7Enricher` mapping Vectorscan + policy signals to OWASP Top 10, MITRE ATT&CK (T1190/T1059/T1048/T1069/T1078/T1040/T1555) and PCI-DSS 6.5. SIEM export + compliance-report wiring |
-| [Dashboard UI](dashboard.md) | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
-| [Cases](cases.md) | Alerts grouped into cases with an owner, a status and one timeline, time to acknowledge and time to resolve, false-positive suppressions that expire, and an incident evidence pack |
-| [Kubernetes Operator](kubernetes-operator.md) | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
-| [Bare-Metal Load Balancer](bare-metal-load-balancer.md) | Services of type LoadBalancer given an address from your pools, served by XDP, announced over ARP or BGP |
+| [TLS Intelligence](tls-intelligence.md) | Enterprise | JA4 matching against imported intelligence (the built-in list is a starter sample of 7 sourced fingerprints), behavior anomaly, PQC compliance, cipher policy, cipher downgrade, SNI/cert mismatch, session tracking, handshake timing for beaconing, ONNX ML, peer-group rarity |
+| [Threat Intelligence Platforms](threat-intel-platforms.md) | Enterprise | TAXII 2.1 collections and MISP instances polled on their own intervals, the whole of STIX this engine can act on (addresses, domains, URLs, JA4), every indicator carrying where it came from, when it was last confirmed and what kind it is, and a type no matcher covers reported as not actionable at import |
+| [Sigma Rules](sigma-rules.md) | Enterprise | Sigma rules over network connections compiled into the agent's own rules, every rule outside the declared subset refused by the field that stopped it, the supported list generated from the compiler, and `sigma check` to read the refusals before deploying |
+| [Network Forensics](network-forensics.md) | Enterprise | Event ring buffer, event-triggered context freezes, flow timeline reconstruction |
+| [Automated Response](automated-response.md) | Enterprise | Policy engine, SOAR webhook integration, cooldown tracking, audit trail |
+| [Extended TLS Library Hooking](dlp.md#extended-tls-library-coverage) | Enterprise | Discovery + symbol resolution + `TlsProbeManager` for Go `crypto/tls`, Java JSSE, statically linked OpenSSL and BoringSSL, kTLS, GnuTLS, wolfSSL, mbedTLS, s2n-tls and NSS; `/proc` scanner, background scan loop, 6 Prometheus metrics, and `/api/v1/enterprise/tls-probes/*` admin API. A static build is recognised from its own content rather than from the process name, so a proxy called anything at all is detected and a build that is neither project is labelled unknown rather than mislabelled. Go `crypto/tls`, GnuTLS, wolfSSL, mbedTLS, s2n-tls and static OpenSSL or BoringSSL are probed at the resolved offsets, kTLS through kprobes on the kernel's own software send and receive path; Java JSSE and NSS are discovery only. [Coverage](dlp.md#what-this-host-actually-reads) is published per workload - read and by which means, or not read with the reason and the build id to send |
+| [Extended L7 Protocol Parsers](../l7-firewall.md#supported-protocols---enterprise-extension-port) | Enterprise | MQTT, AMQP 0-9-1, NATS, Cassandra CQL detection via the `L7ExtendedParser` port, and rules on their parsed fields (MQTT packet type, client id and topic; AMQP version; NATS verb and subject; CQL opcode and keyspace) under the licence feature `extended-l7-protocols` |
+| [Application Attack Detection](l7-deep-inspection.md) | Professional | 40+ SQLi / XSS / path traversal / command injection / data exfil signatures matched after decoding, on submitted payloads and on received HTTPS plaintext; the attacker blocked in the kernel for a bounded time once the first request has been seen, and the blocks exported as an IP list and STIX |
+| [Per-Protocol Security Policies](l7-per-protocol-policies.md) | Professional | Redis / MongoDB / Kafka / SQL / LDAP / SSH policy engines with dangerous-command blocking, namespace/ACL enforcement, weak-crypto rejection. HTTP admin API and L7 dispatcher wiring |
+| [L7 Alert Enrichment](l7-alert-enrichment.md) | Professional | `L7Enricher` mapping Vectorscan + policy signals to OWASP Top 10, MITRE ATT&CK (T1190/T1059/T1048/T1069/T1078/T1040/T1555) and PCI-DSS 6.5. SIEM export + compliance-report wiring |
+| [Dashboard UI](dashboard.md) | Enterprise | Angular console over a fleet: OIDC login, tenant scope enforced server-side, a screen per feature |
+| [Cases](cases.md) | Enterprise | Alerts grouped into cases with an owner, a status and one timeline, time to acknowledge and time to resolve, false-positive suppressions that expire, and an incident evidence pack |
+| [Kubernetes Operator](kubernetes-operator.md) | Professional | One agent resource and 36 policy resources reconciled into an agent DaemonSet |
+| [Bare-Metal Load Balancer](bare-metal-load-balancer.md) | Professional | Services of type LoadBalancer given an address from your pools, served by XDP, announced over ARP or BGP |
+| [Content Channel](content-channel.md) | Professional | Signed, versioned content sets (rules, data patterns, fingerprints, provider definitions, models, TLS build offsets) delivered between releases, verified before a file is applied, rolled back or pinned per set |
+| [Base Anomaly Model](base-model.md) | Enterprise | The model that scores while ML detection learns its own baseline: built by us, delivered through the content channel, measured again on each machine before it runs |
+| [Reachable Vulnerabilities](reachable-vulnerabilities.md) | Professional | Your scanner's findings joined with the packages this host runs, maps, listens with and lets the outside reach |
+| [Tamper Protection](tamper-protection.md) | Enterprise | The kernel refuses a signal, a trace or an unpin aimed at the agent, root included, until a signed stop for that node opens a short window; needs the BPF LSM at boot (`bpf` in `lsm=`), `ebpfsentinel-agent ebpf host-check` answers for your host, and without it an agent going quiet without a signed stop is still raised by the console, the federation and the HA peer |
+| [Hunting](hunting.md) | Enterprise | A short query language over the tenant's alerts, forensic events and flows in the console's history store, scoped to the tenant by the server |
+| [Proof for Regulated Estates](regulated-estates.md) | Critical | NIS2 and DORA notification drafts, dated control evidence, runtime attestation of the released bytes and a sealed audit record |
 
 ## API Surface
 
@@ -99,7 +105,7 @@ and a note is written under the identity the agent authenticated, not under the
 
 ### The open-source surface
 
-The enterprise agent also serves 130 operations of the open-source agent, with
+The enterprise agent also serves the operations of the open-source agent, with
 the open-source handlers and bodies: the firewall, IDS, IPS, rate-limit,
 DDoS, NAT, routing, load-balancer, QoS, zone and alias rules, connection
 tracking, DNS, GeoIP, threat-intel indicators, L7 rules, DLP, TLS handshakes
