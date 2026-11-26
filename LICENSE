@@ -1,0 +1,26 @@
+eBPFsentinel documentation
+
+Copyright (c) the eBPFsentinel authors.
+
+The content of this repository - the pages under docs/, the images, clips and
+other files under static/, and every code sample, configuration example and
+command the pages contain - is licensed under the Creative Commons Attribution
+4.0 International License (CC BY 4.0).
+
+You are free to share and adapt it for any purpose, including commercially,
+provided you give appropriate credit, provide a link to the licence, and
+indicate if changes were made. Code samples are under the same terms.
+
+The eBPFsentinel name, the logos and the marks (static/img/ebpfsentinel-*.svg)
+are not licensed under CC BY 4.0: the licence grants no trademark rights, and
+they may be reproduced only to refer to eBPFsentinel.
+
+Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+Summary: https://creativecommons.org/licenses/by/4.0/
+
+This licence covers the documentation only. The software it describes is
+licensed separately: the open-source agent under AGPL-3.0, the enterprise
+layer, the Kubernetes operator and the console under their proprietary
+licence agreements. The build scripts of this site (scripts/, sidebars.ts,
+docusaurus.config.ts, src/) are licensed under the Apache License, Version
+2.0: https://www.apache.org/licenses/LICENSE-2.0

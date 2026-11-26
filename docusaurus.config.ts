@@ -103,7 +103,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `eBPFsentinel - AGPL-3.0 (OSS) · Enterprise edition proprietary.`,
+      copyright: `Documentation under CC BY 4.0 · eBPFsentinel agent AGPL-3.0 · Enterprise edition proprietary.`,
     },
     prism: {
       theme: prismThemes.github,

@@ -1,73 +1,59 @@
-# eBPFsentinel
+# ebpfsentinel-docs
 
-A unified, kernel-native **Network & Security platform** for Linux - one Rust binary that replaces your firewall, IDS/IPS, DDoS mitigation, DLP, and 10+ more tools, all running in-kernel via eBPF at wire speed. Not an endpoint agent - it enforces security inline, right where your traffic flows.
+The user documentation of eBPFsentinel: the open-source agent, the enterprise
+layer, the Kubernetes operator and the customer portal. It is a
+[Docusaurus](https://docusaurus.io/) site published at
+<https://docs.ebpfsentinel.io>. This README is for people changing the pages;
+readers start at the site.
 
-eBPFsentinel attaches eBPF programs at XDP, TC, and uprobe hook points to inspect, filter, and react to network traffic with no kernel modules and no packet copies to userspace for the fast path. Written entirely in Rust - kernel programs and userspace - using the [Aya](https://aya-rs.dev/) framework.
+## Working on the site
 
-## What It Does
+```bash
+pnpm install
+pnpm start        # local preview with live reload
+pnpm typecheck
+pnpm build        # the static site, as CI builds it
+```
 
-One agent binary carries every security domain. Its packet engines:
+Pages live under `docs/`, one folder per section. Every page is listed in
+`sidebars.ts`; a page missing there is a page nobody finds.
 
-| Domain | Description | Enforcement Point |
-|--------|------------|-------------------|
-| **Firewall** | L3/L4 stateful filtering with LPM trie CIDR, port ranges, GeoIP blocking, VLAN/QinQ 802.1ad, security zones, schedule-based rules, reject action (TCP RST / ICMP Unreachable) | XDP |
-| **IDS** | Intrusion detection with regex patterns, kernel-side sampling, L7 protocol detection, MITRE ATT&CK mapping | TC classifier |
-| **IPS** | Intrusion prevention with automatic IP and /24 subnet blacklisting | Shared with IDS |
-| **DLP** | Data loss prevention - PCI card numbers, PII, credential patterns via SSL/TLS uprobe interception | uprobe (SSL) |
-| **Rate Limiting** | Per-IP/subnet rate limiting with 4 algorithms (token bucket, fixed/sliding window, leaky bucket), per-country tiers, SYN cookie generation | XDP |
-| **DDoS Mitigation** | SYN cookie forging (XDP_TX), ICMP/UDP/RST/FIN/ACK flood detection, volumetric thresholds, EWMA state machine, auto-CIDR blocking | XDP + Userspace |
-| **Traffic Shaping / QoS** | Dummynet-inspired pipes (bandwidth/delay/loss), queues, 5-tuple+DSCP classifiers, per-pipe token bucket with ECN CE marking, EDT pacing (egress, needs `fq`), random loss | TC ingress + egress |
-| **Threat Intelligence** | Source-agnostic OSINT feeds (CSV, JSON, plaintext, STIX 2.1), address and CIDR range matching, atomic reload, auto-blocking | TC classifier |
-| **L7 Firewall** | Application-layer filtering for HTTP, TLS/SNI, gRPC, SMTP, FTP, SMB with GeoIP source/destination matching | Userspace |
-| **DNS Intelligence** | Passive DNS capture, domain blocklists, behavioral reputation scoring, encrypted DNS detection (DoH/DoT) | TC classifier |
-| **L4 Load Balancer** | TCP/UDP/TLS passthrough with round-robin, weighted, IP hash, least-connections algorithms | XDP |
-| **Connection Tracking** | Kernel netfilter CT probe via kfuncs, `nf_conn` field reading at runtime BTF offsets, SSE event stream | TC classifier |
-| **NAT** | SNAT/DNAT/masquerade/1:1/redirect/port-forward, NPTv6 (RFC 6296), hairpin NAT | TC ingress/egress |
-| **Packet Scrubbing** | TTL/hop limit normalization, MSS clamp, DF clear, IP ID random, TCP flag scrub, ECN strip, TOS normalize, TCP timestamp removal | TC classifier |
+## Checks
 
-Plus **policy routing** (multi-WAN failover, health checks, GeoIP gateway preference) and **zone segmentation** (interface-based security zones with inter-zone policies).
+The pages describe code that lives in other repositories, so every fact that
+can drift is generated from that code or checked against it. The scripts in
+`scripts/` expect the sibling repositories (`ebpfsentinel`,
+`ebpfsentinel-enterprise`, `ebpfsentinel-operator`, `ebpfsentinel-website`)
+checked out beside this one, which is how CI runs them.
 
-## Key Capabilities
+```bash
+pnpm run check:feature-counts   # any single check
+```
 
-- **IPv4/IPv6 dual-stack** across every IP-path eBPF program and userspace engine, with IPv6 extension header parsing and QinQ 802.1ad support
-- **31 eBPF programs** - 7 XDP (firewall, firewall-reject, ratelimit, ratelimit-syncookie, loadbalancer, vip-announcer, pass), 8 TC (ids, threatintel, conntrack, dns, nat-ingress, nat-egress, qos, scrub), 2 uprobes (dlp; the calls into the system crypto library, counted per process), 4 cgroup objects (attribution, seven socket hooks; workload-firewall, six; connect-redirect, three, loaded only by the enterprise agent where a TLS redirect is configured; clusterip, resolving Service cluster addresses at `connect()`, loaded only where that resolution is on), 4 raw-tracepoint objects (process exec and exit; stopping a process, loaded only where that capability is turned on; the reasons the kernel drops packets; the health of TCP connections per edge) and 6 BPF LSM objects (each executable's SHA-256 taken from IMA at the exec, loaded only where the process table runs and the BPF LSM and IMA are active; the executables allowed to reach the network, loaded only where that list is turned on and the BPF LSM is active, which `ebpfsentinel-agent ebpf host-check` answers for a host in one line; the guard keeping the agent's own maps and links from being rewritten or detached; the refusal, loaded by the warden only where the kernel verifies program signatures and the BPF LSM is active, of a program load through the agent's token that is not signed against the warden's keyring; the refusal of a signal, a trace or an unpin aimed at the agent, loaded only by the enterprise agent under tamper protection and where the BPF LSM is active; the refusal of a writer's write-opens past a count under watched directories, loaded only where it is turned on and the BPF LSM is active). `xdp-vip-announcer` answers ARP for load-balancer VIPs; `xdp-pass` is a test-only veth helper
-- **Multi-NIC support** - attach to multiple interfaces, bond masters, VLAN trunks. [Interface groups](docs/features/interface-groups.md) for per-interface rule scoping (up to 31 groups)
-- **XDP tail-call chaining** - firewall → reject, firewall → ratelimit, ratelimit → syncookie in single attach points
-- **XDP_TX packet forging** - firewall reject (TCP RST / ICMP Unreachable), SYN cookie SYN+ACK generation
-- **Parallel event dispatch** - configurable worker count (default 4), deterministic per-source partitioning, lock-free ArcSwap service access
-- **MITRE ATT&CK mapping** - every alert tagged with technique + tactic ID
-- **JA4 TLS fingerprinting** - ClientHello parsing in eBPF, JA4 client fingerprint computed in userspace (the JA4 method by FoxIO, BSD 3-Clause)
-- **Shared `ebpf-helpers` crate** - deduplicated network helpers, header parsing, metrics macros across all eBPF programs
-- **Container link hot-plug** - auto-attach TC programs to every container and pod link as it appears (veth, netkit, macvlan, ipvlan, bridge members)
-- **RingBuf adaptive backpressure** - skip event emission when buffer >75% full
-- **REST API** (Axum) with OpenAPI 3.0, Swagger UI, CORS, 65+ endpoints
-- **gRPC streaming** (tonic) for real-time alert subscriptions with severity, component, MITRE filters
-- **JWT / OIDC / API key authentication** with role-based access control (Admin, Operator, Viewer)
-- **TLS 1.3** via rustls + aws-lc-rs, post-quantum ready (X25519MLKEM768 hybrid)
-- **Prometheus metrics** with per-domain counters, histograms, per-worker dispatch metrics, and kernel-side eBPF counters
-- **OTLP export** - alerts as OpenTelemetry Logs (gRPC or HTTP) to any OTLP-compatible collector
-- **Alert pipeline** with routing to email, webhook, log, and OTLP sinks, concurrent sender dispatch
-- **Hot reload** of configuration without restart (SIGHUP, file watcher, or API trigger)
-- **CLI** with 47 subcommands (status, conntrack, firewall, ids, dns, dlp, etc.) and table/JSON output
-- **Helm chart** for Kubernetes DaemonSet deployment with JSON schema validation
+| Check | Holds |
+|---|---|
+| `check:feature-counts` | counts marked `<!-- feature-count: <kind> -->` |
+| `check:metrics`, `check:ebpf-metric-slots` | metric names and kernel counter slots exist |
+| `check:rest-routes`, `check:vendored-openapi`, `check:request-bodies` | routes, the vendored OpenAPI document and JSON bodies match the agent |
+| `check:route-commands` | the enterprise command named beside each route exists and calls it |
+| `check:config-keys` | every configuration key the loaders accept is documented |
+| `check:feature-suites` | every feature page names the test suites behind it |
+| `check:cli-reference`, `check:cli-invocations` | every subcommand and command on a page parses |
+| `check:grpc-reference`, `check:crd-reference`, `check:mitre-coverage`, `check:suricata-keywords`, `check:sigma-fields`, `check:intel-objects` | generated reference tables |
+| `check:above-the-floor`, `check:kernel-matrices` | kernel capability tables and the kernel floor |
+| `check:lockdown-programs`, `check:cni-matrix`, `check:host-rule-limits`, `check:shipped-host-rules` | tables generated from the agent's sources |
+| `check:enterprise-tiers` | the tier of every licensed page, from the website's price table |
+| `check:media-copy` | the clips in `static/media/` match the website's render manifest |
+| `check:no-waf-claim`, `check:no-protection-claim`, `check:no-typographic-dash` | wording rules |
 
-## Who Is This For?
+A generated table is rewritten with the matching `pnpm run generate:<name>`,
+never edited by hand. When a check fails, fix the page or regenerate; do not
+loosen the checker.
 
-- **Security engineers** who need kernel-speed network detection and response without kernel modules
-- **Platform teams** deploying network security on Linux hosts, VMs, or Kubernetes nodes
-- **Compliance teams** needing audit trails, DLP, and threat detection for PCI-DSS, HIPAA, NIS2, DORA
-- **Teams migrating** from iptables + Suricata + tc + ipset + fail2ban to a single unified agent
+## Licence
 
-## OSS vs Enterprise
-
-eBPFsentinel is open source (AGPL-3.0). Every engine of the agent, the REST/gRPC API, CLI, authentication, TLS, Prometheus, OTLP, MITRE ATT&CK, and JA4 fingerprinting are included, on as many hosts as you like. A few engines stop at a ceiling the agent states when a configuration crosses it: three automatic response policies, one alert-triggered capture of at most 60 s, DLP in alert mode on the built-in card, national identifier and credential patterns, and three fixed roles. The paid tiers lift them.
-
-An [enterprise edition](docs/features/enterprise/overview.md) adds ML anomaly detection, advanced DLP (Vectorscan), multi-tenancy, SIEM integration (Splunk, Elastic, QRadar, S3, OTLP), compliance reporting (PCI-DSS, NIS2, DORA), HA clustering, multi-cluster federation, RBAC, air-gap deployment, analytics, AI/LLM security, TLS intelligence (behavioral scoring, cipher downgrade detection, SNI/cert mismatch, session tracking, beaconing bridge, ONNX ML, peer-group rarity), network forensics, and automated response orchestration.
-
-## Next Steps
-
-- [Prerequisites](docs/getting-started/prerequisites.md) - verify your system meets the requirements
-- [Installation](docs/getting-started/installation.md) - build from source or use Docker
-- [Quickstart](docs/getting-started/quickstart.md) - get the agent running in 5 minutes
-- [Core Concepts](docs/getting-started/concepts.md) - understand the architecture before diving in
-- [Kubernetes Deployment](docs/operations/deployment/kubernetes.md) - Helm chart and DaemonSet guide
+The documentation, code samples included, is licensed under
+[Creative Commons Attribution 4.0 International](LICENSE) (CC BY 4.0); the
+build scripts of the site are under Apache-2.0. The
+software it describes carries its own licences: the open-source agent is
+AGPL-3.0, the enterprise layer, the operator and the console are proprietary.
