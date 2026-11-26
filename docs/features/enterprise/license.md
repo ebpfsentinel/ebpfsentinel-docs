@@ -1,6 +1,6 @@
 # Enterprise License System
 
-> **Edition: Enterprise**
+> **Edition: Professional and above**
 
 ## Overview
 
@@ -68,18 +68,18 @@ is answered here rather than in a changelog.
 |-------------|----------------|--------------------------|
 | `advanced-dlp` | Hyperscan DLP, custom patterns, block mode, the [TLS inspection proxy](dlp.md#tls-deep-inspection) and the connection redirect that feeds it | - |
 | `ml-detection` | The anomaly engines: baseline, streaming, change point, ONNX model, heavy hitters, DGA and tunnelling, TLS fingerprint clustering and beaconing | The learned [mass encryption thresholds](ml-detection.md#mass-encryption-thresholds), per executable and per host, from the first release carrying the host capabilities |
-| `multi-tenancy` | Namespace-scoped policy isolation | - |
+| `multi-tenancy` | Namespace-scoped policy isolation; in the dashboard, the queue across tenants and policy templates | - |
 | `siem-integration` | SIEM export connectors | - |
 | `compliance-reports` | Generated evidence for an audit, in JSON, CSV and PDF | The host controls: a mass encryption run stopped, watched files changed, the package inventory and the scanner reports joined with it, from the first release carrying the host capabilities |
 | `high-availability` | Active-passive and active-active clustering | - |
 | `multi-cluster` | Federated policy management, and the estate graph | - |
 | `advanced-rbac` | Per-domain/resource permissions | - |
 | `air-gap` | Offline operation mode | - |
-| `advanced-analytics` | Historical traffic analytics | - |
+| `advanced-analytics` | Historical traffic analytics; in the dashboard, hunting and saved hunts | - |
 | `fleet-management` | Fleet agent management, SBOMs, host rules and their promotion | The host verdicts read across the fleet: file drift between nodes, the mass encryption and write refusal readings by workload and their promotion, and [reachable vulnerabilities](reachable-vulnerabilities.md), from the first release carrying the host capabilities |
 | `ai-llm-security` | AI/LLM traffic security | - |
 | `tls-intelligence` | TLS threat intelligence & PQC compliance, the TLS library probes beyond OpenSSL, and on them which processes a configured redirect covers | - |
-| `network-forensics` | Event ring buffer, context freezes, flow timeline and the investigation graph | The campaign: the beacon and the exfiltration an actor raised before a mass encryption, gathered with it, including an encryption written for a client on another host, from the first release carrying the host capabilities |
+| `network-forensics` | Event ring buffer, context freezes, flow timeline and the investigation graph; in the dashboard, cases | The campaign: the beacon and the exfiltration an actor raised before a mass encryption, gathered with it, including an encryption written for a client on another host, from the first release carrying the host capabilities |
 | `automated-response` | Policy engine, approvals and SOAR webhooks; blocking, rate limiting, isolating a flow, killing a process | Stopping a mass encryption run, the process and every process it started, from the first release carrying the host capabilities. **Not** the write refusal: see below |
 | `kubernetes-operator` | The Kubernetes operator, which refuses to start without it | - |
 | `content-channel` | Signed detection content delivered on an interval: rules, patterns, fingerprints, provider definitions and models | - |
