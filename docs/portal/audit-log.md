@@ -65,7 +65,15 @@ The newest lines come first; **Show more** reads further back.
 newest first. The screen says how many lines a file holds at most; narrow the
 window to go further back.
 
+## For your own security tooling
+
+An automation token reads the organisation's log oldest first, a page at a time,
+so a SIEM or a script follows it without anybody signing in. How to create the
+token and follow the log is in
+[Automation](automation.md#pulling-the-audit-log).
+
 ## See also
 
 - [Finding Your Way Around the Portal](overview.md)
+- [Automation and the Organisation's Security Policy](automation.md)
 - [Your Data](your-data.md)

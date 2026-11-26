@@ -44,6 +44,7 @@ const sidebars: SidebarsConfig = {
         'portal/analytics',
         'portal/single-sign-on',
         'portal/audit-log',
+        'portal/automation',
         'portal/support',
         'portal/mail-from-us',
         'portal/your-data',

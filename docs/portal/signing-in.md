@@ -126,6 +126,8 @@ Some acts are only done by somebody who proved who they are in the last
   and the trial key;
 - changing the card, on **Billing**;
 - creating a join secret or issuing an ingest token, and erasing telemetry readings;
+- creating an automation token, and saving the organisation's security policy or
+  asking for its restrictions to be lifted (see [Automation](automation.md));
 - on **Single sign-on**: saving the provider, checking a domain, **Save mapping**,
   turning the provider on, replacing the sign-in
   address and issuing a SCIM token;

@@ -65,12 +65,15 @@ administrator, billing and member; a member reads and changes nothing:
 | Licence keys | **Licence keys** | The screen headed **Licence keys**: issuing, downloading, replacing and revoking the key, the offline bundle, and the 14-day Enterprise trial key. See [Billing and Licence Keys](billing-and-licence-keys.md#licences). | Owners and administrators |
 | Deployments | **Deployments** | Deployments, their join secrets, their agents, their telemetry switch and erasing what each one sent. See [Deployments and Agents](deployments-and-agents.md). | Everybody reads it; owners and administrators change it |
 | Deployments | **Usage** | What you bought, what the key admits and what is running. **What your licence key admits** sets the key's ceiling beside the subscription's, because a plan change replaces nothing: when the key admits fewer agents than the subscription pays for, the screen says your own agents will refuse ones already paid for, with **Replace the key** for owners and administrators. An order waiting for payment is named with the agents on it and counts toward nothing until it is paid. | Everybody |
+| Deployments | **Content** | The rules, patterns and models your subscription delivers through the content channel, what your plan withholds, and how many of your machines have taken the version published. See [Content Channel](../features/enterprise/content-channel.md). | Everybody |
 | Deployments | **Downloads** | Above the releases, **What changed since the version you run**: the versions your agents report and how many run each, then, when the oldest of them is behind the recommended release, the notes of the releases in between and only those - what to do **Before upgrading** first, then per product its **Security**, **Features** and **Fixes** entries, each tagged with the version that brought it. A build from source reports a version no release carries, and the screen says so rather than guessing a span. Below it, every published release your licence lets you run, newest first, with the one to install marked **Recommended**: each file linked to the release that publishes it with its SHA-256 beside it, and a block to copy that downloads the files, checks the signed checksum list with `cosign verify-blob` and then checks each file against it, plus a `cosign verify` line per image. A product your key does not carry is named under the release rather than left out, with **Change plan** for owners and billing members. Nothing is served by the portal itself: every file comes from the release. | Everybody |
 | Analytics | **Analytics** | The counters your agents send once telemetry is on, read over a window in four views: **Posture**, **Activity**, **Health and capacity** and **Feeds**. See [Analytics](analytics.md). | Everybody |
 | Organisation | **Members** | Members, their roles, whether each one has two-step verification, and the invitations nobody has taken up yet. See [Members and Invitations](members-and-invitations.md). | Everybody reads it; owners and administrators change it |
+| Organisation | **Support** | Writing to us when the screens did not answer, with your plan, versions and deployment attached. See [Support](support.md). | Everybody |
 | Organisation | **Single sign-on** | Your own identity provider and directory provisioning. See [Single Sign-On and Provisioning](single-sign-on.md). | Owners and administrators |
+| Organisation | **Automation tokens** | Tokens your own pipeline uses to rotate join secrets and pull the audit log without anybody signing in. See [Automation](automation.md). | Owners and administrators |
 | Organisation | **Audit log** | Everything done to the organisation. See [Audit Log and Activity](audit-log.md). | Owners and administrators |
-| Organisation | **Settings** | The organisation's name, where the billing details live, and closing the organisation. | Owners and administrators |
+| Organisation | **Settings** | The organisation's name, where the billing details live, the security policy (two-step verification, how everybody signs in, allowed networks; see [Automation and the Organisation's Security Policy](automation.md#the-organisations-security-policy)), and closing the organisation. | Owners and administrators; only an owner changes the security policy |
 
 An address you were sent for a section your role does not open says which roles
 hold it and names the people in the organisation who can do it for you.
@@ -109,8 +112,11 @@ billing**, **Database schema** and **Metrics and analytics**, with the moment it
 checked. It reads **All systems operational**, **Degraded** or **Outage**, and
 names what is impaired. Analytics is marked optional: when it is down the
 graphs are missing, and your subscription, your keys and your agent count are
-not affected. If the page itself does not answer, the status of our
-infrastructure is published outside the portal.
+not affected. If the page says the portal is not answering, try again in a few
+minutes; if it still does not answer, open a support request ([Support](support.md))
+once the portal is back. The ticket carries your plan, versions and deployment,
+and the answer comes in writing. No status page is published outside the
+portal.
 
 ## See also
 
