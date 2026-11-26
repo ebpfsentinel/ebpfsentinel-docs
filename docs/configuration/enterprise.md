@@ -857,8 +857,10 @@ The agent joins once with the **join secret** a person minted in the portal,
 stores the per-agent credential it receives at `state_path`, and heartbeats from
 then on. The two secrets are not interchangeable: the join secret can be
 withdrawn without touching agents that already joined, and the stored credential
-only ever heartbeats. An agent that is refused (HTTP 401) discards its stored
-credential and joins again; an agent that simply cannot reach the portal keeps
+only ever heartbeats. An agent whose credential is refused (HTTP 401) discards it
+and joins again, logging `The portal refused this agent's credential; enrolled
+again`; a refused join secret logs `Portal reporting failed` with `the portal
+refused the secret`; an agent that simply cannot reach the portal keeps
 what it holds and retries with a backoff that grows to fifteen minutes.
 
 What travels is the agent's name, its version, and on each heartbeat the
@@ -918,7 +920,8 @@ rule identifier or an alert. Nothing in the wire format has a field that could.
 Its credential is a third one. The **ingest secret** is not the licence key and
 not the join secret: it is minted per deployment, revocable on its own, and read
 from `EBPFSENTINEL_PORTAL_INGEST_SECRET` first, then from `ingest_secret_file`,
-then from `ingest_secret`. Refusing it (HTTP 401) stops the readings and never
+then from `ingest_secret`. Refusing it (HTTP 401, logged as `The portal refused
+this deployment's ingest secret; telemetry has stopped`) stops the readings and never
 costs the agent its enrolment, so revoking analytics does not take a deployment
 out of the entitlement count.
 

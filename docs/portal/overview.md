@@ -91,11 +91,11 @@ The menu in the header opens **Your account** at `/account`: your name and
 address under **Details**, your password, and every browser signed in as you
 under **Signed in**. Three links lead further:
 
-- **Two-step verification and passkeys**, which opens the screen headed **Two-step
+- **Sign-in and security**, which opens the screen headed **Two-step
   verification** at `/account/security`: see [Signing In](signing-in.md).
 - **Everything done with your account**: your own activity, see
   [Audit Log and Activity](audit-log.md).
-- **Take a copy of your data, or delete your account**: see
+- **Your data**, to take a copy of your data or delete your account: see
   [Your Data](your-data.md).
 
 One line above every account screen leads back: **Back to your organisation**

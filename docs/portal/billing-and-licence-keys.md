@@ -317,9 +317,11 @@ period.
   date, but it is no longer the key your subscription stands behind: install the new
   file on every machine.
 - **Revoke this key**, then **Revoke it**, with a reason. It cannot be
-  undone, and nothing reaches machines already running on the file: they keep
-  running on it until you replace it or it expires. The offline bundle lists it
-  as revoked, so agents checking the bundle can refuse it.
+  undone. Agents enrolled with the portal stop honouring it one heartbeat and
+  one minute later, see
+  [Revocations reach connected agents on their own](#revocations-reach-connected-agents-on-their-own);
+  agents with no route to the portal learn it from the next offline bundle you
+  carry to them.
 
 Owners and administrators are mailed when a key is issued or replaced, and
 thirty, fourteen and three days before it runs out.

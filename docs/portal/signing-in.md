@@ -63,7 +63,7 @@ changes it where the provider keeps it.
 
 ## Two-step verification and passkeys
 
-**Your account** links to **Two-step verification and passkeys**, which opens the screen
+**Your account** links to **Sign-in and security**, which opens the screen
 titled **Two-step verification** at `/account/security`. A licence key is only issued to
 an account holding an authenticator or a passkey, so arm one before you need a
 key.

@@ -116,7 +116,7 @@ Several tokens can be live at once, so a rotation costs no downtime.
 
 ## On your own account
 
-**Your account** links to **Identity providers you sign in through**, which lists
+**Your account** links to **Identity providers**, which lists
 the directories that can sign in as you, when each was linked and when it was
 last seen. It changes nothing.
 

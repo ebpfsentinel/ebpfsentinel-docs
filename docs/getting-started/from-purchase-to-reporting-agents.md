@@ -139,7 +139,7 @@ ask:
 ## 2. Set up two-step verification
 
 A licence key is not issued to an account held by a password alone. Open your
-account, then **Two-step verification and passkeys**, and arm one of:
+account, then **Sign-in and security**, and arm one of:
 
 - **Authenticator**: an app on a device you hold. Add it by scanning the QR
   code with the app, or by typing the secret written out beside it, then type
@@ -287,7 +287,7 @@ actually running. It is the proof the steps above worked.
 If a node is missing, work through the checklist on the deployment, see
 [When nothing reports](../portal/deployments-and-agents.md#when-nothing-reports).
 The agent says why in its own log: a refused join secret
-is an HTTP 401, a portal it cannot reach is retried with a backoff that grows to
+logs `Portal reporting failed` with `the portal refused the secret`, a portal it cannot reach is retried with a backoff that grows to
 fifteen minutes, and `GET /api/v1/license` on the agent shows whether the key
 was accepted.
 

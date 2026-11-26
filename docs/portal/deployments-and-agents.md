@@ -60,7 +60,8 @@ The deployment page carries a checklist, to go through in this order:
    upgraded since.
 4. The agent's own log says why: `kubectl -n ebpfsentinel logs
    daemonset/ebpfsentinel-enterprise`, or `journalctl -u ebpfsentinel-enterprise`
-   on a host. A refused join secret is an HTTP 401.
+   on a host. A refused join secret logs `Portal reporting failed` with
+   `the portal refused the secret`.
 5. An agent counts as not reporting after five minutes without a report, and
    counts again as soon as it reports.
 
